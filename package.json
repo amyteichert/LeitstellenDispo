@@ -1,0 +1,21 @@
+{
+  "name": "leitstellendispo",
+  "version": "0.1.0-alpha",
+  "private": true,
+  "description": "LeitstellenDispo – Deine Leitstelle. Deine Einsätze. Deine Entscheidungen.",
+  "workspaces": [
+    "client",
+    "server",
+    "shared"
+  ],
+  "scripts": {
+    "dev": "concurrently \"npm run dev:server\" \"npm run dev:client\"",
+    "dev:client": "npm run dev --workspace=client",
+    "dev:server": "npm run dev --workspace=server",
+    "build": "npm run build --workspace=shared && npm run build --workspace=server && npm run build --workspace=client",
+    "start": "npm run start --workspace=server"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  }
+}
