@@ -189,7 +189,7 @@ function App() {
           { /* Version chip kept for visibility */ }
           <span className="chip">V{APP_VERSION}</span>
 
-          <div className="view-dropdown" style={{ position: 'relative', display: 'inline-block', marginLeft: 8 }}>
+          <div className="view-dropdown">
             {/* Trigger button */}
             <button
               type="button"
@@ -198,11 +198,11 @@ function App() {
               aria-haspopup="true"
               aria-expanded={dropdownOpen}
             >
-              {currentView} ▼
+            {currentView} <span className="chev" aria-hidden>▼</span>
             </button>
 
             {dropdownOpen && (
-              <div className="view-dropdown__menu" style={{ position: 'absolute', right: 0, marginTop: 6, zIndex: 1000 }}>
+            <div className="view-dropdown__menu">
                 <ul style={{ listStyle: 'none', padding: 8, margin: 0 }}>
                   {['Karte', 'Wachen', 'Fahrzeuge', 'Einsätze', 'Finanzen', 'Einstellungen'].map((view) => (
                     <li key={view} style={{ marginBottom: 6 }}>
@@ -252,7 +252,7 @@ function App() {
               </select>
             </label>
 
-            <label className="field">
+            <label className="field field--address">
               <span>Adresse</span>
               <input
                 type="text"
@@ -271,13 +271,13 @@ function App() {
 
               {geocodeResults.length > 0 && (
                 <div className="geocode-results">
-                  <small>Gefundene Adressen — Auswahl zur Prüfung:</small>
+                  <small style={{ display: 'block', color: 'rgba(255,255,255,0.7)', marginBottom: 6 }}>Gefundene Adressen — Auswahl zur Prüfung:</small>
                   <ul>
                     {geocodeResults.map((r, idx) => (
                       <li key={r.place_id}>
                         <button
                           type="button"
-                          className={`btn btn--ghost ${selectedGeocodeIndex === idx ? 'active' : ''}`}
+                          className={`view-menu-item ${selectedGeocodeIndex === idx ? 'active' : ''}`}
                           onClick={() => {
                             setTempCoords([parseFloat(r.lat), parseFloat(r.lon)]);
                             setSelectedGeocodeIndex(idx);

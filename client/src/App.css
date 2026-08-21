@@ -466,13 +466,23 @@
   margin-left: 4px;
 }
 
+.view-dropdown {
+  position: relative;
+  display: inline-block;
+  margin-left: 8px;
+}
+
 .view-dropdown__menu {
+  position: absolute;
+  right: 0;
+  margin-top: 6px;
   min-width: 200px;
   background: linear-gradient(180deg,#2b0a0a,#1b0505);
   color: #fff;
   border-radius: 8px;
   box-shadow: 0 12px 36px rgba(0,0,0,0.36);
   padding: 6px;
+  z-index: 3000; /* higher z-index so it sits above other UI */
 }
 
 .view-menu-item {
@@ -576,6 +586,39 @@
 .view-dropdown__menu button[disabled] {
   opacity: 0.45;
   cursor: not-allowed;
+}
+
+/* Geocode results dropdown for the address input */
+.field--address {
+  position: relative; /* container for absolute dropdown */
+}
+
+.geocode-results {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: calc(100% + 8px);
+  z-index: 2100; /* slightly below the main nav dropdown but above map */
+  max-height: 220px;
+  overflow: auto;
+  padding: 8px;
+  border-radius: 8px;
+  background: linear-gradient(180deg,#2b0a0a,#1b0505);
+  box-shadow: 0 12px 36px rgba(0,0,0,0.28);
+}
+
+.geocode-results ul { margin: 0; padding: 0; list-style: none; }
+
+.geocode-results .view-menu-item {
+  padding: 8px 10px;
+  border-radius: 6px;
+  background: transparent;
+  color: #fff;
+  font-size: 0.9rem;
+}
+
+.geocode-results .view-menu-item:hover {
+  background: rgba(255,255,255,0.04);
 }
 
 @media (max-width: 900px) {
