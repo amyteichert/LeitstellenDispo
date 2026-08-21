@@ -69,12 +69,66 @@ function App() {
   const [draftName, setDraftName] = useState('Neue Rettungswache');
   const [draftType, setDraftType] = useState<LocationType>('station');
 
+  // New states for address search and preview behavior
+  const [address, setAddress] = useState('');
+  const [geocodeResults, setGeocodeResults] = useState<Array<any>>([]);
+  const [geocodeLoading, setGeocodeLoading] = useState(false);
+  const [geocodeError, setGeocodeError] = useState<string | null>(null);
+  const [tempCoords, setTempCoords] = useState<[number, number] | null>(null);
+  const [selectedGeocodeIndex, setSelectedGeocodeIndex] = useState<number | null>(null);
+
   const selectedLocation = useMemo(
     () => locations.find((location) => location.id === selectedId) ?? locations[0],
     [locations, selectedId],
   );
 
-  const addLocationAtMapClick = (event: LeafletMouseEvent) => {
+  const handleMapClick = (event: LeafletMouseEvent) => {
+    // Move temporary preview marker to clicked position; do NOT create a location
+    const coords: [number, number] = [event.latlng.lat, event.latlng.lng];
+    setTempCoords(coords);
+    setSelectedGeocodeIndex(null);
+    setGeocodeResults([]);
+    setGeocodeError(null);
+  };
+
+  const geocodeAddress = async (q: string) => {
+    if (!q.trim()) {
+      setGeocodeError('Bitte eine Adresse eingeben.');
+      return;
+    }
+    setGeocodeLoading(true);
+    setGeocodeError(null);
+    setGeocodeResults([]);
+    setSelectedGeocodeIndex(null);
+
+    try {
+      const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}&addressdetails=1&limit=5`;
+      const res = await fetch(url);
+      if (!res.ok) throw new Error('Geocoding konnte nicht durchgeführt werden (Netzwerkfehler).');
+      const data = await res.json();
+      if (!Array.isArray(data) || data.length === 0) {
+        setGeocodeError('Adresse nicht gefunden.');
+        setGeocodeLoading(false);
+        return;
+      }
+      setGeocodeResults(data);
+      // Choose the first sensible result as preview
+      const first = data[0];
+      setTempCoords([parseFloat(first.lat), parseFloat(first.lon)]);
+      setSelectedGeocodeIndex(0);
+    } catch (err: any) {
+      setGeocodeError(err?.message ?? 'Unbekannter Fehler bei der Adresssuche.');
+    } finally {
+      setGeocodeLoading(false);
+    }
+  };
+
+  const createLocationFromTemp = () => {
+    const coords = tempCoords;
+    if (!coords) {
+      alert('Keine Position ausgewählt. Bitte Adresse suchen oder auf die Karte klicken, um eine Vorschau zu setzen.');
+      return;
+    }
     const name = draftName.trim() || 'Neuer Standort';
     const locationId = `${name.toLowerCase().replace(/\s+/g, '-')}-${Date.now()}`;
 
@@ -82,16 +136,18 @@ function App() {
       id: locationId,
       name,
       type: draftType,
-      coords: [event.latlng.lat, event.latlng.lng],
+      coords,
       description: draftType === 'incident' ? 'Einsatzort' : 'Rettungsdienst',
-      details:
-        draftType === 'incident'
-          ? 'Eigener Einsatzbereich / Ereignisort'
-          : 'Frei platzierbarer Rettungsstandort',
+      details: address.trim() || (draftType === 'incident' ? 'Eigener Einsatzbereich / Ereignisort' : 'Frei platzierbarer Rettungsstandort'),
     };
 
     setLocations((current) => [...current, nextLocation]);
     setSelectedId(locationId);
+    // clear temp preview and address/choices
+    setTempCoords(null);
+    setAddress('');
+    setGeocodeResults([]);
+    setSelectedGeocodeIndex(null);
   };
 
   const deleteLocation = (id: string) => {
@@ -115,7 +171,8 @@ function App() {
 
         <div className="brand">
           <div className="brand__text">
-            {/* Title and subtitle intentionally removed as requested (empty space reserved) */}
+            <h1 style={{margin:0}}>{APP_NAME}</h1>
+            <small>{APP_SUBTITLE}</small>
           </div>
         </div>
 
@@ -151,7 +208,53 @@ function App() {
               </select>
             </label>
 
-            <p className="map-hint">Klicke auf die Karte, um den Standort selbst zu setzen.</p>
+            <label className="field">
+              <span>Adresse</span>
+              <input
+                type="text"
+                value={address}
+                onChange={(event) => setAddress(event.target.value)}
+                placeholder="Musterstraße 12, 14467 Potsdam"
+              />
+
+              <div style={{ marginTop: 8 }}>
+                <button type="button" onClick={() => geocodeAddress(address)} disabled={geocodeLoading}>
+                  {geocodeLoading ? 'Suche...' : 'Adresse suchen'}
+                </button>
+              </div>
+
+              {geocodeError && <div className="field-error">{geocodeError}</div>}
+
+              {geocodeResults.length > 0 && (
+                <div className="geocode-results">
+                  <small>Gefundene Adressen — Auswahl zur Prüfung:</small>
+                  <ul>
+                    {geocodeResults.map((r, idx) => (
+                      <li key={r.place_id}>
+                        <button
+                          type="button"
+                          className={selectedGeocodeIndex === idx ? 'selected' : ''}
+                          onClick={() => {
+                            setTempCoords([parseFloat(r.lat), parseFloat(r.lon)]);
+                            setSelectedGeocodeIndex(idx);
+                          }}
+                        >
+                          {r.display_name}
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </label>
+
+            <p className="map-hint">Adresse eingeben → Adresse suchen → Karte zeigt Position (Vorschau). Klicke auf die Karte, um Vorschau zu verschieben. Anschließend auf „Standort erstellen“ klicken.</p>
+
+            <div style={{ marginTop: 8 }}>
+              <button type="button" onClick={createLocationFromTemp} disabled={!tempCoords}>
+                Standort erstellen
+              </button>
+            </div>
           </div>
 
           <div className="location-list">
@@ -207,7 +310,17 @@ function App() {
               url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
             />
 
-            <MapClickHandler onMapClick={addLocationAtMapClick} />
+            <MapClickHandler onMapClick={handleMapClick} />
+
+            {tempCoords && (
+              <Marker position={tempCoords} icon={createMarkerIcon('#2563eb')}>
+                <Popup>
+                  <strong>Vorschau</strong>
+                  <br />
+                  Position prüfen. Drücke "Standort erstellen", um zu speichern.
+                </Popup>
+              </Marker>
+            )}
 
             {locations.map((location) => {
               const iconColor = location.type === 'incident' ? '#f59e0b' : '#d92d2d';
