@@ -5,16 +5,13 @@ import { APP_VERSION } from '@leitstellendispo/shared';
 import 'leaflet/dist/leaflet.css';
 import './App.css';
 
-type LocationType = 'station' | 'incident';
+import type { MapLocation, LocationType } from './types';
+import FahrzeugeView, { type Vehicle } from './views/FahrzeugeView';
+import WachenView from './views/WachenView';
+import EinsaetzeView from './views/EinsaetzeView';
+import FinanzenView from './views/FinanzenView';
+import EinstellungenView from './views/EinstellungenView';
 
-type MapLocation = {
-  id: string;
-  name: string;
-  type: LocationType;
-  coords: [number, number];
-  description: string;
-  details: string;
-};
 
 const initialLocations: MapLocation[] = [
   {
@@ -24,6 +21,7 @@ const initialLocations: MapLocation[] = [
     coords: [48.775, 9.1771],
     description: 'Rettungsdienst',
     details: 'Frei platzierbarer Standort',
+    price: 0,
   },
   {
     id: 'rettungswache-sued',
@@ -32,6 +30,7 @@ const initialLocations: MapLocation[] = [
     coords: [48.7692, 9.1931],
     description: 'Rettungsdienst',
     details: 'Frei platzierbarer Standort',
+    price: 0,
   },
   {
     id: 'einsatzort-beispiel',
@@ -68,6 +67,17 @@ function App() {
   const [selectedId, setSelectedId] = useState<string>(initialLocations[0].id);
   const [draftName, setDraftName] = useState('Neue Rettungswache');
   const [draftType, setDraftType] = useState<LocationType>('station');
+
+  // Vehicles state (prepared)
+  const [vehicles, setVehicles] = useState<Vehicle[]>([
+    { id: 'fahrzeug-1', name: 'RTW 1', stationId: 'rettungswache-zentrum', price: 0 },
+    { id: 'fahrzeug-2', name: 'LF 1', stationId: undefined, price: 0 },
+  ]);
+  void setVehicles; // mark as used to satisfy noUnusedLocals
+
+  // Finances
+  const [balance, setBalance] = useState<number>(0);
+  void setBalance; // mark as used to satisfy noUnusedLocals
 
   // New states for address search and preview behavior
   const [address, setAddress] = useState('');
@@ -389,61 +399,24 @@ function App() {
           </section>
         ) : (
           <section className="panel--secondary" style={{ padding: 16 }}>
-            <h2>{currentView}</h2>
-
             {currentView === 'Wachen' && (
-              <div>
-                <p>Übersicht aller Wachen:</p>
-                <ul>
-                  {locations.filter(l => l.type === 'station').map(w => (
-                    <li key={w.id} style={{ marginBottom: 8 }}>
-                      <strong>{w.name}</strong> — {w.description}
-                      <div>
-                      <button className="btn btn--secondary" type="button" onClick={() => { setSelectedId(w.id); selectView('Wachen'); }} style={{ marginTop: 6 }}>Details anzeigen</button>
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-
-                {locations.filter(l => l.type === 'station').length === 0 && <p>Keine Wachen vorhanden.</p>}
-
-                {/* Simple details area for the currently selected station (if it is a station) */}
-                {selectedLocation && selectedLocation.type === 'station' && (
-                  <div style={{ marginTop: 16, padding: 12, border: '1px solid rgba(0,0,0,0.06)', borderRadius: 6 }}>
-                    <h3>{selectedLocation.name}</h3>
-                    <p>{selectedLocation.details}</p>
-                    <p>Koordinaten: {selectedLocation.coords[0].toFixed(4)}, {selectedLocation.coords[1].toFixed(4)}</p>
-                  </div>
-                )}
-              </div>
+              <WachenView locations={locations} selectedId={selectedId} setSelectedId={setSelectedId} vehicles={vehicles} />
             )}
 
             {currentView === 'Fahrzeuge' && (
-              <div>
-                <p>Globale Fahrzeugübersicht (vorbereitet).</p>
-                <p>Noch keine Fahrzeuge implementiert — Platzhalteransicht.</p>
-              </div>
+              <FahrzeugeView vehicles={vehicles} />
             )}
 
             {currentView === 'Einsätze' && (
-              <div>
-                <p>Noch keine Einsätze vorhanden.</p>
-              <p>Diese Ansicht ist vorbereitet.</p>
-              </div>
+              <EinsaetzeView />
             )}
 
             {currentView === 'Finanzen' && (
-              <div>
-                <p>Guthaben: <strong>0 €</strong></p>
-                <p>Wachen und Fahrzeuge haben vorerst den Preis 0 €.</p>
-              </div>
+              <FinanzenView balance={balance} locations={locations} vehicles={vehicles} />
             )}
 
             {currentView === 'Einstellungen' && (
-              <div>
-                <p>Grundlegende Einstellungsansicht (Platzhalter).</p>
-                <p>Später kann hier die Standard-Startansicht gewählt werden.</p>
-              </div>
+              <EinstellungenView defaultView={currentView} />
             )}
           </section>
         )}
