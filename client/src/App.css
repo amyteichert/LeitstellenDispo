@@ -26,17 +26,20 @@
   /* Linke Kante bleibt unverändert (aktuelle visuelle Position beibehalten) */
   left: -8%;
   top: 0;
-  /* Breite so setzen, dass die rechte Kante exakt am rechten Fensterrand endet
-     (left:-8% + width:calc(100% + 8%) => rechte Kante = 100%) */
-  width: calc(100% + 8%);
   height: 100%;
+  /* Sicherstellen, dass das Bild mindestens bis zum rechten Rand reicht und
+     nicht von seiner intrinsischen Größe limitiert wird */
+  display: block;
+  width: auto; /* erlauben, dass object-fit die Darstellung kontrolliert */
+  min-width: calc(100% + 8%);
+  max-width: none;
   object-fit: cover; /* kein unnatürliches Verzerren */
   object-position: center;
   z-index: 0;
 }
 
-/* Keep header content above the banner */
-.topbar > * {
+/* Keep header content above the banner (exclude the banner image itself) */
+.topbar > :not(.topbar__banner) {
   position: relative;
   z-index: 1;
 }
