@@ -17,7 +17,7 @@
   box-shadow: none;
   color: #111827;
   position: relative;
-  overflow: hidden;
+  overflow: visible;
 }
 
 /* Full-width banner image inside the header */

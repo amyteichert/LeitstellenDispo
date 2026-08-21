@@ -198,7 +198,7 @@ function App() {
               aria-haspopup="true"
               aria-expanded={dropdownOpen}
             >
-            {currentView} <span className="chev" aria-hidden>▼</span>
+            {currentView} <span className="chev" aria-hidden></span>
             </button>
 
             {dropdownOpen && (
