@@ -432,6 +432,167 @@
   font: inherit;
 }
 
+/* Dropdown / view-trigger styling */
+.view-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.38rem 0.9rem;
+  border-radius: 999px;
+  background: linear-gradient(180deg, #9a1830, #7a0f20);
+  color: #fff;
+  font-size: 0.95rem;
+  border: 1px solid rgba(255,255,255,0.08);
+  cursor: pointer;
+  transition: transform 0.12s ease, box-shadow 0.12s ease;
+}
+
+.view-trigger:hover {
+  box-shadow: 0 8px 22px rgba(0,0,0,0.22);
+  transform: translateY(-2px);
+}
+
+.view-trigger:focus {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(196,30,58,0.12);
+}
+
+.view-trigger .chev {
+  width: 0;
+  height: 0;
+  border-left: 6px solid transparent;
+  border-right: 6px solid transparent;
+  border-top: 6px solid rgba(255,255,255,0.95);
+  margin-left: 4px;
+}
+
+.view-dropdown__menu {
+  min-width: 200px;
+  background: linear-gradient(180deg,#2b0a0a,#1b0505);
+  color: #fff;
+  border-radius: 8px;
+  box-shadow: 0 12px 36px rgba(0,0,0,0.36);
+  padding: 6px;
+}
+
+.view-menu-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 10px 14px;
+  border-radius: 8px;
+  background: transparent;
+  color: #fff;
+  border: none;
+  cursor: pointer;
+  font-size: 0.95rem;
+  transition: background 0.12s ease, transform 0.08s ease;
+}
+
+.view-menu-item:hover {
+  background: rgba(255,255,255,0.04);
+  transform: translateY(-1px);
+}
+
+.view-menu-item.active {
+  background: linear-gradient(90deg, rgba(196,30,58,0.16), rgba(196,30,58,0.08));
+  color: #fff;
+  box-shadow: inset 0 0 0 1px rgba(196,30,58,0.08);
+}
+
+/* Button system */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.5rem 0.9rem;
+  border-radius: 10px;
+  border: 0;
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: transform 0.12s ease, box-shadow 0.12s ease, opacity 0.12s ease;
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+.btn--primary {
+  background: linear-gradient(180deg,#c41e3a,#9a1830);
+  color: #fff;
+  box-shadow: 0 8px 20px rgba(196,30,58,0.18);
+}
+
+.btn--primary:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 30px rgba(196,30,58,0.22);
+}
+
+.btn--secondary {
+  background: linear-gradient(180deg,#ffffff,#f3f4f6);
+  color: #111827;
+  border: 1px solid #e6e7ea;
+  box-shadow: 0 4px 12px rgba(15,23,42,0.05);
+}
+
+.btn--secondary:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 18px rgba(15,23,42,0.08);
+}
+
+.btn--ghost {
+  background: transparent;
+  color: #fff;
+  padding: 8px 10px;
+}
+
+.btn--danger {
+  background: linear-gradient(180deg,#ff6b6b,#d92d2d);
+  color: #fff;
+  box-shadow: 0 8px 20px rgba(217,45,45,0.14);
+}
+
+.btn--danger:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 12px 28px rgba(217,45,45,0.18);
+}
+
+/* Make existing delete-button match the new system */
+.delete-button {
+  padding: 0.4rem 0.6rem;
+  border-radius: 10px;
+  background: transparent;
+  border: 1px solid #e5e7eb;
+  color: #9a1830;
+}
+
+.delete-button:hover {
+  background: #fff5f6;
+}
+
+.view-dropdown__menu button[disabled] {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+@media (max-width: 900px) {
+  .dashboard {
+    grid-template-columns: 1fr;
+  }
+
+  .sidebar {
+    border-right: none;
+    border-bottom: 1px solid #e5e7eb;
+  }
+
+  .map-view {
+    min-height: 52vh;
+  }
+}
+
 @media (max-width: 900px) {
   .dashboard {
     grid-template-columns: 1fr;

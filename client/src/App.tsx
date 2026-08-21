@@ -202,17 +202,18 @@ function App() {
             </button>
 
             {dropdownOpen && (
-              <div className="view-dropdown__menu" style={{ position: 'absolute', right: 0, marginTop: 6, background: '#2b0a0a', color: '#fff', borderRadius: 4, boxShadow: '0 6px 18px rgba(0,0,0,0.3)', zIndex: 1000 }}>
+              <div className="view-dropdown__menu" style={{ position: 'absolute', right: 0, marginTop: 6, zIndex: 1000 }}>
                 <ul style={{ listStyle: 'none', padding: 8, margin: 0 }}>
                   {['Karte', 'Wachen', 'Fahrzeuge', 'Einsätze', 'Finanzen', 'Einstellungen'].map((view) => (
-                    <li key={view} style={{ marginBottom: 4 }}>
+                    <li key={view} style={{ marginBottom: 6 }}>
                       <button
                         type="button"
+                        className={`view-menu-item ${currentView === view ? 'active' : ''}`}
                         onClick={() => {
                           selectView(view as any);
                           setDropdownOpen(false);
                         }}
-                        style={{ background: 'transparent', color: '#fff', border: 'none', padding: '6px 12px', textAlign: 'left', width: '100%' }}
+                        aria-current={currentView === view}
                       >
                         {view}
                       </button>
@@ -261,7 +262,7 @@ function App() {
               />
 
               <div style={{ marginTop: 8 }}>
-                <button type="button" onClick={() => geocodeAddress(address)} disabled={geocodeLoading}>
+                <button className="btn btn--primary" type="button" onClick={() => geocodeAddress(address)} disabled={geocodeLoading}>
                   {geocodeLoading ? 'Suche...' : 'Adresse suchen'}
                 </button>
               </div>
@@ -276,7 +277,7 @@ function App() {
                       <li key={r.place_id}>
                         <button
                           type="button"
-                          className={selectedGeocodeIndex === idx ? 'selected' : ''}
+                          className={`btn btn--ghost ${selectedGeocodeIndex === idx ? 'active' : ''}`}
                           onClick={() => {
                             setTempCoords([parseFloat(r.lat), parseFloat(r.lon)]);
                             setSelectedGeocodeIndex(idx);
@@ -294,7 +295,7 @@ function App() {
             <p className="map-hint">Adresse eingeben → Adresse suchen → Karte zeigt Position (Vorschau). Klicke auf die Karte, um Vorschau zu verschieben. Anschließend auf „Standort erstellen“ klicken.</p>
 
             <div style={{ marginTop: 8 }}>
-              <button type="button" onClick={createLocationFromTemp} disabled={!tempCoords}>
+              <button className="btn btn--primary" type="button" onClick={createLocationFromTemp} disabled={!tempCoords}>
                 Standort erstellen
               </button>
             </div>
@@ -318,7 +319,7 @@ function App() {
                 {/* Lösch-Button nur für Wachen (station) anzeigen */}
                 {location.type === 'station' && (
                   <button
-                    className="delete-button"
+                  className="btn btn--danger delete-button"
                     title={`Standort ${location.name} löschen`}
                     onClick={(e) => {
                       e.stopPropagation();
@@ -398,7 +399,7 @@ function App() {
                     <li key={w.id} style={{ marginBottom: 8 }}>
                       <strong>{w.name}</strong> — {w.description}
                       <div>
-                        <button type="button" onClick={() => { setSelectedId(w.id); selectView('Wachen'); }} style={{ marginTop: 6 }}>Details anzeigen</button>
+                      <button className="btn btn--secondary" type="button" onClick={() => { setSelectedId(w.id); selectView('Wachen'); }} style={{ marginTop: 6 }}>Details anzeigen</button>
                       </div>
                     </li>
                   ))}
