@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { MapContainer, Marker, Popup, TileLayer, useMapEvents } from 'react-leaflet';
 import L, { type LeafletMouseEvent } from 'leaflet';
-import { APP_NAME, APP_SUBTITLE, APP_VERSION } from '@leitstellendispo/shared';
+import { APP_VERSION } from '@leitstellendispo/shared';
 import 'leaflet/dist/leaflet.css';
 import './App.css';
 
@@ -81,6 +81,14 @@ function App() {
     () => locations.find((location) => location.id === selectedId) ?? locations[0],
     [locations, selectedId],
   );
+
+  // Navigation / view state (default: Karte)
+  const [currentView, setCurrentView] = useState<'Karte'|'Wachen'|'Fahrzeuge'|'Einsätze'|'Finanzen'|'Einstellungen'>('Karte');
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+
+  const selectView = (v: typeof currentView) => {
+    setCurrentView(v);
+  };
 
   const handleMapClick = (event: LeafletMouseEvent) => {
     // Move temporary preview marker to clicked position; do NOT create a location
@@ -171,14 +179,49 @@ function App() {
 
         <div className="brand">
           <div className="brand__text">
-            <h1 style={{margin:0}}>{APP_NAME}</h1>
-            <small>{APP_SUBTITLE}</small>
+            {/* Title and subtitle intentionally removed as requested (empty space reserved) */}
           </div>
         </div>
 
         <div className="topbar__meta">
+          {/* Single dropdown trigger showing the currently active main view */}
+          {/* Will render current view and open a small dropdown when clicked. */}
+          { /* Version chip kept for visibility */ }
           <span className="chip">V{APP_VERSION}</span>
-          <span className="chip chip--accent">Karte</span>
+
+          <div className="view-dropdown" style={{ position: 'relative', display: 'inline-block', marginLeft: 8 }}>
+            {/* Trigger button */}
+            <button
+              type="button"
+              className="chip chip--accent view-trigger"
+              onClick={() => setDropdownOpen((s) => !s)}
+              aria-haspopup="true"
+              aria-expanded={dropdownOpen}
+            >
+              {currentView} ▼
+            </button>
+
+            {dropdownOpen && (
+              <div className="view-dropdown__menu" style={{ position: 'absolute', right: 0, marginTop: 6, background: '#2b0a0a', color: '#fff', borderRadius: 4, boxShadow: '0 6px 18px rgba(0,0,0,0.3)', zIndex: 1000 }}>
+                <ul style={{ listStyle: 'none', padding: 8, margin: 0 }}>
+                  {['Karte', 'Wachen', 'Fahrzeuge', 'Einsätze', 'Finanzen', 'Einstellungen'].map((view) => (
+                    <li key={view} style={{ marginBottom: 4 }}>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          selectView(view as any);
+                          setDropdownOpen(false);
+                        }}
+                        style={{ background: 'transparent', color: '#fff', border: 'none', padding: '6px 12px', textAlign: 'left', width: '100%' }}
+                      >
+                        {view}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
         </div>
       </header>
 
@@ -303,45 +346,106 @@ function App() {
           </div>
         </aside>
 
-        <section className="map-panel">
-          <MapContainer center={[48.775, 9.185]} zoom={13} scrollWheelZoom className="map-view">
-            <TileLayer
-              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-            />
+        {currentView === 'Karte' ? (
+          <section className="map-panel">
+            <MapContainer center={[48.775, 9.185]} zoom={13} scrollWheelZoom className="map-view">
+              <TileLayer
+                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+              />
 
-            <MapClickHandler onMapClick={handleMapClick} />
+              <MapClickHandler onMapClick={handleMapClick} />
 
-            {tempCoords && (
-              <Marker position={tempCoords} icon={createMarkerIcon('#2563eb')}>
-                <Popup>
-                  <strong>Vorschau</strong>
-                  <br />
-                  Position prüfen. Drücke "Standort erstellen", um zu speichern.
-                </Popup>
-              </Marker>
-            )}
-
-            {locations.map((location) => {
-              const iconColor = location.type === 'incident' ? '#f59e0b' : '#d92d2d';
-
-              return (
-                <Marker
-                  key={location.id}
-                  position={location.coords}
-                  icon={createMarkerIcon(iconColor)}
-                  eventHandlers={{ click: () => setSelectedId(location.id) }}
-                >
+              {tempCoords && (
+                <Marker position={tempCoords} icon={createMarkerIcon('#2563eb')}>
                   <Popup>
-                    <strong>{location.name}</strong>
+                    <strong>Vorschau</strong>
                     <br />
-                    {location.details}
+                    Position prüfen. Drücke "Standort erstellen", um zu speichern.
                   </Popup>
                 </Marker>
-              );
-            })}
-          </MapContainer>
-        </section>
+              )}
+
+              {locations.map((location) => {
+                const iconColor = location.type === 'incident' ? '#f59e0b' : '#d92d2d';
+
+                return (
+                  <Marker
+                    key={location.id}
+                    position={location.coords}
+                    icon={createMarkerIcon(iconColor)}
+                    eventHandlers={{ click: () => setSelectedId(location.id) }}
+                  >
+                    <Popup>
+                      <strong>{location.name}</strong>
+                      <br />
+                      {location.details}
+                    </Popup>
+                  </Marker>
+                );
+              })}
+            </MapContainer>
+          </section>
+        ) : (
+          <section className="panel--secondary" style={{ padding: 16 }}>
+            <h2>{currentView}</h2>
+
+            {currentView === 'Wachen' && (
+              <div>
+                <p>Übersicht aller Wachen:</p>
+                <ul>
+                  {locations.filter(l => l.type === 'station').map(w => (
+                    <li key={w.id} style={{ marginBottom: 8 }}>
+                      <strong>{w.name}</strong> — {w.description}
+                      <div>
+                        <button type="button" onClick={() => { setSelectedId(w.id); selectView('Wachen'); }} style={{ marginTop: 6 }}>Details anzeigen</button>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+
+                {locations.filter(l => l.type === 'station').length === 0 && <p>Keine Wachen vorhanden.</p>}
+
+                {/* Simple details area for the currently selected station (if it is a station) */}
+                {selectedLocation && selectedLocation.type === 'station' && (
+                  <div style={{ marginTop: 16, padding: 12, border: '1px solid rgba(0,0,0,0.06)', borderRadius: 6 }}>
+                    <h3>{selectedLocation.name}</h3>
+                    <p>{selectedLocation.details}</p>
+                    <p>Koordinaten: {selectedLocation.coords[0].toFixed(4)}, {selectedLocation.coords[1].toFixed(4)}</p>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {currentView === 'Fahrzeuge' && (
+              <div>
+                <p>Globale Fahrzeugübersicht (vorbereitet).</p>
+                <p>Noch keine Fahrzeuge implementiert — Platzhalteransicht.</p>
+              </div>
+            )}
+
+            {currentView === 'Einsätze' && (
+              <div>
+                <p>Noch keine Einsätze vorhanden.</p>
+              <p>Diese Ansicht ist vorbereitet.</p>
+              </div>
+            )}
+
+            {currentView === 'Finanzen' && (
+              <div>
+                <p>Guthaben: <strong>0 €</strong></p>
+                <p>Wachen und Fahrzeuge haben vorerst den Preis 0 €.</p>
+              </div>
+            )}
+
+            {currentView === 'Einstellungen' && (
+              <div>
+                <p>Grundlegende Einstellungsansicht (Platzhalter).</p>
+                <p>Später kann hier die Standard-Startansicht gewählt werden.</p>
+              </div>
+            )}
+          </section>
+        )}
       </main>
     </div>
   );
