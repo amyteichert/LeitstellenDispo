@@ -94,16 +94,31 @@ function App() {
     setSelectedId(locationId);
   };
 
+  const deleteLocation = (id: string) => {
+    if (!confirm('Standort wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.')) return;
+
+    setLocations((current) => {
+      const next = current.filter((loc) => loc.id !== id);
+      // Wenn die gelöschte Location aktuell ausgewählt war, wähle die erste verbleibende
+      if (selectedId === id) {
+        setSelectedId(next[0]?.id ?? '');
+      }
+      return next;
+    });
+  };
+
   return (
     <div className="app-shell">
       <header className="topbar">
+        {/* banner image fills the header */}
+        <img className="topbar__banner" src="/brand-banner.png" alt="LeitstellenDispo Banner" />
+
         <div className="brand">
-          <div className="brand__mark">LD</div>
-          <div>
-            <div className="brand__title">{APP_NAME}</div>
-            <div className="brand__subtitle">{APP_SUBTITLE}</div>
+          <div className="brand__text">
+            {/* Title and subtitle intentionally removed as requested (empty space reserved) */}
           </div>
         </div>
+
         <div className="topbar__meta">
           <span className="chip">V{APP_VERSION}</span>
           <span className="chip chip--accent">Karte</span>
@@ -141,18 +156,34 @@ function App() {
 
           <div className="location-list">
             {locations.map((location) => (
-              <button
-                key={location.id}
-                className={`location-item${selectedId === location.id ? ' location-item--active' : ''}`}
-                onClick={() => setSelectedId(location.id)}
-                type="button"
-              >
-                <span className={`color-dot color-dot--${location.type}`} aria-hidden="true" />
-                <span className="location-copy">
-                  <strong>{location.name}</strong>
-                  <small>{location.description}</small>
-                </span>
-              </button>
+              <div key={location.id} className={`location-item-wrapper`}>
+                <button
+                  className={`location-item${selectedId === location.id ? ' location-item--active' : ''}`}
+                  onClick={() => setSelectedId(location.id)}
+                  type="button"
+                >
+                  <span className={`color-dot color-dot--${location.type}`} aria-hidden="true" />
+                  <span className="location-copy">
+                    <strong>{location.name}</strong>
+                    <small>{location.description}</small>
+                  </span>
+                </button>
+
+                {/* Lösch-Button nur für Wachen (station) anzeigen */}
+                {location.type === 'station' && (
+                  <button
+                    className="delete-button"
+                    title={`Standort ${location.name} löschen`}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      deleteLocation(location.id);
+                    }}
+                    type="button"
+                  >
+                    Löschen
+                  </button>
+                )}
+              </div>
             ))}
           </div>
 
