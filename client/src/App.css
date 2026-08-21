@@ -9,16 +9,127 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
+  padding: 0;
+  height: 90px;
+  min-height: 90px;
+  background: transparent;
+  border-bottom: none;
+  box-shadow: none;
+  color: #111827;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Full-width banner image inside the header */
+.topbar__banner {
+  position: absolute;
+  /* Linke Kante bleibt unverändert (aktuelle visuelle Position beibehalten) */
+  left: -8%;
+  top: 0;
+  /* Breite so setzen, dass die rechte Kante exakt am rechten Fensterrand endet
+     (left:-8% + width:calc(100% + 8%) => rechte Kante = 100%) */
+  width: calc(100% + 8%);
+  height: 100%;
+  object-fit: cover; /* kein unnatürliches Verzerren */
+  object-position: center;
+  z-index: 0;
+}
+
+/* Keep header content above the banner */
+.topbar > * {
+  position: relative;
+  z-index: 1;
+}
+
+/* Adjust chips and other meta so they remain visible on banner */
+.topbar__meta {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
   padding: 1rem 1.5rem;
-  background: #fff;
-  border-bottom: 2px solid #e5e7eb;
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
 }
 
 .brand {
   display: flex;
   align-items: center;
   gap: 0.9rem;
+  padding: 1rem 1.5rem;
+}
+
+.brand__mark {
+  width: 56px;
+  height: 56px;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.brand__text {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+}
+
+.brand__text {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+
+/* Small square app icon aligned to the top-left raster */
+.brand__mark {
+  width: 56px;
+  height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  overflow: hidden;
+  background: transparent;
+  box-shadow: 0 6px 18px rgba(0,0,0,0.16);
+  flex: 0 0 auto;
+  margin-left: 0;
+  margin-top: 0;
+}
+
+.brand__icon {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+/* keep banner class for backward compatibility; not used for large banner here */
+.brand__banner {
+  display: none;
+}
+
+@media (max-width: 900px) {
+  .brand__mark {
+    width: 48px;
+    height: 48px;
+  }
+}
+
+@media (max-width: 900px) {
+  .brand__mark {
+    width: 64px;
+    height: 64px;
+    margin-left: -8px;
+    margin-top: -8px;
+  }
+
+  .brand__banner {
+    height: 64px;
+    margin-left: -10px;
+  }
 }
 
 .brand__mark {
@@ -34,15 +145,23 @@
   letter-spacing: 0.04em;
 }
 
+.brand__mark img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 12px;
+  display: block;
+}
+
 .brand__title {
   font-size: 1.25rem;
   font-weight: 700;
-  color: #1f2937;
+  color: #ffffff;
 }
 
 .brand__subtitle {
   font-size: 0.72rem;
-  color: #6b7280;
+  color: rgba(255,255,255,0.9);
 }
 
 .topbar__meta {
@@ -56,16 +175,16 @@
   align-items: center;
   padding: 0.38rem 0.7rem;
   border-radius: 999px;
-  background: #f3f4f6;
-  color: #374151;
+  background: #c41e3a;
+  color: #fff;
   font-size: 0.75rem;
-  border: 1px solid #e5e7eb;
+  border: 1px solid rgba(255,255,255,0.12);
 }
 
 .chip--accent {
-  background: #fde8ec;
-  color: #9a1830;
-  border-color: #f8c7d0;
+  background: #9a1830; /* slightly darker accent */
+  color: #fff;
+  border-color: rgba(255,255,255,0.12);
 }
 
 .dashboard {
@@ -155,7 +274,14 @@
   gap: 0.7rem;
 }
 
+.location-item-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
 .location-item {
+  flex: 1 1 auto;
   width: 100%;
   display: flex;
   align-items: center;
@@ -178,6 +304,31 @@
 .location-item--active {
   border-color: #c41e3a;
   box-shadow: 0 0 0 1px rgba(196, 30, 58, 0.12);
+}
+
+.delete-button {
+  background: transparent;
+  border: 1px solid #e5e7eb;
+  padding: 0.4rem 0.6rem;
+  border-radius: 10px;
+  font-size: 0.82rem;
+  color: #9a1830;
+  cursor: pointer;
+}
+
+.delete-button:hover {
+  background: #fff5f6;
+}
+
+@media (max-width: 900px) {
+  .location-item-wrapper {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .delete-button {
+    align-self: flex-end;
+  }
 }
 
 .color-dot {
