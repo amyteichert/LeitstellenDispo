@@ -17,7 +17,8 @@
   box-shadow: none;
   color: #111827;
   position: relative;
-  overflow: visible;
+ z-index: 1200; /* Header über Karteninhalten platzieren (überschaubarer Wert, nicht willkürlich hoch) */
+ overflow: visible;
 }
 
 /* Full-width banner image inside the header */
@@ -476,14 +477,24 @@
   position: absolute;
   right: 0;
   margin-top: 6px;
-  min-width: 200px;
+  min-width: 180px; /* Wunsch: ca. 180–220 px */
+  max-width: 220px;
   background: linear-gradient(180deg,#2b0a0a,#1b0505);
   color: #fff;
   border-radius: 8px;
   box-shadow: 0 12px 36px rgba(0,0,0,0.36);
   padding: 6px;
-  z-index: 3000; /* higher z-index so it sits above other UI */
+  z-index: 3000; /* bleibt hoch, Menü selbst liegt über allem */
 }
+
+/* Portal variant: when rendering the menu into document.body we must
+   cancel the parent-relative positioning rules (right/margin-top)
+   and rely on explicit top/left inline styles. */
+.view-dropdown__portal {
+  right: auto !important;
+  margin-top: 0 !important;
+}
+
 
 .view-menu-item {
   display: block;

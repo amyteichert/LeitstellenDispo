@@ -41,15 +41,16 @@ export default function WachenView({
             <div style={{ padding: 12, borderRadius: 8, background: '#fff', boxShadow: '0 6px 18px rgba(0,0,0,0.04)' }}>
               <h3>{selected.name}</h3>
               <p>{selected.details}</p>
+              <p>Typ: {selected.stationKind ?? 'Rettungswache'}</p>
               <p>Koordinaten: {selected.coords[0].toFixed(4)}, {selected.coords[1].toFixed(4)}</p>
               <p>Preis: {selected.price ? `${selected.price} €` : '0 €'}</p>
 
-              <h4>Fahrzeuge dieser Wache</h4>
+              <h4>Fahrzeuge</h4>
               <ul>
                 {vehicles.filter(v => v.stationId === selected.id).map(v => (
-                  <li key={v.id}>{v.name} — Preis: {v.price} €</li>
+                  <li key={v.id}>{v.callsign ? `${v.callsign} (${v.name})` : v.name} — Typ: {v.type ?? '–'}</li>
                 ))}
-                {vehicles.filter(v => v.stationId === selected.id).length === 0 && <li>Keine Fahrzeuge für diese Wache.</li>}
+                {vehicles.filter(v => v.stationId === selected.id).length === 0 && <li>Noch keine Fahrzeuge vorhanden.</li>}
               </ul>
             </div>
           ) : (
