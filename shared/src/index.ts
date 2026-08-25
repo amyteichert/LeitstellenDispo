@@ -60,6 +60,98 @@ export const FMS_STATUS_LABELS: Record<FmsStatus, string> = {
 
 export const isFmsAlarmable = (status: FmsStatus, operationalStatus?: OperationalFmsStatus) =>
   status === 1 || status === 2 || (status === 5 && (operationalStatus === 1 || operationalStatus === 2));
+export type StationKind = 'Rettungswache' | 'Feuerwache';
+export type VehicleCategory = 'RTW' | 'Löschfahrzeug';
+
+export interface VehicleTypeSpec {
+  type: string;
+  stationKinds: readonly StationKind[];
+  category: VehicleCategory;
+  regularCrew: number;
+  maxCrew: number;
+  waterLiters: number;
+  foamLiters?: number;
+  pumpOutputLitersPerMinute: number;
+  tags: readonly string[];
+  notes?: string;
+}
+
+export const VEHICLE_TYPE_SPECS = [
+  {
+    type: 'LF 10',
+    stationKinds: ['Feuerwache'],
+    category: 'Löschfahrzeug',
+    regularCrew: 9,
+    maxCrew: 9,
+    waterLiters: 1000,
+    foamLiters: 120,
+    pumpOutputLitersPerMinute: 1000,
+    tags: ['Brandeinsatz', 'Wasserversorgung', 'Grundschutz'],
+    notes: 'Typische DIN-/Aufbauwerte; je nach Hersteller und Beladung leicht abweichend.',
+  },
+  {
+    type: 'LF 20',
+    stationKinds: ['Feuerwache'],
+    category: 'Löschfahrzeug',
+    regularCrew: 9,
+    maxCrew: 9,
+    waterLiters: 1600,
+    foamLiters: 120,
+    pumpOutputLitersPerMinute: 2000,
+    tags: ['Brandeinsatz', 'Wasserversorgung', 'Schaumeinsatz', 'Grundschutz'],
+    notes: 'Typische Normwerte; Aufbau- und Pumpenvarianten sind möglich.',
+  },
+  {
+    type: 'TLF 2000',
+    stationKinds: ['Feuerwache'],
+    category: 'Löschfahrzeug',
+    regularCrew: 3,
+    maxCrew: 6,
+    waterLiters: 2000,
+    foamLiters: 120,
+    pumpOutputLitersPerMinute: 1000,
+    tags: ['Erstangriff', 'Waldbrand', 'Wasservorhalt', 'Schaumeinsatz'],
+    notes: 'Typische Werte; Besatzung und Schaumausrüstung können je nach Aufbau variieren.',
+  },
+  {
+    type: 'TLF 3000',
+    stationKinds: ['Feuerwache'],
+    category: 'Löschfahrzeug',
+    regularCrew: 3,
+    maxCrew: 6,
+    waterLiters: 3000,
+    foamLiters: 120,
+    pumpOutputLitersPerMinute: 1000,
+    tags: ['Erstangriff', 'Waldbrand', 'Wasservorhalt', 'Schaumeinsatz'],
+    notes: 'Typische Werte; TLF 3000 werden sehr unterschiedlich aufgebaut und bestückt.',
+  },
+  {
+    type: 'TLF 4000',
+    stationKinds: ['Feuerwache'],
+    category: 'Löschfahrzeug',
+    regularCrew: 3,
+    maxCrew: 6,
+    waterLiters: 4000,
+    pumpOutputLitersPerMinute: 1000,
+    tags: ['Großwasservorrat', 'Erstangriff', 'Waldbrand', 'Wasserförderung'],
+    notes: 'Wasserleistung ist typisch; Schaummittel und Zusatzbeladung variieren stark je nach Aufbau.',
+  },
+] as const satisfies readonly VehicleTypeSpec[];
+
+export function getVehicleTypeSpec(type?: string): VehicleTypeSpec | undefined {
+  if (!type) return undefined;
+  return VEHICLE_TYPE_SPECS.find((spec) => spec.type === type);
+}
+
+export function getVehicleCategory(type?: string): VehicleCategory | null {
+  if (!type) return null;
+  if (type === 'RTW') return 'RTW';
+  return getVehicleTypeSpec(type)?.category ?? null;
+}
+
+export function getVehicleTypeSpecsForStationKind(stationKind: StationKind): VehicleTypeSpec[] {
+  return VEHICLE_TYPE_SPECS.filter((spec) => spec.stationKinds.some((kind) => kind === stationKind));
+}
 
 export interface Vehicle {
   id: string;
