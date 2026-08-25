@@ -10,5 +10,8 @@ export type MapLocation = {
   description: string;
   details: string;
   price?: number;
+  vehicleCapacity?: number;
+  upgradeLevels?: Record<string, number>;
+  staffSatisfaction?: number;
   stationKind?: StationKind; // optional: for type === 'station' specifies whether it's a Rettungswache or Feuerwache
 };

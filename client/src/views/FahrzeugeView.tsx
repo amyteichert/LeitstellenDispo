@@ -1,3 +1,5 @@
+import { FMS_STATUS_LABELS, type FmsStatus, type OperationalFmsStatus } from '@leitstellendispo/shared';
+
 export type Vehicle = {
   id: string;
   name: string;
@@ -5,24 +7,49 @@ export type Vehicle = {
   stationId?: string;
   price: number;
   callsign?: string; // Funkrufname
-  status?: 'Einsatzbereit' | 'Alarmiert / auf Anfahrt' | 'Im Einsatz';
+  status?: 'Einsatzbereit' | 'Alarmiert / auf Anfahrt' | 'Im Einsatz' | 'Nicht einsatzbereit';
+  fmsStatus?: FmsStatus;
+  speechRequest?: boolean;
+  previousOperationalStatus?: OperationalFmsStatus;
+  returnAt?: number;
 };
 
-export default function FahrzeugeView({ vehicles, stations }: { vehicles: Vehicle[]; addVehicle: (v: Omit<Vehicle, 'id'>) => void; stations: any[] }) {
+export const getFmsStatus = (vehicle: Vehicle): FmsStatus => vehicle.fmsStatus ?? 2;
+export const getFmsStatusLabel = (vehicle: Vehicle) => FMS_STATUS_LABELS[getFmsStatus(vehicle)];
+
+export default function FahrzeugeView({ vehicles, stations, onAcknowledgeSpeechRequest, onToggleAvailability }: { vehicles: Vehicle[]; addVehicle: (v: Omit<Vehicle, 'id'>) => void; stations: any[]; onAcknowledgeSpeechRequest?: (vehicleId: string) => void; onToggleAvailability?: (vehicleId: string) => void }) {
   return (
-    <div>
-      <h2>Fahrzeuge</h2>
-      <div style={{ display: 'grid', gap: 12 }}>
+    <div className="view-screen">
+      <div className="screen-heading"><div><span className="eyebrow">Fuhrpark</span><h2>Fahrzeuge</h2></div><span className="screen-count">{vehicles.length} Einheiten</span></div>
+      <div className="section-panel fleet-panel">
         <div>
           <h3>Bestehende Fahrzeuge</h3>
-          <ul style={{ listStyle: 'none', padding: 0 }}>
+          <ul className="vehicle-grid">
             {vehicles.map((v) => (
-              <li key={v.id} style={{ marginBottom: 8 }}>
-                <div style={{ padding: 10, borderRadius: 8, background: '#fff', boxShadow: '0 6px 18px rgba(0,0,0,0.04)' }}>
-                  <strong>{v.callsign ? `${v.callsign} (${v.name})` : v.name}</strong>
-                  <div style={{ fontSize: 12, color: '#6b7280' }}>Typ: {v.type ?? '–'}</div>
-                  <div style={{ fontSize: 12, color: '#6b7280' }}>
-                    Station: {v.stationId ? (stations.find((s) => s.id === v.stationId)?.name ?? v.stationId) : 'Nicht zugeordnet'}
+              <li key={v.id}>
+                <div className={`vehicle-card ${v.type === 'RTW' ? 'vehicle-card--rescue' : 'vehicle-card--fire'}${v.speechRequest ? ' vehicle-card--speech-request' : ''}`}>
+                  <div className="vehicle-card__header">
+                    <strong className="vehicle-callsign">{v.callsign ?? v.name}</strong>
+                    <span className={`vehicle-status vehicle-status--fms-${getFmsStatus(v)}`}>
+                      [{getFmsStatus(v)}] {getFmsStatusLabel(v)}
+                    </span>
+                  </div>
+                  <div className="vehicle-type">{v.type ?? '–'}</div>
+                  {v.speechRequest && onAcknowledgeSpeechRequest && (
+                    <div className="vehicle-speech-request">
+                      <span>Fahrzeug fordert Funkkontakt an</span>
+                      <button className="vehicle-speech-button" type="button" onClick={() => onAcknowledgeSpeechRequest(v.id)}>
+                        Sprechwunsch annehmen
+                      </button>
+                    </div>
+                  )}
+                  {onToggleAvailability && (
+                    <button className="vehicle-availability-button" type="button" onClick={() => onToggleAvailability(v.id)}>
+                      {getFmsStatus(v) === 6 ? 'Einsatzbereit setzen' : 'Status 6 setzen'}
+                    </button>
+                  )}
+                  <div className="vehicle-meta">
+                    {v.stationId ? (stations.find((s) => s.id === v.stationId)?.name ?? v.stationId) : 'Nicht zugeordnet'}
                   </div>
                 </div>
               </li>

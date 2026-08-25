@@ -1,9 +1,116 @@
 import cors from 'cors';
 import express from 'express';
-import { getAppInfo } from '@leitstellendispo/shared';
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { dirname, join } from 'node:path';
+import { getAppInfo, getDefaultVehicleCapacity, type FmsStatus, type OperationalFmsStatus } from '@leitstellendispo/shared';
 
 const app = express();
-const PORT = process.env.PORT ?? 3001;
+const PORT = Number(process.env.PORT ?? 3001);
+const gameStatePath = join(process.cwd(), 'data', 'game-state.json');
+
+type CompletedIncident = {
+  id: string;
+  [key: string]: unknown;
+};
+
+type FinanceTransaction = {
+  id: string;
+  kind: 'Einnahme' | 'Ausgabe';
+  label: string;
+  amount: number;
+  createdAt: string;
+};
+
+type GameState = {
+  balance: number;
+  transactions: FinanceTransaction[];
+  completedIncidents: CompletedIncident[];
+  locations: unknown[];
+  vehicles: unknown[];
+  incidents: unknown[];
+};
+
+type PersistedVehicle = {
+  fmsStatus?: FmsStatus;
+  speechRequest?: boolean;
+  previousOperationalStatus?: OperationalFmsStatus;
+  [key: string]: unknown;
+};
+
+type PersistedLocation = {
+  type?: string;
+  stationKind?: 'Rettungswache' | 'Feuerwache';
+  vehicleCapacity?: number;
+  upgradeLevels?: Record<string, number>;
+  staffSatisfaction?: number;
+  [key: string]: unknown;
+};
+
+const defaultGameState: GameState = {
+  balance: 0,
+  transactions: [{
+    id: 'initial-balance',
+    kind: 'Einnahme',
+    label: 'Startguthaben',
+    amount: 0,
+    createdAt: new Date().toISOString(),
+  }],
+  completedIncidents: [],
+  locations: [],
+  vehicles: [],
+  incidents: [],
+};
+
+const migrateVehicles = (vehicles: unknown[]): unknown[] => vehicles.map((item) => {
+  if (!item || typeof item !== 'object') return item;
+  const vehicle = item as PersistedVehicle;
+  return {
+    ...vehicle,
+    fmsStatus: vehicle.fmsStatus ?? 2,
+    speechRequest: vehicle.speechRequest ?? false,
+  };
+});
+
+const migrateLocations = (locations: unknown[]): unknown[] => locations.map((item) => {
+  if (!item || typeof item !== 'object') return item;
+  const location = item as PersistedLocation;
+  if (location.type !== 'station') return location;
+  return {
+    ...location,
+    vehicleCapacity: location.vehicleCapacity ?? getDefaultVehicleCapacity(location.stationKind),
+    upgradeLevels: location.upgradeLevels ?? {},
+    staffSatisfaction: location.staffSatisfaction ?? 100,
+  };
+});
+
+const loadGameState = async (): Promise<GameState> => {
+  try {
+    const stored = JSON.parse(await readFile(gameStatePath, 'utf8')) as Partial<GameState>;
+    return {
+      balance: typeof stored.balance === 'number' ? stored.balance : defaultGameState.balance,
+      transactions: Array.isArray(stored.transactions) ? stored.transactions : defaultGameState.transactions,
+      completedIncidents: Array.isArray(stored.completedIncidents) ? stored.completedIncidents : [],
+      locations: migrateLocations(Array.isArray(stored.locations) ? stored.locations : []),
+      vehicles: migrateVehicles(Array.isArray(stored.vehicles) ? stored.vehicles : []),
+      incidents: Array.isArray(stored.incidents) ? stored.incidents : [],
+    };
+  } catch {
+    await mkdir(dirname(gameStatePath), { recursive: true });
+    await writeFile(gameStatePath, JSON.stringify(defaultGameState, null, 2));
+    return defaultGameState;
+  }
+};
+
+let gameState = await loadGameState();
+let stateWrite = Promise.resolve();
+
+const persistGameState = () => {
+  stateWrite = stateWrite.then(async () => {
+    await mkdir(dirname(gameStatePath), { recursive: true });
+    await writeFile(gameStatePath, JSON.stringify(gameState, null, 2));
+  });
+  return stateWrite;
+};
 
 app.use(cors());
 app.use(express.json());
@@ -16,6 +123,84 @@ app.get('/api/info', (_req, res) => {
   res.json(getAppInfo());
 });
 
-app.listen(PORT, () => {
-  console.log(`LeitstellenDispo Server läuft auf http://localhost:${PORT}`);
+app.get('/api/game-state', (_req, res) => {
+  res.json(gameState);
+});
+
+app.put('/api/game-state/assets', async (req, res) => {
+  if (!Array.isArray(req.body?.locations) || !Array.isArray(req.body?.vehicles)) {
+    res.status(400).json({ error: 'Ungültige Standort- oder Fahrzeugdaten.' });
+    return;
+  }
+
+  const locations = migrateLocations(req.body.locations);
+  const stationCapacities = new Map(locations.filter((location): location is PersistedLocation => Boolean(location && typeof location === 'object' && (location as PersistedLocation).type === 'station')).map((location) => [location.id as string, location.vehicleCapacity ?? getDefaultVehicleCapacity(location.stationKind)]));
+  const vehicleCounts = new Map<string, number>();
+  for (const vehicle of req.body.vehicles as Array<{ stationId?: string }>) {
+    if (vehicle.stationId) vehicleCounts.set(vehicle.stationId, (vehicleCounts.get(vehicle.stationId) ?? 0) + 1);
+  }
+  for (const [stationId, count] of vehicleCounts) {
+    if (count > (stationCapacities.get(stationId) ?? 0)) {
+      res.status(409).json({ error: 'Die Stellplatzkapazität der Wache ist überschritten.' });
+      return;
+    }
+  }
+  gameState.locations = locations;
+  gameState.vehicles = migrateVehicles(req.body.vehicles);
+  await persistGameState();
+  res.json(gameState);
+});
+
+app.put('/api/game-state/simulation', async (req, res) => {
+  if (!Array.isArray(req.body?.incidents) || !Array.isArray(req.body?.vehicles)) {
+    res.status(400).json({ error: 'Ungültige Einsatz- oder Fahrzeugdaten.' });
+    return;
+  }
+
+  gameState.incidents = req.body.incidents;
+  gameState.vehicles = migrateVehicles(req.body.vehicles);
+  await persistGameState();
+  res.json({ incidents: gameState.incidents, vehicles: gameState.vehicles });
+});
+
+app.put('/api/game-state/finance', async (req, res) => {
+  if (typeof req.body?.balance !== 'number' || !Number.isFinite(req.body.balance) || !Array.isArray(req.body?.transactions)) {
+    res.status(400).json({ error: 'Ungültige Finanzdaten.' });
+    return;
+  }
+
+  gameState.balance = req.body.balance;
+  gameState.transactions = req.body.transactions;
+  await persistGameState();
+  res.json({ balance: gameState.balance, transactions: gameState.transactions });
+});
+
+app.post('/api/game-state/completions', async (req, res) => {
+  const incident = req.body?.incident as CompletedIncident | undefined;
+  const reward = req.body?.reward;
+
+  if (!incident?.id || typeof reward !== 'number' || !Number.isFinite(reward) || reward < 0) {
+    res.status(400).json({ error: 'Ungültige Abschlussdaten.' });
+    return;
+  }
+
+  const alreadyCompleted = gameState.completedIncidents.some((item) => item.id === incident.id);
+  if (!alreadyCompleted) {
+    gameState.completedIncidents = [incident, ...gameState.completedIncidents].slice(0, 100);
+    gameState.balance += reward;
+    gameState.transactions = [{
+      id: `txn-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+      kind: 'Einnahme',
+      label: `${incident.organization ?? 'Einsatz'} – ${incident.type ?? incident.id} abgeschlossen`,
+      amount: reward,
+      createdAt: new Date().toISOString(),
+    }, ...gameState.transactions];
+    await persistGameState();
+  }
+
+  res.json(gameState);
+});
+
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`LeitstellenDispo Server läuft auf Port ${PORT}`);
 });

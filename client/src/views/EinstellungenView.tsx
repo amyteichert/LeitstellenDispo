@@ -4,13 +4,14 @@ export default function EinstellungenView({ defaultView }: { defaultView?: strin
   const [local, setLocal] = useState(defaultView ?? 'Karte');
 
   return (
-    <div>
-      <h2>Einstellungen</h2>
-      <div style={{ padding: 8, background: '#fff', borderRadius: 8 }}>
+    <div className="view-screen settings-screen">
+      <div className="screen-heading"><div><span className="eyebrow">System</span><h2>Einstellungen</h2></div></div>
+      <div className="section-panel settings-card">
         <label style={{ display: 'block', marginBottom: 8 }}>
           Standardansicht beim Start
         </label>
         <select value={local} onChange={(e) => setLocal(e.target.value)}>
+          <option>Leitstelle</option>
           <option>Karte</option>
           <option>Wachen</option>
           <option>Fahrzeuge</option>

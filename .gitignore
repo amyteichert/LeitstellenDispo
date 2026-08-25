@@ -30,6 +30,7 @@ desktop.ini
 # Database (local dev)
 server/data/*.db
 server/data/*.db-journal
+server/data/game-state.json
 
 # Cache
 .cache/

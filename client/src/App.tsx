@@ -1,36 +1,24 @@
 import { useMemo, useState, useRef, useEffect } from 'react';
 import { MapContainer, Marker, Popup, TileLayer, useMapEvents } from 'react-leaflet';
 import L, { type LeafletMouseEvent } from 'leaflet';
-import { APP_VERSION } from '@leitstellendispo/shared';
+import { APP_VERSION, getDefaultVehicleCapacity, STATION_PRICE_BY_KIND } from '@leitstellendispo/shared';
+import { isFmsAlarmable, type FmsStatus, type OperationalFmsStatus } from '@leitstellendispo/shared';
 import 'leaflet/dist/leaflet.css';
 import './App.css';
 
 import ViewDropdown from './ViewDropdown';
 
-import type { MapLocation, LocationType } from './types';
+import type { MapLocation } from './types';
 import FahrzeugeView, { type Vehicle } from './views/FahrzeugeView';
 import WachenView from './views/WachenView';
 import EinsaetzeView from './views/EinsaetzeView';
 import FinanzenView from './views/FinanzenView';
 import EinstellungenView from './views/EinstellungenView';
-
-const STATION_PRICE_BY_KIND = {
-  Rettungswache: 0,
-  Feuerwache: 0,
-} as const;
-
-const VEHICLE_PRICE_BY_TYPE: Record<string, number> = {
-  RTW: 0,
-  'LF 10': 0,
-  'LF 20': 0,
-  'TLF 2000': 0,
-  'TLF 3000': 0,
-  'TLF 4000': 0,
-};
+import LeitstelleView from './views/LeitstelleView';
+import { VEHICLE_CATALOG, vehicleMeetsRequirement } from './vehicleCatalog';
+import { getUpgradeDefinition, getUpgradePrice } from './upgradeCatalog';
 
 type IncidentStatus = 'Offen' | 'Fahrzeuge alarmiert' | 'In Bearbeitung' | 'Abgeschlossen';
-type VehicleCategory = 'RTW' | 'Löschfahrzeug';
-
 type FinanceTransaction = {
   id: string;
   kind: 'Einnahme' | 'Ausgabe';
@@ -41,9 +29,25 @@ type FinanceTransaction = {
 
 type IncidentRequirement = {
   id: string;
-  category: VehicleCategory;
+  type: 'capability' | 'vehicleType';
+  value: string;
   amount: number;
+  label: string;
 };
+
+const capabilityRequirement = (id: string, value: string, amount: number, label: string): IncidentRequirement => ({ id, type: 'capability', value, amount, label });
+const vehicleTypeRequirement = (id: string, value: string, amount: number, label: string): IncidentRequirement => ({ id, type: 'vehicleType', value, amount, label });
+
+const normalizeIncident = (incident: Incident): Incident => ({
+  ...incident,
+  requiredVehicles: incident.requiredVehicles.map((requirement) => {
+    const legacy = requirement as IncidentRequirement & { category?: string };
+    if (legacy.type) return legacy;
+    return legacy.category === 'RTW'
+      ? vehicleTypeRequirement(legacy.id, 'RTW', legacy.amount, 'RTW')
+      : capabilityRequirement(legacy.id, 'firefighting', legacy.amount, legacy.amount === 1 ? 'Löschfahrzeug' : 'Löschfahrzeuge');
+  }),
+});
 
 type AlarmedVehicle = {
   vehicleId: string;
@@ -81,6 +85,26 @@ type Incident = {
   totalDurationSeconds?: number;
 };
 
+const getFmsStatus = (vehicle: Vehicle): FmsStatus => {
+  if (vehicle.fmsStatus) return vehicle.fmsStatus;
+  if (vehicle.status === 'Alarmiert / auf Anfahrt') return 3;
+  if (vehicle.status === 'Im Einsatz') return 4;
+  return 2;
+};
+
+const toOperationalStatus = (vehicle: Vehicle): OperationalFmsStatus => {
+  const status = getFmsStatus(vehicle);
+  return status === 5 ? (vehicle.previousOperationalStatus ?? 2) : status;
+};
+
+const withFmsStatus = (vehicle: Vehicle, fmsStatus: FmsStatus, returnAt?: number): Vehicle => ({
+  ...vehicle,
+  fmsStatus,
+  returnAt,
+  status: fmsStatus === 3 ? 'Alarmiert / auf Anfahrt' : fmsStatus === 4 ? 'Im Einsatz' : fmsStatus === 6 ? 'Nicht einsatzbereit' : 'Einsatzbereit',
+  ...(fmsStatus === 5 ? { previousOperationalStatus: toOperationalStatus(vehicle), speechRequest: true } : { speechRequest: false }),
+});
+
 type CompletedIncident = Incident & {
   completedAt: number;
   totalDurationSeconds: number;
@@ -117,6 +141,20 @@ const createMarkerIcon = (color: string) =>
     iconAnchor: [8, 8],
   });
 
+const createFireStationIcon = (zoom: number) => {
+  const scale = clamp(2 ** ((zoom - 13) / 3), 0.45, 1.35);
+  const width = Math.round(68 * scale);
+  const height = Math.round(45 * scale);
+
+  return L.divIcon({
+    className: 'fire-station-marker',
+    html: '<img src="/fire-station.png" alt="Feuerwache" />',
+    iconSize: [width, height],
+    iconAnchor: [Math.round(width / 2), Math.round(height * 0.93)],
+    popupAnchor: [0, -Math.round(height * 0.85)],
+  });
+};
+
 const GAME_CONFIG = {
   startWacheMaxDriveSeconds: 10,
   averageSpeedKmh: 54,
@@ -133,13 +171,6 @@ const INCIDENT_SPAWN_CONFIG = {
   latePhaseMaxRadiusKm: 8,
   preferredVehicleMinRadiusKm: 0.15,
 } as const;
-
-const getVehicleCategory = (type?: string): VehicleCategory | null => {
-  if (!type) return null;
-  if (type === 'RTW') return 'RTW';
-  if (['LF 10', 'LF 20', 'TLF 2000', 'TLF 3000', 'TLF 4000'].includes(type)) return 'Löschfahrzeug';
-  return null;
-};
 
 const clamp = (value: number, min: number, max: number) => Math.min(Math.max(value, min), max);
 
@@ -167,7 +198,7 @@ const INCIDENT_TEMPLATE_SETS: Record<'Rettungswache' | 'Feuerwache', IncidentTem
       id: 'kreislaufprobleme',
       type: 'Kreislaufprobleme',
       organization: 'Rettungsdienst',
-      requiredVehicles: [{ id: 'req-rtw', category: 'RTW', amount: 1 }],
+      requiredVehicles: [vehicleTypeRequirement('req-rtw', 'RTW', 1, 'RTW')],
       reward: 240,
       durationSeconds: 11,
     },
@@ -175,7 +206,7 @@ const INCIDENT_TEMPLATE_SETS: Record<'Rettungswache' | 'Feuerwache', IncidentTem
       id: 'gestuerzte-person',
       type: 'Gestürzte Person',
       organization: 'Rettungsdienst',
-      requiredVehicles: [{ id: 'req-rtw', category: 'RTW', amount: 1 }],
+      requiredVehicles: [vehicleTypeRequirement('req-rtw', 'RTW', 1, 'RTW')],
       reward: 220,
       durationSeconds: 10,
     },
@@ -183,7 +214,7 @@ const INCIDENT_TEMPLATE_SETS: Record<'Rettungswache' | 'Feuerwache', IncidentTem
       id: 'atemnot',
       type: 'Atemnot',
       organization: 'Rettungsdienst',
-      requiredVehicles: [{ id: 'req-rtw', category: 'RTW', amount: 1 }],
+      requiredVehicles: [vehicleTypeRequirement('req-rtw', 'RTW', 1, 'RTW')],
       reward: 260,
       durationSeconds: 12,
     },
@@ -191,7 +222,7 @@ const INCIDENT_TEMPLATE_SETS: Record<'Rettungswache' | 'Feuerwache', IncidentTem
       id: 'brustschmerzen',
       type: 'Brustschmerzen',
       organization: 'Rettungsdienst',
-      requiredVehicles: [{ id: 'req-rtw', category: 'RTW', amount: 1 }],
+      requiredVehicles: [vehicleTypeRequirement('req-rtw', 'RTW', 1, 'RTW')],
       reward: 280,
       durationSeconds: 13,
     },
@@ -199,7 +230,7 @@ const INCIDENT_TEMPLATE_SETS: Record<'Rettungswache' | 'Feuerwache', IncidentTem
       id: 'schnittverletzung',
       type: 'Schnittverletzung',
       organization: 'Rettungsdienst',
-      requiredVehicles: [{ id: 'req-rtw', category: 'RTW', amount: 1 }],
+      requiredVehicles: [vehicleTypeRequirement('req-rtw', 'RTW', 1, 'RTW')],
       reward: 230,
       durationSeconds: 9,
     },
@@ -207,7 +238,7 @@ const INCIDENT_TEMPLATE_SETS: Record<'Rettungswache' | 'Feuerwache', IncidentTem
       id: 'sturz',
       type: 'Sturz',
       organization: 'Rettungsdienst',
-      requiredVehicles: [{ id: 'req-rtw', category: 'RTW', amount: 1 }],
+      requiredVehicles: [vehicleTypeRequirement('req-rtw', 'RTW', 1, 'RTW')],
       reward: 220,
       durationSeconds: 10,
     },
@@ -215,7 +246,7 @@ const INCIDENT_TEMPLATE_SETS: Record<'Rettungswache' | 'Feuerwache', IncidentTem
       id: 'bewusstlose-person',
       type: 'Bewusstlose Person',
       organization: 'Rettungsdienst',
-      requiredVehicles: [{ id: 'req-rtw', category: 'RTW', amount: 1 }],
+      requiredVehicles: [vehicleTypeRequirement('req-rtw', 'RTW', 1, 'RTW')],
       reward: 260,
       durationSeconds: 12,
     },
@@ -225,7 +256,7 @@ const INCIDENT_TEMPLATE_SETS: Record<'Rettungswache' | 'Feuerwache', IncidentTem
       id: 'brennender-papierkorb',
       type: 'Brennender Papierkorb',
       organization: 'Feuerwehr',
-      requiredVehicles: [{ id: 'req-lz', category: 'Löschfahrzeug', amount: 1 }],
+      requiredVehicles: [capabilityRequirement('req-firefighting', 'firefighting', 1, 'Löschfahrzeug')],
       reward: 220,
       durationSeconds: 10,
     },
@@ -233,7 +264,7 @@ const INCIDENT_TEMPLATE_SETS: Record<'Rettungswache' | 'Feuerwache', IncidentTem
       id: 'brennende-muelltonne',
       type: 'Brennende Mülltonne',
       organization: 'Feuerwehr',
-      requiredVehicles: [{ id: 'req-lz', category: 'Löschfahrzeug', amount: 1 }],
+      requiredVehicles: [capabilityRequirement('req-firefighting', 'firefighting', 1, 'Löschfahrzeug')],
       reward: 240,
       durationSeconds: 11,
     },
@@ -241,7 +272,7 @@ const INCIDENT_TEMPLATE_SETS: Record<'Rettungswache' | 'Feuerwache', IncidentTem
       id: 'heckenbrand',
       type: 'Heckenbrand',
       organization: 'Feuerwehr',
-      requiredVehicles: [{ id: 'req-lz', category: 'Löschfahrzeug', amount: 1 }],
+      requiredVehicles: [capabilityRequirement('req-firefighting', 'firefighting', 1, 'Löschfahrzeug')],
       reward: 260,
       durationSeconds: 12,
     },
@@ -249,7 +280,7 @@ const INCIDENT_TEMPLATE_SETS: Record<'Rettungswache' | 'Feuerwache', IncidentTem
       id: 'brennender-pkw',
       type: 'Brennender PKW',
       organization: 'Feuerwehr',
-      requiredVehicles: [{ id: 'req-lz', category: 'Löschfahrzeug', amount: 1 }],
+      requiredVehicles: [capabilityRequirement('req-firefighting', 'firefighting', 2, 'Löschfahrzeuge')],
       reward: 310,
       durationSeconds: 15,
     },
@@ -257,7 +288,7 @@ const INCIDENT_TEMPLATE_SETS: Record<'Rettungswache' | 'Feuerwache', IncidentTem
       id: 'unklare-rauchentwicklung',
       type: 'Unklare Rauchentwicklung',
       organization: 'Feuerwehr',
-      requiredVehicles: [{ id: 'req-lz', category: 'Löschfahrzeug', amount: 1 }],
+      requiredVehicles: [capabilityRequirement('req-firefighting', 'firefighting', 1, 'Löschfahrzeug')],
       reward: 290,
       durationSeconds: 14,
     },
@@ -265,7 +296,7 @@ const INCIDENT_TEMPLATE_SETS: Record<'Rettungswache' | 'Feuerwache', IncidentTem
       id: 'muelleimerbrand',
       type: 'Mülleimerbrand',
       organization: 'Feuerwehr',
-      requiredVehicles: [{ id: 'req-lz', category: 'Löschfahrzeug', amount: 1 }],
+      requiredVehicles: [capabilityRequirement('req-firefighting', 'firefighting', 1, 'Löschfahrzeug')],
       reward: 250,
       durationSeconds: 12,
     },
@@ -273,7 +304,7 @@ const INCIDENT_TEMPLATE_SETS: Record<'Rettungswache' | 'Feuerwache', IncidentTem
       id: 'kleinbrand',
       type: 'Kleinbrand',
       organization: 'Feuerwehr',
-      requiredVehicles: [{ id: 'req-lz', category: 'Löschfahrzeug', amount: 1 }],
+      requiredVehicles: [capabilityRequirement('req-firefighting', 'firefighting', 1, 'Löschfahrzeug')],
       reward: 300,
       durationSeconds: 14,
     },
@@ -304,8 +335,8 @@ const getBestIncidentStation = (
       const matchingVehicles = vehicles.filter(
         (vehicle) =>
           vehicle.stationId === station.id &&
-          vehicle.status === 'Einsatzbereit' &&
-          getVehicleCategory(vehicle.type) === template.requiredVehicles[0]?.category,
+          isFmsAlarmable(getFmsStatus(vehicle), vehicle.previousOperationalStatus) &&
+          vehicleMeetsRequirement(vehicle.type, template.requiredVehicles[0]),
       );
       return { station, matchingVehicles: matchingVehicles.length };
     })
@@ -348,11 +379,19 @@ function MapClickHandler({
   return null;
 }
 
+function MapZoomTracker({ onZoomChange }: { onZoomChange: (zoom: number) => void }) {
+  useMapEvents({
+    zoomend: (event) => onZoomChange(event.target.getZoom()),
+  });
+
+  return null;
+}
+
 function App() {
   const [locations, setLocations] = useState<MapLocation[]>(initialLocations);
   const [selectedId, setSelectedId] = useState<string>(initialLocations[0].id);
   const [draftName, setDraftName] = useState('Neue Rettungswache');
-  const [draftType, setDraftType] = useState<LocationType>('station');
+  const [mapZoom, setMapZoom] = useState(13);
 
   // Vehicles state (prepared)
   const [vehicles, setVehicles] = useState<Vehicle[]>([
@@ -365,6 +404,56 @@ function App() {
   const [transactions, setTransactions] = useState<FinanceTransaction[]>([
     { id: 'initial-balance', kind: 'Einnahme', label: 'Startguthaben', amount: 0, createdAt: new Date().toISOString() },
   ]);
+  const [gameStateLoaded, setGameStateLoaded] = useState(false);
+
+  const persistAssets = (nextLocations: MapLocation[], nextVehicles: Vehicle[]) => {
+    fetch('/api/game-state/assets', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ locations: nextLocations, vehicles: nextVehicles }),
+    }).catch((error) => console.error('Spielstand konnte nicht gespeichert werden.', error));
+  };
+
+  const persistSimulation = (nextIncidents: Incident[], nextVehicles: Vehicle[]) => {
+    fetch('/api/game-state/simulation', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ incidents: nextIncidents, vehicles: nextVehicles }),
+    }).catch((error) => console.error('Einsatzstatus konnte nicht gespeichert werden.', error));
+  };
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch('/api/game-state')
+      .then((response) => {
+        if (!response.ok) throw new Error('Spielstand konnte nicht geladen werden.');
+        return response.json();
+      })
+      .then((state: { balance: number; transactions: FinanceTransaction[]; completedIncidents: CompletedIncident[]; locations: MapLocation[]; vehicles: Vehicle[]; incidents?: Incident[] }) => {
+        if (cancelled) return;
+        setBalance(state.balance);
+        setTransactions(state.transactions);
+        setCompletedIncidentHistory(state.completedIncidents);
+        if (state.locations.length > 0) {
+          setLocations(state.locations.map((location) => location.type === 'station'
+            ? { ...location, vehicleCapacity: location.vehicleCapacity ?? getDefaultVehicleCapacity(location.stationKind), upgradeLevels: location.upgradeLevels ?? {}, staffSatisfaction: location.staffSatisfaction ?? 100 }
+            : location));
+          setSelectedId(state.locations[0].id);
+        }
+        if (state.vehicles.length > 0) {
+          setVehicles(state.vehicles.map((vehicle) => withFmsStatus(vehicle, getFmsStatus(vehicle), vehicle.returnAt)));
+        }
+        if (state.incidents) setIncidents(state.incidents.map(normalizeIncident));
+        setGameStateLoaded(true);
+      })
+      .catch((error) => {
+        console.error(error);
+        if (!cancelled) setGameStateLoaded(true);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const addTransaction = (kind: FinanceTransaction['kind'], label: string, amount: number) => {
     setTransactions((cur) => [{
@@ -379,7 +468,65 @@ function App() {
   // helper: add vehicle
   const addVehicle = (v: Omit<Vehicle, 'id'>) => {
     const id = `fahrzeug-${Date.now()}`;
-    setVehicles((cur) => [...cur, { ...v, id, status: v.status ?? 'Einsatzbereit' }]);
+    const nextVehicle = { ...v, id, status: v.status ?? 'Einsatzbereit', fmsStatus: v.fmsStatus ?? 2 as const };
+    const nextVehicles = [...vehicles, nextVehicle];
+    setVehicles(nextVehicles);
+    persistAssets(locations, nextVehicles);
+  };
+
+  const purchaseVehicle = (stationId: string, type: string, callsign: string) => {
+    const station = locations.find((location) => location.id === stationId && location.type === 'station');
+    const stationKind = station?.stationKind ?? 'Rettungswache';
+    const catalogEntry = Object.values(VEHICLE_CATALOG).flat().find((entry) => entry.type === type && entry.unlock.stationKinds.includes(stationKind));
+    if (!catalogEntry) return false;
+    const price = catalogEntry.price;
+    if (balance < price) return false;
+    const stationVehicleCount = vehicles.filter((vehicle) => vehicle.stationId === stationId).length;
+    const vehicleCapacity = station?.vehicleCapacity ?? getDefaultVehicleCapacity(station?.stationKind);
+    if (stationVehicleCount >= vehicleCapacity) return false;
+    const nextVehicle: Vehicle = {
+      id: `fahrzeug-${Date.now()}`,
+      name: type,
+      type,
+      stationId,
+      price,
+      callsign,
+      status: 'Einsatzbereit',
+      fmsStatus: catalogEntry.initialFmsStatus,
+    };
+    const nextVehicles = [...vehicles, nextVehicle];
+    const nextBalance = balance - price;
+    const nextTransactions = [{ id: `txn-${Date.now()}-${Math.random().toString(16).slice(2)}`, kind: 'Ausgabe' as const, label: `${type} für Wache gekauft`, amount: price, createdAt: new Date().toISOString() }, ...transactions];
+    setVehicles(nextVehicles);
+    setBalance(nextBalance);
+    setTransactions(nextTransactions);
+    persistAssets(locations, nextVehicles);
+    fetch('/api/game-state/finance', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ balance: nextBalance, transactions: nextTransactions }) }).catch((error) => console.error('Fahrzeugkauf konnte nicht gespeichert werden.', error));
+    return true;
+  };
+
+  const purchaseUpgrade = (stationId: string, upgradeId: string) => {
+    const station = locations.find((location) => location.id === stationId && location.type === 'station');
+    const upgrade = getUpgradeDefinition(upgradeId);
+    const currentLevel = station?.upgradeLevels?.[upgradeId] ?? 0;
+    const price = upgrade ? getUpgradePrice(upgrade, currentLevel + 1) : undefined;
+    if (!station || !upgrade || price === undefined || balance < price) return false;
+    const nextLocation = {
+      ...station,
+      upgradeLevels: { ...(station.upgradeLevels ?? {}), [upgradeId]: currentLevel + 1 },
+      vehicleCapacity: upgrade.effect.vehicleCapacityIncrease
+        ? (station.vehicleCapacity ?? getDefaultVehicleCapacity(station.stationKind)) + upgrade.effect.vehicleCapacityIncrease
+        : station.vehicleCapacity,
+    };
+    const nextLocations = locations.map((location) => location.id === stationId ? nextLocation : location);
+    const nextBalance = balance - price;
+    const nextTransactions = [{ id: `txn-${Date.now()}-${Math.random().toString(16).slice(2)}`, kind: 'Ausgabe' as const, label: `${upgrade.name} für ${station.name}`, amount: price, createdAt: new Date().toISOString() }, ...transactions];
+    setLocations(nextLocations);
+    setBalance(nextBalance);
+    setTransactions(nextTransactions);
+    persistAssets(nextLocations, vehicles);
+    fetch('/api/game-state/finance', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ balance: nextBalance, transactions: nextTransactions }) }).catch((error) => console.error('Wachenausbau konnte nicht gespeichert werden.', error));
+    return true;
   };
 
   const [incidents, setIncidents] = useState<Incident[]>([]);
@@ -443,7 +590,9 @@ function App() {
           createdAt: Date.now(),
         };
 
-        return [nextIncident, ...current];
+        const nextIncidents = [nextIncident, ...current];
+        persistSimulation(nextIncidents, vehicles);
+        return nextIncidents;
       });
     }, GAME_CONFIG.incidentGenerationMs);
 
@@ -456,6 +605,7 @@ function App() {
   }, [draftStationKind]);
 
   useEffect(() => {
+    if (!gameStateLoaded) return;
     let changed = false;
     const nextVehicles: Vehicle[] = vehicles.map((vehicle): Vehicle => {
       const activeIncident = incidents.find(
@@ -463,22 +613,20 @@ function App() {
       );
 
       if (!activeIncident) {
-        if (vehicle.status !== 'Einsatzbereit') {
+        if (getFmsStatus(vehicle) === 1 && vehicle.returnAt && nowMs >= vehicle.returnAt) {
           changed = true;
-          return { ...vehicle, status: 'Einsatzbereit' };
+          return withFmsStatus(vehicle, 2);
         }
         return vehicle;
       }
 
       const assignment = activeIncident.alarmedVehicles.find((entry) => entry.vehicleId === vehicle.id);
       if (!assignment) return vehicle;
-      if (nowMs >= assignment.arrivalAt && vehicle.status !== 'Im Einsatz') {
+      if (getFmsStatus(vehicle) === 5 && vehicle.speechRequest) return vehicle;
+      const nextStatus: FmsStatus = nowMs >= assignment.arrivalAt ? 4 : 3;
+      if (getFmsStatus(vehicle) !== nextStatus) {
         changed = true;
-        return { ...vehicle, status: 'Im Einsatz' };
-      }
-      if (nowMs < assignment.arrivalAt && vehicle.status !== 'Alarmiert / auf Anfahrt') {
-        changed = true;
-        return { ...vehicle, status: 'Alarmiert / auf Anfahrt' };
+        return withFmsStatus(vehicle, nextStatus);
       }
       return vehicle;
     });
@@ -492,7 +640,8 @@ function App() {
         .filter((vehicle): vehicle is Vehicle => Boolean(vehicle));
 
       const requirementSatisfied = incident.requiredVehicles.every((requirement) => {
-        const matches = activeVehicles.filter((vehicle) => getVehicleCategory(vehicle.type) === requirement.category).length;
+        const matchingVehicleIds = new Set(activeVehicles.filter((vehicle) => vehicleMeetsRequirement(vehicle.type, requirement)).map((vehicle) => vehicle.id));
+        const matches = matchingVehicleIds.size;
         return matches >= requirement.amount;
       });
 
@@ -535,26 +684,43 @@ function App() {
         ),
       })) satisfies CompletedIncident[];
 
-      setCompletedIncidentHistory((current) => [
-        ...completedHistoryEntries,
-        ...current,
-      ].slice(0, GAME_CONFIG.completedIncidentHistoryLimit));
-
-      setBalance((cur) => cur + completed.reduce((sum, incident) => sum + incident.reward, 0));
-      completed.forEach((incident) => addTransaction('Einnahme', `${incident.organization} – ${incident.type} abgeschlossen`, incident.reward));
-      setVehicles((current) => current.map((vehicle) => {
+      completed.forEach((incident) => {
+        fetch('/api/game-state/completions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ incident: completedHistoryEntries.find((entry) => entry.id === incident.id), reward: incident.reward }),
+        })
+          .then((response) => {
+            if (!response.ok) throw new Error('Einsatzabschluss konnte nicht gespeichert werden.');
+            return response.json() as Promise<{ balance: number; transactions: FinanceTransaction[]; completedIncidents: CompletedIncident[] }>;
+          })
+          .then((state) => {
+            setBalance(state.balance);
+            setTransactions(state.transactions);
+            setCompletedIncidentHistory(state.completedIncidents);
+          })
+          .catch((error) => console.error(error));
+      });
+      const completedVehicles = nextVehicles.map((vehicle) => {
         const isCompleted = completed.some((incident) =>
           incident.alarmedVehicles.some((assignment) => assignment.vehicleId === vehicle.id),
         );
-        return isCompleted ? { ...vehicle, status: 'Einsatzbereit' } : vehicle;
-      }));
+        if (!isCompleted) return vehicle;
+        const assignment = completed
+          .flatMap((incident) => incident.alarmedVehicles)
+          .find((entry) => entry.vehicleId === vehicle.id);
+        return withFmsStatus(vehicle, 1, nowMs + (assignment?.etaSeconds ?? 1) * 1000);
+      });
+      setVehicles(completedVehicles);
       setIncidents((current) => current.filter((incident) => !completed.some((item) => item.id === incident.id)));
       setSelectedIncidentId((current) => (current && completed.some((incident) => incident.id === current) ? null : current));
+      persistSimulation(nextIncidents.filter((incident) => incident.status !== 'Abgeschlossen'), completedVehicles);
     }
 
-    if (changed) {
+    if (changed && completed.length === 0) {
       setVehicles(nextVehicles);
       setIncidents(nextIncidents.filter((incident) => incident.status !== 'Abgeschlossen'));
+      persistSimulation(nextIncidents.filter((incident) => incident.status !== 'Abgeschlossen'), nextVehicles);
     }
   }, [incidents, vehicles, nowMs]);
 
@@ -572,7 +738,9 @@ function App() {
   }, [completedIncidentHistory]);
 
   // Navigation / view state (default: Karte)
-  const [currentView, setCurrentView] = useState<'Karte'|'Wachen'|'Fahrzeuge'|'Einsätze'|'Finanzen'|'Einstellungen'>('Karte');
+  const [currentView, setCurrentView] = useState<'Leitstelle'|'Karte'|'Wachen'|'Fahrzeuge'|'Einsätze'|'Finanzen'|'Einstellungen'>('Leitstelle');
+  const [stationKindFilter, setStationKindFilter] = useState<'Rettungswache' | 'Feuerwache' | undefined>();
+  const [incidentInitialTab, setIncidentInitialTab] = useState<'Aktive' | 'Abgeschlossen'>('Aktive');
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const triggerRef = useRef<HTMLElement>(null);
 
@@ -636,7 +804,7 @@ function App() {
     }
 
     const stationPrice = STATION_PRICE_BY_KIND[draftStationKind] ?? 0;
-    const vehiclePrice = VEHICLE_PRICE_BY_TYPE[draftStartVehicleType] ?? 0;
+    const vehiclePrice = Object.values(VEHICLE_CATALOG).flat().find((entry) => entry.type === draftStartVehicleType)?.price ?? 0;
     const totalCost = stationPrice + vehiclePrice;
 
     if (balance < totalCost) {
@@ -650,30 +818,38 @@ function App() {
     const nextLocation: MapLocation = {
       id: locationId,
       name,
-      type: draftType,
+      type: 'station',
       stationKind: draftStationKind,
+      vehicleCapacity: getDefaultVehicleCapacity(draftStationKind),
       coords,
-      description: 'Rettungsdienst',
+      description: draftStationKind === 'Feuerwache' ? 'Feuerwehr' : 'Rettungsdienst',
       details: address.trim() || 'Frei platzierbarer Rettungsstandort',
       price: stationPrice,
     };
 
-    setLocations((current) => [...current, nextLocation]);
+    const nextVehicleId = `fahrzeug-${Date.now()}`;
+    const nextVehicle = draftStartVehicleType ? {
+      id: nextVehicleId,
+      name: draftStartVehicleType,
+      type: draftStartVehicleType,
+      stationId: locationId,
+      price: vehiclePrice,
+      callsign: draftStartVehicleCallsign?.trim() || `${draftStartVehicleType} ${Date.now().toString().slice(-4)}`,
+      status: 'Einsatzbereit' as const,
+      fmsStatus: 2 as const,
+    } : null;
+    const nextLocations = [...locations, nextLocation];
+    const nextVehicles = nextVehicle ? [...vehicles, nextVehicle] : vehicles;
+
+    setLocations(nextLocations);
     setSelectedId(locationId);
+    setVehicles(nextVehicles);
+    persistAssets(nextLocations, nextVehicles);
     setBalance((cur) => cur - totalCost);
     addTransaction('Ausgabe', `${draftStationKind} mit ${draftStartVehicleType} erstellt`, totalCost);
 
     // create the selected start vehicle (exactly one) and assign to the new station
-    if (draftStartVehicleType) {
-      const callsign = draftStartVehicleCallsign?.trim() || `${draftStartVehicleType} ${Date.now().toString().slice(-4)}`;
-      const vehicle: Omit<Vehicle, 'id'> = {
-        name: draftStartVehicleType,
-        type: draftStartVehicleType,
-        stationId: locationId,
-        price: vehiclePrice,
-        callsign,
-      };
-      addVehicle(vehicle);
+    if (nextVehicle) {
       setDraftStartVehicleCallsign('');
     }
 
@@ -693,14 +869,15 @@ function App() {
 
     if (!confirm('Standort wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.')) return;
 
-    setLocations((current) => {
-      const next = current.filter((loc) => loc.id !== id);
+    const nextLocations = locations.filter((location) => location.id !== id);
+    setLocations(() => {
       // Wenn die gelöschte Location aktuell ausgewählt war, wähle die erste verbleibende
       if (selectedId === id) {
-        setSelectedId(next[0]?.id ?? '');
+        setSelectedId(nextLocations[0]?.id ?? '');
       }
-      return next;
+      return nextLocations;
     });
+    persistAssets(nextLocations, vehicles);
   };
 
   const triggerTestIncident = () => {
@@ -732,47 +909,55 @@ function App() {
       createdAt: Date.now(),
     };
 
-    setIncidents((current) => [newIncident, ...current]);
+    const nextIncidents = [newIncident, ...incidents];
+    setIncidents(nextIncidents);
+    persistSimulation(nextIncidents, vehicles);
     setSelectedIncidentId(newIncident.id);
     setCurrentView('Einsätze');
   };
 
   const alarmIncidentVehicles = (incidentId: string, selectedVehicleIds: string[]) => {
     if (selectedVehicleIds.length === 0) return;
+    const incident = incidents.find((item) => item.id === incidentId);
+    if (!incident || incident.status !== 'Offen') return;
 
-    setIncidents((current) => current.map((incident) => {
-      if (incident.id !== incidentId) return incident;
+    const vehiclesToAssign = selectedVehicleIds
+      .map((vehicleId) => {
+        const vehicle = vehicles.find((item) => item.id === vehicleId);
+        if (!vehicle || !isFmsAlarmable(getFmsStatus(vehicle), vehicle.previousOperationalStatus)) return null;
+        const coords = getStationCoords(vehicle.stationId, locations);
+        if (!coords) return null;
+        const distance = haversineKm(coords, incident.coords);
+        const etaSeconds = Math.max(1, Math.round((distance / GAME_CONFIG.averageSpeedKmh) * 3600));
+        return { vehicleId, distanceKm: Number(distance.toFixed(1)), etaSeconds, arrivalAt: Date.now() + etaSeconds * 1000 } satisfies AlarmedVehicle;
+      })
+      .filter((entry): entry is AlarmedVehicle => Boolean(entry));
+    const nextAlarmed = [...incident.alarmedVehicles, ...vehiclesToAssign.filter((entry) => !incident.alarmedVehicles.some((existing) => existing.vehicleId === entry.vehicleId))];
+    const nextIncidents = incidents.map((item) => item.id === incidentId ? { ...item, alarmedVehicles: nextAlarmed, status: nextAlarmed.length > 0 ? 'Fahrzeuge alarmiert' as const : 'Offen' as const } : item);
+    const assignedIds = new Set(vehiclesToAssign.map((entry) => entry.vehicleId));
+    const nextVehicles = vehicles.map((vehicle) => assignedIds.has(vehicle.id) ? withFmsStatus(vehicle, 3) : vehicle);
+    setIncidents(nextIncidents);
+    setVehicles(nextVehicles);
+    persistSimulation(nextIncidents, nextVehicles);
+  };
 
-      const vehiclesToAssign = selectedVehicleIds
-        .map((vehicleId) => {
-          const vehicle = vehicles.find((item) => item.id === vehicleId);
-          const coords = getStationCoords(vehicle?.stationId, locations);
-          if (!vehicle || !coords) return null;
-          const distance = haversineKm(coords, incident.coords);
-          const etaSeconds = Math.max(1, Math.round((distance / GAME_CONFIG.averageSpeedKmh) * 3600));
-          return {
-            vehicleId,
-            distanceKm: Number(distance.toFixed(1)),
-            etaSeconds,
-            arrivalAt: Date.now() + etaSeconds * 1000,
-          } satisfies AlarmedVehicle;
-        })
-        .filter((entry): entry is AlarmedVehicle => Boolean(entry));
+  const acknowledgeSpeechRequest = (vehicleId: string) => {
+    const nextVehicles = vehicles.map((vehicle) => {
+      if (vehicle.id !== vehicleId) return vehicle;
+      if (!vehicle.speechRequest || getFmsStatus(vehicle) !== 5) return vehicle;
+      return withFmsStatus(vehicle, vehicle.previousOperationalStatus ?? 2);
+    });
+    setVehicles(nextVehicles);
+    persistSimulation(incidents, nextVehicles);
+  };
 
-      const nextAlarmed = [...incident.alarmedVehicles, ...vehiclesToAssign.filter(
-        (entry) => !incident.alarmedVehicles.some((existing) => existing.vehicleId === entry.vehicleId),
-      )];
-
-      setVehicles((currentVehicles) => currentVehicles.map((vehicle) =>
-        selectedVehicleIds.includes(vehicle.id) ? { ...vehicle, status: 'Alarmiert / auf Anfahrt' } : vehicle,
-      ));
-
-      return {
-        ...incident,
-        alarmedVehicles: nextAlarmed,
-        status: nextAlarmed.length > 0 ? 'Fahrzeuge alarmiert' : 'Offen',
-      };
-    }));
+  const toggleVehicleAvailability = (vehicleId: string) => {
+    const nextVehicles = vehicles.map((vehicle) => {
+      if (vehicle.id !== vehicleId) return vehicle;
+      return getFmsStatus(vehicle) === 6 ? withFmsStatus(vehicle, 2) : withFmsStatus(vehicle, 6);
+    });
+    setVehicles(nextVehicles);
+    persistSimulation(incidents, nextVehicles);
   };
 
   return (
@@ -823,8 +1008,8 @@ function App() {
         </div>
       </header>
 
-      <main className="dashboard">
-        <aside className="sidebar">
+      <main className={`dashboard ${currentView === 'Karte' ? 'dashboard--map' : 'dashboard--workspace'}`}>
+        {currentView === 'Karte' && <aside className="sidebar">
           <div className="panel-header">
             <h2>Standorte</h2>
             <span>{locations.length}</span>
@@ -839,13 +1024,6 @@ function App() {
                 onChange={(event) => setDraftName(event.target.value)}
                 placeholder="z. B. Rettungswache Nord"
               />
-            </label>
-
-            <label className="field">
-              <span>Typ</span>
-              <select value={draftType} onChange={(event) => setDraftType(event.target.value as LocationType)}>
-                <option value="station">Standort (station)</option>
-              </select>
             </label>
 
             <label className="field">
@@ -979,13 +1157,12 @@ function App() {
             <h3>{selectedLocation.name}</h3>
             <p>{selectedLocation.details}</p>
             <ul>
-              <li>Typ: {selectedLocation.type}</li>
               <li>
                 Koordinaten: {selectedLocation.coords[0].toFixed(4)}, {selectedLocation.coords[1].toFixed(4)}
               </li>
             </ul>
           </div>
-        </aside>
+        </aside>}
 
         {currentView === 'Karte' ? (
           <section className="map-panel">
@@ -996,6 +1173,7 @@ function App() {
               />
 
               <MapClickHandler onMapClick={handleMapClick} />
+              <MapZoomTracker onZoomChange={setMapZoom} />
 
               {tempCoords && (
                 <Marker position={tempCoords} icon={createMarkerIcon('#2563eb')}>
@@ -1009,12 +1187,15 @@ function App() {
 
               {locations.map((location) => {
                 const iconColor = location.type === 'incident' ? '#f59e0b' : '#d92d2d';
+                const stationIcon = location.stationKind === 'Feuerwache'
+                  ? createFireStationIcon(mapZoom)
+                  : createMarkerIcon(iconColor);
 
                 return (
                   <Marker
                     key={location.id}
                     position={location.coords}
-                    icon={createMarkerIcon(iconColor)}
+                    icon={stationIcon}
                     eventHandlers={{ click: () => setSelectedId(location.id) }}
                   >
                     <Popup>
@@ -1047,13 +1228,56 @@ function App() {
             </MapContainer>
           </section>
         ) : (
-          <section className="panel--secondary" style={{ padding: 16 }}>
+          <section className="panel--secondary workspace-panel">
             {currentView === 'Wachen' && (
-              <WachenView locations={locations} selectedId={selectedId} setSelectedId={setSelectedId} vehicles={vehicles} />
+              <WachenView locations={locations} selectedId={selectedId} setSelectedId={setSelectedId} vehicles={vehicles} stationKindFilter={stationKindFilter} balance={balance} onPurchaseVehicle={purchaseVehicle} onPurchaseUpgrade={purchaseUpgrade} />
+            )}
+
+            {currentView === 'Leitstelle' && (
+              <LeitstelleView
+                incidents={incidents}
+                locations={locations}
+                vehicles={vehicles}
+                balance={balance}
+                activities={transactions}
+                completedIncidents={completedIncidentHistory}
+                onOpenActiveIncidents={() => { setSelectedIncidentId(null); setIncidentInitialTab('Aktive'); setCurrentView('Einsätze'); }}
+                onOpenIncidents={(incidentId) => {
+                  setSelectedIncidentId(incidentId);
+                  setIncidentInitialTab('Aktive');
+                  setCurrentView('Einsätze');
+                }}
+                onOpenCompletedIncident={(incidentId) => {
+                  setSelectedIncidentId(incidentId);
+                  setIncidentInitialTab('Abgeschlossen');
+                  setCurrentView('Einsätze');
+                }}
+                onOpenWachen={() => { setStationKindFilter(undefined); setCurrentView('Wachen'); }}
+                onOpenRescue={() => {
+                  const rescueStation = locations.find((location) => location.type === 'station' && (location.stationKind ?? 'Rettungswache') === 'Rettungswache');
+                  if (rescueStation) setSelectedId(rescueStation.id);
+                  setStationKindFilter('Rettungswache');
+                  setCurrentView('Wachen');
+                }}
+                onOpenFire={() => {
+                  const fireStation = locations.find((location) => location.type === 'station' && location.stationKind === 'Feuerwache');
+                  if (fireStation) setSelectedId(fireStation.id);
+                  setStationKindFilter('Feuerwache');
+                  setCurrentView('Wachen');
+                }}
+                onOpenVehicles={() => setCurrentView('Fahrzeuge')}
+                onOpenFinances={() => setCurrentView('Finanzen')}
+                onOpenMap={() => setCurrentView('Karte')}
+                onOpenStation={(stationId) => {
+                  setSelectedId(stationId);
+                  setStationKindFilter(undefined);
+                  setCurrentView('Wachen');
+                }}
+              />
             )}
 
             {currentView === 'Fahrzeuge' && (
-              <FahrzeugeView vehicles={vehicles} addVehicle={addVehicle} stations={locations.filter(l => l.type === 'station')} />
+              <FahrzeugeView vehicles={vehicles} addVehicle={addVehicle} stations={locations.filter(l => l.type === 'station')} onAcknowledgeSpeechRequest={acknowledgeSpeechRequest} onToggleAvailability={toggleVehicleAvailability} />
             )}
 
             {currentView === 'Einsätze' && (
@@ -1068,6 +1292,7 @@ function App() {
                 triggerTestIncident={triggerTestIncident}
                 nowMs={nowMs}
                 stats={completedIncidentStats}
+                initialTab={incidentInitialTab}
               />
             )}
 

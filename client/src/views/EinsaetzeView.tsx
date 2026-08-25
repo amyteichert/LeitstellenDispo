@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
+import { isFmsAlarmable, FMS_STATUS_LABELS } from '@leitstellendispo/shared';
 import type { MapLocation } from '../types';
 import type { Vehicle } from './FahrzeugeView';
+import { vehicleMeetsRequirement, type VehicleRequirement } from '../vehicleCatalog';
 
 type IncidentStatus = 'Offen' | 'Fahrzeuge alarmiert' | 'In Bearbeitung' | 'Abgeschlossen';
 
@@ -13,7 +15,7 @@ type Incident = {
   address: string;
   generatedByStationId: string;
   generatedByStationName: string;
-  requiredVehicles: Array<{ id: string; category: 'RTW' | 'Löschfahrzeug'; amount: number }>;
+  requiredVehicles: VehicleRequirement[];
   alarmedVehicles: Array<{ vehicleId: string; distanceKm: number; etaSeconds: number; arrivalAt: number }>;
   reward: number;
   durationSeconds: number;
@@ -22,13 +24,6 @@ type Incident = {
   processingEndsAt?: number;
   completedAt?: number;
   totalDurationSeconds?: number;
-};
-
-const getVehicleCategory = (type?: string) => {
-  if (!type) return null;
-  if (type === 'RTW') return 'RTW';
-  if (['LF 10', 'LF 20', 'TLF 2000', 'TLF 3000', 'TLF 4000'].includes(type)) return 'Löschfahrzeug';
-  return null;
 };
 
 const haversineKm = (from: [number, number], to: [number, number]) => {
@@ -67,6 +62,7 @@ export default function EinsaetzeView({
   triggerTestIncident,
   nowMs,
   stats,
+  initialTab,
 }: {
   incidents: Incident[];
   completedIncidentHistory: CompletedIncidentHistoryEntry[];
@@ -78,9 +74,10 @@ export default function EinsaetzeView({
   triggerTestIncident: () => void;
   nowMs: number;
   stats: { total: number; rettungsdienst: number; feuerwehr: number; earned: number };
+  initialTab?: 'Aktive' | 'Abgeschlossen';
 }) {
   const [selectedVehicleIds, setSelectedVehicleIds] = useState<string[]>([]);
-  const [activeTab, setActiveTab] = useState<'Aktive' | 'Abgeschlossen'>('Aktive');
+  const [activeTab, setActiveTab] = useState<'Aktive' | 'Abgeschlossen'>(initialTab ?? 'Aktive');
 
   useEffect(() => {
     setSelectedVehicleIds([]);
@@ -97,10 +94,8 @@ export default function EinsaetzeView({
     if (!selectedIncident || selectedIncident.status === 'Abgeschlossen') return [] as Vehicle[];
 
     return vehicles.filter((vehicle) => {
-      if (vehicle.status !== 'Einsatzbereit') return false;
-      const category = getVehicleCategory(vehicle.type);
-      if (!category) return false;
-      return selectedIncident.requiredVehicles.some((requirement) => requirement.category === category);
+      if (!isFmsAlarmable(vehicle.fmsStatus ?? 2, vehicle.previousOperationalStatus)) return false;
+      return selectedIncident.requiredVehicles.some((requirement) => vehicleMeetsRequirement(vehicle.type, requirement));
     }).sort((a, b) => {
       const aCoords = a.stationId ? locations.find((loc) => loc.id === a.stationId)?.coords : undefined;
       const bCoords = b.stationId ? locations.find((loc) => loc.id === b.stationId)?.coords : undefined;
@@ -130,33 +125,32 @@ export default function EinsaetzeView({
   });
 
   return (
-    <div>
-      <h2>Einsätze</h2>
-      <div style={{ marginBottom: 12 }}>
-        <button className="btn btn--primary" type="button" onClick={triggerTestIncident}>Test-Einsatz erzeugen</button>
+    <div className="view-screen view-screen--incidents">
+      <div className="screen-heading">
+        <div><span className="eyebrow">Leitstellenbetrieb</span><h2>Einsätze</h2></div>
+        <button className="btn btn--primary" type="button" onClick={triggerTestIncident}>＋ Test-Einsatz erzeugen</button>
       </div>
-
-      <div style={{ marginBottom: 16, display: 'grid', gridTemplateColumns: 'repeat(4, minmax(120px, 1fr))', gap: 8 }}>
-        <div style={{ background: '#fff', padding: 10, borderRadius: 8, border: '1px solid #e5e7eb' }}>
+      <div className="incident-stats">
+        <div className="metric-card metric-card--red">
           <div style={{ fontSize: 12, color: '#6b7280' }}>Abgeschlossen</div>
           <strong>{stats.total}</strong>
         </div>
-        <div style={{ background: '#fff', padding: 10, borderRadius: 8, border: '1px solid #e5e7eb' }}>
+        <div className="metric-card">
           <div style={{ fontSize: 12, color: '#6b7280' }}>RD</div>
           <strong>{stats.rettungsdienst}</strong>
         </div>
-        <div style={{ background: '#fff', padding: 10, borderRadius: 8, border: '1px solid #e5e7eb' }}>
+        <div className="metric-card">
           <div style={{ fontSize: 12, color: '#6b7280' }}>FW</div>
           <strong>{stats.feuerwehr}</strong>
         </div>
-        <div style={{ background: '#fff', padding: 10, borderRadius: 8, border: '1px solid #e5e7eb' }}>
+        <div className="metric-card metric-card--money">
           <div style={{ fontSize: 12, color: '#6b7280' }}>Verdient</div>
           <strong>{stats.earned} €</strong>
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(260px, 1fr) minmax(0, 1.4fr)', gap: 16 }}>
-        <div>
+      <div className="incident-layout">
+        <div className="section-panel incident-list-panel">
           <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
             <button type="button" className={`btn ${activeTab === 'Aktive' ? 'btn--primary' : ''}`} onClick={() => setActiveTab('Aktive')}>Aktive Einsätze</button>
             <button type="button" className={`btn ${activeTab === 'Abgeschlossen' ? 'btn--primary' : ''}`} onClick={() => setActiveTab('Abgeschlossen')}>Abgeschlossen</button>
@@ -213,9 +207,9 @@ export default function EinsaetzeView({
           )}
         </div>
 
-        <div>
+        <div className="section-panel incident-detail-panel">
           {selectedIncident ? (
-            <div style={{ background: '#fff', padding: 16, borderRadius: 12, boxShadow: '0 6px 18px rgba(0,0,0,0.04)' }}>
+            <div className="incident-detail">
               <h3>{selectedIncident.type}</h3>
               <p><strong>Status:</strong> {selectedIncident.status}</p>
               <p><strong>Organisation:</strong> {selectedIncident.organization}</p>
@@ -232,9 +226,14 @@ export default function EinsaetzeView({
 
               <h4>Benötigte Fahrzeuge</h4>
               <ul>
-                {selectedIncident.requiredVehicles.map((requirement) => (
-                  <li key={requirement.id}>{requirement.amount} × {requirement.category}</li>
-                ))}
+                {selectedIncident.requiredVehicles.map((requirement) => {
+                  const matchingIds = new Set(selectedIncident.alarmedVehicles.map((assignment) => assignment.vehicleId).filter((vehicleId) => {
+                    const vehicle = vehicles.find((item) => item.id === vehicleId);
+                    return vehicle ? vehicleMeetsRequirement(vehicle.type, requirement) : false;
+                  }));
+                  const fulfilled = matchingIds.size >= requirement.amount;
+                  return <li className={fulfilled ? 'requirement--fulfilled' : 'requirement--open'} key={requirement.id}><span>{requirement.label}</span><strong>{matchingIds.size} / {requirement.amount}</strong></li>;
+                })}
               </ul>
 
               <h4>Eingesetzte Fahrzeuge</h4>
@@ -251,7 +250,7 @@ export default function EinsaetzeView({
 
                     return (
                       <li key={assignment.vehicleId}>
-                        {callSign}{durationLabel}
+                        {callSign}{durationLabel} <span className={`fms-badge fms-badge--${vehicle ? (vehicle.fmsStatus ?? 2) : 2}`}>[{vehicle?.fmsStatus ?? 2}] {vehicle ? FMS_STATUS_LABELS[vehicle.fmsStatus ?? 2] : 'Unbekannt'}</span>
                       </li>
                     );
                   })}

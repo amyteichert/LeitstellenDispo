@@ -9,7 +9,7 @@ type Props = {
   onSelect: (view: string) => void;
 };
 
-const VIEWS = ['Karte', 'Wachen', 'Fahrzeuge', 'Einsätze', 'Finanzen', 'Einstellungen'];
+const VIEWS = ['Leitstelle', 'Karte', 'Einsätze', 'Wachen', 'Fahrzeuge', 'Finanzen', 'Einstellungen'];
 
 export default function ViewDropdown({ anchorRef, isOpen, onClose, currentView, onSelect }: Props) {
   const [pos, setPos] = useState<{ top: number; left: number; width: number } | null>(null);

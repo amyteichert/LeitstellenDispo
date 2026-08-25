@@ -1,18 +1,18 @@
 :root {
-  /* LeitstellenDispo Design – hell, rot */
+  /* LeitstellenDispo Design – dunkle Leitstellenoberflaeche */
   --color-primary: #c41e3a;
   --color-primary-dark: #9a1830;
-  --color-primary-light: #fde8ec;
-  --color-bg: #f5f6f8;
-  --color-surface: #ffffff;
-  --color-text: #1a1a2e;
-  --color-text-muted: #6b7280;
-  --color-border: #e5e7eb;
-  --color-success: #16a34a;
-  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.08);
-  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.1);
+  --color-primary-light: #3b2028;
+  --color-bg: #17191d;
+  --color-surface: #292d33;
+  --color-text: #f3f5f7;
+  --color-text-muted: #aeb5be;
+  --color-border: #3d434c;
+  --color-success: #43b581;
+  --shadow-sm: 0 4px 12px rgba(0, 0, 0, 0.18);
+  --shadow-md: 0 12px 28px rgba(0, 0, 0, 0.24);
   --radius: 8px;
-  --font: 'Inter', system-ui, -apple-system, sans-serif;
+  --font: 'IBM Plex Sans', 'Segoe UI', system-ui, sans-serif;
 }
 
 *,
