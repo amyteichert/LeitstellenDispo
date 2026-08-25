@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { isFmsAlarmable, FMS_STATUS_LABELS } from '@leitstellendispo/shared';
 import type { MapLocation } from '../types';
 import type { Vehicle } from './FahrzeugeView';
-import { vehicleMeetsRequirement, type VehicleRequirement } from '../vehicleCatalog';
+import { countMatchingVehicles, formatVehicleRequirement, vehicleMeetsRequirement, type VehicleRequirement } from '../vehicleCatalog';
 
 type IncidentStatus = 'Offen' | 'Fahrzeuge alarmiert' | 'In Bearbeitung' | 'Abgeschlossen';
 
@@ -109,6 +109,26 @@ export default function EinsaetzeView({
     () => [...completedIncidentHistory].sort((a, b) => b.completedAt - a.completedAt),
     [completedIncidentHistory],
   );
+
+  const requirementStates = useMemo(() => {
+    if (!selectedIncident) return [];
+
+    const assignedVehicles = selectedIncident.alarmedVehicles
+      .map((assignment) => vehicles.find((vehicle) => vehicle.id === assignment.vehicleId))
+      .filter((vehicle): vehicle is Vehicle => Boolean(vehicle));
+
+    return selectedIncident.requiredVehicles.map((requirement) => {
+      const matchingCount = countMatchingVehicles(assignedVehicles, requirement);
+      const missingCount = Math.max(0, requirement.amount - matchingCount);
+
+      return {
+        requirement,
+        matchingCount,
+        missingCount,
+        fulfilled: matchingCount >= requirement.amount,
+      };
+    });
+  }, [selectedIncident, vehicles]);
 
   const toggleVehicle = (vehicleId: string) => {
     setSelectedVehicleIds((current) =>
@@ -224,16 +244,17 @@ export default function EinsaetzeView({
                 </>
               )}
 
-              <h4>Benötigte Fahrzeuge</h4>
+              <h4>Benötigte Fahrzeuge / Fähigkeiten</h4>
+              <p style={{ gridColumn: '1 / -1', marginBottom: 0 }}>
+                {selectedIncident.requiredVehicles.map((requirement) => formatVehicleRequirement(requirement)).join(' · ')}
+              </p>
               <ul>
-                {selectedIncident.requiredVehicles.map((requirement) => {
-                  const matchingIds = new Set(selectedIncident.alarmedVehicles.map((assignment) => assignment.vehicleId).filter((vehicleId) => {
-                    const vehicle = vehicles.find((item) => item.id === vehicleId);
-                    return vehicle ? vehicleMeetsRequirement(vehicle.type, requirement) : false;
-                  }));
-                  const fulfilled = matchingIds.size >= requirement.amount;
-                  return <li className={fulfilled ? 'requirement--fulfilled' : 'requirement--open'} key={requirement.id}><span>{requirement.label}</span><strong>{matchingIds.size} / {requirement.amount}</strong></li>;
-                })}
+                {requirementStates.map((entry) => (
+                  <li className={entry.fulfilled ? 'requirement--fulfilled' : 'requirement--open'} key={entry.requirement.id}>
+                    <span>{entry.requirement.label}</span>
+                    <strong>{entry.fulfilled ? 'Erfüllt' : `Fehlt ${entry.missingCount}×`}</strong>
+                  </li>
+                ))}
               </ul>
 
               <h4>Eingesetzte Fahrzeuge</h4>

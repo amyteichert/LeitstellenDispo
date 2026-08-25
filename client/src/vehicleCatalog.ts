@@ -16,6 +16,9 @@ export type VehicleRequirement = {
   value: VehicleCapability | string;
   amount: number;
   label: string;
+  minCrew?: number;
+  minWaterLiters?: number;
+  requiredCapabilities?: VehicleCapability[];
 };
 
 export type VehicleEquipmentProfile = {
@@ -79,5 +82,12 @@ export const vehicleMeetsRequirement = (vehicleType: string | undefined, require
   if (requirement.type === 'vehicleType') return vehicleType === requirement.value;
   return getVehicleCatalogEntry(vehicleType)?.technical.capabilities.includes(requirement.value as VehicleCapability) ?? false;
 };
+
+export const countMatchingVehicles = <T extends { id: string; type?: string }>(
+  vehicles: T[],
+  requirement: VehicleRequirement,
+) => new Set(vehicles.filter((vehicle) => vehicleMeetsRequirement(vehicle.type, requirement)).map((vehicle) => vehicle.id)).size;
+
+export const formatVehicleRequirement = (requirement: VehicleRequirement) => `Benötigt: ${requirement.amount}× ${requirement.label}`;
 
 export const VEHICLE_CATALOG_CATEGORIES = Object.keys(VEHICLE_CATALOG) as VehicleCatalogCategory[];

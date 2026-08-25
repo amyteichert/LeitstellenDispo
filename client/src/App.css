@@ -839,6 +839,11 @@
 .upgrade-summary { color: #8f98a3; }
 .upgrade-summary strong { color: #f3f5f7; }
 .upgrade-screen { max-width: 1520px; }
+.upgrade-group-list { display: grid; gap: 1rem; }
+.upgrade-group { display: grid; gap: .7rem; }
+.upgrade-group__header { display: flex; align-items: flex-end; justify-content: space-between; gap: 1rem; padding: .2rem .1rem; }
+.upgrade-group__header h3 { margin-top: .25rem; color: #f3f5f7; font-size: 1.05rem; }
+.upgrade-group__header span { color: #8f98a3; font-size: .72rem; text-transform: uppercase; letter-spacing: .08em; }
 .upgrade-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr)); gap: .9rem; }
 .upgrade-card { display: flex; min-height: 270px; flex-direction: column; padding: 1rem; background: #24282e; border: 1px solid #3d434c; border-top: 2px solid #c41e3a; border-radius: 8px; box-shadow: 0 10px 24px rgba(0,0,0,.16); }
 .upgrade-card--disabled { border-top-color: #4a515b; opacity: .72; }
@@ -868,6 +873,11 @@
 .vehicle-callsign { font-size: 1.08rem; letter-spacing: .01em; }
 .vehicle-callsign { overflow-wrap: normal; word-break: normal; }
 .vehicle-type { color: #f28a83; background: rgba(196,30,58,.16); }
+.vehicle-technical { display: flex; flex-wrap: wrap; gap: .35rem; }
+.vehicle-technical span, .vehicle-tags span { display: inline-flex; align-items: center; padding: .2rem .42rem; border-radius: 999px; font-size: .68rem; font-weight: 700; line-height: 1.2; }
+.vehicle-technical span { color: #dfe5ea; background: #353a42; border: 1px solid #4a515b; }
+.vehicle-tags { display: flex; flex-wrap: wrap; gap: .35rem; }
+.vehicle-tags span { color: #f3f5f7; background: rgba(196,30,58,.16); border: 1px solid rgba(196,30,58,.25); }
 .vehicle-status { position: static; flex: 0 1 auto; min-width: 0; max-width: 55%; text-align: right; line-height: 1.25; overflow-wrap: normal; word-break: normal; }
 .vehicle-status--fms-1, .fms-badge--1 { color: #a6e3bc; background: rgba(90, 190, 146, .18); }
 .vehicle-status--fms-2, .fms-badge--2 { color: #63d39e; background: rgba(67,181,129,.2); }

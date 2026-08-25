@@ -15,7 +15,7 @@ import EinsaetzeView from './views/EinsaetzeView';
 import FinanzenView from './views/FinanzenView';
 import EinstellungenView from './views/EinstellungenView';
 import LeitstelleView from './views/LeitstelleView';
-import { VEHICLE_CATALOG, vehicleMeetsRequirement } from './vehicleCatalog';
+import { VEHICLE_CATALOG, countMatchingVehicles, vehicleMeetsRequirement, type VehicleRequirement } from './vehicleCatalog';
 import { getUpgradeDefinition, getUpgradePrice } from './upgradeCatalog';
 
 type IncidentStatus = 'Offen' | 'Fahrzeuge alarmiert' | 'In Bearbeitung' | 'Abgeschlossen';
@@ -27,21 +27,13 @@ type FinanceTransaction = {
   createdAt: string;
 };
 
-type IncidentRequirement = {
-  id: string;
-  type: 'capability' | 'vehicleType';
-  value: string;
-  amount: number;
-  label: string;
-};
-
-const capabilityRequirement = (id: string, value: string, amount: number, label: string): IncidentRequirement => ({ id, type: 'capability', value, amount, label });
-const vehicleTypeRequirement = (id: string, value: string, amount: number, label: string): IncidentRequirement => ({ id, type: 'vehicleType', value, amount, label });
+const capabilityRequirement = (id: string, value: VehicleRequirement['value'], amount: number, label: string): VehicleRequirement => ({ id, type: 'capability', value, amount, label });
+const vehicleTypeRequirement = (id: string, value: VehicleRequirement['value'], amount: number, label: string): VehicleRequirement => ({ id, type: 'vehicleType', value, amount, label });
 
 const normalizeIncident = (incident: Incident): Incident => ({
   ...incident,
   requiredVehicles: incident.requiredVehicles.map((requirement) => {
-    const legacy = requirement as IncidentRequirement & { category?: string };
+    const legacy = requirement as VehicleRequirement & { category?: string };
     if (legacy.type) return legacy;
     return legacy.category === 'RTW'
       ? vehicleTypeRequirement(legacy.id, 'RTW', legacy.amount, 'RTW')
@@ -60,7 +52,7 @@ type IncidentTemplate = {
   id: string;
   type: string;
   organization: 'Rettungsdienst' | 'Feuerwehr';
-  requiredVehicles: IncidentRequirement[];
+  requiredVehicles: VehicleRequirement[];
   reward: number;
   durationSeconds: number;
 };
@@ -74,7 +66,7 @@ type Incident = {
   address: string;
   generatedByStationId: string;
   generatedByStationName: string;
-  requiredVehicles: IncidentRequirement[];
+  requiredVehicles: VehicleRequirement[];
   alarmedVehicles: AlarmedVehicle[];
   reward: number;
   durationSeconds: number;
@@ -284,7 +276,7 @@ const INCIDENT_TEMPLATE_SETS: Record<'Rettungswache' | 'Feuerwache', IncidentTem
       id: 'brennender-pkw',
       type: 'Brennender PKW',
       organization: 'Feuerwehr',
-      requiredVehicles: [capabilityRequirement('req-firefighting', 'firefighting', 2, 'Löschfahrzeuge')],
+      requiredVehicles: [capabilityRequirement('req-firefighting', 'firefighting', 1, 'Löschfahrzeug')],
       reward: 310,
       durationSeconds: 15,
     },
@@ -642,11 +634,7 @@ function App() {
         .map((assignment) => nextVehicles.find((vehicle) => vehicle.id === assignment.vehicleId))
         .filter((vehicle): vehicle is Vehicle => Boolean(vehicle));
 
-      const requirementSatisfied = incident.requiredVehicles.every((requirement) => {
-        const matchingVehicleIds = new Set(activeVehicles.filter((vehicle) => vehicleMeetsRequirement(vehicle.type, requirement)).map((vehicle) => vehicle.id));
-        const matches = matchingVehicleIds.size;
-        return matches >= requirement.amount;
-      });
+      const requirementSatisfied = incident.requiredVehicles.every((requirement) => countMatchingVehicles(activeVehicles, requirement) >= requirement.amount);
 
       const allArrived = incident.alarmedVehicles.every((assignment) => nowMs >= assignment.arrivalAt);
       let updated = { ...incident };
