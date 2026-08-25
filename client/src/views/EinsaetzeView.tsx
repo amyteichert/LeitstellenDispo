@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { getVehicleCategory } from '@leitstellendispo/shared';
 import type { MapLocation } from '../types';
 import type { Vehicle } from './FahrzeugeView';
 
@@ -22,13 +23,6 @@ type Incident = {
   processingEndsAt?: number;
   completedAt?: number;
   totalDurationSeconds?: number;
-};
-
-const getVehicleCategory = (type?: string) => {
-  if (!type) return null;
-  if (type === 'RTW') return 'RTW';
-  if (['LF 10', 'LF 20', 'TLF 2000', 'TLF 3000', 'TLF 4000'].includes(type)) return 'Löschfahrzeug';
-  return null;
 };
 
 const haversineKm = (from: [number, number], to: [number, number]) => {

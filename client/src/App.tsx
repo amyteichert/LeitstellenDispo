@@ -1,7 +1,7 @@
 import { useMemo, useState, useRef, useEffect } from 'react';
 import { MapContainer, Marker, Popup, TileLayer, useMapEvents } from 'react-leaflet';
 import L, { type LeafletMouseEvent } from 'leaflet';
-import { APP_VERSION } from '@leitstellendispo/shared';
+import { APP_VERSION, getVehicleCategory, getVehicleTypeSpecsForStationKind, type VehicleCategory } from '@leitstellendispo/shared';
 import 'leaflet/dist/leaflet.css';
 import './App.css';
 
@@ -29,7 +29,6 @@ const VEHICLE_PRICE_BY_TYPE: Record<string, number> = {
 };
 
 type IncidentStatus = 'Offen' | 'Fahrzeuge alarmiert' | 'In Bearbeitung' | 'Abgeschlossen';
-type VehicleCategory = 'RTW' | 'Löschfahrzeug';
 
 type FinanceTransaction = {
   id: string;
@@ -134,11 +133,9 @@ const INCIDENT_SPAWN_CONFIG = {
   preferredVehicleMinRadiusKm: 0.15,
 } as const;
 
-const getVehicleCategory = (type?: string): VehicleCategory | null => {
-  if (!type) return null;
-  if (type === 'RTW') return 'RTW';
-  if (['LF 10', 'LF 20', 'TLF 2000', 'TLF 3000', 'TLF 4000'].includes(type)) return 'Löschfahrzeug';
-  return null;
+const getDefaultStartVehicleType = (stationKind: 'Rettungswache' | 'Feuerwache') => {
+  if (stationKind === 'Rettungswache') return 'RTW';
+  return getVehicleTypeSpecsForStationKind('Feuerwache')[0]?.type ?? 'LF 10';
 };
 
 const clamp = (value: number, min: number, max: number) => Math.min(Math.max(value, min), max);
@@ -399,7 +396,7 @@ function App() {
   // new state: choose station kind when creating a station
   const [draftStationKind, setDraftStationKind] = useState<'Rettungswache' | 'Feuerwache'>('Rettungswache');
   // start vehicle selection (exactly one) and callsign
-  const [draftStartVehicleType, setDraftStartVehicleType] = useState<string>('RTW');
+  const [draftStartVehicleType, setDraftStartVehicleType] = useState<string>(getDefaultStartVehicleType('Rettungswache'));
   const [draftStartVehicleCallsign, setDraftStartVehicleCallsign] = useState<string>('');
 
   useEffect(() => {
@@ -451,8 +448,7 @@ function App() {
   }, [locations, incidents, vehicles]);
 
   useEffect(() => {
-    if (draftStationKind === 'Rettungswache') setDraftStartVehicleType('RTW');
-    else setDraftStartVehicleType('LF 10');
+    setDraftStartVehicleType(getDefaultStartVehicleType(draftStationKind));
   }, [draftStationKind]);
 
   useEffect(() => {
@@ -916,13 +912,9 @@ function App() {
                 {draftStationKind === 'Rettungswache' ? (
                   <option value="RTW">RTW</option>
                 ) : (
-                  <>
-                    <option value="LF 10">LF 10</option>
-                    <option value="LF 20">LF 20</option>
-                    <option value="TLF 2000">TLF 2000</option>
-                    <option value="TLF 3000">TLF 3000</option>
-                    <option value="TLF 4000">TLF 4000</option>
-                  </>
+                  getVehicleTypeSpecsForStationKind('Feuerwache').map((spec) => (
+                    <option key={spec.type} value={spec.type}>{spec.type}</option>
+                  ))
                 )}
               </select>
             </label>
