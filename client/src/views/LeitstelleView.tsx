@@ -1,6 +1,7 @@
 import type { MapLocation } from '../types';
 import type { Vehicle } from './FahrzeugeView';
 import { getFmsStatus } from './FahrzeugeView';
+import { formatCurrency } from '../utils/formatCurrency';
 import { isFmsAlarmable } from '@leitstellendispo/shared';
 import type { VehicleRequirement } from '../vehicleCatalog';
 import { MapContainer, Marker, TileLayer, useMapEvents } from 'react-leaflet';
@@ -85,7 +86,7 @@ export default function LeitstelleView({
         <button className="command-metric command-metric--red" type="button" onClick={onOpenActiveIncidents}><span>Aktive Einsätze</span><strong>{activeIncidents.length}</strong><small>Offene Vorgänge</small></button>
         <button className="command-metric command-metric--blue" type="button" onClick={onOpenRescue}><span>Rettungsdienst</span><strong>{rescueStations}</strong><small>Wachen im Netz</small></button>
         <button className="command-metric command-metric--fire" type="button" onClick={onOpenFire}><span>Feuerwehr</span><strong>{fireStations}</strong><small>Wachen im Netz</small></button>
-        <button className="command-metric command-metric--green" type="button" onClick={onOpenFinances}><span>Guthaben</span><strong>{balance} €</strong><small>Verfügbar</small></button>
+        <button className="command-metric command-metric--green" type="button" onClick={onOpenFinances}><span>Guthaben</span><strong>{formatCurrency(balance)}</strong><small>Verfügbar</small></button>
       </div>
 
       <div className="command-layout">
@@ -143,7 +144,7 @@ export default function LeitstelleView({
           {recentActivities.length === 0 ? <p className="command-empty">Noch keine Aktivitäten.</p> : (
             <div className="activity-list">
               {recentActivities.map((activity) => (
-                <button className="activity-row" type="button" key={activity.id} onClick={activity.onClick}><span className={`activity-dot activity-dot--${activity.kind === 'Einnahme' ? 'income' : 'expense'}`} /><span><strong>{activity.label}</strong><small>{new Date(activity.timestamp).toLocaleString('de-DE')}</small></span><b className={activity.kind === 'Einnahme' ? 'positive' : ''}>{activity.kind === 'Einnahme' ? '+' : '-'}{activity.amount} €</b></button>
+                <button className="activity-row" type="button" key={activity.id} onClick={activity.onClick}><span className={`activity-dot activity-dot--${activity.kind === 'Einnahme' ? 'income' : 'expense'}`} /><span><strong>{activity.label}</strong><small>{new Date(activity.timestamp).toLocaleString('de-DE')}</small></span><b className={activity.kind === 'Einnahme' ? 'positive' : ''}>{activity.kind === 'Einnahme' ? '+' : '-'}{formatCurrency(activity.amount)}</b></button>
               ))}
             </div>
           )}

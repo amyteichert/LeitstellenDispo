@@ -4,8 +4,9 @@ import type { Vehicle } from './FahrzeugeView';
 import { getFmsStatus, getFmsStatusLabel } from './FahrzeugeView';
 import { getAvailableVehicleCategories, VEHICLE_CATALOG, type VehicleCatalogCategory } from '../vehicleCatalog';
 import { getAvailableUpgrades, getUpgradeDefinition, getUpgradePrice, UPGRADE_CATALOG } from '../upgradeCatalog';
+import { formatCurrency } from '../utils/formatCurrency';
 
-const formatPrice = (price: number) => `${price.toLocaleString('de-DE')} €`;
+const formatPrice = formatCurrency;
 
 export default function WachenView({
   locations,
@@ -43,6 +44,16 @@ export default function WachenView({
   const upgradeLevel = selected?.upgradeLevels?.['vehicle-capacity'] ?? 0;
   const nextUpgradeLevel = upgradeLevel + 1;
   const upgradePrice = activeUpgrade ? getUpgradePrice(activeUpgrade, nextUpgradeLevel) : undefined;
+  const upgradeGroups: Array<{ title: string; ids: string[] }> = [
+    { title: 'Aufenthalt & Personal', ids: ['aufenthaltsraum', 'ruheraume', 'fitnessraum', 'personalbereiche', 'kuche'] },
+    { title: 'Ausbildung & Betrieb', ids: ['ausbildungsbereich', 'werkstatt'] },
+    { title: 'Erweiterungen', ids: ['lagerkapazitaet', 'erweiterungen'] },
+  ];
+  const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({
+    'Aufenthalt & Personal': true,
+    'Ausbildung & Betrieb': true,
+    Erweiterungen: true,
+  });
 
   useEffect(() => {
     if (availableCategories.length > 0 && !availableCategories.includes(purchaseCategory)) {
@@ -52,6 +63,53 @@ export default function WachenView({
 
   if (selected && upgradeOpen) {
     const availableUpgrades = getAvailableUpgrades(selected.stationKind ?? 'Rettungswache');
+    const renderUpgradeCard = (upgrade: (typeof UPGRADE_CATALOG)[number]) => {
+      const isAvailable = availableUpgrades.some((item) => item.id === upgrade.id);
+      const nextPrice = upgrade.id === 'vehicle-capacity' ? upgradePrice : undefined;
+      const canUpgrade = isAvailable && nextPrice !== undefined && balance >= nextPrice;
+      const isUnlocked = upgrade.id === 'ausbildungsbereich' && (selected.upgradeLevels?.[upgrade.id] ?? 0) > 0;
+      if (upgrade.id === 'ausbildungsbereich') {
+        const unlockPrice = upgrade.priceByNextLevel?.[1];
+        const canUnlock = !isUnlocked && unlockPrice !== undefined && balance >= unlockPrice;
+        return (
+          <article className={`upgrade-card${isUnlocked ? ' upgrade-card--completed' : isAvailable ? '' : ' upgrade-card--disabled'}`} key={upgrade.id}>
+            <span className="upgrade-card__category">{upgrade.category}</span>
+            <h3>{upgrade.name}</h3>
+            {!isUnlocked ? (
+              <>
+                <p>Hier kann später Personal ausgebildet werden.</p>
+                <div className="upgrade-price">{unlockPrice !== undefined ? formatPrice(unlockPrice) : 'Preis nicht verfügbar'}</div>
+                <button className="btn btn--primary upgrade-action" type="button" disabled={!canUnlock} onClick={() => {
+                  const success = onPurchaseUpgrade(selected.id, upgrade.id);
+                  if (!success) setUpgradeError(unlockPrice === undefined ? 'Freischaltung nicht verfügbar.' : balance < unlockPrice ? 'Nicht genügend Guthaben für die Freischaltung.' : 'Die Freischaltung konnte nicht durchgeführt werden.');
+                  else setUpgradeError(null);
+                }}>{balance < (unlockPrice ?? 0) ? 'Guthaben nicht ausreichend' : 'Freischalten'}</button>
+                <span className="upgrade-locked-state">Gesperrt</span>
+              </>
+            ) : (
+              <>
+                <p>Hier können künftig Ausbildungen für Einsatzkräfte durchgeführt werden.</p>
+                <div className="upgrade-status-banner">Ausbildungsbereich freigeschaltet</div>
+              </>
+            )}
+          </article>
+        );
+      }
+      return (
+        <article className={`upgrade-card${isAvailable ? '' : ' upgrade-card--disabled'}`} key={upgrade.id}>
+          <span className="upgrade-card__category">{upgrade.category}</span>
+          <h3>{upgrade.name}</h3>
+          <p>{upgrade.description}</p>
+          {upgrade.id === 'vehicle-capacity' && <>
+            <div className="upgrade-capacity"><strong>{selectedVehicleCount} / {selectedCapacity}</strong><span>Fahrzeuge</span><small>Nächste Stufe: {selectedCapacity} → {selectedCapacity + 1} Stellplätze</small></div>
+            <div className="upgrade-price">{nextPrice !== undefined ? formatPrice(nextPrice) : 'Maximale Stufe erreicht'}</div>
+            <button className="btn btn--primary upgrade-action" type="button" disabled={!canUpgrade} onClick={() => { const success = onPurchaseUpgrade(selected.id, upgrade.id); if (!success) setUpgradeError(nextPrice === undefined ? 'Keine weitere Ausbaustufe verfügbar.' : balance < nextPrice ? 'Nicht genügend Guthaben für diesen Ausbau.' : 'Der Ausbau konnte nicht durchgeführt werden.'); else setUpgradeError(null); }}>{!isAvailable ? 'Bald verfügbar' : nextPrice === undefined ? 'Maximale Stufe erreicht' : balance < nextPrice ? 'Guthaben nicht ausreichend' : 'Stellplatz erweitern'}</button>
+          </>}
+          {upgrade.id !== 'vehicle-capacity' && <span className="upgrade-coming-soon">Für eine spätere Ausbaustufe vorbereitet</span>}
+        </article>
+      );
+    };
+
     return (
       <div className="view-screen upgrade-screen">
         <div className="screen-heading">
@@ -60,19 +118,28 @@ export default function WachenView({
         </div>
         <div className="vehicle-shop-toolbar upgrade-summary"><span>Ausbauzustand <strong>Stufe {upgradeLevel}</strong></span><span>Guthaben <strong>{formatPrice(balance)}</strong></span></div>
         {upgradeError && <p className="vehicle-shop-error" role="alert">{upgradeError}</p>}
-        <div className="upgrade-grid">
-          {UPGRADE_CATALOG.map((upgrade) => {
-            const isAvailable = availableUpgrades.some((item) => item.id === upgrade.id);
-            const nextPrice = upgrade.id === 'vehicle-capacity' ? upgradePrice : undefined;
-            const canUpgrade = isAvailable && nextPrice !== undefined && balance >= nextPrice;
-            return <article className={`upgrade-card${isAvailable ? '' : ' upgrade-card--disabled'}`} key={upgrade.id}>
-              <span className="upgrade-card__category">{upgrade.category}</span>
-              <h3>{upgrade.name}</h3>
-              <p>{upgrade.description}</p>
-              {upgrade.id === 'vehicle-capacity' && <><div className="upgrade-capacity"><strong>{selectedVehicleCount} / {selectedCapacity}</strong><span>Fahrzeuge</span><small>Nächste Stufe: {selectedCapacity} → {selectedCapacity + 1} Stellplätze</small></div><div className="upgrade-price">{nextPrice !== undefined ? formatPrice(nextPrice) : 'Maximale Stufe erreicht'}</div><button className="btn btn--primary upgrade-action" type="button" disabled={!canUpgrade} onClick={() => { const success = onPurchaseUpgrade(selected.id, upgrade.id); if (!success) setUpgradeError(nextPrice === undefined ? 'Keine weitere Ausbaustufe verfügbar.' : balance < nextPrice ? 'Nicht genügend Guthaben für diesen Ausbau.' : 'Der Ausbau konnte nicht durchgeführt werden.'); else setUpgradeError(null); }}>{!isAvailable ? 'Bald verfügbar' : nextPrice === undefined ? 'Maximale Stufe erreicht' : balance < nextPrice ? 'Guthaben nicht ausreichend' : 'Stellplatz erweitern'}</button></>}
-              {upgrade.id !== 'vehicle-capacity' && <span className="upgrade-coming-soon">Für eine spätere Ausbaustufe vorbereitet</span>}
-            </article>;
-          })}
+        <div className="upgrade-list">
+          <div className="upgrade-grid">{renderUpgradeCard(UPGRADE_CATALOG.find((upgrade) => upgrade.id === 'vehicle-capacity')!)}</div>
+          <div className="upgrade-groups">
+            {upgradeGroups.map((group) => {
+              const isExpanded = expandedGroups[group.title] ?? true;
+              const groupIds = new Set(group.ids);
+              const groupUpgrades = UPGRADE_CATALOG.filter((upgrade) => groupIds.has(upgrade.id));
+              return (
+                <section className="upgrade-group" key={group.title}>
+                  <button className="upgrade-group__toggle" type="button" aria-expanded={isExpanded} onClick={() => setExpandedGroups((previous) => ({ ...previous, [group.title]: !(previous[group.title] ?? true) }))}>
+                    <span className="upgrade-group__label-wrapper"><span>{group.title}</span><span className="upgrade-group__chevron" aria-hidden="true">{isExpanded ? '▾' : '▸'}</span></span>
+                    <span className="upgrade-group__count">{groupUpgrades.length}</span>
+                  </button>
+                  {isExpanded && (
+                    <div className="upgrade-group__content">
+                      <div className="upgrade-grid">{groupUpgrades.map((upgrade) => renderUpgradeCard(upgrade))}</div>
+                    </div>
+                  )}
+                </section>
+              );
+            })}
+          </div>
         </div>
       </div>
     );

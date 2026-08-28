@@ -1,7 +1,7 @@
 import { useMemo, useState, useRef, useEffect } from 'react';
 import { MapContainer, Marker, Popup, TileLayer, useMapEvents } from 'react-leaflet';
 import L, { type LeafletMouseEvent } from 'leaflet';
-import { APP_VERSION, getDefaultVehicleCapacity, STATION_PRICE_BY_KIND } from '@leitstellendispo/shared';
+import { getDefaultVehicleCapacity, STATION_PRICE_BY_KIND } from '@leitstellendispo/shared';
 import { isFmsAlarmable, type FmsStatus, type OperationalFmsStatus } from '@leitstellendispo/shared';
 import 'leaflet/dist/leaflet.css';
 import './App.css';
@@ -529,6 +529,46 @@ function App() {
     return true;
   };
 
+  const updateBalance = (nextBalance: number, label: string, kind: FinanceTransaction['kind'] = 'Einnahme') => {
+    if (!Number.isFinite(nextBalance) || nextBalance < 0) return false;
+    const nextTransactions = [{ id: `txn-${Date.now()}-${Math.random().toString(16).slice(2)}`, kind, label, amount: Math.abs(nextBalance - balance), createdAt: new Date().toISOString() }, ...transactions];
+    setBalance(nextBalance);
+    setTransactions(nextTransactions);
+    fetch('/api/game-state/finance', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ balance: nextBalance, transactions: nextTransactions }) }).catch((error) => console.error('Geldänderung konnte nicht gespeichert werden.', error));
+    return true;
+  };
+
+  const updateStationUpgradeLevel = (stationId: string, upgradeId: string, nextLevel: number) => {
+    const station = locations.find((location) => location.id === stationId && location.type === 'station');
+    if (!station) return false;
+    const nextLocations = locations.map((location) => location.id === stationId
+      ? { ...location, upgradeLevels: { ...(location.upgradeLevels ?? {}), [upgradeId]: nextLevel } }
+      : location);
+    setLocations(nextLocations);
+    persistAssets(nextLocations, vehicles);
+    return true;
+  };
+
+  const resetGameState = async () => {
+    const response = await fetch('/api/game-state/reset', { method: 'POST' });
+    if (!response.ok) return false;
+    const nextState: { balance: number; transactions: FinanceTransaction[]; completedIncidents: CompletedIncident[]; locations: MapLocation[]; vehicles: Vehicle[]; incidents?: Incident[] } = await response.json();
+    setBalance(nextState.balance);
+    setTransactions(nextState.transactions);
+    setCompletedIncidentHistory(nextState.completedIncidents ?? []);
+    setLocations(nextState.locations.length > 0 ? nextState.locations.map((location) => location.type === 'station'
+      ? { ...location, vehicleCapacity: location.vehicleCapacity ?? getDefaultVehicleCapacity(location.stationKind), upgradeLevels: location.upgradeLevels ?? {}, staffSatisfaction: location.staffSatisfaction ?? 100 }
+      : location) : initialLocations);
+    setVehicles(nextState.vehicles.length > 0 ? nextState.vehicles.map((vehicle) => withFmsStatus(vehicle, getFmsStatus(vehicle), vehicle.returnAt)) : [
+      { id: 'fahrzeug-1', name: 'RTW 1', type: 'RTW', stationId: 'rettungswache-zentrum', price: 0, callsign: 'RTW-1', status: 'Einsatzbereit' },
+      { id: 'fahrzeug-2', name: 'LF 1', type: 'LF 10', stationId: undefined, price: 0, callsign: 'LF-1', status: 'Einsatzbereit' },
+    ]);
+    setIncidents(nextState.incidents ?? []);
+    setSelectedId((nextState.locations.find((location) => location.type === 'station')?.id) ?? initialLocations[0].id);
+    setGameStateLoaded(true);
+    return true;
+  };
+
   const [incidents, setIncidents] = useState<Incident[]>([]);
   const [completedIncidentHistory, setCompletedIncidentHistory] = useState<CompletedIncident[]>([]);
   const [selectedIncidentId, setSelectedIncidentId] = useState<string | null>(null);
@@ -975,9 +1015,6 @@ function App() {
         <div className="topbar__meta">
           {/* Single dropdown trigger showing the currently active main view */}
           {/* Will render current view and open a small dropdown when clicked. */}
-          { /* Version chip kept for visibility */ }
-          <span className="chip">V{APP_VERSION}</span>
-
           <div className="view-dropdown">
             {/* Trigger button */}
             <button
@@ -1301,7 +1338,14 @@ function App() {
             )}
 
             {currentView === 'Einstellungen' && (
-              <EinstellungenView defaultView={currentView} />
+              <EinstellungenView
+                defaultView={currentView}
+                balance={balance}
+                onSetBalance={updateBalance}
+                locations={locations}
+                onUpdateStationUpgradeLevel={updateStationUpgradeLevel}
+                onResetGame={resetGameState}
+              />
             )}
           </section>
         )}

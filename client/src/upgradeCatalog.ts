@@ -44,7 +44,20 @@ export const UPGRADE_CATALOG: UpgradeDefinition[] = [
     },
     available: true,
   },
-  ...(['Erweiterungen', 'Lagerkapazität', 'Personalbereiche', 'Aufenthaltsraum', 'Ruheräume', 'Küche', 'Fitnessraum', 'Ausbildungsbereich', 'Werkstatt'] as UpgradeCategory[]).map((category): UpgradeDefinition => ({
+  {
+    id: 'ausbildungsbereich',
+    category: 'Ausbildungsbereich',
+    name: 'Ausbildungsbereich',
+    description: 'Hier kann später Personal ausgebildet werden.',
+    maxLevel: 1,
+    allowedStationKinds: ['Rettungswache', 'Feuerwache'],
+    effect: {},
+    priceByNextLevel: {
+      1: 250000,
+    },
+    available: true,
+  },
+  ...(['Erweiterungen', 'Lagerkapazität', 'Personalbereiche', 'Aufenthaltsraum', 'Ruheräume', 'Küche', 'Fitnessraum', 'Werkstatt'] as UpgradeCategory[]).map((category): UpgradeDefinition => ({
     id: category.toLowerCase().replace(/ä/g, 'a'),
     category,
     name: category,

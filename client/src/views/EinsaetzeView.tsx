@@ -3,6 +3,7 @@ import { isFmsAlarmable, FMS_STATUS_LABELS } from '@leitstellendispo/shared';
 import type { MapLocation } from '../types';
 import type { Vehicle } from './FahrzeugeView';
 import { vehicleMeetsRequirement, type VehicleRequirement } from '../vehicleCatalog';
+import { formatCurrency } from '../utils/formatCurrency';
 
 type IncidentStatus = 'Offen' | 'Fahrzeuge alarmiert' | 'In Bearbeitung' | 'Abgeschlossen';
 
@@ -145,7 +146,7 @@ export default function EinsaetzeView({
         </div>
         <div className="metric-card metric-card--money">
           <div style={{ fontSize: 12, color: '#6b7280' }}>Verdient</div>
-          <strong>{stats.earned} €</strong>
+          <strong>{formatCurrency(stats.earned)}</strong>
         </div>
       </div>
 
@@ -173,7 +174,7 @@ export default function EinsaetzeView({
                         {incident.organization} · {incident.status} · {incident.generatedByStationName}
                       </div>
                       <div style={{ fontSize: 12, color: '#6b7280' }}>
-                        {incident.reward} € · {incident.alarmedVehicles.length} alarmiert
+                        {formatCurrency(incident.reward)} · {incident.alarmedVehicles.length} alarmiert
                       </div>
                     </button>
                   </li>
@@ -197,7 +198,7 @@ export default function EinsaetzeView({
                         {incident.organization} · Abgeschlossen · {incident.generatedByStationName}
                       </div>
                       <div style={{ fontSize: 12, color: '#6b7280' }}>
-                        {incident.reward} € · {formatDateTime(incident.completedAt)}
+                        {formatCurrency(incident.reward)} · {formatDateTime(incident.completedAt)}
                       </div>
                     </button>
                   </li>
@@ -215,7 +216,7 @@ export default function EinsaetzeView({
               <p><strong>Organisation:</strong> {selectedIncident.organization}</p>
               <p><strong>Adresse:</strong> {selectedIncident.address}</p>
               <p><strong>Erzeugt durch:</strong> {selectedIncident.generatedByStationName}</p>
-              <p><strong>Belohnung:</strong> {selectedIncident.reward} €</p>
+              <p><strong>Belohnung:</strong> {formatCurrency(selectedIncident.reward)}</p>
 
               {selectedIncident.status === 'Abgeschlossen' && (
                 <>

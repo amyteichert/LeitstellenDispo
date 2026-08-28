@@ -3,6 +3,8 @@
   display: flex;
   flex-direction: column;
   background: #17191d;
+  max-width: 100vw;
+  overflow-x: hidden;
 }
 
 .fire-station-marker {
@@ -22,49 +24,48 @@
 .topbar {
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: flex-start;
   padding: 0;
-  height: 90px;
-  min-height: 90px;
+  height: auto;
+  min-height: 0;
   background: transparent;
   border-bottom: none;
   box-shadow: none;
   color: #111827;
   position: relative;
- z-index: 1200; /* Header über Karteninhalten platzieren (überschaubarer Wert, nicht willkürlich hoch) */
- overflow: visible;
+  z-index: 1200;
+  overflow: visible;
 }
 
 /* Full-width banner image inside the header */
 .topbar__banner {
-  position: absolute;
-  /* Linke Kante bleibt unverändert (aktuelle visuelle Position beibehalten) */
-  left: -8%;
-  top: 0;
-  height: 100%;
-  /* Sicherstellen, dass das Bild mindestens bis zum rechten Rand reicht und
-     nicht von seiner intrinsischen Größe limitiert wird */
   display: block;
-  width: auto; /* erlauben, dass object-fit die Darstellung kontrolliert */
-  min-width: calc(100% + 8%);
-  max-width: none;
-  object-fit: cover; /* kein unnatürliches Verzerren */
-  object-position: center;
+  width: 100%;
+  height: auto;
+  max-width: 100%;
+  vertical-align: bottom;
   z-index: 0;
+  pointer-events: none;
+  background: transparent;
 }
 
-/* Keep header content above the banner (exclude the banner image itself) */
-.topbar > :not(.topbar__banner) {
+/* Keep only the brand area above the banner; do not apply a broad stacking rule to all children. */
+.topbar > .brand {
   position: relative;
   z-index: 1;
 }
 
-/* Adjust chips and other meta so they remain visible on banner */
+/* Explicit top-right navigation overlay above the banner and content. */
 .topbar__meta {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 50;
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  padding: 1rem 1.5rem;
+  gap: 0.35rem;
+  padding: 0.25rem 0.35rem;
+  margin-left: auto;
 }
 
 .brand {
@@ -130,6 +131,20 @@
 }
 
 @media (max-width: 900px) {
+  .topbar {
+    height: auto;
+    min-height: 0;
+  }
+
+  .topbar__banner {
+    width: 100%;
+    height: auto;
+  }
+
+  .topbar__meta {
+    padding: 0.65rem 0.8rem;
+  }
+
   .brand__mark {
     width: 48px;
     height: 48px;
@@ -182,12 +197,6 @@
   color: rgba(255,255,255,0.9);
 }
 
-.topbar__meta {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
 .chip {
   display: inline-flex;
   align-items: center;
@@ -210,6 +219,7 @@
   display: grid;
   grid-template-columns: 340px minmax(0, 1fr);
   min-height: 0;
+  min-width: 0;
 }
 
 .dashboard--workspace {
@@ -236,7 +246,7 @@
 .incident-stats, .finance-metrics { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0.8rem; margin-bottom: 1rem; }
 .metric-card, .finance-card { min-height: 88px; padding: 1rem; background: #fff; border: 1px solid #d8dce2; border-radius: 10px; box-shadow: 0 6px 16px rgba(22,27,34,0.05); }
 .metric-card div:first-child, .finance-card span { color: #737b86; font-size: 0.7rem; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; }
-.metric-card strong, .finance-card strong { display: block; margin-top: 0.55rem; color: #20242a; font-size: 1.6rem; }
+.metric-card strong, .finance-card strong { display: block; margin-top: 0.55rem; color: #20242a; font-size: clamp(1rem, 1.8vw, 1.6rem); line-height: 1.25; word-break: break-word; overflow-wrap: anywhere; }
 .metric-card--red { border-top: 3px solid #c41e3a; }.metric-card--money, .finance-card--balance { border-top: 3px solid #198754; }
 .finance-card small { display: block; margin-top: 0.3rem; color: #87909b; }
 
@@ -264,6 +274,8 @@
   display: flex;
   flex-direction: column;
   gap: 1rem;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .panel-header {
@@ -466,17 +478,22 @@
 .map-panel {
   padding: 1rem;
   min-height: 0;
+  min-width: 0;
   background: #25282d;
+  display: flex;
 }
 
 .map-view {
   width: 100%;
-  height: 100%;
-  min-height: 70vh;
+  height: clamp(420px, 58vh, 760px);
+  min-height: clamp(420px, 58vh, 760px);
+  min-width: 0;
+  max-width: 100%;
   border-radius: 16px;
   overflow: hidden;
   border: 1px solid #dfe3ea;
   box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
+  flex: 1 1 auto;
 }
 
 .dashboard--map .sidebar { background: #202328; border-right-color: #353a42; padding: 0.85rem; gap: 0.75rem; }
@@ -506,12 +523,12 @@
 .view-trigger {
   display: inline-flex;
   align-items: center;
-  gap: 0.5rem;
-  padding: 0.38rem 0.9rem;
+  gap: 0.4rem;
+  padding: 0.3rem 0.7rem;
   border-radius: 999px;
   background: linear-gradient(180deg, #9a1830, #7a0f20);
   color: #fff;
-  font-size: 0.95rem;
+  font-size: 0.82rem;
   border: 1px solid rgba(255,255,255,0.08);
   cursor: pointer;
   transition: transform 0.12s ease, box-shadow 0.12s ease;
@@ -539,7 +556,8 @@
 .view-dropdown {
   position: relative;
   display: inline-block;
-  margin-left: 8px;
+  margin-left: 0;
+  z-index: 3;
 }
 
 .view-dropdown__menu {
@@ -712,7 +730,8 @@
   }
 
   .map-view {
-    min-height: 52vh;
+    min-height: clamp(360px, 48vh, 620px);
+    height: clamp(360px, 48vh, 620px);
   }
 
   .dashboard--map {
@@ -725,6 +744,7 @@
 
   .dashboard--map > .map-panel {
     grid-area: map;
+    min-width: 0;
   }
 
   .dashboard--map > .sidebar {
@@ -733,6 +753,72 @@
 
   .dashboard--map .sidebar {
     max-height: none;
+  }
+}
+
+@media (max-width: 900px) and (orientation: portrait) {
+  .topbar {
+    min-height: 136px;
+    height: clamp(138px, 28vw, 176px);
+    flex-wrap: nowrap;
+  }
+
+  .topbar__banner {
+    width: 100%;
+    left: auto;
+    object-fit: cover;
+    object-position: center center;
+  }
+
+  .topbar__meta {
+    padding: 0.7rem 1rem;
+    flex-wrap: wrap;
+  }
+
+  .brand {
+    padding: 0.8rem 1rem;
+    min-width: 0;
+  }
+
+  .brand__title {
+    font-size: 1.05rem;
+  }
+
+  .brand__subtitle {
+    font-size: 0.68rem;
+  }
+
+  .view-dropdown {
+    margin-left: 0;
+  }
+
+  .view-dropdown__menu {
+    right: auto;
+    left: 0;
+    min-width: 180px;
+    max-width: min(210px, calc(100vw - 2rem));
+  }
+
+  .dashboard--map {
+    gap: 0.75rem;
+  }
+
+  .sidebar,
+  .map-panel {
+    max-width: 100%;
+    min-width: 0;
+  }
+
+  .map-panel {
+    padding: 0.75rem;
+  }
+
+  .location-form {
+    gap: 0.6rem;
+  }
+
+  .location-item-wrapper {
+    min-width: 0;
   }
 }
 
@@ -804,7 +890,7 @@
 .station-vehicles { list-style: none; display: grid; gap: .5rem; }
 .station-vehicles li { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: .7rem .8rem; background: #292d33; border: 1px solid #3d434c; border-radius: 7px; color: #e5e8eb; }
 .station-vehicles li span { color: #8f98a3; }
-.station-buy-vehicle { margin-top: 1rem; }
+.station-buy-vehicle { margin-top: 1.35rem; }
 .station-upgrade-button { margin-top: .65rem; color: #dce1e5; background: #30353c; border: 1px solid #4a515b; }
 .station-upgrade-button:hover { background: #3a414a; border-color: #697482; }
 
@@ -839,23 +925,38 @@
 .upgrade-summary { color: #8f98a3; }
 .upgrade-summary strong { color: #f3f5f7; }
 .upgrade-screen { max-width: 1520px; }
-.upgrade-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr)); gap: .9rem; }
-.upgrade-card { display: flex; min-height: 270px; flex-direction: column; padding: 1rem; background: #24282e; border: 1px solid #3d434c; border-top: 2px solid #c41e3a; border-radius: 8px; box-shadow: 0 10px 24px rgba(0,0,0,.16); }
+.upgrade-list { display: grid; gap: .9rem; }
+.upgrade-groups { display: grid; gap: .8rem; }
+.upgrade-group { background: #202328; border: 1px solid #353a42; border-radius: 8px; overflow: hidden; }
+.upgrade-group__toggle { display: flex; align-items: center; justify-content: space-between; gap: .8rem; width: 100%; padding: .8rem .9rem; color: #f3f5f7; background: #24282e; border: 0; border-bottom: 1px solid #353a42; font: inherit; font-weight: 700; text-align: left; cursor: pointer; }
+.upgrade-group__toggle:hover { background: #2a2e34; }
+.upgrade-group__label-wrapper { display: inline-flex; align-items: center; gap: .55rem; min-width: 0; }
+.upgrade-group__chevron { display: inline-flex; align-items: center; justify-content: center; min-width: 1rem; color: #d14a62; font-size: .9rem; line-height: 1; }
+.upgrade-group__count { display: inline-flex; align-items: center; justify-content: center; min-width: 1.7rem; height: 1.7rem; padding: .15rem .45rem; color: #dce1e5; background: #30353c; border: 1px solid #4a515b; border-radius: 999px; font-size: .72rem; }
+.upgrade-group__content { padding: .75rem; }
+.upgrade-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr)); gap: .85rem; }
+.upgrade-card { display: flex; min-height: 0; flex-direction: column; gap: .55rem; padding: .8rem .85rem .75rem; background: #24282e; border: 1px solid #3d434c; border-top: 2px solid #c41e3a; border-radius: 8px; box-shadow: 0 10px 24px rgba(0,0,0,.16); }
 .upgrade-card--disabled { border-top-color: #4a515b; opacity: .72; }
 .upgrade-card__category { color: #d14a62; font-size: .67rem; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; }
-.upgrade-card h3 { margin-top: .8rem; color: #f3f5f7; font-size: 1.2rem; }
-.upgrade-card p { flex: 1; margin: .55rem 0 1rem; color: #aeb5be; font-size: .82rem; line-height: 1.5; }
-.upgrade-capacity { display: grid; gap: .2rem; margin-bottom: 1rem; padding: .75rem; background: #202328; border: 1px solid #353a42; border-radius: 6px; }
-.upgrade-capacity strong { color: #f3f5f7; font-size: 1.3rem; }
+.upgrade-card h3 { margin: 0; color: #f3f5f7; font-size: 1.08rem; line-height: 1.3; }
+.upgrade-card p { flex: 0 0 auto; margin: 0; color: #aeb5be; font-size: .8rem; line-height: 1.45; }
+.upgrade-card--completed { border-top-color: #43b581; }
+.upgrade-capacity { display: grid; gap: .2rem; margin-bottom: .1rem; padding: .7rem; background: #202328; border: 1px solid #353a42; border-radius: 6px; }
+.upgrade-capacity strong { color: #f3f5f7; font-size: 1.25rem; }
 .upgrade-capacity span, .upgrade-capacity small { color: #8f98a3; font-size: .72rem; }
-.upgrade-price { margin-bottom: .7rem; color: #63d39e; font-size: 1.05rem; font-weight: 800; }
+.upgrade-price { margin-bottom: .15rem; color: #63d39e; font-size: 1rem; font-weight: 800; }
 .upgrade-action { width: 100%; }
-.upgrade-coming-soon { margin-top: auto; padding: .65rem; color: #8f98a3; background: #202328; border: 1px solid #353a42; border-radius: 5px; font-size: .74rem; }
+.upgrade-locked-state { display: inline-flex; align-items: center; justify-content: center; width: fit-content; margin-top: auto; padding: .45rem .65rem; color: #f1d37a; background: rgba(218,170,48,.1); border: 1px solid rgba(218,170,48,.35); border-radius: 5px; font-size: .72rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+.upgrade-status-banner { margin-top: auto; padding: .7rem .75rem; color: #b8f0cf; background: rgba(67,181,129,.12); border: 1px solid rgba(67,181,129,.38); border-radius: 6px; font-size: .8rem; line-height: 1.4; }
+.upgrade-coming-soon { margin-top: auto; padding: .55rem .6rem; color: #8f98a3; background: #202328; border: 1px solid #353a42; border-radius: 5px; font-size: .74rem; line-height: 1.35; }
 @media (max-width: 720px) {
   .vehicle-shop-toolbar { align-items: stretch; flex-direction: column; }
   .vehicle-shop-balance { align-self: flex-end; }
   .vehicle-shop-card__footer { align-items: stretch; flex-direction: column; }
   .vehicle-shop-buy { width: 100%; }
+  .upgrade-group__toggle { padding: .75rem .8rem; }
+  .upgrade-group__content { padding: .7rem; }
+  .upgrade-card { padding: .7rem .75rem .7rem; }
 }
 
 /* Fahrzeuge */
@@ -926,6 +1027,24 @@
 .settings-card label { color: #cbd1d7; }
 .settings-card select { min-width: 280px; background: #202328; color: #f3f5f7; border-color: #4a515b; }
 .settings-card p { color: #8f98a3 !important; }
+.developer-panel { display: grid; gap: 1rem; }
+.developer-heading { margin-bottom: .75rem; color: #f3f5f7; font-size: 12px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; }
+.developer-tools { display: grid; gap: 1rem; }
+.developer-section { display: grid; gap: .65rem; padding: .85rem; background: #202328; border: 1px solid #353a42; border-radius: 8px; }
+.developer-section--danger { border-color: rgba(196,30,58,.45); background: rgba(196,30,58,.05); }
+.developer-title { color: #d14a62; font-size: 11px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+.developer-money-actions { display: flex; flex-wrap: wrap; gap: .5rem; }
+.developer-custom-balance { display: grid; gap: .45rem; }
+.developer-custom-balance label { color: #cbd1d7; font-size: .78rem; }
+.developer-balance-row { display: flex; flex-wrap: wrap; gap: .55rem; }
+.developer-balance-row input { flex: 1 1 180px; min-width: 0; padding: .6rem .7rem; color: #f3f5f7; background: #17191d; border: 1px solid #4a515b; border-radius: 6px; }
+.developer-status { margin-top: .2rem; padding: .6rem .75rem; color: #b8f0cf; background: rgba(67,181,129,.12); border: 1px solid rgba(67,181,129,.38); border-radius: 6px; font-size: .82rem; }
+.developer-station-actions { display: flex; flex-wrap: wrap; gap: .5rem; }
+.developer-reset-confirm { display: grid; gap: .7rem; color: #f3f5f7; }
+.developer-reset-confirm p { margin: 0; color: #f5b5bf !important; }
+.developer-reset-actions { display: flex; flex-wrap: wrap; gap: .5rem; }
+.btn--danger { background: #8d1f2d; color: #fbe7ea; border-color: rgba(196,30,58,.6); }
+.btn--danger:hover:not(:disabled) { background: #a82e3d; }
 
 .btn--primary { background: #b51f3b; box-shadow: 0 8px 20px rgba(196,30,58,.18); }
 .btn--primary:hover:not(:disabled) { background: #c92c49; }

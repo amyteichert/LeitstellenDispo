@@ -30,6 +30,51 @@ type GameState = {
   incidents: unknown[];
 };
 
+const createInitialGameState = (): GameState => ({
+  balance: 0,
+  transactions: [{
+    id: 'initial-balance',
+    kind: 'Einnahme',
+    label: 'Startguthaben',
+    amount: 0,
+    createdAt: new Date().toISOString(),
+  }],
+  completedIncidents: [],
+  locations: [
+    {
+      id: 'rettungswache-zentrum',
+      name: 'Rettungswache Zentrum',
+      type: 'station',
+      stationKind: 'Rettungswache',
+      coords: [48.775, 9.1771],
+      description: 'Rettungsdienst',
+      details: 'Frei platzierbarer Standort',
+      price: 0,
+      vehicleCapacity: 2,
+      upgradeLevels: {},
+      staffSatisfaction: 100,
+    },
+    {
+      id: 'rettungswache-sued',
+      name: 'Rettungswache Süd',
+      type: 'station',
+      stationKind: 'Rettungswache',
+      coords: [48.7692, 9.1931],
+      description: 'Rettungsdienst',
+      details: 'Frei platzierbarer Standort',
+      price: 0,
+      vehicleCapacity: 2,
+      upgradeLevels: {},
+      staffSatisfaction: 100,
+    },
+  ],
+  vehicles: [
+    { id: 'fahrzeug-1', name: 'RTW 1', type: 'RTW', stationId: 'rettungswache-zentrum', price: 0, callsign: 'RTW-1', status: 'Einsatzbereit', fmsStatus: 2 },
+    { id: 'fahrzeug-2', name: 'LF 1', type: 'LF 10', stationId: undefined, price: 0, callsign: 'LF-1', status: 'Einsatzbereit', fmsStatus: 2 },
+  ],
+  incidents: [],
+});
+
 type PersistedVehicle = {
   fmsStatus?: FmsStatus;
   speechRequest?: boolean;
@@ -173,6 +218,12 @@ app.put('/api/game-state/finance', async (req, res) => {
   gameState.transactions = req.body.transactions;
   await persistGameState();
   res.json({ balance: gameState.balance, transactions: gameState.transactions });
+});
+
+app.post('/api/game-state/reset', async (_req, res) => {
+  gameState = createInitialGameState();
+  await persistGameState();
+  res.json(gameState);
 });
 
 app.post('/api/game-state/completions', async (req, res) => {
