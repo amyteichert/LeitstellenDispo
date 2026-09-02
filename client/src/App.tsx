@@ -19,6 +19,7 @@ import { VEHICLE_CATALOG, getVehicleCatalogEntry, vehicleMeetsRequirement } from
 import { getUpgradeDefinition, getUpgradePrice } from './upgradeCatalog';
 
 type IncidentStatus = 'Offen' | 'Fahrzeuge alarmiert' | 'In Bearbeitung' | 'Abgeschlossen';
+type MapLayerMode = 'Karte' | 'Satellit';
 type FinanceTransaction = {
   id: string;
   kind: 'Einnahme' | 'Ausgabe';
@@ -651,6 +652,7 @@ function App() {
   const [completedIncidentHistory, setCompletedIncidentHistory] = useState<CompletedIncident[]>([]);
   const [selectedIncidentId, setSelectedIncidentId] = useState<string | null>(null);
   const [nowMs, setNowMs] = useState(Date.now());
+  const [mapLayer, setMapLayer] = useState<MapLayerMode>('Karte');
 
   // New states for address search and preview behavior
   const [address, setAddress] = useState('');
@@ -1313,66 +1315,88 @@ function App() {
 
         {currentView === 'Karte' ? (
           <section className="map-panel">
-            <MapContainer center={[48.775, 9.185]} zoom={13} scrollWheelZoom className="map-view" ref={mapRef}>
-              <TileLayer
-                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-              />
-
-              <MapClickHandler onMapClick={handleMapClick} />
-              <MapZoomTracker onZoomChange={setMapZoom} />
-
-              {tempCoords && (
-                <Marker position={tempCoords} icon={createMarkerIcon('#2563eb')}>
-                  <Popup>
-                    <strong>Vorschau</strong>
-                    <br />
-                    Position prüfen. Drücke "Standort erstellen", um zu speichern.
-                  </Popup>
-                </Marker>
-              )}
-
-              {locations.map((location) => {
-                const iconColor = location.type === 'incident' ? '#f59e0b' : '#d92d2d';
-                const stationIcon = location.stationKind === 'Feuerwache'
-                  ? createFireStationIcon(mapZoom)
-                  : createMarkerIcon(iconColor);
-
-                return (
-                  <Marker
-                    key={location.id}
-                    position={location.coords}
-                    icon={stationIcon}
-                    eventHandlers={{ click: () => setSelectedId(location.id) }}
+            <div className="map-surface">
+              <div className="map-layer-control" aria-label="Kartendarstellung wechseln">
+                {(['Karte', 'Satellit'] as const).map((mode) => (
+                  <button
+                    key={mode}
+                    type="button"
+                    className={`map-layer-button ${mapLayer === mode ? 'map-layer-button--active' : ''}`}
+                    onClick={() => setMapLayer(mode)}
+                    aria-pressed={mapLayer === mode}
                   >
-                    <Popup>
-                      <strong>{location.name}</strong>
-                      <br />
-                      {location.details}
-                    </Popup>
-                  </Marker>
-                );
-              })}
-
-              {incidents
-                .filter((incident) => incident.status !== 'Abgeschlossen')
-                .map((incident) => (
-                  <Marker
-                    key={incident.id}
-                    position={incident.coords}
-                    icon={createMarkerIcon('#f59e0b')}
-                    eventHandlers={{ click: () => setSelectedIncidentId(incident.id) }}
-                  >
-                    <Popup>
-                      <strong>{incident.type}</strong>
-                      <br />
-                      {incident.organization}
-                      <br />
-                      Status: {incident.status}
-                    </Popup>
-                  </Marker>
+                    {mode}
+                  </button>
                 ))}
-            </MapContainer>
+              </div>
+
+              <MapContainer center={[48.775, 9.185]} zoom={13} scrollWheelZoom className="map-view" ref={mapRef}>
+                <TileLayer
+                  attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                  url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                  opacity={mapLayer === 'Karte' ? 1 : 0}
+                />
+                <TileLayer
+                  attribution='Tiles &copy; Esri'
+                  url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
+                  opacity={mapLayer === 'Satellit' ? 1 : 0}
+                />
+
+                <MapClickHandler onMapClick={handleMapClick} />
+                <MapZoomTracker onZoomChange={setMapZoom} />
+
+                {tempCoords && (
+                  <Marker position={tempCoords} icon={createMarkerIcon('#2563eb')}>
+                    <Popup>
+                      <strong>Vorschau</strong>
+                      <br />
+                      Position prüfen. Drücke "Standort erstellen", um zu speichern.
+                    </Popup>
+                  </Marker>
+                )}
+
+                {locations.map((location) => {
+                  const iconColor = location.type === 'incident' ? '#f59e0b' : '#d92d2d';
+                  const stationIcon = location.stationKind === 'Feuerwache'
+                    ? createFireStationIcon(mapZoom)
+                    : createMarkerIcon(iconColor);
+
+                  return (
+                    <Marker
+                      key={location.id}
+                      position={location.coords}
+                      icon={stationIcon}
+                      eventHandlers={{ click: () => setSelectedId(location.id) }}
+                    >
+                      <Popup>
+                        <strong>{location.name}</strong>
+                        <br />
+                        {location.details}
+                      </Popup>
+                    </Marker>
+                  );
+                })}
+
+                {incidents
+                  .filter((incident) => incident.status !== 'Abgeschlossen')
+                  .map((incident) => (
+                    <Marker
+                      key={incident.id}
+                      position={incident.coords}
+                      icon={createMarkerIcon('#f59e0b')}
+                      eventHandlers={{ click: () => setSelectedIncidentId(incident.id) }}
+                    >
+                      <Popup>
+                        <strong>{incident.type}</strong>
+                        <br />
+                        {incident.organization}
+                        <br />
+                        Status: {incident.status}
+                      </Popup>
+                    </Marker>
+                  ))}
+              </MapContainer>
+            </div>
           </section>
         ) : (
           <section className="panel--secondary workspace-panel">

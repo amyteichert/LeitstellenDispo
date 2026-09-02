@@ -483,6 +483,47 @@
   display: flex;
 }
 
+.map-surface {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+}
+
+.map-layer-control {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  z-index: 500;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.2rem;
+  background: rgba(15, 23, 42, 0.72);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 999px;
+  backdrop-filter: blur(6px);
+  box-shadow: 0 10px 20px rgba(15, 23, 42, 0.24);
+}
+
+.map-layer-button {
+  border: none;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.78);
+  border-radius: 999px;
+  padding: 0.42rem 0.72rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+}
+
+.map-layer-button--active {
+  background: rgba(196, 30, 58, 0.9);
+  color: #fff;
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.08);
+}
+
 .map-view {
   width: 100%;
   height: clamp(420px, 58vh, 760px);
