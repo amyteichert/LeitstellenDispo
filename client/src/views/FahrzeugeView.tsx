@@ -12,6 +12,8 @@ export type Vehicle = {
   speechRequest?: boolean;
   previousOperationalStatus?: OperationalFmsStatus;
   returnAt?: number;
+  assignedStaffIds?: string[];
+  crewRequired?: number;
 };
 
 export const getFmsStatus = (vehicle: Vehicle): FmsStatus => vehicle.fmsStatus ?? 2;
@@ -51,6 +53,11 @@ export default function FahrzeugeView({ vehicles, stations, onAcknowledgeSpeechR
                   <div className="vehicle-meta">
                     {v.stationId ? (stations.find((s) => s.id === v.stationId)?.name ?? v.stationId) : 'Nicht zugeordnet'}
                   </div>
+                  {(v.assignedStaffIds?.length ?? 0) > 0 && (
+                    <div className="vehicle-meta">
+                      Besatzung: {v.assignedStaffIds?.length ?? 0}/{v.crewRequired ?? v.assignedStaffIds?.length ?? 0}
+                    </div>
+                  )}
                 </div>
               </li>
             ))}

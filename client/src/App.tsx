@@ -15,7 +15,7 @@ import EinsaetzeView from './views/EinsaetzeView';
 import FinanzenView from './views/FinanzenView';
 import EinstellungenView from './views/EinstellungenView';
 import LeitstelleView from './views/LeitstelleView';
-import { VEHICLE_CATALOG, vehicleMeetsRequirement } from './vehicleCatalog';
+import { VEHICLE_CATALOG, getVehicleCatalogEntry, vehicleMeetsRequirement } from './vehicleCatalog';
 import { getUpgradeDefinition, getUpgradePrice } from './upgradeCatalog';
 
 type IncidentStatus = 'Offen' | 'Fahrzeuge alarmiert' | 'In Bearbeitung' | 'Abgeschlossen';
@@ -85,6 +85,64 @@ type Incident = {
   totalDurationSeconds?: number;
 };
 
+type Staff = {
+  id: string;
+  name: string;
+  stationId: string;
+  qualifications: string[];
+  inTraining?: boolean;
+};
+
+const getVehicleCrewRequirement = (vehicle: Vehicle) => {
+  const catalogEntry = getVehicleCatalogEntry(vehicle.type);
+  return catalogEntry?.technical.crewRequired ?? vehicle.crewRequired ?? 0;
+};
+
+const getVehicleRequiredQualifications = (vehicle: Vehicle) => {
+  const catalogEntry = getVehicleCatalogEntry(vehicle.type);
+  return catalogEntry?.technical.requiredQualifications ?? [];
+};
+
+const getAvailableStaffForVehicle = (vehicle: Vehicle, vehicles: Vehicle[], staff: Staff[]) => {
+  const requiredCount = getVehicleCrewRequirement(vehicle);
+  const requiredQualifications = getVehicleRequiredQualifications(vehicle);
+  const assignedStaffIds = new Set(
+    vehicles
+      .filter((candidate) => candidate.id !== vehicle.id)
+      .flatMap((candidate) => candidate.assignedStaffIds ?? [])
+      .filter((id): id is string => Boolean(id)),
+  );
+
+  const candidates = staff.filter((member) => {
+    if (!member.stationId || member.stationId !== vehicle.stationId) return false;
+    if (member.inTraining) return false;
+    if (assignedStaffIds.has(member.id)) return false;
+    return true;
+  });
+
+  const selectedIds: string[] = [];
+  const seen = new Set<string>();
+
+  for (const qualification of requiredQualifications) {
+    const matching = candidates.filter((member) => member.qualifications.includes(qualification) && !seen.has(member.id));
+    for (const member of matching) {
+      if (selectedIds.length >= requiredCount) break;
+      selectedIds.push(member.id);
+      seen.add(member.id);
+    }
+    if (selectedIds.length >= requiredCount) break;
+  }
+
+  for (const candidate of candidates) {
+    if (selectedIds.length >= requiredCount) break;
+    if (seen.has(candidate.id)) continue;
+    selectedIds.push(candidate.id);
+    seen.add(candidate.id);
+  }
+
+  return selectedIds.slice(0, requiredCount);
+};
+
 const getFmsStatus = (vehicle: Vehicle): FmsStatus => {
   if (vehicle.fmsStatus) return vehicle.fmsStatus;
   if (vehicle.status === 'Alarmiert / auf Anfahrt') return 3;
@@ -103,6 +161,7 @@ const withFmsStatus = (vehicle: Vehicle, fmsStatus: FmsStatus, returnAt?: number
   returnAt,
   status: fmsStatus === 3 ? 'Alarmiert / auf Anfahrt' : fmsStatus === 4 ? 'Im Einsatz' : fmsStatus === 6 ? 'Nicht einsatzbereit' : 'Einsatzbereit',
   ...(fmsStatus === 5 ? { previousOperationalStatus: toOperationalStatus(vehicle), speechRequest: true } : { speechRequest: false }),
+  ...(fmsStatus === 2 ? { assignedStaffIds: [] } : {}),
 });
 
 type CompletedIncident = Incident & {
@@ -395,8 +454,15 @@ function App() {
 
   // Vehicles state (prepared)
   const [vehicles, setVehicles] = useState<Vehicle[]>([
-    { id: 'fahrzeug-1', name: 'RTW 1', type: 'RTW', stationId: 'rettungswache-zentrum', price: 0, callsign: 'RTW-1', status: 'Einsatzbereit' },
-    { id: 'fahrzeug-2', name: 'LF 1', type: 'LF 10', stationId: undefined, price: 0, callsign: 'LF-1', status: 'Einsatzbereit' },
+    { id: 'fahrzeug-1', name: 'RTW 1', type: 'RTW', stationId: 'rettungswache-zentrum', price: 0, callsign: 'RTW-1', status: 'Einsatzbereit', crewRequired: 2, assignedStaffIds: [] },
+    { id: 'fahrzeug-2', name: 'LF 1', type: 'LF 10', stationId: undefined, price: 0, callsign: 'LF-1', status: 'Einsatzbereit', crewRequired: 3, assignedStaffIds: [] },
+  ]);
+  const [staff, setStaff] = useState<Staff[]>([
+    { id: 'staff-r1', name: 'Anna Schmitz', stationId: 'rettungswache-zentrum', qualifications: ['driver', 'medical'], inTraining: false },
+    { id: 'staff-r2', name: 'Ben Weber', stationId: 'rettungswache-zentrum', qualifications: ['medical', 'first-responder'], inTraining: false },
+    { id: 'staff-r3', name: 'Carla Klein', stationId: 'rettungswache-zentrum', qualifications: ['driver'], inTraining: false },
+    { id: 'staff-r4', name: 'Dieter Lenz', stationId: 'rettungswache-zentrum', qualifications: ['medical'], inTraining: true },
+    { id: 'staff-r5', name: 'Eva Hoffmann', stationId: 'rettungswache-zentrum', qualifications: ['driver', 'first-responder'], inTraining: false },
   ]);
 
   // Finances
@@ -560,8 +626,8 @@ function App() {
       ? { ...location, vehicleCapacity: location.vehicleCapacity ?? getDefaultVehicleCapacity(location.stationKind), upgradeLevels: location.upgradeLevels ?? {}, staffSatisfaction: location.staffSatisfaction ?? 100 }
       : location) : initialLocations);
     setVehicles(nextState.vehicles.length > 0 ? nextState.vehicles.map((vehicle) => withFmsStatus(vehicle, getFmsStatus(vehicle), vehicle.returnAt)) : [
-      { id: 'fahrzeug-1', name: 'RTW 1', type: 'RTW', stationId: 'rettungswache-zentrum', price: 0, callsign: 'RTW-1', status: 'Einsatzbereit' },
-      { id: 'fahrzeug-2', name: 'LF 1', type: 'LF 10', stationId: undefined, price: 0, callsign: 'LF-1', status: 'Einsatzbereit' },
+      { id: 'fahrzeug-1', name: 'RTW 1', type: 'RTW', stationId: 'rettungswache-zentrum', price: 0, callsign: 'RTW-1', status: 'Einsatzbereit', crewRequired: 2, assignedStaffIds: [] },
+      { id: 'fahrzeug-2', name: 'LF 1', type: 'LF 10', stationId: undefined, price: 0, callsign: 'LF-1', status: 'Einsatzbereit', crewRequired: 3, assignedStaffIds: [] },
     ]);
     setIncidents(nextState.incidents ?? []);
     setSelectedId((nextState.locations.find((location) => location.type === 'station')?.id) ?? initialLocations[0].id);
@@ -877,13 +943,27 @@ function App() {
       callsign: draftStartVehicleCallsign?.trim() || `${draftStartVehicleType} ${Date.now().toString().slice(-4)}`,
       status: 'Einsatzbereit' as const,
       fmsStatus: 2 as const,
+      crewRequired: getVehicleCatalogEntry(draftStartVehicleType)?.technical.crewRequired ?? 0,
+      assignedStaffIds: [] as string[],
     } : null;
     const nextLocations = [...locations, nextLocation];
     const nextVehicles = nextVehicle ? [...vehicles, nextVehicle] : vehicles;
+    const staffForStation: Staff[] = draftStationKind === 'Feuerwache'
+      ? [
+        { id: `staff-${Date.now()}-f1`, name: 'Felix Brand', stationId: locationId, qualifications: ['firefighter', 'driver', 'first-responder'], inTraining: false },
+        { id: `staff-${Date.now()}-f2`, name: 'Gabi Moser', stationId: locationId, qualifications: ['firefighter', 'driver'], inTraining: false },
+        { id: `staff-${Date.now()}-f3`, name: 'Heinz Kram', stationId: locationId, qualifications: ['firefighter', 'first-responder'], inTraining: false },
+      ]
+      : [
+        { id: `staff-${Date.now()}-r1`, name: 'Iris Neumann', stationId: locationId, qualifications: ['driver', 'medical'], inTraining: false },
+        { id: `staff-${Date.now()}-r2`, name: 'Jonas Baum', stationId: locationId, qualifications: ['medical', 'first-responder'], inTraining: false },
+        { id: `staff-${Date.now()}-r3`, name: 'Klara Essig', stationId: locationId, qualifications: ['driver'], inTraining: false },
+      ];
 
     setLocations(nextLocations);
     setSelectedId(locationId);
     setVehicles(nextVehicles);
+    setStaff((current) => [...current, ...staffForStation]);
     persistAssets(nextLocations, nextVehicles);
     setBalance((cur) => cur - totalCost);
     addTransaction('Ausgabe', `${draftStationKind} mit ${draftStartVehicleType} erstellt`, totalCost);
@@ -961,10 +1041,23 @@ function App() {
     const incident = incidents.find((item) => item.id === incidentId);
     if (!incident || incident.status !== 'Offen') return;
 
+    const nextVehicles = vehicles.map((vehicle) => ({ ...vehicle, assignedStaffIds: Array.isArray(vehicle.assignedStaffIds) ? [...vehicle.assignedStaffIds] : [] }));
+    const reservedStaff = new Set<string>();
+    const alarmedVehicleIds = new Set<string>();
+
+    for (const vehicleId of selectedVehicleIds) {
+      const vehicle = nextVehicles.find((item) => item.id === vehicleId);
+      if (!vehicle || !isFmsAlarmable(getFmsStatus(vehicle), vehicle.previousOperationalStatus)) continue;
+      const crewIds = getAvailableStaffForVehicle(vehicle, nextVehicles, staff).filter((id) => !reservedStaff.has(id));
+      vehicle.assignedStaffIds = crewIds;
+      crewIds.forEach((id) => reservedStaff.add(id));
+      alarmedVehicleIds.add(vehicle.id);
+    }
+
     const vehiclesToAssign = selectedVehicleIds
       .map((vehicleId) => {
-        const vehicle = vehicles.find((item) => item.id === vehicleId);
-        if (!vehicle || !isFmsAlarmable(getFmsStatus(vehicle), vehicle.previousOperationalStatus)) return null;
+        const vehicle = nextVehicles.find((item) => item.id === vehicleId);
+        if (!vehicle || !alarmedVehicleIds.has(vehicle.id)) return null;
         const coords = getStationCoords(vehicle.stationId, locations);
         if (!coords) return null;
         const distance = haversineKm(coords, incident.coords);
@@ -972,13 +1065,18 @@ function App() {
         return { vehicleId, distanceKm: Number(distance.toFixed(1)), etaSeconds, arrivalAt: Date.now() + etaSeconds * 1000 } satisfies AlarmedVehicle;
       })
       .filter((entry): entry is AlarmedVehicle => Boolean(entry));
+
     const nextAlarmed = [...incident.alarmedVehicles, ...vehiclesToAssign.filter((entry) => !incident.alarmedVehicles.some((existing) => existing.vehicleId === entry.vehicleId))];
     const nextIncidents = incidents.map((item) => item.id === incidentId ? { ...item, alarmedVehicles: nextAlarmed, status: nextAlarmed.length > 0 ? 'Fahrzeuge alarmiert' as const : 'Offen' as const } : item);
-    const assignedIds = new Set(vehiclesToAssign.map((entry) => entry.vehicleId));
-    const nextVehicles = vehicles.map((vehicle) => assignedIds.has(vehicle.id) ? withFmsStatus(vehicle, 3) : vehicle);
+
+    const updatedVehicles = nextVehicles.map((vehicle) => alarmedVehicleIds.has(vehicle.id) ? withFmsStatus(vehicle, 3) : vehicle);
     setIncidents(nextIncidents);
-    setVehicles(nextVehicles);
-    persistSimulation(nextIncidents, nextVehicles);
+    setVehicles(updatedVehicles);
+    setStaff((current) => current.map((member) => ({
+      ...member,
+      inTraining: member.inTraining,
+    })));
+    persistSimulation(nextIncidents, updatedVehicles);
   };
 
   const acknowledgeSpeechRequest = (vehicleId: string) => {

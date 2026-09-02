@@ -79,6 +79,8 @@ type PersistedVehicle = {
   fmsStatus?: FmsStatus;
   speechRequest?: boolean;
   previousOperationalStatus?: OperationalFmsStatus;
+  assignedStaffIds?: string[];
+  crewRequired?: number;
   [key: string]: unknown;
 };
 
@@ -113,6 +115,8 @@ const migrateVehicles = (vehicles: unknown[]): unknown[] => vehicles.map((item) 
     ...vehicle,
     fmsStatus: vehicle.fmsStatus ?? 2,
     speechRequest: vehicle.speechRequest ?? false,
+    assignedStaffIds: Array.isArray(vehicle.assignedStaffIds) ? vehicle.assignedStaffIds : [],
+    crewRequired: typeof vehicle.crewRequired === 'number' ? vehicle.crewRequired : undefined,
   };
 });
 
