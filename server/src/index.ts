@@ -124,9 +124,11 @@ const migrateLocations = (locations: unknown[]): unknown[] => locations.map((ite
   if (!item || typeof item !== 'object') return item;
   const location = item as PersistedLocation;
   if (location.type !== 'station') return location;
+  const stationKind = location.stationKind ?? (location.description === 'Feuerwehr' ? 'Feuerwache' : 'Rettungswache');
   return {
     ...location,
-    vehicleCapacity: location.vehicleCapacity ?? getDefaultVehicleCapacity(location.stationKind),
+    stationKind,
+    vehicleCapacity: location.vehicleCapacity ?? getDefaultVehicleCapacity(stationKind),
     upgradeLevels: location.upgradeLevels ?? {},
     staffSatisfaction: location.staffSatisfaction ?? 100,
   };

@@ -502,7 +502,13 @@ function App() {
         setCompletedIncidentHistory(state.completedIncidents);
         if (state.locations.length > 0) {
           setLocations(state.locations.map((location) => location.type === 'station'
-            ? { ...location, vehicleCapacity: location.vehicleCapacity ?? getDefaultVehicleCapacity(location.stationKind), upgradeLevels: location.upgradeLevels ?? {}, staffSatisfaction: location.staffSatisfaction ?? 100 }
+            ? {
+                ...location,
+                stationKind: location.stationKind ?? (location.description === 'Feuerwehr' ? 'Feuerwache' : 'Rettungswache'),
+                vehicleCapacity: location.vehicleCapacity ?? getDefaultVehicleCapacity(location.stationKind ?? (location.description === 'Feuerwehr' ? 'Feuerwache' : 'Rettungswache')),
+                upgradeLevels: location.upgradeLevels ?? {},
+                staffSatisfaction: location.staffSatisfaction ?? 100,
+              }
             : location));
           setSelectedId(state.locations[0].id);
         }
@@ -623,7 +629,13 @@ function App() {
     setTransactions(nextState.transactions);
     setCompletedIncidentHistory(nextState.completedIncidents ?? []);
     setLocations(nextState.locations.length > 0 ? nextState.locations.map((location) => location.type === 'station'
-      ? { ...location, vehicleCapacity: location.vehicleCapacity ?? getDefaultVehicleCapacity(location.stationKind), upgradeLevels: location.upgradeLevels ?? {}, staffSatisfaction: location.staffSatisfaction ?? 100 }
+      ? {
+          ...location,
+          stationKind: location.stationKind ?? (location.description === 'Feuerwehr' ? 'Feuerwache' : 'Rettungswache'),
+          vehicleCapacity: location.vehicleCapacity ?? getDefaultVehicleCapacity(location.stationKind ?? (location.description === 'Feuerwehr' ? 'Feuerwache' : 'Rettungswache')),
+          upgradeLevels: location.upgradeLevels ?? {},
+          staffSatisfaction: location.staffSatisfaction ?? 100,
+        }
       : location) : initialLocations);
     setVehicles(nextState.vehicles.length > 0 ? nextState.vehicles.map((vehicle) => withFmsStatus(vehicle, getFmsStatus(vehicle), vehicle.returnAt)) : [
       { id: 'fahrzeug-1', name: 'RTW 1', type: 'RTW', stationId: 'rettungswache-zentrum', price: 0, callsign: 'RTW-1', status: 'Einsatzbereit', crewRequired: 2, assignedStaffIds: [] },
