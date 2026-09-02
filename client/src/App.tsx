@@ -17,6 +17,8 @@ import EinstellungenView from './views/EinstellungenView';
 import LeitstelleView from './views/LeitstelleView';
 import { VEHICLE_CATALOG, getVehicleCatalogEntry, vehicleMeetsRequirement } from './vehicleCatalog';
 import { getUpgradeDefinition, getUpgradePrice } from './upgradeCatalog';
+import { canStartTraining, getFreeTrainingRoomIndex, type TrainingCourse } from './stationState';
+import { MAX_TRAINING_PARTICIPANTS, TRAINING_CATALOG } from './trainingCatalog';
 
 type IncidentStatus = 'Offen' | 'Fahrzeuge alarmiert' | 'In Bearbeitung' | 'Abgeschlossen';
 type MapLayerMode = 'Karte' | 'Satellit';
@@ -465,6 +467,7 @@ function App() {
     { id: 'staff-r4', name: 'Dieter Lenz', stationId: 'rettungswache-zentrum', qualifications: ['medical'], inTraining: true },
     { id: 'staff-r5', name: 'Eva Hoffmann', stationId: 'rettungswache-zentrum', qualifications: ['driver', 'first-responder'], inTraining: false },
   ]);
+  const [trainingCourses, setTrainingCourses] = useState<TrainingCourse[]>([]);
 
   // Finances
   const [balance, setBalance] = useState<number>(0);
@@ -496,11 +499,12 @@ function App() {
         if (!response.ok) throw new Error('Spielstand konnte nicht geladen werden.');
         return response.json();
       })
-      .then((state: { balance: number; transactions: FinanceTransaction[]; completedIncidents: CompletedIncident[]; locations: MapLocation[]; vehicles: Vehicle[]; incidents?: Incident[] }) => {
+      .then((state: { balance: number; transactions: FinanceTransaction[]; completedIncidents: CompletedIncident[]; locations: MapLocation[]; vehicles: Vehicle[]; incidents?: Incident[]; trainingCourses?: TrainingCourse[] }) => {
         if (cancelled) return;
         setBalance(state.balance);
         setTransactions(state.transactions);
         setCompletedIncidentHistory(state.completedIncidents);
+        setTrainingCourses(Array.isArray(state.trainingCourses) ? state.trainingCourses : []);
         if (state.locations.length > 0) {
           setLocations(state.locations.map((location) => location.type === 'station'
             ? {
@@ -622,13 +626,50 @@ function App() {
     return true;
   };
 
+  const startTraining = (stationId: string, trainingId: string, participantIds: string[]) => {
+    const station = locations.find((location) => location.id === stationId && location.type === 'station');
+    const selectedTraining = TRAINING_CATALOG.find((training) => training.id === trainingId);
+    if (!station || !selectedTraining) return false;
+    if (!canStartTraining(station, trainingCourses, participantIds.length)) return false;
+    if (!selectedTraining.stationKinds.includes(station.stationKind ?? 'Rettungswache')) return false;
+    if (participantIds.length > MAX_TRAINING_PARTICIPANTS) return false;
+    if (participantIds.length === 0) return false;
+
+    const nextRoomIndex = getFreeTrainingRoomIndex(station, trainingCourses);
+    if (nextRoomIndex === null) return false;
+
+    const nextCourse: TrainingCourse = {
+      id: `training-${Date.now()}`,
+      stationId,
+      roomIndex: nextRoomIndex,
+      trainingId: selectedTraining.id,
+      participantIds,
+      startedAt: new Date().toISOString(),
+    };
+
+    const nextCourses = [...trainingCourses, nextCourse];
+    setTrainingCourses(nextCourses);
+    setStaff((current) => current.map((member) => (
+      participantIds.includes(member.id)
+        ? { ...member, inTraining: true }
+        : member
+    )));
+    fetch('/api/game-state/assets', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ locations, vehicles, trainingCourses: nextCourses }),
+    }).catch((error) => console.error('Lehrgang konnte nicht gespeichert werden.', error));
+    return true;
+  };
+
   const resetGameState = async () => {
     const response = await fetch('/api/game-state/reset', { method: 'POST' });
     if (!response.ok) return false;
-    const nextState: { balance: number; transactions: FinanceTransaction[]; completedIncidents: CompletedIncident[]; locations: MapLocation[]; vehicles: Vehicle[]; incidents?: Incident[] } = await response.json();
+    const nextState: { balance: number; transactions: FinanceTransaction[]; completedIncidents: CompletedIncident[]; locations: MapLocation[]; vehicles: Vehicle[]; incidents?: Incident[]; trainingCourses?: TrainingCourse[] } = await response.json();
     setBalance(nextState.balance);
     setTransactions(nextState.transactions);
     setCompletedIncidentHistory(nextState.completedIncidents ?? []);
+    setTrainingCourses(Array.isArray(nextState.trainingCourses) ? nextState.trainingCourses : []);
     setLocations(nextState.locations.length > 0 ? nextState.locations.map((location) => location.type === 'station'
       ? {
           ...location,
@@ -1401,7 +1442,19 @@ function App() {
         ) : (
           <section className="panel--secondary workspace-panel">
             {currentView === 'Wachen' && (
-              <WachenView locations={locations} selectedId={selectedId} setSelectedId={setSelectedId} vehicles={vehicles} stationKindFilter={stationKindFilter} balance={balance} onPurchaseVehicle={purchaseVehicle} onPurchaseUpgrade={purchaseUpgrade} />
+              <WachenView
+                locations={locations}
+                selectedId={selectedId}
+                setSelectedId={setSelectedId}
+                vehicles={vehicles}
+                staff={staff}
+                trainingCourses={trainingCourses}
+                onStartTraining={startTraining}
+                stationKindFilter={stationKindFilter}
+                balance={balance}
+                onPurchaseVehicle={purchaseVehicle}
+                onPurchaseUpgrade={purchaseUpgrade}
+              />
             )}
 
             {currentView === 'Leitstelle' && (

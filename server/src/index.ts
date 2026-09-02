@@ -28,6 +28,7 @@ type GameState = {
   locations: unknown[];
   vehicles: unknown[];
   incidents: unknown[];
+  trainingCourses: unknown[];
 };
 
 const createInitialGameState = (): GameState => ({
@@ -73,6 +74,7 @@ const createInitialGameState = (): GameState => ({
     { id: 'fahrzeug-2', name: 'LF 1', type: 'LF 10', stationId: undefined, price: 0, callsign: 'LF-1', status: 'Einsatzbereit', fmsStatus: 2 },
   ],
   incidents: [],
+  trainingCourses: [],
 });
 
 type PersistedVehicle = {
@@ -106,6 +108,7 @@ const defaultGameState: GameState = {
   locations: [],
   vehicles: [],
   incidents: [],
+  trainingCourses: [],
 };
 
 const migrateVehicles = (vehicles: unknown[]): unknown[] => vehicles.map((item) => {
@@ -144,6 +147,7 @@ const loadGameState = async (): Promise<GameState> => {
       locations: migrateLocations(Array.isArray(stored.locations) ? stored.locations : []),
       vehicles: migrateVehicles(Array.isArray(stored.vehicles) ? stored.vehicles : []),
       incidents: Array.isArray(stored.incidents) ? stored.incidents : [],
+      trainingCourses: Array.isArray(stored.trainingCourses) ? stored.trainingCourses : [],
     };
   } catch {
     await mkdir(dirname(gameStatePath), { recursive: true });
@@ -196,8 +200,10 @@ app.put('/api/game-state/assets', async (req, res) => {
       return;
     }
   }
+
   gameState.locations = locations;
   gameState.vehicles = migrateVehicles(req.body.vehicles);
+  gameState.trainingCourses = Array.isArray(req.body.trainingCourses) ? req.body.trainingCourses : gameState.trainingCourses ?? [];
   await persistGameState();
   res.json(gameState);
 });

@@ -4,6 +4,8 @@ import type { Vehicle } from './FahrzeugeView';
 import { getFmsStatus, getFmsStatusLabel } from './FahrzeugeView';
 import { getAvailableVehicleCategories, VEHICLE_CATALOG, type VehicleCatalogCategory } from '../vehicleCatalog';
 import { getAvailableUpgrades, getUpgradeDefinition, getUpgradePrice, UPGRADE_CATALOG } from '../upgradeCatalog';
+import { getTrainingRoomCount, type TrainingCourse } from '../stationState';
+import { MAX_TRAINING_PARTICIPANTS, TRAINING_CATALOG } from '../trainingCatalog';
 import { formatCurrency } from '../utils/formatCurrency';
 
 const formatPrice = formatCurrency;
@@ -13,6 +15,9 @@ export default function WachenView({
   selectedId,
   setSelectedId,
   vehicles,
+  staff,
+  trainingCourses,
+  onStartTraining,
   stationKindFilter,
   balance,
   onPurchaseVehicle,
@@ -22,6 +27,9 @@ export default function WachenView({
   selectedId: string;
   setSelectedId: (id: string) => void;
   vehicles: Vehicle[];
+  staff: Array<{ id: string; name: string; stationId: string; qualifications: string[]; inTraining?: boolean }>;
+  trainingCourses: TrainingCourse[];
+  onStartTraining: (stationId: string, trainingId: string, participantIds: string[]) => boolean;
   stationKindFilter?: 'Rettungswache' | 'Feuerwache';
   balance: number;
   onPurchaseVehicle: (stationId: string, type: string, callsign: string) => boolean;
@@ -35,6 +43,8 @@ export default function WachenView({
   const [purchaseError, setPurchaseError] = useState<string | null>(null);
   const [upgradeOpen, setUpgradeOpen] = useState(false);
   const [upgradeError, setUpgradeError] = useState<string | null>(null);
+  const [trainingSelection, setTrainingSelection] = useState<string>(TRAINING_CATALOG[0].id);
+  const [selectedParticipants, setSelectedParticipants] = useState<string[]>([]);
   const availableCategories = selected ? getAvailableVehicleCategories(selected.stationKind ?? 'Rettungswache') : [];
   const activeCategory = availableCategories.includes(purchaseCategory) ? purchaseCategory : availableCategories[0];
   const selectedCapacity = selected?.vehicleCapacity ?? (selected?.stationKind === 'Feuerwache' ? 3 : 2);
@@ -60,6 +70,22 @@ export default function WachenView({
       setPurchaseCategory(availableCategories[0]);
     }
   }, [availableCategories, purchaseCategory]);
+
+  useEffect(() => {
+    if (!selected) return;
+    const eligibleTrainings = TRAINING_CATALOG.filter((training) => training.stationKinds.includes(selected.stationKind ?? 'Rettungswache'));
+    if (!eligibleTrainings.some((training) => training.id === trainingSelection)) {
+      setTrainingSelection(eligibleTrainings[0]?.id ?? TRAINING_CATALOG[0].id);
+    }
+  }, [selected, trainingSelection]);
+
+  useEffect(() => {
+    if (!selected) {
+      setSelectedParticipants([]);
+      return;
+    }
+    setSelectedParticipants((current) => current.filter((memberId) => staff.some((member) => member.id === memberId && member.stationId === selected.id && !member.inTraining)));
+  }, [selected, staff]);
 
   if (selected && upgradeOpen) {
     const availableUpgrades = getAvailableUpgrades(selected.stationKind ?? 'Rettungswache');
@@ -183,6 +209,15 @@ export default function WachenView({
     );
   }
 
+  const availableTrainingSlots = selected ? getTrainingRoomCount(selected) : 0;
+  const eligibleTrainings = selected
+    ? TRAINING_CATALOG.filter((training) => training.stationKinds.includes(selected.stationKind ?? 'Rettungswache'))
+    : [];
+  const stationTrainingCourses = selected ? trainingCourses.filter((course) => course.stationId === selected.id) : [];
+  const freeTrainingRoomCount = eligibleTrainings.length > 0 && selected ? Math.max(0, availableTrainingSlots - stationTrainingCourses.length) : 0;
+  const selectedTraining = eligibleTrainings.find((training) => training.id === trainingSelection) ?? eligibleTrainings[0];
+  const staffForStation = selected ? staff.filter((member) => member.stationId === selected.id && !member.inTraining) : [];
+
   return (
     <div className="view-screen">
       <div className="screen-heading"><div><span className="eyebrow">Standortnetz</span><h2>Wachen</h2></div><span className="screen-count">{stations.length} Standorte</span></div>
@@ -215,6 +250,93 @@ export default function WachenView({
                 <p><span>Standort</span><strong>{selected.details}</strong></p>
                 <p><span>Koordinaten</span><strong>{selected.coords[0].toFixed(4)}, {selected.coords[1].toFixed(4)}</strong></p>
               </div>
+
+              <h4>Ausbildungsräume</h4>
+              <div className="training-room-summary">
+                <span>Ausbildungsbereich:</span>
+                <strong>{(selected.upgradeLevels?.['ausbildungsbereich'] ?? 0) > 0 ? 'freigeschaltet' : 'gesperrt'}</strong>
+              </div>
+              {availableTrainingSlots > 0 ? (
+                <div className="training-room-grid">
+                  {Array.from({ length: availableTrainingSlots }, (_, roomIndex) => {
+                    const course = stationTrainingCourses.find((trainingCourse) => trainingCourse.roomIndex === roomIndex);
+                    return (
+                      <div className={`training-room ${course ? 'training-room--occupied' : 'training-room--free'}`} key={`room-${roomIndex}`}>
+                        <strong>Raum {roomIndex + 1}</strong>
+                        {course ? (
+                          <span>{TRAINING_CATALOG.find((training) => training.id === course.trainingId)?.name ?? 'Lehrgang'} aktiv</span>
+                        ) : (
+                          <span>frei</span>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <p>Der Ausbildungsbereich ist noch gesperrt.</p>
+              )}
+              {stationTrainingCourses.length > 0 && (
+                <div className="training-course-list">
+                  {stationTrainingCourses.map((course) => (
+                    <div className="training-course-item" key={course.id}>
+                      <strong>Raum {course.roomIndex + 1}</strong>
+                      <span>{TRAINING_CATALOG.find((training) => training.id === course.trainingId)?.name ?? course.trainingId}</span>
+                      <small>{course.participantIds.length} Teilnehmende</small>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {eligibleTrainings.length > 0 && availableTrainingSlots > 0 && (
+                <div className="training-start-panel">
+                  <h4>Lehrgang starten</h4>
+                  <label className="field">
+                    <span>Lehrgang</span>
+                    <select value={selectedTraining?.id ?? eligibleTrainings[0].id} onChange={(event) => setTrainingSelection(event.target.value)}>
+                      {eligibleTrainings.map((training) => <option key={training.id} value={training.id}>{training.name}</option>)}
+                    </select>
+                  </label>
+
+                  <div className="participant-select">
+                    {staffForStation.length === 0 ? (
+                      <p>Keine freien Einsatzkräfte im Standort verfügbar.</p>
+                    ) : (
+                      staffForStation.map((member) => (
+                        <label key={member.id} className="training-member-check">
+                          <input
+                            type="checkbox"
+                            checked={selectedParticipants.includes(member.id)}
+                            onChange={() => setSelectedParticipants((current) => current.includes(member.id)
+                              ? current.filter((id) => id !== member.id)
+                              : [...current, member.id])}
+                          />
+                          <span>{member.name}</span>
+                        </label>
+                      ))
+                    )}
+                  </div>
+
+                  <div className="training-start-meta">
+                    <span>Teilnehmer: {selectedParticipants.length} / {selectedTraining?.participantLimit ?? MAX_TRAINING_PARTICIPANTS}</span>
+                    <span>Freie Räume: {freeTrainingRoomCount}</span>
+                  </div>
+
+                  <button
+                    className="btn btn--primary"
+                    type="button"
+                    disabled={!selectedTraining || selectedParticipants.length === 0 || selectedParticipants.length > (selectedTraining.participantLimit ?? MAX_TRAINING_PARTICIPANTS) || !selected || selectedParticipants.length > MAX_TRAINING_PARTICIPANTS || freeTrainingRoomCount <= 0 || (selected.upgradeLevels?.['ausbildungsbereich'] ?? 0) <= 0}
+                    onClick={() => {
+                      if (!selected || !selectedTraining) return;
+                      const started = onStartTraining(selected.id, selectedTraining.id, selectedParticipants);
+                      if (started) {
+                        setSelectedParticipants([]);
+                      }
+                    }}
+                  >
+                    Lehrgang starten
+                  </button>
+                </div>
+              )}
 
               <h4>Fahrzeuge</h4>
               <ul className="station-vehicles">
