@@ -217,6 +217,23 @@ export default function WachenView({
   const freeTrainingRoomCount = eligibleTrainings.length > 0 && selected ? Math.max(0, availableTrainingSlots - stationTrainingCourses.length) : 0;
   const selectedTraining = eligibleTrainings.find((training) => training.id === trainingSelection) ?? eligibleTrainings[0];
   const staffForStation = selected ? staff.filter((member) => member.stationId === selected.id && !member.inTraining) : [];
+  const startButtonReasons: string[] = [];
+  if (!selected || (selected.upgradeLevels?.['ausbildungsbereich'] ?? 0) <= 0) {
+    startButtonReasons.push('Ausbildungsbereich nicht freigeschaltet');
+  }
+  if (freeTrainingRoomCount <= 0) {
+    startButtonReasons.push('kein Ausbildungsraum frei');
+  }
+  if (selectedParticipants.length === 0) {
+    startButtonReasons.push('keine Teilnehmer ausgewählt');
+  }
+  if (selectedParticipants.length > (selectedTraining?.participantLimit ?? MAX_TRAINING_PARTICIPANTS)) {
+    startButtonReasons.push('Teilnehmerlimit erreicht/überschritten');
+  }
+  if (selectedParticipants.length > MAX_TRAINING_PARTICIPANTS) {
+    startButtonReasons.push('maximal 10 Teilnehmer');
+  }
+  const trainingStartDisabled = !selectedTraining || selectedParticipants.length === 0 || selectedParticipants.length > (selectedTraining.participantLimit ?? MAX_TRAINING_PARTICIPANTS) || !selected || selectedParticipants.length > MAX_TRAINING_PARTICIPANTS || freeTrainingRoomCount <= 0 || (selected.upgradeLevels?.['ausbildungsbereich'] ?? 0) <= 0;
 
   return (
     <div className="view-screen">
@@ -256,24 +273,51 @@ export default function WachenView({
                 <span>Ausbildungsbereich:</span>
                 <strong>{(selected.upgradeLevels?.['ausbildungsbereich'] ?? 0) > 0 ? 'freigeschaltet' : 'gesperrt'}</strong>
               </div>
+
+              <div className="training-space-overview" aria-live="polite">
+                <div className="training-space-stat">
+                  <span>Räume gesamt</span>
+                  <strong>{availableTrainingSlots}</strong>
+                </div>
+                <div className="training-space-stat">
+                  <span>Freie Räume</span>
+                  <strong>{freeTrainingRoomCount}</strong>
+                </div>
+                <div className="training-space-stat">
+                  <span>Belegte Räume</span>
+                  <strong>{Math.max(0, availableTrainingSlots - freeTrainingRoomCount)}</strong>
+                </div>
+              </div>
+
               {availableTrainingSlots > 0 ? (
                 <div className="training-room-grid">
                   {Array.from({ length: availableTrainingSlots }, (_, roomIndex) => {
                     const course = stationTrainingCourses.find((trainingCourse) => trainingCourse.roomIndex === roomIndex);
+                    const roomName = `Ausbildungsraum ${roomIndex + 1}`;
+                    const courseName = TRAINING_CATALOG.find((training) => training.id === course?.trainingId)?.name ?? 'Lehrgang';
                     return (
                       <div className={`training-room ${course ? 'training-room--occupied' : 'training-room--free'}`} key={`room-${roomIndex}`}>
-                        <strong>Raum {roomIndex + 1}</strong>
+                        <div className="training-room__header">
+                          <span className="training-room__label">{roomName}</span>
+                          <span className={`training-room__badge ${course ? 'training-room__badge--occupied' : 'training-room__badge--free'}`}>{course ? 'belegt' : 'frei'}</span>
+                        </div>
                         {course ? (
-                          <span>{TRAINING_CATALOG.find((training) => training.id === course.trainingId)?.name ?? 'Lehrgang'} aktiv</span>
+                          <>
+                            <span className="training-room__course">{courseName}</span>
+                            <small className="training-room__detail">Belegt durch: {courseName}</small>
+                          </>
                         ) : (
-                          <span>frei</span>
+                          <small className="training-room__detail">Bereit für neuen Lehrgang</small>
                         )}
                       </div>
                     );
                   })}
                 </div>
               ) : (
-                <p>Der Ausbildungsbereich ist noch gesperrt.</p>
+                <div className="training-room-empty">
+                  <p>Der Ausbildungsbereich ist noch gesperrt.</p>
+                  <small>Ein zusätzlicher Ausbildungsraum ermöglicht zusätzliche parallele Lehrgänge.</small>
+                </div>
               )}
               {stationTrainingCourses.length > 0 && (
                 <div className="training-course-list">
@@ -317,14 +361,28 @@ export default function WachenView({
                   </div>
 
                   <div className="training-start-meta">
-                    <span>Teilnehmer: {selectedParticipants.length} / {selectedTraining?.participantLimit ?? MAX_TRAINING_PARTICIPANTS}</span>
+                    <span>Teilnehmer: {selectedParticipants.length} / {MAX_TRAINING_PARTICIPANTS}</span>
                     <span>Freie Räume: {freeTrainingRoomCount}</span>
                   </div>
+
+                  <div className={`training-participant-status ${selectedParticipants.length >= MAX_TRAINING_PARTICIPANTS ? 'training-participant-status--full' : ''}`}>
+                    <span>Teilnehmerstatus</span>
+                    <strong>{selectedParticipants.length} / {MAX_TRAINING_PARTICIPANTS}</strong>
+                    {selectedParticipants.length >= MAX_TRAINING_PARTICIPANTS && <small>Maximal erreicht</small>}
+                  </div>
+
+                  {startButtonReasons.length > 0 && (
+                    <ul className="training-start-reasons">
+                      {startButtonReasons.map((reason) => (
+                        <li key={reason}>{reason}</li>
+                      ))}
+                    </ul>
+                  )}
 
                   <button
                     className="btn btn--primary"
                     type="button"
-                    disabled={!selectedTraining || selectedParticipants.length === 0 || selectedParticipants.length > (selectedTraining.participantLimit ?? MAX_TRAINING_PARTICIPANTS) || !selected || selectedParticipants.length > MAX_TRAINING_PARTICIPANTS || freeTrainingRoomCount <= 0 || (selected.upgradeLevels?.['ausbildungsbereich'] ?? 0) <= 0}
+                    disabled={trainingStartDisabled}
                     onClick={() => {
                       if (!selected || !selectedTraining) return;
                       const started = onStartTraining(selected.id, selectedTraining.id, selectedParticipants);

@@ -1001,6 +1001,46 @@
 .station-facts p span { color: #8f98a3; font-size: .68rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
 .station-facts p strong { color: #e5e8eb; font-size: .86rem; }
 .station-detail h4, .incident-detail h4 { border-top-color: #3d434c; color: #d14a62; }
+.training-room-summary { display: flex; align-items: center; justify-content: space-between; gap: .7rem; margin: 1rem 0 .7rem; padding: .65rem .75rem; background: #202328; border: 1px solid #353a42; border-radius: 7px; color: #cfd7df; }
+.training-room-summary strong { color: #f3f5f7; }
+.training-space-overview { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .6rem; margin: 0 0 .8rem; }
+.training-space-stat { display: grid; gap: .2rem; padding: .7rem .65rem; background: #24282e; border: 1px solid #3d434c; border-radius: 7px; }
+.training-space-stat span { color: #8f98a3; font-size: .66rem; letter-spacing: .08em; text-transform: uppercase; font-weight: 800; }
+.training-space-stat strong { color: #f3f5f7; font-size: 1.1rem; }
+.training-room-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: .65rem; margin-top: .75rem; }
+.training-room { display: grid; gap: .45rem; min-height: 112px; padding: .7rem .7rem .8rem; background: #202328; border: 1px solid #3d434c; border-radius: 8px; }
+.training-room__header { display: flex; align-items: center; justify-content: space-between; gap: .5rem; }
+.training-room__label { color: #f3f5f7; font-size: .85rem; font-weight: 700; }
+.training-room__badge { display: inline-flex; align-items: center; justify-content: center; min-width: 52px; padding: .2rem .42rem; border-radius: 999px; font-size: .62rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+.training-room__badge--free { background: rgba(67,181,129,.14); color: #9be2bf; border: 1px solid rgba(67,181,129,.3); }
+.training-room__badge--occupied { background: rgba(196,30,58,.12); color: #f3a7b1; border: 1px solid rgba(196,30,58,.3); }
+.training-room--free { border-color: rgba(67,181,129,.35); background: rgba(16, 38, 30, 0.6); }
+.training-room--occupied { border-color: rgba(196,30,58,.35); background: rgba(44, 18, 23, 0.72); }
+.training-room__course { color: #f3f5f7; font-size: .78rem; font-weight: 700; line-height: 1.35; }
+.training-room__detail { color: #aeb5be; font-size: .72rem; line-height: 1.35; }
+.training-room-empty { margin-top: .6rem; padding: .8rem .75rem; background: rgba(196,30,58,.08); border: 1px solid rgba(196,30,58,.28); border-radius: 7px; color: #d9dfe8; }
+.training-room-empty p { margin: 0; color: #f3f5f7; }
+.training-room-empty small { display: block; margin-top: .25rem; color: #b9c0c8; }
+.training-course-list { display: grid; gap: .5rem; margin-top: .8rem; }
+.training-course-item { display: grid; gap: .15rem; padding: .65rem .75rem; background: #202328; border: 1px solid #3d434c; border-radius: 7px; }
+.training-course-item strong { color: #f3f5f7; }
+.training-course-item span { color: #dfe5eb; }
+.training-course-item small { color: #8f98a3; }
+.training-start-panel { display: grid; gap: .8rem; margin-top: 1rem; padding: .9rem; background: #202328; border: 1px solid #353a42; border-radius: 8px; }
+.training-start-panel h4 { margin: 0; padding: 0; border: none; }
+.participant-select { display: grid; gap: .45rem; }
+.training-member-check { display: flex; align-items: center; gap: .55rem; padding: .5rem .55rem; background: #292d33; border: 1px solid #3d434c; border-radius: 6px; color: #e5e8eb; }
+.training-member-check input { accent-color: #c41e3a; }
+.training-start-meta { display: flex; align-items: center; justify-content: space-between; gap: .75rem; padding: .55rem .65rem; background: #24282e; border: 1px solid #3d434c; border-radius: 6px; color: #dfe5eb; font-size: .8rem; }
+.training-participant-status { display: grid; gap: .15rem; padding: .65rem .7rem; background: #24282e; border: 1px solid #3d434c; border-radius: 6px; }
+.training-participant-status span { color: #8f98a3; font-size: .66rem; letter-spacing: .08em; text-transform: uppercase; font-weight: 800; }
+.training-participant-status strong { color: #f3f5f7; font-size: 1.15rem; }
+.training-participant-status small { color: #9be2bf; }
+.training-participant-status--full { border-color: rgba(196,30,58,.35); background: rgba(44,18,23,.7); }
+.training-participant-status--full strong { color: #ffd4da; }
+.training-participant-status--full small { color: #ffb8c2; }
+.training-start-reasons { margin: 0; padding-left: 1.1rem; display: grid; gap: .25rem; color: #f28a83; font-size: .76rem; }
+.training-start-reasons li::marker { color: #f28a83; }
 .station-vehicles { list-style: none; display: grid; gap: .5rem; }
 .station-vehicles li { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: .7rem .8rem; background: #292d33; border: 1px solid #3d434c; border-radius: 7px; color: #e5e8eb; }
 .station-vehicles li span { color: #8f98a3; }
@@ -1064,6 +1104,9 @@
 .upgrade-status-banner { margin-top: auto; padding: .7rem .75rem; color: #b8f0cf; background: rgba(67,181,129,.12); border: 1px solid rgba(67,181,129,.38); border-radius: 6px; font-size: .8rem; line-height: 1.4; }
 .upgrade-coming-soon { margin-top: auto; padding: .55rem .6rem; color: #8f98a3; background: #202328; border: 1px solid #353a42; border-radius: 5px; font-size: .74rem; line-height: 1.35; }
 @media (max-width: 720px) {
+  .training-space-overview { grid-template-columns: 1fr; }
+  .training-room-grid { grid-template-columns: 1fr; }
+  .training-start-meta { flex-direction: column; align-items: flex-start; }
   .vehicle-shop-toolbar { align-items: stretch; flex-direction: column; }
   .vehicle-shop-balance { align-self: flex-end; }
   .vehicle-shop-card__footer { align-items: stretch; flex-direction: column; }
