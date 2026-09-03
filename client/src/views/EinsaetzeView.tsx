@@ -94,7 +94,15 @@ export default function EinsaetzeView({
   const availableVehiclesForSelectedIncident = useMemo(() => {
     if (!selectedIncident || selectedIncident.status === 'Abgeschlossen') return [] as Vehicle[];
 
+    const alreadyAssignedVehicleIds = new Set(
+      incidents
+        .filter((incident) => incident.id !== selectedIncident.id && incident.status !== 'Abgeschlossen')
+        .flatMap((incident) => incident.alarmedVehicles.map((assignment) => assignment.vehicleId)),
+    );
+
     return vehicles.filter((vehicle) => {
+      if (selectedIncident.alarmedVehicles.some((assignment) => assignment.vehicleId === vehicle.id)) return false;
+      if (alreadyAssignedVehicleIds.has(vehicle.id)) return false;
       if (!isFmsAlarmable(vehicle.fmsStatus ?? 2, vehicle.previousOperationalStatus)) return false;
       return selectedIncident.requiredVehicles.some((requirement) => vehicleMeetsRequirement(vehicle.type, requirement));
     }).sort((a, b) => {
@@ -103,7 +111,7 @@ export default function EinsaetzeView({
       if (!aCoords || !bCoords) return 0;
       return haversineKm(aCoords, selectedIncident.coords) - haversineKm(bCoords, selectedIncident.coords);
     });
-  }, [selectedIncident, vehicles, locations]);
+  }, [selectedIncident, incidents, vehicles, locations]);
 
   const visibleIncidents = incidents.filter((incident) => incident.status !== 'Abgeschlossen');
   const completedList = useMemo(
@@ -284,7 +292,7 @@ export default function EinsaetzeView({
                     </ul>
                   )}
 
-                  {selectedIncident.status === 'Offen' && (
+                  {(
                     <div style={{ marginTop: 12 }}>
                       <button
                         className="btn btn--primary"
@@ -292,7 +300,7 @@ export default function EinsaetzeView({
                         onClick={() => alarmIncidentVehicles(selectedIncident.id, selectedVehicleIds)}
                         disabled={selectedVehicleIds.length === 0}
                       >
-                        Alarmieren
+                        {selectedIncident.status === 'Offen' ? 'Alarmieren' : 'Weiteralarmieren'}
                       </button>
                     </div>
                   )}

@@ -1110,13 +1110,17 @@ function App() {
   const alarmIncidentVehicles = (incidentId: string, selectedVehicleIds: string[]) => {
     if (selectedVehicleIds.length === 0) return;
     const incident = incidents.find((item) => item.id === incidentId);
-    if (!incident || incident.status !== 'Offen') return;
+    if (!incident || incident.status === 'Abgeschlossen') return;
+
+    const alreadyAlarmedVehicleIds = new Set(incident.alarmedVehicles.map((entry) => entry.vehicleId));
+    const selectedVehicleIdsToDispatch = [...new Set(selectedVehicleIds.filter((vehicleId) => !alreadyAlarmedVehicleIds.has(vehicleId)))];
+    if (selectedVehicleIdsToDispatch.length === 0) return;
 
     const nextVehicles = vehicles.map((vehicle) => ({ ...vehicle, assignedStaffIds: Array.isArray(vehicle.assignedStaffIds) ? [...vehicle.assignedStaffIds] : [] }));
     const reservedStaff = new Set<string>();
     const alarmedVehicleIds = new Set<string>();
 
-    for (const vehicleId of selectedVehicleIds) {
+    for (const vehicleId of selectedVehicleIdsToDispatch) {
       const vehicle = nextVehicles.find((item) => item.id === vehicleId);
       if (!vehicle || !isFmsAlarmable(getFmsStatus(vehicle), vehicle.previousOperationalStatus)) continue;
       const crewIds = getAvailableStaffForVehicle(vehicle, nextVehicles, staff).filter((id) => !reservedStaff.has(id));
@@ -1125,7 +1129,7 @@ function App() {
       alarmedVehicleIds.add(vehicle.id);
     }
 
-    const vehiclesToAssign = selectedVehicleIds
+    const vehiclesToAssign = selectedVehicleIdsToDispatch
       .map((vehicleId) => {
         const vehicle = nextVehicles.find((item) => item.id === vehicleId);
         if (!vehicle || !alarmedVehicleIds.has(vehicle.id)) return null;
@@ -1137,8 +1141,14 @@ function App() {
       })
       .filter((entry): entry is AlarmedVehicle => Boolean(entry));
 
-    const nextAlarmed = [...incident.alarmedVehicles, ...vehiclesToAssign.filter((entry) => !incident.alarmedVehicles.some((existing) => existing.vehicleId === entry.vehicleId))];
-    const nextIncidents = incidents.map((item) => item.id === incidentId ? { ...item, alarmedVehicles: nextAlarmed, status: nextAlarmed.length > 0 ? 'Fahrzeuge alarmiert' as const : 'Offen' as const } : item);
+    const nextAlarmed = [...incident.alarmedVehicles, ...vehiclesToAssign];
+    const nextIncidents = incidents.map((item) => item.id === incidentId
+      ? {
+          ...item,
+          alarmedVehicles: nextAlarmed,
+          status: nextAlarmed.length > 0 ? 'Fahrzeuge alarmiert' as const : 'Offen' as const,
+        }
+      : item);
 
     const updatedVehicles = nextVehicles.map((vehicle) => alarmedVehicleIds.has(vehicle.id) ? withFmsStatus(vehicle, 3) : vehicle);
     setIncidents(nextIncidents);
