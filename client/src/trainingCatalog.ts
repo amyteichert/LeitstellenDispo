@@ -6,6 +6,7 @@ export type TrainingCatalogEntry = {
   stationKinds: Array<'Rettungswache' | 'Feuerwache'>;
   participantLimit: number;
   requiredQualification: string;
+  durationSeconds: number;
 };
 
 export const MAX_TRAINING_PARTICIPANTS = 10;
@@ -19,6 +20,7 @@ export const TRAINING_CATALOG: TrainingCatalogEntry[] = [
     stationKinds: ['Feuerwache'],
     participantLimit: 10,
     requiredQualification: 'firefighter',
+    durationSeconds: 90,
   },
   {
     id: 'fahrerqualifikation',
@@ -28,6 +30,7 @@ export const TRAINING_CATALOG: TrainingCatalogEntry[] = [
     stationKinds: ['Rettungswache', 'Feuerwache'],
     participantLimit: 10,
     requiredQualification: 'driver',
+    durationSeconds: 120,
   },
   {
     id: 'erste-hilfe',
@@ -37,6 +40,7 @@ export const TRAINING_CATALOG: TrainingCatalogEntry[] = [
     stationKinds: ['Rettungswache'],
     participantLimit: 10,
     requiredQualification: 'medical',
+    durationSeconds: 75,
   },
   {
     id: 'first-responder',
@@ -46,6 +50,7 @@ export const TRAINING_CATALOG: TrainingCatalogEntry[] = [
     stationKinds: ['Rettungswache', 'Feuerwache'],
     participantLimit: 10,
     requiredQualification: 'first-responder',
+    durationSeconds: 105,
   },
 ];
 

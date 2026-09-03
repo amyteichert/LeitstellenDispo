@@ -17,7 +17,7 @@ import EinstellungenView from './views/EinstellungenView';
 import LeitstelleView from './views/LeitstelleView';
 import { VEHICLE_CATALOG, getVehicleCatalogEntry, vehicleMeetsRequirement } from './vehicleCatalog';
 import { getUpgradeDefinition, getUpgradePrice } from './upgradeCatalog';
-import { canStartTraining, getFreeTrainingRoomIndex, type TrainingCourse } from './stationState';
+import { canStartTraining, getFreeTrainingRoomIndex, resolveTrainingCourseLifecycle, type TrainingCourse } from './stationState';
 import { MAX_TRAINING_PARTICIPANTS, TRAINING_CATALOG } from './trainingCatalog';
 
 type IncidentStatus = 'Offen' | 'Fahrzeuge alarmiert' | 'In Bearbeitung' | 'Abgeschlossen';
@@ -469,6 +469,19 @@ function App() {
   ]);
   const [trainingCourses, setTrainingCourses] = useState<TrainingCourse[]>([]);
 
+  useEffect(() => {
+    const interval = window.setInterval(() => {
+      setTrainingCourses((currentCourses) => {
+        const nextResult = resolveTrainingCourseLifecycle(currentCourses, staff);
+        if (!nextResult.changed) return currentCourses;
+        setStaff(nextResult.staff);
+        return nextResult.trainingCourses;
+      });
+    }, 1000);
+
+    return () => window.clearInterval(interval);
+  }, [staff]);
+
   // Finances
   const [balance, setBalance] = useState<number>(0);
   const [transactions, setTransactions] = useState<FinanceTransaction[]>([
@@ -638,13 +651,16 @@ function App() {
     const nextRoomIndex = getFreeTrainingRoomIndex(station, trainingCourses);
     if (nextRoomIndex === null) return false;
 
+    const startsAt = Date.now();
     const nextCourse: TrainingCourse = {
       id: `training-${Date.now()}`,
       stationId,
       roomIndex: nextRoomIndex,
       trainingId: selectedTraining.id,
       participantIds,
-      startedAt: new Date().toISOString(),
+      startedAt: new Date(startsAt).toISOString(),
+      durationSeconds: selectedTraining.durationSeconds,
+      endsAt: new Date(startsAt + selectedTraining.durationSeconds * 1000).toISOString(),
     };
 
     const nextCourses = [...trainingCourses, nextCourse];

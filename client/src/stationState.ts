@@ -1,4 +1,5 @@
 import type { MapLocation } from './types';
+import { getTrainingCatalogEntry } from './trainingCatalog';
 
 export type TrainingCourse = {
   id: string;
@@ -7,6 +8,64 @@ export type TrainingCourse = {
   trainingId: string;
   participantIds: string[];
   startedAt: string;
+  durationSeconds?: number;
+  endsAt?: string;
+  completedAt?: string;
+};
+
+export const getTrainingDurationSeconds = (trainingId: string, fallback = 120) => {
+  const catalogEntry = getTrainingCatalogEntry(trainingId);
+  return typeof catalogEntry?.durationSeconds === 'number' ? catalogEntry.durationSeconds : fallback;
+};
+
+export const getTrainingQualification = (trainingId: string) => getTrainingCatalogEntry(trainingId)?.requiredQualification;
+
+export const resolveTrainingCourseLifecycle = <T extends { id: string; qualifications: string[]; inTraining?: boolean }>(
+  courses: TrainingCourse[],
+  staff: T[],
+  now = Date.now(),
+) => {
+  const nextStaff = staff.map((member) => ({ ...member, inTraining: false }));
+  const remainingCourses: TrainingCourse[] = [];
+
+  for (const course of courses) {
+    const courseDurationSeconds = course.durationSeconds ?? getTrainingDurationSeconds(course.trainingId);
+    const startTime = new Date(course.startedAt).getTime();
+    const expectedEnd = course.endsAt ? new Date(course.endsAt).getTime() : startTime + courseDurationSeconds * 1000;
+    const hasCompleted = Number.isFinite(expectedEnd) && now >= expectedEnd;
+
+    if (hasCompleted) {
+      const qualification = getTrainingQualification(course.trainingId);
+      if (qualification) {
+        for (const participantId of course.participantIds) {
+          const member = nextStaff.find((candidate) => candidate.id === participantId);
+          if (!member) continue;
+          member.qualifications = [...new Set([...member.qualifications, qualification])];
+        }
+      }
+      continue;
+    }
+
+    remainingCourses.push(course);
+    for (const participantId of course.participantIds) {
+      const member = nextStaff.find((candidate) => candidate.id === participantId);
+      if (member) member.inTraining = true;
+    }
+  }
+
+  const changed = courses.length !== remainingCourses.length || staff.some((member, index) => {
+    const nextMember = nextStaff[index];
+    if (!nextMember) return true;
+    const sameInTraining = member.inTraining === nextMember.inTraining;
+    const sameQualifications = member.qualifications.length === nextMember.qualifications.length && member.qualifications.every((qualification) => nextMember.qualifications.includes(qualification));
+    return !sameInTraining || !sameQualifications;
+  });
+
+  return {
+    changed,
+    trainingCourses: remainingCourses,
+    staff: nextStaff,
+  };
 };
 
 export const getTrainingRoomCount = (station?: MapLocation) => {

@@ -137,6 +137,18 @@ const migrateLocations = (locations: unknown[]): unknown[] => locations.map((ite
   };
 });
 
+const migrateTrainingCourses = (trainingCourses: unknown[]): unknown[] => trainingCourses.map((item) => {
+  if (!item || typeof item !== 'object') return item;
+  const course = item as Record<string, unknown> & { participantIds?: unknown[] };
+  return {
+    ...course,
+    participantIds: Array.isArray(course.participantIds) ? course.participantIds.filter((participantId): participantId is string => typeof participantId === 'string') : [],
+    durationSeconds: typeof course.durationSeconds === 'number' ? course.durationSeconds : undefined,
+    endsAt: typeof course.endsAt === 'string' ? course.endsAt : undefined,
+    completedAt: typeof course.completedAt === 'string' ? course.completedAt : undefined,
+  };
+});
+
 const loadGameState = async (): Promise<GameState> => {
   try {
     const stored = JSON.parse(await readFile(gameStatePath, 'utf8')) as Partial<GameState>;
@@ -147,7 +159,7 @@ const loadGameState = async (): Promise<GameState> => {
       locations: migrateLocations(Array.isArray(stored.locations) ? stored.locations : []),
       vehicles: migrateVehicles(Array.isArray(stored.vehicles) ? stored.vehicles : []),
       incidents: Array.isArray(stored.incidents) ? stored.incidents : [],
-      trainingCourses: Array.isArray(stored.trainingCourses) ? stored.trainingCourses : [],
+      trainingCourses: migrateTrainingCourses(Array.isArray(stored.trainingCourses) ? stored.trainingCourses : []),
     };
   } catch {
     await mkdir(dirname(gameStatePath), { recursive: true });
@@ -203,7 +215,7 @@ app.put('/api/game-state/assets', async (req, res) => {
 
   gameState.locations = locations;
   gameState.vehicles = migrateVehicles(req.body.vehicles);
-  gameState.trainingCourses = Array.isArray(req.body.trainingCourses) ? req.body.trainingCourses : gameState.trainingCourses ?? [];
+  gameState.trainingCourses = migrateTrainingCourses(Array.isArray(req.body.trainingCourses) ? req.body.trainingCourses : gameState.trainingCourses ?? []);
   await persistGameState();
   res.json(gameState);
 });
