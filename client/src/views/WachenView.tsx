@@ -8,6 +8,22 @@ import { formatCurrency } from '../utils/formatCurrency';
 
 const formatPrice = formatCurrency;
 
+const isStationOwned = (station: MapLocation) => Boolean(station.owned ?? station.isOwned ?? ((station.purchasePrice === 0 || station.price === 0) || station.id === 'rettungswache-zentrum' || station.id === 'rettungswache-sued'));
+
+const getDistanceKm = (from: { lat: number; lng: number } | null, station: MapLocation) => {
+  if (!from) return Number.POSITIVE_INFINITY;
+  const earthRadiusKm = 6371;
+  const toRad = (value: number) => (value * Math.PI) / 180;
+  const stationLat = station.latitude ?? station.coords[0];
+  const stationLng = station.longitude ?? station.coords[1];
+  const dLat = toRad(stationLat - from.lat);
+  const dLng = toRad(stationLng - from.lng);
+  const lat1 = toRad(from.lat);
+  const lat2 = toRad(stationLat);
+  const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) * Math.sin(dLng / 2);
+  return 2 * earthRadiusKm * Math.asin(Math.sqrt(a));
+};
+
 export default function WachenView({
   locations,
   selectedId,
@@ -15,6 +31,7 @@ export default function WachenView({
   vehicles,
   stationKindFilter,
   balance,
+  onPurchaseStation,
   onPurchaseVehicle,
   onPurchaseUpgrade,
 }: {
@@ -24,19 +41,66 @@ export default function WachenView({
   vehicles: Vehicle[];
   stationKindFilter?: 'Rettungswache' | 'Feuerwache';
   balance: number;
+  onPurchaseStation: (stationId: string) => boolean;
   onPurchaseVehicle: (stationId: string, type: string, callsign: string) => boolean;
   onPurchaseUpgrade: (stationId: string, upgradeId: string) => boolean;
 }) {
-  const stations = locations.filter((l) => l.type === 'station' && (!stationKindFilter || (l.stationKind ?? 'Rettungswache') === stationKindFilter));
-  const selected = locations.find((l) => l.id === selectedId && l.type === 'station');
+  const allStations = locations.filter((l) => l.type === 'station' && (!stationKindFilter || (l.stationKind ?? l.kind ?? 'Rettungswache') === stationKindFilter));
+  const ownedStations = allStations.filter((station) => isStationOwned(station));
+  const catalogStations = allStations.filter((station) => !isStationOwned(station));
+  const [stationTab, setStationTab] = useState<'meine' | 'katalog'>('meine');
   const [purchaseCategory, setPurchaseCategory] = useState<VehicleCatalogCategory>('Löschfahrzeuge');
   const [purchaseOpen, setPurchaseOpen] = useState(false);
   const [purchaseCallsign, setPurchaseCallsign] = useState('');
   const [purchaseError, setPurchaseError] = useState<string | null>(null);
+  const [stationPurchaseError, setStationPurchaseError] = useState<string | null>(null);
   const [upgradeOpen, setUpgradeOpen] = useState(false);
   const [upgradeError, setUpgradeError] = useState<string | null>(null);
-  const availableCategories = selected ? getAvailableVehicleCategories(selected.stationKind ?? 'Rettungswache') : [];
-  const activeCategory = availableCategories.includes(purchaseCategory) ? purchaseCategory : availableCategories[0];
+  const [stationQuery, setStationQuery] = useState('');
+  const [stateFilter, setStateFilter] = useState('Alle');
+  const [kindFilter, setKindFilter] = useState<'Alle' | 'Rettungswache' | 'Feuerwache'>('Alle');
+  const [userPosition, setUserPosition] = useState<{ lat: number; lng: number } | null>(null);
+  const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({
+    'Aufenthalt & Personal': true,
+    'Ausbildung & Betrieb': true,
+    Erweiterungen: true,
+  });
+
+  useEffect(() => {
+    if (!('geolocation' in navigator)) return;
+    navigator.geolocation.getCurrentPosition(
+      (position) => setUserPosition({ lat: position.coords.latitude, lng: position.coords.longitude }),
+      () => setUserPosition(null),
+      { enableHighAccuracy: true, timeout: 8000 },
+    );
+  }, []);
+
+  const stationOptions = Array.from(new Set(allStations.map((station) => station.state).filter((value): value is string => Boolean(value))));
+  const activeStations = stationTab === 'meine' ? ownedStations : catalogStations;
+  const filteredStations = activeStations
+    .filter((station) => {
+      const query = stationQuery.trim().toLowerCase();
+      const matchesQuery = !query || [station.name, station.city, station.address, station.details, station.postalCode, station.state, station.stationKind ?? station.kind ?? 'Rettungswache'].join(' ').toLowerCase().includes(query);
+      const matchesKind = kindFilter === 'Alle' || (station.stationKind ?? station.kind ?? 'Rettungswache') === kindFilter;
+      const matchesState = stateFilter === 'Alle' || station.state === stateFilter;
+      return matchesQuery && matchesKind && matchesState;
+    })
+    .sort((a, b) => {
+      const aDistance = getDistanceKm(userPosition, a);
+      const bDistance = getDistanceKm(userPosition, b);
+      if (aDistance === bDistance) return 0;
+      if (Number.isFinite(aDistance) && Number.isFinite(bDistance)) return aDistance - bDistance;
+      return Number.isFinite(aDistance) ? -1 : 1;
+    });
+
+  const selected = locations.find((l) => l.id === selectedId && l.type === 'station') ?? filteredStations[0] ?? allStations[0];
+
+  useEffect(() => {
+    if (filteredStations.length > 0 && !filteredStations.some((station) => station.id === selectedId)) {
+      setSelectedId(filteredStations[0].id);
+    }
+  }, [filteredStations, selectedId, setSelectedId]);
+
   const selectedCapacity = selected?.vehicleCapacity ?? (selected?.stationKind === 'Feuerwache' ? 3 : 2);
   const selectedVehicleCount = selected ? vehicles.filter((vehicle) => vehicle.stationId === selected.id).length : 0;
   const hasFreeVehicleSlot = selectedVehicleCount < selectedCapacity;
@@ -44,16 +108,13 @@ export default function WachenView({
   const upgradeLevel = selected?.upgradeLevels?.['vehicle-capacity'] ?? 0;
   const nextUpgradeLevel = upgradeLevel + 1;
   const upgradePrice = activeUpgrade ? getUpgradePrice(activeUpgrade, nextUpgradeLevel) : undefined;
+  const availableCategories = selected ? getAvailableVehicleCategories(selected.stationKind ?? 'Rettungswache') : [];
+  const activeCategory = availableCategories.includes(purchaseCategory) ? purchaseCategory : availableCategories[0];
   const upgradeGroups: Array<{ title: string; ids: string[] }> = [
     { title: 'Aufenthalt & Personal', ids: ['aufenthaltsraum', 'ruheraume', 'fitnessraum', 'personalbereiche', 'kuche'] },
     { title: 'Ausbildung & Betrieb', ids: ['ausbildungsbereich', 'werkstatt'] },
     { title: 'Erweiterungen', ids: ['lagerkapazitaet', 'erweiterungen'] },
   ];
-  const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({
-    'Aufenthalt & Personal': true,
-    'Ausbildung & Betrieb': true,
-    Erweiterungen: true,
-  });
 
   useEffect(() => {
     if (availableCategories.length > 0 && !availableCategories.includes(purchaseCategory)) {
@@ -171,8 +232,20 @@ export default function WachenView({
               <div className="vehicle-shop-card__footer">
                 <label className="vehicle-shop-callsign"><span>Funkrufname</span><input value={purchaseCallsign} onChange={(event) => setPurchaseCallsign(event.target.value)} placeholder={`${entry.type}-1`} /></label>
                 <button className="btn btn--primary vehicle-shop-buy" type="button" disabled={!canPurchase} onClick={() => {
+                  if (!isStationOwned(selected)) {
+                    setPurchaseError('Wache gehört dir nicht. Bitte zuerst die Wache kaufen.');
+                    return;
+                  }
+                  if (!hasFreeVehicleSlot) {
+                    setPurchaseError('Keine freien Stellplätze in dieser Wache verfügbar.');
+                    return;
+                  }
+                  if (!affordable) {
+                    setPurchaseError(`Für ${entry.type} sind ${formatPrice(entry.price)} nötig, aber nur ${formatPrice(balance)} verfügbar.`);
+                    return;
+                  }
                   const purchased = onPurchaseVehicle(selected.id, entry.type, purchaseCallsign.trim() || `${entry.type}-${vehicles.filter((vehicle) => vehicle.type === entry.type).length + 1}`);
-                  if (!purchased) setPurchaseError(`Für ${entry.type} reicht das Guthaben nicht aus.`);
+                  if (!purchased) setPurchaseError(`Der Kauf von ${entry.type} konnte nicht abgeschlossen werden.`);
                   else { setPurchaseError(null); setPurchaseCallsign(''); }
                 }}>{!hasFreeVehicleSlot ? 'Keine freien Stellplätze' : affordable ? 'Fahrzeug kaufen' : 'Guthaben nicht ausreichend'}</button>
               </div>
@@ -185,20 +258,43 @@ export default function WachenView({
 
   return (
     <div className="view-screen">
-      <div className="screen-heading"><div><span className="eyebrow">Standortnetz</span><h2>Wachen</h2></div><span className="screen-count">{stations.length} Standorte</span></div>
+      <div className="screen-heading">
+        <div><span className="eyebrow">Standortnetz</span><h2>Wachen</h2></div>
+        <span className="screen-count">{filteredStations.length} Standorte</span>
+      </div>
       <div className="station-layout">
         <div className="section-panel station-list-panel">
+          <div style={{ display: 'grid', gap: 8, marginBottom: 12 }}>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button type="button" className={`btn ${stationTab === 'meine' ? 'btn--primary' : ''}`} onClick={() => setStationTab('meine')}>Meine Wachen</button>
+              <button type="button" className={`btn ${stationTab === 'katalog' ? 'btn--primary' : ''}`} onClick={() => setStationTab('katalog')}>Wachenkatalog</button>
+            </div>
+            <input value={stationQuery} onChange={(event) => setStationQuery(event.target.value)} placeholder="Name, Ort, Adresse, Postleitzahl" aria-label="Wachensuche" />
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 8 }}>
+              <select value={kindFilter} onChange={(event) => setKindFilter(event.target.value as 'Alle' | 'Rettungswache' | 'Feuerwache')}>
+                <option value="Alle">Alle Wachentypen</option>
+                <option value="Rettungswache">Rettungswache</option>
+                <option value="Feuerwache">Feuerwache</option>
+              </select>
+              <select value={stateFilter} onChange={(event) => setStateFilter(event.target.value)}>
+                <option value="Alle">Alle Bundesländer</option>
+                {stationOptions.map((option) => <option key={option} value={option}>{option}</option>)}
+              </select>
+            </div>
+          </div>
           <ul className="station-list">
-            {stations.map((s) => (
-              <li key={s.id}>
+            {filteredStations.map((station) => (
+              <li key={station.id}>
                 <button
-                  className={`station-card ${s.stationKind === 'Feuerwache' ? 'station-card--fire' : 'station-card--rescue'} ${selectedId === s.id ? 'station-card--active' : ''}`}
+                  className={`station-card ${station.stationKind === 'Feuerwache' ? 'station-card--fire' : 'station-card--rescue'} ${selectedId === station.id ? 'station-card--active' : ''}`}
                   type="button"
-                  onClick={() => setSelectedId(s.id)}
+                  onClick={() => setSelectedId(station.id)}
                 >
-                  <strong>{s.name}</strong>
-                  <span className={`station-badge station-badge--${s.stationKind === 'Feuerwache' ? 'fire' : 'rescue'}`}>{s.stationKind ?? 'Rettungswache'}</span>
-                  <div>{s.description}</div>
+                  <strong>{station.name}</strong>
+                  <span className={`station-badge station-badge--${station.stationKind === 'Feuerwache' ? 'fire' : 'rescue'}`}>{station.stationKind ?? station.kind ?? 'Rettungswache'}</span>
+                  <span style={{ fontSize: 12, opacity: 0.8 }}>{isStationOwned(station) ? 'Eigene Wache' : `Kaufbar · ${formatPrice(station.purchasePrice ?? station.price ?? 0)}`}</span>
+                  <div>{station.address ?? station.details}</div>
+                  {userPosition && Number.isFinite(getDistanceKm(userPosition, station)) && <small>{getDistanceKm(userPosition, station).toFixed(1)} km entfernt</small>}
                 </button>
               </li>
             ))}
@@ -209,22 +305,58 @@ export default function WachenView({
           {selected ? (
             <div className={`station-detail ${selected.stationKind === 'Feuerwache' ? 'station-detail--fire' : ''}`}>
               <h3>{selected.name}</h3>
+
+              <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+                <button type="button" className={`btn ${stationTab === 'meine' ? 'btn--primary' : ''}`} onClick={() => setStationTab('meine')}>Meine Wachen</button>
+                <button type="button" className={`btn ${stationTab === 'katalog' ? 'btn--primary' : ''}`} onClick={() => setStationTab('katalog')}>Wachenkatalog</button>
+              </div>
+
+              {!isStationOwned(selected) && (
+                <div style={{ display: 'grid', gap: 12, padding: 12, border: '1px solid rgba(148,163,184,0.4)', borderRadius: 10, marginBottom: 16 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span>Preis</span>
+                    <strong>{formatPrice(selected.purchasePrice ?? selected.price ?? 0)}</strong>
+                  </div>
+                  <button type="button" className="btn btn--primary" onClick={() => {
+                    const success = onPurchaseStation(selected.id);
+                    if (!success) {
+                      setStationPurchaseError(balance < (selected.purchasePrice ?? selected.price ?? 0) ? 'Nicht genügend Geld für diesen Kauf.' : 'Dieser Standort ist bereits vergriffen oder konnte nicht gekauft werden.');
+                    } else {
+                      setStationPurchaseError(null);
+                    }
+                  }}>
+                    Wache kaufen
+                  </button>
+                  {stationPurchaseError && <p className="vehicle-shop-error" role="alert">{stationPurchaseError}</p>}
+                </div>
+              )}
+
+              <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+                <button type="button" className={`btn ${selected.stationKind === 'Feuerwache' ? 'btn--primary' : ''}`} onClick={() => setStationTab('meine')}>Fuhrpark</button>
+                <button type="button" className={`btn ${selected.stationKind === 'Feuerwache' ? '' : 'btn--primary'}`} onClick={() => setUpgradeOpen(true)}>Wachenausbau</button>
+              </div>
+
               <div className="station-facts">
-                <p><span>Wachentyp</span><strong>{selected.stationKind ?? 'Rettungswache'}</strong></p>
+                <p><span>Besitz</span><strong>{isStationOwned(selected) ? 'Eigene Wache' : 'Kaufbar'}</strong></p>
+                <p><span>Wachentyp</span><strong>{selected.stationKind ?? selected.kind ?? 'Rettungswache'}</strong></p>
                 <p><span>Fahrzeuge</span><strong>{selectedVehicleCount} / {selectedCapacity}</strong></p>
-                <p><span>Standort</span><strong>{selected.details}</strong></p>
-                <p><span>Koordinaten</span><strong>{selected.coords[0].toFixed(4)}, {selected.coords[1].toFixed(4)}</strong></p>
+                <p><span>Standort</span><strong>{selected.address ?? selected.details}</strong></p>
+                <p><span>Ort</span><strong>{selected.city ?? 'Stuttgart'}, {selected.postalCode ?? '70173'}</strong></p>
+                <p><span>Bundesland</span><strong>{selected.state ?? 'Baden-Württemberg'}</strong></p>
+                <p><span>Koordinaten</span><strong>{(selected.latitude ?? selected.coords[0]).toFixed(4)}, {(selected.longitude ?? selected.coords[1]).toFixed(4)}</strong></p>
               </div>
 
               <h4>Fahrzeuge</h4>
               <ul className="station-vehicles">
-                {vehicles.filter(v => v.stationId === selected.id).map(v => (
-                  <li className={v.type === 'RTW' ? 'station-vehicle--rescue' : 'station-vehicle--fire'} key={v.id}><strong>{v.callsign ?? v.name}</strong><span>{v.type ?? '–'}</span><small className={`fms-badge fms-badge--${getFmsStatus(v)}`}>[{getFmsStatus(v)}] {getFmsStatusLabel(v)}</small></li>
+                {vehicles.filter((vehicle) => vehicle.stationId === selected.id).map((vehicle) => (
+                  <li className={vehicle.type === 'RTW' ? 'station-vehicle--rescue' : 'station-vehicle--fire'} key={vehicle.id}><strong>{vehicle.callsign ?? vehicle.name}</strong><span>{vehicle.type ?? '–'}</span><small className={`fms-badge fms-badge--${getFmsStatus(vehicle)}`}>[{getFmsStatus(vehicle)}] {getFmsStatusLabel(vehicle)}</small></li>
                 ))}
-                {vehicles.filter(v => v.stationId === selected.id).length === 0 && <li>Noch keine Fahrzeuge vorhanden.</li>}
+                {vehicles.filter((vehicle) => vehicle.stationId === selected.id).length === 0 && <li>Noch keine Fahrzeuge vorhanden.</li>}
               </ul>
-              <button className="btn btn--primary station-buy-vehicle" type="button" onClick={() => { setPurchaseError(null); setPurchaseOpen(true); }}>Fahrzeug kaufen</button>
-              <button className="btn station-upgrade-button" type="button" onClick={() => { setUpgradeError(null); setUpgradeOpen(true); }}>Wache upgraden</button>
+
+              {isStationOwned(selected) && (
+                <button className="btn btn--primary station-buy-vehicle" type="button" onClick={() => { setPurchaseError(null); setPurchaseOpen(true); }}>Fahrzeug kaufen</button>
+              )}
             </div>
           ) : (
             <p>Keine Wache ausgewählt.</p>

@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
-import { isFmsAlarmable, FMS_STATUS_LABELS } from '@leitstellendispo/shared';
-import type { MapLocation } from '../types';
+import { isFmsAlarmable } from '@leitstellendispo/shared';
+import type { MapLocation, StationStaffMember } from '../types';
 import type { Vehicle } from './FahrzeugeView';
-import { vehicleMeetsRequirement, type VehicleRequirement } from '../vehicleCatalog';
+import { getVehicleCatalogEntry, vehicleMeetsRequirement, type VehicleRequirement } from '../vehicleCatalog';
+import { selectCrewForVehicle } from '../stationState';
 import { formatCurrency } from '../utils/formatCurrency';
 
 type IncidentStatus = 'Offen' | 'Fahrzeuge alarmiert' | 'In Bearbeitung' | 'Abgeschlossen';
@@ -57,6 +58,7 @@ export default function EinsaetzeView({
   completedIncidentHistory,
   vehicles,
   locations,
+  staffMembers,
   selectedIncidentId,
   setSelectedIncidentId,
   alarmIncidentVehicles,
@@ -69,9 +71,10 @@ export default function EinsaetzeView({
   completedIncidentHistory: CompletedIncidentHistoryEntry[];
   vehicles: Vehicle[];
   locations: MapLocation[];
+  staffMembers: StationStaffMember[];
   selectedIncidentId: string | null;
   setSelectedIncidentId: (id: string | null) => void;
-  alarmIncidentVehicles: (incidentId: string, selectedVehicleIds: string[]) => void;
+  alarmIncidentVehicles: (incidentId: string, selectedVehicleIds: string[]) => { success: boolean; error?: string };
   triggerTestIncident: () => void;
   nowMs: number;
   stats: { total: number; rettungsdienst: number; feuerwehr: number; earned: number };
@@ -79,6 +82,7 @@ export default function EinsaetzeView({
 }) {
   const [selectedVehicleIds, setSelectedVehicleIds] = useState<string[]>([]);
   const [activeTab, setActiveTab] = useState<'Aktive' | 'Abgeschlossen'>(initialTab ?? 'Aktive');
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   useEffect(() => {
     setSelectedVehicleIds([]);
@@ -92,18 +96,46 @@ export default function EinsaetzeView({
   );
 
   const availableVehiclesForSelectedIncident = useMemo(() => {
-    if (!selectedIncident || selectedIncident.status === 'Abgeschlossen') return [] as Vehicle[];
+    if (!selectedIncident || selectedIncident.status === 'Abgeschlossen') return [] as Array<{ vehicle: Vehicle; reason: string | null }>; 
 
-    return vehicles.filter((vehicle) => {
-      if (!isFmsAlarmable(vehicle.fmsStatus ?? 2, vehicle.previousOperationalStatus)) return false;
-      return selectedIncident.requiredVehicles.some((requirement) => vehicleMeetsRequirement(vehicle.type, requirement));
-    }).sort((a, b) => {
-      const aCoords = a.stationId ? locations.find((loc) => loc.id === a.stationId)?.coords : undefined;
-      const bCoords = b.stationId ? locations.find((loc) => loc.id === b.stationId)?.coords : undefined;
-      if (!aCoords || !bCoords) return 0;
-      return haversineKm(aCoords, selectedIncident.coords) - haversineKm(bCoords, selectedIncident.coords);
-    });
-  }, [selectedIncident, vehicles, locations]);
+    const alarmedVehicleIds = new Set(selectedIncident.alarmedVehicles.map((a) => a.vehicleId));
+    const ownedStationIds = new Set(locations.filter((location) => location.type === 'station' && Boolean(location.owned ?? location.isOwned)).map((location) => location.id));
+
+    return vehicles
+      .filter((vehicle) => {
+        if (alarmedVehicleIds.has(vehicle.id)) return false;
+        if (!vehicle.stationId || !ownedStationIds.has(vehicle.stationId)) return false;
+        return true;
+      })
+      .map((vehicle) => {
+        const station = locations.find((location) => location.id === vehicle.stationId && location.type === 'station');
+        const requiredCrewCount = Math.max(vehicle.crewRequired ?? getVehicleCatalogEntry(vehicle.type)?.technical.crewRequired ?? 1, 1);
+        const stationStaff = staffMembers.filter((member) => member.stationId === vehicle.stationId && !member.inTraining && !member.assignedVehicleId);
+        let reason: string | null = null;
+
+        if (!station || !(station.owned ?? station.isOwned)) {
+          reason = 'Fahrzeug gehört nicht zu einer eigenen Wache.';
+        } else if (!isFmsAlarmable(vehicle.fmsStatus ?? 2, vehicle.previousOperationalStatus)) {
+          reason = 'Fahrzeug ist derzeit nicht einsatzbereit.';
+        } else if (stationStaff.length < requiredCrewCount) {
+          reason = `Nur ${stationStaff.length}/${requiredCrewCount} verfügbare Einsatzkräfte in ${station.name}.`;
+        } else {
+          const requiredQualifications = getVehicleCatalogEntry(vehicle.type)?.technical.requiredQualifications ?? [];
+          const crewSelection = selectCrewForVehicle(station, vehicle.type, new Set(), staffMembers, requiredCrewCount);
+          if (requiredQualifications.length > 0 && (!crewSelection || crewSelection.length < requiredCrewCount)) {
+            reason = `Qualifikation fehlt: ${requiredQualifications.join(', ')}`;
+          }
+        }
+
+        return { vehicle, reason };
+      })
+      .sort((a, b) => {
+        const aCoords = a.vehicle.stationId ? locations.find((loc) => loc.id === a.vehicle.stationId)?.coords : undefined;
+        const bCoords = b.vehicle.stationId ? locations.find((loc) => loc.id === b.vehicle.stationId)?.coords : undefined;
+        if (!aCoords || !bCoords) return 0;
+        return haversineKm(aCoords, selectedIncident.coords) - haversineKm(bCoords, selectedIncident.coords);
+      });
+  }, [selectedIncident, vehicles, locations, staffMembers]);
 
   const visibleIncidents = incidents.filter((incident) => incident.status !== 'Abgeschlossen');
   const completedList = useMemo(
@@ -160,9 +192,9 @@ export default function EinsaetzeView({
           {activeTab === 'Aktive' ? (
             <>
               {visibleIncidents.length === 0 && <p>Keine offenen Einsätze.</p>}
-              <ul style={{ listStyle: 'none', padding: 0, display: 'grid', gap: 8 }}>
+              <ul style={{ listStyle: 'none', padding: 0, display: 'grid', gap: 8, maxHeight: 'calc(100vh - 400px)', overflowY: 'auto', minHeight: 0 }}>
                 {visibleIncidents.map((incident) => (
-                  <li key={incident.id}>
+                   <li key={incident.id}>
                     <button
                       type="button"
                       className={`view-menu-item ${selectedIncident?.id === incident.id ? 'active' : ''}`}
@@ -171,7 +203,7 @@ export default function EinsaetzeView({
                     >
                       <strong>{incident.type}</strong>
                       <div style={{ fontSize: 12, color: '#6b7280' }}>
-                        {incident.organization} · {incident.status} · {incident.generatedByStationName}
+                        {incident.organization} · {incident.generatedByStationName}
                       </div>
                       <div style={{ fontSize: 12, color: '#6b7280' }}>
                         {formatCurrency(incident.reward)} · {incident.alarmedVehicles.length} alarmiert
@@ -184,7 +216,7 @@ export default function EinsaetzeView({
           ) : (
             <>
               {completedList.length === 0 && <p>Keine abgeschlossenen Einsätze.</p>}
-              <ul style={{ listStyle: 'none', padding: 0, display: 'grid', gap: 8 }}>
+              <ul style={{ listStyle: 'none', padding: 0, display: 'grid', gap: 8, maxHeight: 'calc(100vh - 400px)', overflowY: 'auto', minHeight: 0 }}>
                 {completedList.map((incident) => (
                   <li key={incident.id}>
                     <button
@@ -212,46 +244,50 @@ export default function EinsaetzeView({
           {selectedIncident ? (
             <div className="incident-detail">
               <h3>{selectedIncident.type}</h3>
-              <p><strong>Status:</strong> {selectedIncident.status}</p>
-              <p><strong>Organisation:</strong> {selectedIncident.organization}</p>
-              <p><strong>Adresse:</strong> {selectedIncident.address}</p>
-              <p><strong>Erzeugt durch:</strong> {selectedIncident.generatedByStationName}</p>
-              <p><strong>Belohnung:</strong> {formatCurrency(selectedIncident.reward)}</p>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, fontSize: 13, marginBottom: 12, color: '#9ca3af' }}>
+                <div><strong>Status:</strong> {selectedIncident.status}</div>
+                <div><strong>Belohnung:</strong> {formatCurrency(selectedIncident.reward)}</div>
+              </div>
 
-              {selectedIncident.status === 'Abgeschlossen' && (
-                <>
-                  <p><strong>Abschlusszeit:</strong> {formatDateTime(selectedIncident.completedAt ?? nowMs)}</p>
-                  <p><strong>Einsatzdauer:</strong> {formatEtaLabel(selectedIncident.totalDurationSeconds ?? selectedIncident.durationSeconds)}</p>
-                </>
+              {selectedIncident.status !== 'Abgeschlossen' && (
+                <div style={{ padding: 8, backgroundColor: '#1f2937', borderRadius: 4, marginBottom: 12, fontSize: 12 }}>
+                  <div style={{ marginBottom: 6 }}><strong>Anforderungen</strong></div>
+                  {selectedIncident.requiredVehicles.map((requirement) => {
+                    const alarmedCount = new Set(
+                      selectedIncident.alarmedVehicles
+                        .map((a) => vehicles.find((v) => v.id === a.vehicleId))
+                        .filter((v) => v && vehicleMeetsRequirement(v.type, requirement))
+                        .map((v) => v!.id)
+                    ).size;
+                    const missing = Math.max(0, requirement.amount - alarmedCount);
+                    const status = missing === 0 ? '✓' : `${missing}×`;
+                    return (
+                      <div key={requirement.id} style={{ display: 'flex', justifyContent: 'space-between', color: missing > 0 ? '#f87171' : '#86efac' }}>
+                        <span>{requirement.label}</span>
+                        <span>{status} ({alarmedCount}/{requirement.amount})</span>
+                      </div>
+                    );
+                  })}
+                </div>
               )}
 
-              <h4>Benötigte Fahrzeuge</h4>
-              <ul>
-                {selectedIncident.requiredVehicles.map((requirement) => {
-                  const matchingIds = new Set(selectedIncident.alarmedVehicles.map((assignment) => assignment.vehicleId).filter((vehicleId) => {
-                    const vehicle = vehicles.find((item) => item.id === vehicleId);
-                    return vehicle ? vehicleMeetsRequirement(vehicle.type, requirement) : false;
-                  }));
-                  const fulfilled = matchingIds.size >= requirement.amount;
-                  return <li className={fulfilled ? 'requirement--fulfilled' : 'requirement--open'} key={requirement.id}><span>{requirement.label}</span><strong>{matchingIds.size} / {requirement.amount}</strong></li>;
-                })}
-              </ul>
-
-              <h4>Eingesetzte Fahrzeuge</h4>
+              <h4>Eingesetzte Fahrzeuge ({selectedIncident.alarmedVehicles.length})</h4>
               {selectedIncident.alarmedVehicles.length === 0 ? (
-                <p>Keine Fahrzeuge eingesetzt.</p>
+                <p style={{ fontSize: 13, color: '#9ca3af' }}>Keine Fahrzeuge eingesetzt.</p>
               ) : (
-                <ul>
+                <ul style={{ fontSize: 12, lineHeight: 1.6 }}>
                   {selectedIncident.alarmedVehicles.map((assignment) => {
                     const vehicle = vehicles.find((item) => item.id === assignment.vehicleId);
                     const callSign = vehicle?.callsign ?? vehicle?.name ?? 'Fahrzeug';
-                    const durationLabel = selectedIncident.status === 'Abgeschlossen'
-                      ? `– ${callSign}`
-                      : `– ${assignment.distanceKm.toFixed(1)} km – ${assignment.arrivalAt > nowMs ? `Ankunft in ${formatEtaLabel((assignment.arrivalAt - nowMs) / 1000)}` : 'angekommen'}`;
+                    const status = selectedIncident.status === 'Abgeschlossen'
+                      ? 'abgeschlossen'
+                      : assignment.arrivalAt > nowMs
+                        ? `Ankunft in ${formatEtaLabel((assignment.arrivalAt - nowMs) / 1000)}`
+                        : 'vor Ort';
 
                     return (
-                      <li key={assignment.vehicleId}>
-                        {callSign}{durationLabel} <span className={`fms-badge fms-badge--${vehicle ? (vehicle.fmsStatus ?? 2) : 2}`}>[{vehicle?.fmsStatus ?? 2}] {vehicle ? FMS_STATUS_LABELS[vehicle.fmsStatus ?? 2] : 'Unbekannt'}</span>
+                      <li key={assignment.vehicleId} style={{ color: assignment.arrivalAt > nowMs ? '#fbbf24' : '#10b981' }}>
+                        {callSign} – {status}
                       </li>
                     );
                   })}
@@ -260,23 +296,41 @@ export default function EinsaetzeView({
 
               {selectedIncident.status !== 'Abgeschlossen' ? (
                 <>
-                  <h4>Verfügbare passende Fahrzeuge</h4>
+                  <h4>Verfügbare Fahrzeuge</h4>
                   {availableVehiclesForSelectedIncident.length === 0 ? (
-                    <p>Aktuell kein geeignetes Fahrzeug verfügbar.</p>
+                    <p>Aktuell kein Fahrzeug verfügbar.</p>
                   ) : (
                     <ul style={{ listStyle: 'none', padding: 0, display: 'grid', gap: 8 }}>
-                      {availableVehiclesForSelectedIncident.map((vehicle) => {
+                      {availableVehiclesForSelectedIncident.map(({ vehicle, reason }) => {
                         const vehicleStation = vehicle.stationId ? locations.find((loc) => loc.id === vehicle.stationId) : undefined;
                         const distanceKm = vehicleStation ? haversineKm(vehicleStation.coords, selectedIncident.coords) : 0;
                         const etaSeconds = Math.max(1, Math.round((distanceKm / 54) * 3600));
                         const checked = selectedVehicleIds.includes(vehicle.id);
+                        const isRequired = selectedIncident.requiredVehicles.some((req) => vehicleMeetsRequirement(vehicle.type, req));
+                        const isDisabled = Boolean(reason);
                         return (
                           <li key={vehicle.id}>
-                            <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                              <input type="checkbox" checked={checked} onChange={() => toggleVehicle(vehicle.id)} />
-                              <span>
-                                {vehicle.callsign ?? vehicle.name} – {vehicle.type} – {distanceKm.toFixed(1)} km – ca. {formatEtaLabel(etaSeconds)}
+                            <label style={{ 
+                              display: 'flex', 
+                              alignItems: 'center', 
+                              gap: 12,
+                              padding: isRequired ? '10px 12px' : '8px 10px',
+                              backgroundColor: isDisabled ? 'rgba(148, 163, 184, 0.08)' : isRequired ? 'rgba(34, 197, 94, 0.1)' : 'rgba(107, 114, 128, 0.05)',
+                              border: isDisabled ? '1px solid rgba(251, 191, 36, 0.2)' : isRequired ? '1px solid rgba(34, 197, 94, 0.3)' : '1px solid rgba(107, 114, 128, 0.15)',
+                              borderRadius: '4px',
+                              cursor: isDisabled ? 'not-allowed' : 'pointer',
+                              opacity: isDisabled ? 0.7 : 1,
+                              transition: 'all 0.2s'
+                            }}>
+                              <input type="checkbox" checked={checked} onChange={() => !isDisabled && toggleVehicle(vehicle.id)} disabled={isDisabled} style={{ cursor: isDisabled ? 'not-allowed' : 'pointer' }} />
+                              <span style={{ fontSize: 13, fontWeight: isRequired ? 500 : 400, color: isRequired ? '#fff' : '#d1d5db', display: 'flex', flexDirection: 'column', gap: 2 }}>
+                                <span>{vehicle.callsign ?? vehicle.name} – {vehicle.type}</span>
+                                <small style={{ color: '#9ca3af' }}>{vehicleStation?.name ?? 'Unbekannte Wache'} · {distanceKm.toFixed(1)} km · ca. {formatEtaLabel(etaSeconds)}</small>
+                                {reason && <small style={{ color: '#fbbf24' }}>{reason}</small>}
                               </span>
+                              {isRequired && !isDisabled && <span style={{ marginLeft: 'auto', backgroundColor: 'rgba(34, 197, 94, 0.2)', color: '#86efac', padding: '2px 6px', borderRadius: '3px', fontSize: 12, fontWeight: 500 }}>Benötigt</span>}
+                              {!isRequired && !isDisabled && <span style={{ marginLeft: 'auto', backgroundColor: 'rgba(107, 114, 128, 0.2)', color: '#d1d5db', padding: '2px 6px', borderRadius: '3px', fontSize: 12, fontWeight: 400 }}>Zusätzlich</span>}
+                              {isDisabled && <span style={{ marginLeft: 'auto', backgroundColor: 'rgba(251, 191, 36, 0.15)', color: '#fbbf24', padding: '2px 6px', borderRadius: '3px', fontSize: 12, fontWeight: 500 }}>Nicht verfügbar</span>}
                             </label>
                           </li>
                         );
@@ -286,13 +340,52 @@ export default function EinsaetzeView({
 
                   {selectedIncident.status === 'Offen' && (
                     <div style={{ marginTop: 12 }}>
+                      {errorMessage && (
+                        <div style={{ marginBottom: 8, padding: '8px 12px', backgroundColor: '#991b1b', color: '#fca5a5', borderRadius: 4, fontSize: 14 }}>
+                          {errorMessage}
+                        </div>
+                      )}
                       <button
                         className="btn btn--primary"
                         type="button"
-                        onClick={() => alarmIncidentVehicles(selectedIncident.id, selectedVehicleIds)}
+                        onClick={() => {
+                          const result = alarmIncidentVehicles(selectedIncident.id, selectedVehicleIds);
+                          if (result.success) {
+                            setErrorMessage(null);
+                            setSelectedVehicleIds([]);
+                          } else {
+                            setErrorMessage(result.error ?? 'Unbekannter Fehler');
+                          }
+                        }}
                         disabled={selectedVehicleIds.length === 0}
                       >
                         Alarmieren
+                      </button>
+                    </div>
+                  )}
+
+                  {(selectedIncident.status === 'Fahrzeuge alarmiert' || selectedIncident.status === 'In Bearbeitung') && (
+                    <div style={{ marginTop: 12 }}>
+                      {errorMessage && (
+                        <div style={{ marginBottom: 8, padding: '8px 12px', backgroundColor: '#991b1b', color: '#fca5a5', borderRadius: 4, fontSize: 14 }}>
+                          {errorMessage}
+                        </div>
+                      )}
+                      <button
+                        className="btn btn--primary"
+                        type="button"
+                        onClick={() => {
+                          const result = alarmIncidentVehicles(selectedIncident.id, selectedVehicleIds);
+                          if (result.success) {
+                            setErrorMessage(null);
+                            setSelectedVehicleIds([]);
+                          } else {
+                            setErrorMessage(result.error ?? 'Unbekannter Fehler');
+                          }
+                        }}
+                        disabled={selectedVehicleIds.length === 0}
+                      >
+                        Weitere Kräfte alarmieren
                       </button>
                     </div>
                   )}

@@ -7,16 +7,18 @@ import 'leaflet/dist/leaflet.css';
 import './App.css';
 
 import ViewDropdown from './ViewDropdown';
+import { DevPanel } from './components/DevPanel';
 
-import type { MapLocation } from './types';
+import type { MapLocation, StationStaffMember } from './types';
 import FahrzeugeView, { type Vehicle } from './views/FahrzeugeView';
 import WachenView from './views/WachenView';
 import EinsaetzeView from './views/EinsaetzeView';
 import FinanzenView from './views/FinanzenView';
 import EinstellungenView from './views/EinstellungenView';
 import LeitstelleView from './views/LeitstelleView';
-import { VEHICLE_CATALOG, vehicleMeetsRequirement } from './vehicleCatalog';
+import { VEHICLE_CATALOG, vehicleMeetsRequirement, getVehicleCatalogEntry } from './vehicleCatalog';
 import { getUpgradeDefinition, getUpgradePrice } from './upgradeCatalog';
+import { getAssignedStaffIds, getEligibleStaff, selectCrewForVehicle } from './stationState';
 
 type IncidentStatus = 'Offen' | 'Fahrzeuge alarmiert' | 'In Bearbeitung' | 'Abgeschlossen';
 type FinanceTransaction = {
@@ -49,11 +51,47 @@ const normalizeIncident = (incident: Incident): Incident => ({
   }),
 });
 
+const getVehicleCrewReadiness = (vehicle: Vehicle, station: MapLocation | undefined, staffMembers: StaffMember[], reservedStaffIds: Set<string> = new Set()) => {
+  const catalogEntry = getVehicleCatalogEntry(vehicle.type);
+  const requiredQualifications = catalogEntry?.technical.requiredQualifications ?? [];
+  const requiredCrewCount = Math.max(vehicle.crewRequired ?? catalogEntry?.technical.crewRequired ?? 1, 1);
+
+  if (!station || station.type !== 'station') {
+   return { ready: false, reason: 'Fahrzeug gehört nicht zu einer verfügbaren Wache.' };
+  }
+
+  if (!isFmsAlarmable(getFmsStatus(vehicle), vehicle.previousOperationalStatus)) {
+   return { ready: false, reason: 'Fahrzeug selbst ist nicht verfügbar.' };
+  }
+
+  const stationStaff = staffMembers.filter((member) => member.stationId === station.id && !member.inTraining && !member.assignedVehicleId && !reservedStaffIds.has(member.id));
+  const eligible = getEligibleStaff(station, requiredQualifications, reservedStaffIds, staffMembers);
+
+  if (stationStaff.length < requiredCrewCount) {
+   return { ready: false, reason: `Nicht genügend Personal aus ${station.name}: ${stationStaff.length}/${requiredCrewCount}.` };
+  }
+
+  if (requiredQualifications.length > 0) {
+   const missingQualifications = requiredQualifications.filter((qualification) => !eligible.some((member) => member.qualifications.some((skill) => skill.toLowerCase() === qualification.toLowerCase())));
+   if (missingQualifications.length > 0) {
+     return { ready: false, reason: `Qualifikation fehlt für ${vehicle.type}: ${missingQualifications.join(', ')}.` };
+   }
+  }
+
+  const crewSelection = selectCrewForVehicle(station, vehicle.type, reservedStaffIds, staffMembers, requiredCrewCount);
+  if (!crewSelection || crewSelection.length < requiredCrewCount) {
+   return { ready: false, reason: `Für ${vehicle.type} sind in ${station.name} nicht genügend passende Einsatzkräfte frei.` };
+  }
+
+  return { ready: true, reason: null as string | null, eligible, requiredCrewCount };
+};
+
 type AlarmedVehicle = {
   vehicleId: string;
   distanceKm: number;
   etaSeconds: number;
   arrivalAt: number;
+  alarmedAt: number; // Wann das Fahrzeug alarmiert wurde
 };
 
 type IncidentTemplate = {
@@ -110,26 +148,132 @@ type CompletedIncident = Incident & {
   totalDurationSeconds: number;
 };
 
+type StaffMember = StationStaffMember;
+
+const normalizeStationOwnership = (location: MapLocation): MapLocation => {
+  const owned = Boolean(location.owned ?? location.isOwned ?? ((location.price === 0 || location.purchasePrice === 0 || location.id === 'rettungswache-zentrum' || location.id === 'rettungswache-sued')));
+  const purchasePrice = typeof location.purchasePrice === 'number'
+    ? location.purchasePrice
+    : (typeof location.price === 'number' && location.price > 0 ? location.price : 0);
+
+  return {
+    ...location,
+    kind: location.kind ?? location.stationKind ?? 'Rettungswache',
+    type: location.type,
+    stationKind: location.stationKind ?? location.kind ?? 'Rettungswache',
+    owned,
+    isOwned: owned,
+    price: owned ? 0 : (typeof location.price === 'number' && location.price > 0 ? location.price : purchasePrice),
+    purchasePrice: purchasePrice > 0 ? purchasePrice : 0,
+    latitude: location.latitude ?? location.coords[0],
+    longitude: location.longitude ?? location.coords[1],
+    address: location.address ?? location.details ?? 'Standort',
+    city: location.city ?? 'Stuttgart',
+    postalCode: location.postalCode ?? '70173',
+    state: location.state ?? 'Baden-Württemberg',
+    details: location.details ?? 'Wachensstandort',
+    vehicleCapacity: location.vehicleCapacity ?? getDefaultVehicleCapacity(location.stationKind ?? location.kind ?? 'Rettungswache'),
+    upgradeLevels: location.upgradeLevels ?? {},
+    staffSatisfaction: location.staffSatisfaction ?? 100,
+  };
+};
+
+const isStationOwned = (location: MapLocation | undefined): boolean => Boolean(location && (location.owned ?? location.isOwned ?? false));
+
+const getStationCapacity = (location: MapLocation | undefined): number => {
+  const fallback = getDefaultVehicleCapacity(location?.stationKind ?? location?.kind ?? 'Rettungswache');
+  const capacity = typeof location?.vehicleCapacity === 'number' ? location.vehicleCapacity : fallback;
+  return Math.max(capacity, 1);
+};
+
+const createFinanceEntry = (kind: FinanceTransaction['kind'], label: string, amount: number) => ({
+  id: `txn-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+  kind,
+  label,
+  amount,
+  createdAt: new Date().toISOString(),
+});
+
 const initialLocations: MapLocation[] = [
   {
     id: 'rettungswache-zentrum',
     name: 'Rettungswache Zentrum',
     type: 'station',
     stationKind: 'Rettungswache',
+    kind: 'Rettungswache',
     coords: [48.775, 9.1771],
+    latitude: 48.775,
+    longitude: 9.1771,
     description: 'Rettungsdienst',
-    details: 'Frei platzierbarer Standort',
+    details: 'Bergheimer Straße 7',
+    address: 'Bergheimer Straße 7',
+    city: 'Stuttgart',
+    postalCode: '70173',
+    state: 'Baden-Württemberg',
     price: 0,
+    purchasePrice: 0,
+    owned: true,
+    isOwned: true,
   },
   {
     id: 'rettungswache-sued',
     name: 'Rettungswache Süd',
     type: 'station',
     stationKind: 'Rettungswache',
+    kind: 'Rettungswache',
     coords: [48.7692, 9.1931],
+    latitude: 48.7692,
+    longitude: 9.1931,
     description: 'Rettungsdienst',
-    details: 'Frei platzierbarer Standort',
+    details: 'Schloßgartenweg 13',
+    address: 'Schloßgartenweg 13',
+    city: 'Stuttgart',
+    postalCode: '70374',
+    state: 'Baden-Württemberg',
     price: 0,
+    purchasePrice: 0,
+    owned: true,
+    isOwned: true,
+  },
+  {
+    id: 'rettungswache-nord',
+    name: 'Rettungswache Nord',
+    type: 'station',
+    stationKind: 'Rettungswache',
+    kind: 'Rettungswache',
+    coords: [48.7881, 9.1632],
+    latitude: 48.7881,
+    longitude: 9.1632,
+    description: 'Rettungsdienst',
+    details: 'Nordring 42',
+    address: 'Nordring 42',
+    city: 'Stuttgart',
+    postalCode: '70190',
+    state: 'Baden-Württemberg',
+    price: 12000,
+    purchasePrice: 12000,
+    owned: false,
+    isOwned: false,
+  },
+  {
+    id: 'feuerwache-west',
+    name: 'Feuerwache West',
+    type: 'station',
+    stationKind: 'Feuerwache',
+    kind: 'Feuerwache',
+    coords: [48.7612, 9.1548],
+    latitude: 48.7612,
+    longitude: 9.1548,
+    description: 'Feuerwehr',
+    details: 'Mühlhausenstraße 18',
+    address: 'Mühlhausenstraße 18',
+    city: 'Stuttgart',
+    postalCode: '70376',
+    state: 'Baden-Württemberg',
+    price: 16000,
+    purchasePrice: 16000,
+    owned: false,
+    isOwned: false,
   },
 ];
 
@@ -388,15 +532,22 @@ function MapZoomTracker({ onZoomChange }: { onZoomChange: (zoom: number) => void
 }
 
 function App() {
-  const [locations, setLocations] = useState<MapLocation[]>(initialLocations);
-  const [selectedId, setSelectedId] = useState<string>(initialLocations[0].id);
+  const [locations, setLocations] = useState<MapLocation[]>(() => initialLocations.map(normalizeStationOwnership));
+  const [selectedId, setSelectedId] = useState<string>(initialLocations.find((location) => (location.owned ?? location.isOwned ?? true))?.id ?? initialLocations[0].id);
   const [draftName, setDraftName] = useState('Neue Rettungswache');
   const [mapZoom, setMapZoom] = useState(13);
 
   // Vehicles state (prepared)
   const [vehicles, setVehicles] = useState<Vehicle[]>([
-    { id: 'fahrzeug-1', name: 'RTW 1', type: 'RTW', stationId: 'rettungswache-zentrum', price: 0, callsign: 'RTW-1', status: 'Einsatzbereit' },
-    { id: 'fahrzeug-2', name: 'LF 1', type: 'LF 10', stationId: undefined, price: 0, callsign: 'LF-1', status: 'Einsatzbereit' },
+    { id: 'fahrzeug-1', name: 'RTW 1', type: 'RTW', stationId: 'rettungswache-zentrum', price: 0, callsign: 'RTW-1', status: 'Einsatzbereit', crewRequired: 2, crewCapacity: 2, assignedStaffIds: [] },
+    { id: 'fahrzeug-2', name: 'LF 1', type: 'LF 10', stationId: undefined, price: 0, callsign: 'LF-1', status: 'Einsatzbereit', crewRequired: 3, crewCapacity: 9, assignedStaffIds: [] },
+  ]);
+
+  // Staff/Crew state
+  const [staffMembers, setStaffMembers] = useState<StaffMember[]>([
+    { id: 'staff-1', name: 'Bernd Schmidt', stationId: 'rettungswache-zentrum', qualifications: ['emergencyMedical', 'patientTransport'], assignedVehicleId: undefined, inTraining: false },
+    { id: 'staff-2', name: 'Anna Müller', stationId: 'rettungswache-zentrum', qualifications: ['emergencyMedical', 'patientTransport'], assignedVehicleId: undefined, inTraining: false },
+    { id: 'staff-3', name: 'Klaus Weber', stationId: 'rettungswache-zentrum', qualifications: ['emergencyMedical'], assignedVehicleId: undefined, inTraining: false },
   ]);
 
   // Finances
@@ -468,21 +619,46 @@ function App() {
   // helper: add vehicle
   const addVehicle = (v: Omit<Vehicle, 'id'>) => {
     const id = `fahrzeug-${Date.now()}`;
-    const nextVehicle = { ...v, id, status: v.status ?? 'Einsatzbereit', fmsStatus: v.fmsStatus ?? 2 as const };
+    const nextVehicle = { ...v, id, status: v.status ?? 'Einsatzbereit', fmsStatus: v.fmsStatus ?? 2 as const, assignedStaffIds: v.assignedStaffIds ?? [] };
     const nextVehicles = [...vehicles, nextVehicle];
     setVehicles(nextVehicles);
     persistAssets(locations, nextVehicles);
   };
 
+  const purchaseStation = (stationId: string) => {
+    const station = locations.find((location) => location.id === stationId && location.type === 'station');
+    if (!station || isStationOwned(station)) return false;
+    const price = typeof station.purchasePrice === 'number' ? station.purchasePrice : (typeof station.price === 'number' ? station.price : 0);
+    if (price <= 0 || balance < price) return false;
+
+    const nextLocation = normalizeStationOwnership({
+      ...station,
+      owned: true,
+      isOwned: true,
+      price: 0,
+      purchasePrice: 0,
+    });
+    const nextLocations = locations.map((location) => location.id === stationId ? nextLocation : location);
+    const nextBalance = balance - price;
+    const nextTransactions = [createFinanceEntry('Ausgabe', `${station.name} gekauft`, price), ...transactions];
+    setLocations(nextLocations);
+    setBalance(nextBalance);
+    setTransactions(nextTransactions);
+    persistAssets(nextLocations, vehicles);
+    fetch('/api/game-state/finance', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ balance: nextBalance, transactions: nextTransactions }) }).catch((error) => console.error('Wachenkauf konnte nicht gespeichert werden.', error));
+    return true;
+  };
+
   const purchaseVehicle = (stationId: string, type: string, callsign: string) => {
     const station = locations.find((location) => location.id === stationId && location.type === 'station');
+    if (!station || !isStationOwned(station)) return false;
     const stationKind = station?.stationKind ?? 'Rettungswache';
     const catalogEntry = Object.values(VEHICLE_CATALOG).flat().find((entry) => entry.type === type && entry.unlock.stationKinds.includes(stationKind));
     if (!catalogEntry) return false;
     const price = catalogEntry.price;
-    if (balance < price) return false;
+    if (price <= 0 || balance < price) return false;
     const stationVehicleCount = vehicles.filter((vehicle) => vehicle.stationId === stationId).length;
-    const vehicleCapacity = station?.vehicleCapacity ?? getDefaultVehicleCapacity(station?.stationKind);
+    const vehicleCapacity = getStationCapacity(station);
     if (stationVehicleCount >= vehicleCapacity) return false;
     const nextVehicle: Vehicle = {
       id: `fahrzeug-${Date.now()}`,
@@ -493,10 +669,11 @@ function App() {
       callsign,
       status: 'Einsatzbereit',
       fmsStatus: catalogEntry.initialFmsStatus,
+      assignedStaffIds: [],
     };
     const nextVehicles = [...vehicles, nextVehicle];
     const nextBalance = balance - price;
-    const nextTransactions = [{ id: `txn-${Date.now()}-${Math.random().toString(16).slice(2)}`, kind: 'Ausgabe' as const, label: `${type} für Wache gekauft`, amount: price, createdAt: new Date().toISOString() }, ...transactions];
+    const nextTransactions = [createFinanceEntry('Ausgabe', `${type} für Wache gekauft`, price), ...transactions];
     setVehicles(nextVehicles);
     setBalance(nextBalance);
     setTransactions(nextTransactions);
@@ -507,20 +684,21 @@ function App() {
 
   const purchaseUpgrade = (stationId: string, upgradeId: string) => {
     const station = locations.find((location) => location.id === stationId && location.type === 'station');
+    if (!station || !isStationOwned(station)) return false;
     const upgrade = getUpgradeDefinition(upgradeId);
     const currentLevel = station?.upgradeLevels?.[upgradeId] ?? 0;
     const price = upgrade ? getUpgradePrice(upgrade, currentLevel + 1) : undefined;
-    if (!station || !upgrade || price === undefined || balance < price) return false;
+    if (!station || !upgrade || price === undefined || price <= 0 || balance < price) return false;
     const nextLocation = {
       ...station,
       upgradeLevels: { ...(station.upgradeLevels ?? {}), [upgradeId]: currentLevel + 1 },
       vehicleCapacity: upgrade.effect.vehicleCapacityIncrease
-        ? (station.vehicleCapacity ?? getDefaultVehicleCapacity(station.stationKind)) + upgrade.effect.vehicleCapacityIncrease
+        ? Math.max((station.vehicleCapacity ?? getDefaultVehicleCapacity(station.stationKind)) + upgrade.effect.vehicleCapacityIncrease, vehicles.filter((vehicle) => vehicle.stationId === stationId).length)
         : station.vehicleCapacity,
     };
     const nextLocations = locations.map((location) => location.id === stationId ? nextLocation : location);
     const nextBalance = balance - price;
-    const nextTransactions = [{ id: `txn-${Date.now()}-${Math.random().toString(16).slice(2)}`, kind: 'Ausgabe' as const, label: `${upgrade.name} für ${station.name}`, amount: price, createdAt: new Date().toISOString() }, ...transactions];
+    const nextTransactions = [createFinanceEntry('Ausgabe', `${upgrade.name} für ${station.name}`, price), ...transactions];
     setLocations(nextLocations);
     setBalance(nextBalance);
     setTransactions(nextTransactions);
@@ -557,11 +735,11 @@ function App() {
     setTransactions(nextState.transactions);
     setCompletedIncidentHistory(nextState.completedIncidents ?? []);
     setLocations(nextState.locations.length > 0 ? nextState.locations.map((location) => location.type === 'station'
-      ? { ...location, vehicleCapacity: location.vehicleCapacity ?? getDefaultVehicleCapacity(location.stationKind), upgradeLevels: location.upgradeLevels ?? {}, staffSatisfaction: location.staffSatisfaction ?? 100 }
-      : location) : initialLocations);
+      ? normalizeStationOwnership({ ...location, vehicleCapacity: location.vehicleCapacity ?? getDefaultVehicleCapacity(location.stationKind), upgradeLevels: location.upgradeLevels ?? {}, staffSatisfaction: location.staffSatisfaction ?? 100 })
+      : location) : initialLocations.map(normalizeStationOwnership));
     setVehicles(nextState.vehicles.length > 0 ? nextState.vehicles.map((vehicle) => withFmsStatus(vehicle, getFmsStatus(vehicle), vehicle.returnAt)) : [
-      { id: 'fahrzeug-1', name: 'RTW 1', type: 'RTW', stationId: 'rettungswache-zentrum', price: 0, callsign: 'RTW-1', status: 'Einsatzbereit' },
-      { id: 'fahrzeug-2', name: 'LF 1', type: 'LF 10', stationId: undefined, price: 0, callsign: 'LF-1', status: 'Einsatzbereit' },
+      { id: 'fahrzeug-1', name: 'RTW 1', type: 'RTW', stationId: 'rettungswache-zentrum', price: 0, callsign: 'RTW-1', status: 'Einsatzbereit', crewRequired: 2, crewCapacity: 2, assignedStaffIds: [] },
+      { id: 'fahrzeug-2', name: 'LF 1', type: 'LF 10', stationId: undefined, price: 0, callsign: 'LF-1', status: 'Einsatzbereit', crewRequired: 3, crewCapacity: 9, assignedStaffIds: [] },
     ]);
     setIncidents(nextState.incidents ?? []);
     setSelectedId((nextState.locations.find((location) => location.type === 'station')?.id) ?? initialLocations[0].id);
@@ -573,6 +751,7 @@ function App() {
   const [completedIncidentHistory, setCompletedIncidentHistory] = useState<CompletedIncident[]>([]);
   const [selectedIncidentId, setSelectedIncidentId] = useState<string | null>(null);
   const [nowMs, setNowMs] = useState(Date.now());
+  const [timeMultiplier, setTimeMultiplier] = useState<number>(1);
 
   // New states for address search and preview behavior
   const [address, setAddress] = useState('');
@@ -595,7 +774,7 @@ function App() {
   }, []);
 
   useEffect(() => {
-    const stationPool = locations.filter((location) => location.type === 'station');
+    const stationPool = locations.filter((location) => location.type === 'station' && (location.owned ?? location.isOwned ?? true));
     if (stationPool.length === 0) return;
     if (incidents.filter((incident) => incident.status !== 'Abgeschlossen').length >= GAME_CONFIG.maxOpenIncidents) return;
 
@@ -605,7 +784,7 @@ function App() {
           return current;
         }
 
-        const activeStations = locations.filter((location) => location.type === 'station');
+        const activeStations = locations.filter((location) => location.type === 'station' && (location.owned ?? location.isOwned ?? true));
         if (activeStations.length === 0) return current;
 
         const stationKind = activeStations[Math.floor(Math.random() * activeStations.length)].stationKind;
@@ -626,7 +805,7 @@ function App() {
           requiredVehicles: template.requiredVehicles,
           alarmedVehicles: [],
           reward: template.reward,
-          durationSeconds: template.durationSeconds,
+          durationSeconds: Math.min(template.durationSeconds, 4),
           createdAt: Date.now(),
         };
 
@@ -655,7 +834,8 @@ function App() {
       if (!activeIncident) {
         if (getFmsStatus(vehicle) === 1 && vehicle.returnAt && nowMs >= vehicle.returnAt) {
           changed = true;
-          return withFmsStatus(vehicle, 2);
+          setStaffMembers((current) => current.map((staff) => (staff.assignedVehicleId === vehicle.id ? { ...staff, assignedVehicleId: undefined } : staff)));
+          return { ...withFmsStatus(vehicle, 2), assignedStaffIds: [] };
         }
         return vehicle;
       }
@@ -740,6 +920,12 @@ function App() {
             setCompletedIncidentHistory(state.completedIncidents);
           })
           .catch((error) => console.error(error));
+
+        // Release crew assigned to completed incident vehicles
+        const completedVehicleIds = new Set(incident.alarmedVehicles.map((a) => a.vehicleId));
+        setStaffMembers((current) =>
+          current.map((staff) => (completedVehicleIds.has(staff.assignedVehicleId ?? '') ? { ...staff, assignedVehicleId: undefined, inTraining: false } : staff)),
+        );
       });
       const completedVehicles = nextVehicles.map((vehicle) => {
         const isCompleted = completed.some((incident) =>
@@ -749,7 +935,8 @@ function App() {
         const assignment = completed
           .flatMap((incident) => incident.alarmedVehicles)
           .find((entry) => entry.vehicleId === vehicle.id);
-        return withFmsStatus(vehicle, 1, nowMs + (assignment?.etaSeconds ?? 1) * 1000);
+        // Vehicle should return to station (FMS 1 = return mode, not ready yet). Set returnAt for when it arrives back.
+        return { ...withFmsStatus(vehicle, 1, nowMs + (assignment?.etaSeconds ?? 1) * 1000), assignedStaffIds: [] };
       });
       setVehicles(completedVehicles);
       setIncidents((current) => current.filter((incident) => !completed.some((item) => item.id === incident.id)));
@@ -945,7 +1132,7 @@ function App() {
       requiredVehicles: template.requiredVehicles,
       alarmedVehicles: [],
       reward: template.reward,
-      durationSeconds: template.durationSeconds,
+      durationSeconds: Math.min(template.durationSeconds, 4),
       createdAt: Date.now(),
     };
 
@@ -957,28 +1144,92 @@ function App() {
   };
 
   const alarmIncidentVehicles = (incidentId: string, selectedVehicleIds: string[]) => {
-    if (selectedVehicleIds.length === 0) return;
+    if (selectedVehicleIds.length === 0) return { success: false, error: 'Keine Fahrzeuge ausgewählt' };
     const incident = incidents.find((item) => item.id === incidentId);
-    if (!incident || incident.status !== 'Offen') return;
+    if (!incident || !['Offen', 'Fahrzeuge alarmiert', 'In Bearbeitung'].includes(incident.status)) {
+      return { success: false, error: 'Einsatz kann nicht mehr alarmiert werden' };
+    }
 
-    const vehiclesToAssign = selectedVehicleIds
-      .map((vehicleId) => {
-        const vehicle = vehicles.find((item) => item.id === vehicleId);
-        if (!vehicle || !isFmsAlarmable(getFmsStatus(vehicle), vehicle.previousOperationalStatus)) return null;
-        const coords = getStationCoords(vehicle.stationId, locations);
-        if (!coords) return null;
-        const distance = haversineKm(coords, incident.coords);
-        const etaSeconds = Math.max(1, Math.round((distance / GAME_CONFIG.averageSpeedKmh) * 3600));
-        return { vehicleId, distanceKm: Number(distance.toFixed(1)), etaSeconds, arrivalAt: Date.now() + etaSeconds * 1000 } satisfies AlarmedVehicle;
-      })
-      .filter((entry): entry is AlarmedVehicle => Boolean(entry));
-    const nextAlarmed = [...incident.alarmedVehicles, ...vehiclesToAssign.filter((entry) => !incident.alarmedVehicles.some((existing) => existing.vehicleId === entry.vehicleId))];
-    const nextIncidents = incidents.map((item) => item.id === incidentId ? { ...item, alarmedVehicles: nextAlarmed, status: nextAlarmed.length > 0 ? 'Fahrzeuge alarmiert' as const : 'Offen' as const } : item);
-    const assignedIds = new Set(vehiclesToAssign.map((entry) => entry.vehicleId));
-    const nextVehicles = vehicles.map((vehicle) => assignedIds.has(vehicle.id) ? withFmsStatus(vehicle, 3) : vehicle);
+    const uniqueVehicleIds = [...new Set(selectedVehicleIds)];
+    const reservedStaffIds = new Set(getAssignedStaffIds(vehicles));
+    const nextStaff = [...staffMembers];
+    const nextVehicles = [...vehicles];
+    const nextAlarmed = [...incident.alarmedVehicles];
+
+    for (const vehicleId of uniqueVehicleIds) {
+      const vehicle = vehicles.find((item) => item.id === vehicleId);
+      if (!vehicle) continue;
+      if (incident.alarmedVehicles.some((entry) => entry.vehicleId === vehicleId)) continue;
+
+      const station = locations.find((location) => location.id === vehicle.stationId && location.type === 'station');
+      if (!station || !isStationOwned(station)) {
+        return { success: false, error: `${vehicle.name || vehicle.type}: Fahrzeug gehört nicht zu einer eigenen Wache.` };
+      }
+
+      const crewReadiness = getVehicleCrewReadiness(vehicle, station, nextStaff, reservedStaffIds);
+      if (!crewReadiness.ready) {
+        return { success: false, error: `${vehicle.name || vehicle.type}: ${crewReadiness.reason ?? 'Alarmierung nicht möglich.'}` };
+      }
+
+      const crewSelection = selectCrewForVehicle(station, vehicle.type, reservedStaffIds, nextStaff, vehicle.crewRequired ?? crewReadiness.requiredCrewCount ?? 1);
+      if (!crewSelection || crewSelection.length < (vehicle.crewRequired ?? crewReadiness.requiredCrewCount ?? 1)) {
+        return {
+          success: false,
+          error: `${vehicle.name || vehicle.type}: Nicht genügend geeignetes Personal für das Fahrzeug verfügbar.`,
+        };
+      }
+
+      const duplicateStaffIds = crewSelection.filter((staffId) => reservedStaffIds.has(staffId) || nextStaff.some((member) => member.id === staffId && member.assignedVehicleId && member.assignedVehicleId !== vehicleId));
+      if (duplicateStaffIds.length > 0) {
+        return {
+          success: false,
+          error: `${vehicle.name || vehicle.type}: Personal ist bereits einer anderen Alarmierung zugewiesen.`,
+        };
+      }
+
+      const coords = getStationCoords(vehicle.stationId, locations);
+      if (!coords) {
+        return { success: false, error: `${vehicle.name || vehicle.type}: Fahrzeug gehört nicht zu einer verfügbaren Wache.` };
+      }
+
+      const distance = haversineKm(coords, incident.coords);
+      const etaSeconds = Math.max(1, Math.round((distance / GAME_CONFIG.averageSpeedKmh) * 3600));
+      nextAlarmed.push({
+        vehicleId,
+        distanceKm: Number(distance.toFixed(1)),
+        etaSeconds,
+        arrivalAt: Date.now() + etaSeconds * 1000,
+        alarmedAt: Date.now(),
+      });
+
+      crewSelection.forEach((staffId) => {
+        reservedStaffIds.add(staffId);
+        const staffIndex = nextStaff.findIndex((member) => member.id === staffId);
+        if (staffIndex >= 0) {
+          nextStaff[staffIndex] = { ...nextStaff[staffIndex], assignedVehicleId: vehicleId };
+        }
+      });
+
+      const vehicleIndex = nextVehicles.findIndex((item) => item.id === vehicleId);
+      if (vehicleIndex >= 0) {
+        nextVehicles[vehicleIndex] = {
+          ...withFmsStatus(nextVehicles[vehicleIndex], 3),
+          assignedStaffIds: crewSelection,
+        };
+      }
+    }
+
+    const nextIncidents = incidents.map((item) => item.id === incidentId ? {
+      ...item,
+      alarmedVehicles: nextAlarmed,
+      status: nextAlarmed.length > 0 ? 'Fahrzeuge alarmiert' as const : 'Offen' as const,
+    } : item);
+
     setIncidents(nextIncidents);
     setVehicles(nextVehicles);
+    setStaffMembers(nextStaff);
     persistSimulation(nextIncidents, nextVehicles);
+    return { success: true };
   };
 
   const acknowledgeSpeechRequest = (vehicleId: string) => {
@@ -1013,6 +1264,19 @@ function App() {
         </div>
 
         <div className="topbar__meta">
+          <nav aria-label="Hauptnavigation" style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', justifyContent: 'flex-end' }}>
+            {['Leitstelle', 'Karte', 'Wachen', 'Fahrzeuge', 'Einsätze', 'Finanzen'].map((view) => (
+              <button
+                key={view}
+                type="button"
+                className={`btn ${currentView === view ? 'btn--primary' : ''}`}
+                onClick={() => selectView(view as typeof currentView)}
+              >
+                {view}
+              </button>
+            ))}
+          </nav>
+
           {/* Single dropdown trigger showing the currently active main view */}
           {/* Will render current view and open a small dropdown when clicked. */}
           <div className="view-dropdown">
@@ -1267,7 +1531,7 @@ function App() {
         ) : (
           <section className="panel--secondary workspace-panel">
             {currentView === 'Wachen' && (
-              <WachenView locations={locations} selectedId={selectedId} setSelectedId={setSelectedId} vehicles={vehicles} stationKindFilter={stationKindFilter} balance={balance} onPurchaseVehicle={purchaseVehicle} onPurchaseUpgrade={purchaseUpgrade} />
+              <WachenView locations={locations} selectedId={selectedId} setSelectedId={setSelectedId} vehicles={vehicles} stationKindFilter={stationKindFilter} balance={balance} onPurchaseStation={purchaseStation} onPurchaseVehicle={purchaseVehicle} onPurchaseUpgrade={purchaseUpgrade} />
             )}
 
             {currentView === 'Leitstelle' && (
@@ -1323,6 +1587,7 @@ function App() {
                 completedIncidentHistory={completedIncidentHistory}
                 vehicles={vehicles}
                 locations={locations}
+                staffMembers={staffMembers}
                 selectedIncidentId={selectedIncidentId}
                 setSelectedIncidentId={setSelectedIncidentId}
                 alarmIncidentVehicles={alarmIncidentVehicles}
@@ -1350,6 +1615,15 @@ function App() {
           </section>
         )}
       </main>
+
+      <DevPanel
+        balance={balance}
+        onSetBalance={(nextBalance) => updateBalance(nextBalance, 'Guthaben angepasst', 'Einnahme')}
+        onTriggerTestIncident={triggerTestIncident}
+        onResetGameState={resetGameState}
+        onSetTimeMultiplier={setTimeMultiplier}
+        timeMultiplier={timeMultiplier}
+      />
     </div>
   );
 }

@@ -61,6 +61,14 @@ export const FMS_STATUS_LABELS: Record<FmsStatus, string> = {
 export const isFmsAlarmable = (status: FmsStatus, operationalStatus?: OperationalFmsStatus) =>
   status === 1 || status === 2 || (status === 5 && (operationalStatus === 1 || operationalStatus === 2));
 
+export interface StaffMember {
+  id: string;
+  name: string;
+  stationId: string;
+  qualifications: string[];
+  assignedVehicleId?: string;
+}
+
 export interface Vehicle {
   id: string;
   name: string;
@@ -74,6 +82,9 @@ export interface Vehicle {
   returnAt?: number;
   capabilities?: string[];
   description?: string;
+  assignedStaffIds?: string[];
+  crewRequired?: number;
+  crewCapacity?: number;
 }
 
 export interface Incident {

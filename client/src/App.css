@@ -1044,6 +1044,18 @@
 .developer-reset-confirm p { margin: 0; color: #f5b5bf !important; }
 .developer-reset-actions { display: flex; flex-wrap: wrap; gap: .5rem; }
 .btn--danger { background: #8d1f2d; color: #fbe7ea; border-color: rgba(196,30,58,.6); }
+
+/* Force incident layout to always show two columns for better playability */
+.incident-layout, .station-layout {
+  grid-template-columns: minmax(280px, 0.82fr) minmax(0, 1.55fr) !important;
+  gap: 1rem !important;
+}
+
+.incident-detail {
+  display: grid !important;
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+}
+
 .btn--danger:hover:not(:disabled) { background: #a82e3d; }
 
 .btn--primary { background: #b51f3b; box-shadow: 0 8px 20px rgba(196,30,58,.18); }

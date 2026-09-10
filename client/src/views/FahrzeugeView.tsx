@@ -12,6 +12,9 @@ export type Vehicle = {
   speechRequest?: boolean;
   previousOperationalStatus?: OperationalFmsStatus;
   returnAt?: number;
+  crewRequired?: number;
+  crewCapacity?: number;
+  assignedStaffIds?: string[];
 };
 
 export const getFmsStatus = (vehicle: Vehicle): FmsStatus => vehicle.fmsStatus ?? 2;

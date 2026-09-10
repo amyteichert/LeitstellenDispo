@@ -79,6 +79,9 @@ type PersistedVehicle = {
   fmsStatus?: FmsStatus;
   speechRequest?: boolean;
   previousOperationalStatus?: OperationalFmsStatus;
+  assignedStaffIds?: string[];
+  crewRequired?: number;
+  crewCapacity?: number;
   [key: string]: unknown;
 };
 
@@ -88,6 +91,20 @@ type PersistedLocation = {
   vehicleCapacity?: number;
   upgradeLevels?: Record<string, number>;
   staffSatisfaction?: number;
+  staffMembers?: Array<{ id: string; name: string; stationId: string; qualifications?: string[]; assignedVehicleId?: string; inTraining?: boolean; trainingCourseId?: string; }>;
+  activeTrainings?: Array<{ id: string; stationId: string; courseType: string; participants?: string[]; startedAt?: number; endsAt?: number; cost?: number; status?: string; }>;
+  trainingRoomCount?: number;
+  completedTrainingIds?: string[];
+  owned?: boolean;
+  isOwned?: boolean;
+  purchasePrice?: number;
+  kind?: 'Rettungswache' | 'Feuerwache';
+  city?: string;
+  postalCode?: string;
+  state?: string;
+  latitude?: number;
+  longitude?: number;
+  address?: string;
   [key: string]: unknown;
 };
 
@@ -113,6 +130,9 @@ const migrateVehicles = (vehicles: unknown[]): unknown[] => vehicles.map((item) 
     ...vehicle,
     fmsStatus: vehicle.fmsStatus ?? 2,
     speechRequest: vehicle.speechRequest ?? false,
+    assignedStaffIds: Array.isArray(vehicle.assignedStaffIds) ? vehicle.assignedStaffIds : [],
+    crewRequired: typeof vehicle.crewRequired === 'number' ? vehicle.crewRequired : undefined,
+    crewCapacity: typeof vehicle.crewCapacity === 'number' ? vehicle.crewCapacity : undefined,
   };
 });
 
@@ -120,11 +140,31 @@ const migrateLocations = (locations: unknown[]): unknown[] => locations.map((ite
   if (!item || typeof item !== 'object') return item;
   const location = item as PersistedLocation;
   if (location.type !== 'station') return location;
+  const stationKind = location.stationKind ?? location.kind ?? 'Rettungswache';
+  const owned = Boolean(location.owned ?? location.isOwned ?? ((typeof location.price === 'number' ? location.price === 0 : false) || location.id === 'rettungswache-zentrum' || location.id === 'rettungswache-sued'));
+  const purchasePrice = typeof location.purchasePrice === 'number' ? location.purchasePrice : (typeof location.price === 'number' && location.price > 0 ? location.price : 0);
+
   return {
     ...location,
-    vehicleCapacity: location.vehicleCapacity ?? getDefaultVehicleCapacity(location.stationKind),
+    stationKind,
+    kind: location.kind ?? stationKind,
+    owned,
+    isOwned: owned,
+    price: owned ? 0 : (typeof location.price === 'number' && location.price > 0 ? location.price : purchasePrice),
+    purchasePrice: purchasePrice > 0 ? purchasePrice : 0,
+    vehicleCapacity: location.vehicleCapacity ?? getDefaultVehicleCapacity(stationKind),
     upgradeLevels: location.upgradeLevels ?? {},
     staffSatisfaction: location.staffSatisfaction ?? 100,
+    staffMembers: Array.isArray(location.staffMembers) ? location.staffMembers : [],
+    activeTrainings: Array.isArray(location.activeTrainings) ? location.activeTrainings : [],
+    trainingRoomCount: typeof location.trainingRoomCount === 'number' ? location.trainingRoomCount : 0,
+    completedTrainingIds: Array.isArray(location.completedTrainingIds) ? location.completedTrainingIds : [],
+    city: location.city ?? 'Stuttgart',
+    postalCode: location.postalCode ?? '70173',
+    state: location.state ?? 'Baden-Württemberg',
+    latitude: typeof location.latitude === 'number' ? location.latitude : Array.isArray(location.coords) && typeof location.coords[0] === 'number' ? location.coords[0] : 48.775,
+    longitude: typeof location.longitude === 'number' ? location.longitude : Array.isArray(location.coords) && typeof location.coords[1] === 'number' ? location.coords[1] : 9.1771,
+    address: location.address ?? location.details ?? 'Standort',
   };
 });
 

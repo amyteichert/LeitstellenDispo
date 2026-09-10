@@ -13,9 +13,12 @@
     "dev:client": "npm run dev --workspace=client",
     "dev:server": "npm run dev --workspace=server",
     "build": "npm run build --workspace=shared && npm run build --workspace=server && npm run build --workspace=client",
-    "start": "npm run start --workspace=server"
+    "start": "npm run start --workspace=server",
+    "test": "playwright test",
+    "test:phase1": "playwright test phase1-validation.spec.ts"
   },
   "devDependencies": {
+    "@playwright/test": "^1.63.0",
     "concurrently": "^9.1.2"
   }
 }
