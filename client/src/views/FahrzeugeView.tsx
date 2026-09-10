@@ -1,4 +1,6 @@
 import { FMS_STATUS_LABELS, type FmsStatus, type OperationalFmsStatus } from '@leitstellendispo/shared';
+import { useState } from 'react';
+import { VehicleDetailsModal } from '../components/VehicleDetailsModal';
 
 export type Vehicle = {
   id: string;
@@ -20,11 +22,12 @@ export type Vehicle = {
 export const getFmsStatus = (vehicle: Vehicle): FmsStatus => vehicle.fmsStatus ?? 2;
 export const getFmsStatusLabel = (vehicle: Vehicle) => FMS_STATUS_LABELS[getFmsStatus(vehicle)];
 
-import { useState } from 'react';
-
-export default function FahrzeugeView({ vehicles, stations, onAcknowledgeSpeechRequest, onToggleAvailability, onUpdateCallsign }: { vehicles: any[]; addVehicle: (v: Omit<any, 'id'>) => void; stations: any[]; onAcknowledgeSpeechRequest?: (vehicleId: string) => void; onToggleAvailability?: (vehicleId: string) => void; onUpdateCallsign?: (vehicleId: string, callsign: string) => void }) {
+export default function FahrzeugeView({ vehicles, stations, onAcknowledgeSpeechRequest, onToggleAvailability, onUpdateCallsign, staffMembers }: { vehicles: any[]; addVehicle: (v: Omit<any, 'id'>) => void; stations: any[]; staffMembers?: any[]; onAcknowledgeSpeechRequest?: (vehicleId: string) => void; onToggleAvailability?: (vehicleId: string) => void; onUpdateCallsign?: (vehicleId: string, callsign: string) => void }) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingValue, setEditingValue] = useState('');
+  const [selectedVehicleId, setSelectedVehicleId] = useState<string | null>(null);
+  const selectedVehicle = vehicles.find((v) => v.id === selectedVehicleId);
+  const allStaff = staffMembers || [];
   return (
     <div className="view-screen">
       <div className="screen-heading"><div><span className="eyebrow">Fuhrpark</span><h2>Fahrzeuge</h2></div><span className="screen-count">{vehicles.length} Einheiten</span></div>
@@ -101,6 +104,24 @@ export default function FahrzeugeView({ vehicles, stations, onAcknowledgeSpeechR
                       {getFmsStatus(v) === 6 ? 'Einsatzbereit setzen' : 'Status 6 setzen'}
                     </button>
                   )}
+                  <button
+                    className="vehicle-details-button"
+                    type="button"
+                    onClick={() => setSelectedVehicleId(v.id)}
+                    style={{
+                      width: '100%',
+                      padding: 8,
+                      background: '#1976D2',
+                      color: '#fff',
+                      border: 'none',
+                      cursor: 'pointer',
+                      borderRadius: 4,
+                      marginTop: 8,
+                      fontSize: 13,
+                    }}
+                  >
+                    ℹ️ Details anzeigen
+                  </button>
                   <div className="vehicle-meta">
                     {v.stationId ? (stations.find((s) => s.id === v.stationId)?.name ?? v.stationId) : 'Nicht zugeordnet'}
                   </div>
@@ -111,6 +132,14 @@ export default function FahrzeugeView({ vehicles, stations, onAcknowledgeSpeechR
           </ul>
         </div>
       </div>
+      <VehicleDetailsModal
+        vehicle={selectedVehicle}
+        stations={stations}
+        staff={allStaff}
+        isOpen={selectedVehicleId !== null}
+        onClose={() => setSelectedVehicleId(null)}
+        onUpdateCallsign={onUpdateCallsign}
+      />
     </div>
   );
 }

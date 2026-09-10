@@ -1597,7 +1597,7 @@ function App() {
             )}
 
             {currentView === 'Fahrzeuge' && (
-              <FahrzeugeView vehicles={vehicles} addVehicle={addVehicle} stations={locations.filter(l => l.type === 'station')} onAcknowledgeSpeechRequest={acknowledgeSpeechRequest} onToggleAvailability={toggleVehicleAvailability} onUpdateCallsign={updateVehicleCallsign} />
+              <FahrzeugeView vehicles={vehicles} addVehicle={addVehicle} stations={locations.filter(l => l.type === 'station')} staffMembers={staffMembers} onAcknowledgeSpeechRequest={acknowledgeSpeechRequest} onToggleAvailability={toggleVehicleAvailability} onUpdateCallsign={updateVehicleCallsign} />
             )}
 
             {currentView === 'Einsätze' && (
