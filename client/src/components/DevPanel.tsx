@@ -7,6 +7,7 @@ export interface DevPanelProps {
   onResetGameState: () => void;
   onSetTimeMultiplier: (multiplier: number) => void;
   timeMultiplier: number;
+  onReadyAllVehicles?: () => void;
 }
 
 export function DevPanel({
@@ -16,6 +17,7 @@ export function DevPanel({
   onResetGameState,
   onSetTimeMultiplier,
   timeMultiplier,
+  onReadyAllVehicles,
 }: DevPanelProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [nextBalance, setNextBalance] = useState<number | string>(balance);
@@ -153,6 +155,26 @@ export function DevPanel({
         >
           📍 Test-Einsatz JETZT
         </button>
+      </div>
+
+      <div style={{ marginBottom: 12, paddingBottom: 12, borderBottom: '1px solid #444' }}>
+        {onReadyAllVehicles && (
+          <button
+            type="button"
+            onClick={onReadyAllVehicles}
+            style={{
+              width: '100%',
+              padding: 8,
+              background: '#FF9800',
+              color: '#fff',
+              border: 'none',
+              cursor: 'pointer',
+              borderRadius: 4,
+            }}
+          >
+            🚨 Alle Fahrzeuge bereit
+          </button>
+        )}
       </div>
 
       <div>

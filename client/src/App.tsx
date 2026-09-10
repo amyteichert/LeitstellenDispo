@@ -1251,6 +1251,25 @@ function App() {
     persistSimulation(incidents, nextVehicles);
   };
 
+  const updateVehicleCallsign = (vehicleId: string, newCallsign: string) => {
+    const nextVehicles = vehicles.map((v) =>
+      v.id === vehicleId ? { ...v, callsign: newCallsign } : v
+    );
+    setVehicles(nextVehicles);
+    persistAssets(locations, nextVehicles);
+  };
+
+  const readyAllVehicles = () => {
+    const nextVehicles = vehicles.map((v) => ({
+      ...v,
+      fmsStatus: 2 as const,
+      returnAt: undefined,
+      assignedStaffIds: [],
+    }));
+    setVehicles(nextVehicles);
+    persistSimulation(incidents, nextVehicles);
+  };
+
   return (
     <div className="app-shell">
       <header className="topbar">
@@ -1578,7 +1597,7 @@ function App() {
             )}
 
             {currentView === 'Fahrzeuge' && (
-              <FahrzeugeView vehicles={vehicles} addVehicle={addVehicle} stations={locations.filter(l => l.type === 'station')} onAcknowledgeSpeechRequest={acknowledgeSpeechRequest} onToggleAvailability={toggleVehicleAvailability} />
+              <FahrzeugeView vehicles={vehicles} addVehicle={addVehicle} stations={locations.filter(l => l.type === 'station')} onAcknowledgeSpeechRequest={acknowledgeSpeechRequest} onToggleAvailability={toggleVehicleAvailability} onUpdateCallsign={updateVehicleCallsign} />
             )}
 
             {currentView === 'Einsätze' && (
@@ -1623,6 +1642,7 @@ function App() {
         onResetGameState={resetGameState}
         onSetTimeMultiplier={setTimeMultiplier}
         timeMultiplier={timeMultiplier}
+        onReadyAllVehicles={readyAllVehicles}
       />
     </div>
   );

@@ -20,7 +20,11 @@ export type Vehicle = {
 export const getFmsStatus = (vehicle: Vehicle): FmsStatus => vehicle.fmsStatus ?? 2;
 export const getFmsStatusLabel = (vehicle: Vehicle) => FMS_STATUS_LABELS[getFmsStatus(vehicle)];
 
-export default function FahrzeugeView({ vehicles, stations, onAcknowledgeSpeechRequest, onToggleAvailability }: { vehicles: Vehicle[]; addVehicle: (v: Omit<Vehicle, 'id'>) => void; stations: any[]; onAcknowledgeSpeechRequest?: (vehicleId: string) => void; onToggleAvailability?: (vehicleId: string) => void }) {
+import { useState } from 'react';
+
+export default function FahrzeugeView({ vehicles, stations, onAcknowledgeSpeechRequest, onToggleAvailability, onUpdateCallsign }: { vehicles: any[]; addVehicle: (v: Omit<any, 'id'>) => void; stations: any[]; onAcknowledgeSpeechRequest?: (vehicleId: string) => void; onToggleAvailability?: (vehicleId: string) => void; onUpdateCallsign?: (vehicleId: string, callsign: string) => void }) {
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editingValue, setEditingValue] = useState('');
   return (
     <div className="view-screen">
       <div className="screen-heading"><div><span className="eyebrow">Fuhrpark</span><h2>Fahrzeuge</h2></div><span className="screen-count">{vehicles.length} Einheiten</span></div>
@@ -32,7 +36,53 @@ export default function FahrzeugeView({ vehicles, stations, onAcknowledgeSpeechR
               <li key={v.id}>
                 <div className={`vehicle-card ${v.type === 'RTW' ? 'vehicle-card--rescue' : 'vehicle-card--fire'}${v.speechRequest ? ' vehicle-card--speech-request' : ''}`}>
                   <div className="vehicle-card__header">
-                    <strong className="vehicle-callsign">{v.callsign ?? v.name}</strong>
+                    {editingId === v.id ? (
+                      <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+                        <input
+                          autoFocus
+                          type="text"
+                          value={editingValue}
+                          onChange={(e) => setEditingValue(e.target.value)}
+                          onBlur={() => {
+                            if (onUpdateCallsign && editingValue.trim()) {
+                              onUpdateCallsign(v.id, editingValue.trim());
+                            }
+                            setEditingId(null);
+                          }}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              if (onUpdateCallsign && editingValue.trim()) {
+                                onUpdateCallsign(v.id, editingValue.trim());
+                              }
+                              setEditingId(null);
+                            }
+                            if (e.key === 'Escape') {
+                              setEditingId(null);
+                            }
+                          }}
+                          style={{
+                            padding: 4,
+                            fontSize: 14,
+                            fontWeight: 'bold',
+                            border: '1px solid #ddd',
+                            borderRadius: 4,
+                            flex: 1,
+                          }}
+                        />
+                      </div>
+                    ) : (
+                      <strong
+                        className="vehicle-callsign"
+                        style={{ cursor: 'pointer', textDecoration: 'underline dotted' }}
+                        onClick={() => {
+                          setEditingId(v.id);
+                          setEditingValue(v.callsign ?? v.name ?? '');
+                        }}
+                        title="Klick zum Bearbeiten"
+                      >
+                        {v.callsign ?? v.name}
+                      </strong>
+                    )}
                     <span className={`vehicle-status vehicle-status--fms-${getFmsStatus(v)}`}>
                       [{getFmsStatus(v)}] {getFmsStatusLabel(v)}
                     </span>
