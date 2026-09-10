@@ -69,8 +69,8 @@ const createInitialGameState = (): GameState => ({
     },
   ],
   vehicles: [
-    { id: 'fahrzeug-1', name: 'RTW 1', type: 'RTW', stationId: 'rettungswache-zentrum', price: 0, callsign: 'RTW-1', status: 'Einsatzbereit', fmsStatus: 2 },
-    { id: 'fahrzeug-2', name: 'LF 1', type: 'LF 10', stationId: undefined, price: 0, callsign: 'LF-1', status: 'Einsatzbereit', fmsStatus: 2 },
+    { id: 'fahrzeug-1', name: 'RTW 1', type: 'RTW', stationId: 'rettungswache-zentrum', price: 0, callsign: 'RTW-1', status: 'Einsatzbereit', fmsStatus: 2, currentFuel: 1000, maxFuel: 1000 },
+    { id: 'fahrzeug-2', name: 'LF 1', type: 'LF 10', stationId: undefined, price: 0, callsign: 'LF-1', status: 'Einsatzbereit', fmsStatus: 2, currentFuel: 1000, maxFuel: 1000 },
   ],
   incidents: [],
 });
@@ -82,6 +82,8 @@ type PersistedVehicle = {
   assignedStaffIds?: string[];
   crewRequired?: number;
   crewCapacity?: number;
+  currentFuel?: number;
+  maxFuel?: number;
   [key: string]: unknown;
 };
 
@@ -133,6 +135,8 @@ const migrateVehicles = (vehicles: unknown[]): unknown[] => vehicles.map((item) 
     assignedStaffIds: Array.isArray(vehicle.assignedStaffIds) ? vehicle.assignedStaffIds : [],
     crewRequired: typeof vehicle.crewRequired === 'number' ? vehicle.crewRequired : undefined,
     crewCapacity: typeof vehicle.crewCapacity === 'number' ? vehicle.crewCapacity : undefined,
+    currentFuel: typeof vehicle.currentFuel === 'number' ? Math.max(0, vehicle.currentFuel) : 1000,
+    maxFuel: typeof vehicle.maxFuel === 'number' ? Math.max(0, vehicle.maxFuel) : 1000,
   };
 });
 

@@ -8,6 +8,10 @@ export interface DevPanelProps {
   onSetTimeMultiplier: (multiplier: number) => void;
   timeMultiplier: number;
   onReadyAllVehicles?: () => void;
+  onFillAllTanks?: () => void;
+  onCompleteAllTraining?: () => void;
+  onBorrowCredit?: (amount: number) => void;
+  onRecoverVehicle?: (vehicleId: string) => void;
 }
 
 export function DevPanel({
@@ -18,6 +22,9 @@ export function DevPanel({
   onSetTimeMultiplier,
   timeMultiplier,
   onReadyAllVehicles,
+  onFillAllTanks,
+  onCompleteAllTraining,
+  onBorrowCredit,
 }: DevPanelProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [nextBalance, setNextBalance] = useState<number | string>(balance);
@@ -170,9 +177,63 @@ export function DevPanel({
               border: 'none',
               cursor: 'pointer',
               borderRadius: 4,
+              marginBottom: 6,
             }}
           >
             🚨 Alle Fahrzeuge bereit
+          </button>
+        )}
+        {onFillAllTanks && (
+          <button
+            type="button"
+            onClick={onFillAllTanks}
+            style={{
+              width: '100%',
+              padding: 8,
+              background: '#FF9800',
+              color: '#fff',
+              border: 'none',
+              cursor: 'pointer',
+              borderRadius: 4,
+              marginBottom: 6,
+            }}
+          >
+            ⛽ Alle Tanks auffüllen
+          </button>
+        )}
+        {onCompleteAllTraining && (
+          <button
+            type="button"
+            onClick={onCompleteAllTraining}
+            style={{
+              width: '100%',
+              padding: 8,
+              background: '#FF9800',
+              color: '#fff',
+              border: 'none',
+              cursor: 'pointer',
+              borderRadius: 4,
+              marginBottom: 6,
+            }}
+          >
+            📚 Alle Training abschließen
+          </button>
+        )}
+        {onBorrowCredit && (
+          <button
+            type="button"
+            onClick={() => onBorrowCredit && onBorrowCredit(5000)}
+            style={{
+              width: '100%',
+              padding: 8,
+              background: '#FF9800',
+              color: '#fff',
+              border: 'none',
+              cursor: 'pointer',
+              borderRadius: 4,
+            }}
+          >
+            💰 Kredit +5000€
           </button>
         )}
       </div>

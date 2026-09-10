@@ -23,6 +23,7 @@ export type UpgradeDefinition = {
   effect: {
     vehicleCapacityIncrease?: number;
     staffSatisfactionCapacity?: number;
+    trainingRoomIncrease?: number;
   };
   priceByNextLevel?: Partial<Record<number, number>>;
   available: boolean;
@@ -56,6 +57,24 @@ export const UPGRADE_CATALOG: UpgradeDefinition[] = [
       1: 250000,
     },
     available: true,
+  },
+  {
+    id: 'training-room-capacity',
+    category: 'Ausbildungsbereich',
+    name: 'Trainingräume erweitern',
+    description: 'Erhöht die Kapazität für gleichzeitige Trainings um 1 pro Upgrade.',
+    maxLevel: 10,
+    allowedStationKinds: ['Rettungswache', 'Feuerwache'],
+    effect: { trainingRoomIncrease: 1 },
+    priceByNextLevel: {
+      1: 50000,
+      2: 75000,
+      3: 100000,
+      4: 125000,
+      5: 150000,
+    },
+    available: true,
+    prerequisites: ['ausbildungsbereich'],
   },
   ...(['Erweiterungen', 'Lagerkapazität', 'Personalbereiche', 'Aufenthaltsraum', 'Ruheräume', 'Küche', 'Fitnessraum', 'Werkstatt'] as UpgradeCategory[]).map((category): UpgradeDefinition => ({
     id: category.toLowerCase().replace(/ä/g, 'a'),

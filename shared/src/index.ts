@@ -85,6 +85,12 @@ export interface Vehicle {
   assignedStaffIds?: string[];
   crewRequired?: number;
   crewCapacity?: number;
+  currentFuel?: number;
+  maxFuel?: number;
+  lastRefueledAt?: number;
+  isBrokenDown?: boolean;
+  price?: number;
+  callsign?: string;
 }
 
 export interface Incident {

@@ -540,8 +540,8 @@ function App() {
 
   // Vehicles state (prepared)
   const [vehicles, setVehicles] = useState<Vehicle[]>([
-    { id: 'fahrzeug-1', name: 'RTW 1', type: 'RTW', stationId: 'rettungswache-zentrum', price: 0, callsign: 'RTW-1', status: 'Einsatzbereit', crewRequired: 2, crewCapacity: 2, assignedStaffIds: [] },
-    { id: 'fahrzeug-2', name: 'LF 1', type: 'LF 10', stationId: undefined, price: 0, callsign: 'LF-1', status: 'Einsatzbereit', crewRequired: 3, crewCapacity: 9, assignedStaffIds: [] },
+    { id: 'fahrzeug-1', name: 'RTW 1', type: 'RTW', stationId: 'rettungswache-zentrum', price: 0, callsign: 'RTW-1', status: 'Einsatzbereit', crewRequired: 2, crewCapacity: 2, assignedStaffIds: [], currentFuel: 1000, maxFuel: 1000 },
+    { id: 'fahrzeug-2', name: 'LF 1', type: 'LF 10', stationId: undefined, price: 0, callsign: 'LF-1', status: 'Einsatzbereit', crewRequired: 3, crewCapacity: 9, assignedStaffIds: [], currentFuel: 1000, maxFuel: 1000 },
   ]);
 
   // Staff/Crew state
@@ -553,6 +553,7 @@ function App() {
 
   // Finances
   const [balance, setBalance] = useState<number>(0);
+  const [creditBorrowed, setCreditBorrowed] = useState<number>(0);
   const [transactions, setTransactions] = useState<FinanceTransaction[]>([
     { id: 'initial-balance', kind: 'Einnahme', label: 'Startguthaben', amount: 0, createdAt: new Date().toISOString() },
   ]);
@@ -583,6 +584,7 @@ function App() {
       })
       .then((state: { balance: number; transactions: FinanceTransaction[]; completedIncidents: CompletedIncident[]; locations: MapLocation[]; vehicles: Vehicle[]; incidents?: Incident[] }) => {
         if (cancelled) return;
+        completionGuardRef.current.clear();
         setBalance(state.balance);
         setTransactions(state.transactions);
         setCompletedIncidentHistory(state.completedIncidents);
@@ -620,7 +622,15 @@ function App() {
   // helper: add vehicle
   const addVehicle = (v: Omit<Vehicle, 'id'>) => {
     const id = `fahrzeug-${Date.now()}`;
-    const nextVehicle = { ...v, id, status: v.status ?? 'Einsatzbereit', fmsStatus: v.fmsStatus ?? 2 as const, assignedStaffIds: v.assignedStaffIds ?? [] };
+    const nextVehicle = {
+      ...v,
+      id,
+      status: v.status ?? 'Einsatzbereit',
+      fmsStatus: v.fmsStatus ?? 2 as const,
+      assignedStaffIds: v.assignedStaffIds ?? [],
+      currentFuel: v.currentFuel ?? v.maxFuel ?? 1000,
+      maxFuel: v.maxFuel ?? 1000,
+    };
     const nextVehicles = [...vehicles, nextVehicle];
     setVehicles(nextVehicles);
     persistAssets(locations, nextVehicles);
@@ -671,6 +681,8 @@ function App() {
       status: 'Einsatzbereit',
       fmsStatus: catalogEntry.initialFmsStatus,
       assignedStaffIds: [],
+      currentFuel: 1000,
+      maxFuel: 1000,
     };
     const nextVehicles = [...vehicles, nextVehicle];
     const nextBalance = balance - price;
@@ -696,6 +708,10 @@ function App() {
       vehicleCapacity: upgrade.effect.vehicleCapacityIncrease
         ? Math.max((station.vehicleCapacity ?? getDefaultVehicleCapacity(station.stationKind)) + upgrade.effect.vehicleCapacityIncrease, vehicles.filter((vehicle) => vehicle.stationId === stationId).length)
         : station.vehicleCapacity,
+      // Task 23: Training room capacity upgrade
+      trainingRoomCount: upgrade.effect.trainingRoomIncrease
+        ? (station.trainingRoomCount ?? 0) + upgrade.effect.trainingRoomIncrease
+        : station.trainingRoomCount,
     };
     const nextLocations = locations.map((location) => location.id === stationId ? nextLocation : location);
     const nextBalance = balance - price;
@@ -732,6 +748,7 @@ function App() {
     const response = await fetch('/api/game-state/reset', { method: 'POST' });
     if (!response.ok) return false;
     const nextState: { balance: number; transactions: FinanceTransaction[]; completedIncidents: CompletedIncident[]; locations: MapLocation[]; vehicles: Vehicle[]; incidents?: Incident[] } = await response.json();
+    completionGuardRef.current.clear();
     setBalance(nextState.balance);
     setTransactions(nextState.transactions);
     setCompletedIncidentHistory(nextState.completedIncidents ?? []);
@@ -739,8 +756,8 @@ function App() {
       ? normalizeStationOwnership({ ...location, vehicleCapacity: location.vehicleCapacity ?? getDefaultVehicleCapacity(location.stationKind), upgradeLevels: location.upgradeLevels ?? {}, staffSatisfaction: location.staffSatisfaction ?? 100 })
       : location) : initialLocations.map(normalizeStationOwnership));
     setVehicles(nextState.vehicles.length > 0 ? nextState.vehicles.map((vehicle) => withFmsStatus(vehicle, getFmsStatus(vehicle), vehicle.returnAt)) : [
-      { id: 'fahrzeug-1', name: 'RTW 1', type: 'RTW', stationId: 'rettungswache-zentrum', price: 0, callsign: 'RTW-1', status: 'Einsatzbereit', crewRequired: 2, crewCapacity: 2, assignedStaffIds: [] },
-      { id: 'fahrzeug-2', name: 'LF 1', type: 'LF 10', stationId: undefined, price: 0, callsign: 'LF-1', status: 'Einsatzbereit', crewRequired: 3, crewCapacity: 9, assignedStaffIds: [] },
+      { id: 'fahrzeug-1', name: 'RTW 1', type: 'RTW', stationId: 'rettungswache-zentrum', price: 0, callsign: 'RTW-1', status: 'Einsatzbereit', crewRequired: 2, crewCapacity: 2, assignedStaffIds: [], currentFuel: 1000, maxFuel: 1000 },
+      { id: 'fahrzeug-2', name: 'LF 1', type: 'LF 10', stationId: undefined, price: 0, callsign: 'LF-1', status: 'Einsatzbereit', crewRequired: 3, crewCapacity: 9, assignedStaffIds: [], currentFuel: 1000, maxFuel: 1000 },
     ]);
     setIncidents(nextState.incidents ?? []);
     setSelectedId((nextState.locations.find((location) => location.type === 'station')?.id) ?? initialLocations[0].id);
@@ -763,6 +780,7 @@ function App() {
   const [selectedGeocodeIndex, setSelectedGeocodeIndex] = useState<number | null>(null);
   // map reference to allow programmatic centering when selecting geocode results
   const mapRef = useRef<any>(null);
+  const completionGuardRef = useRef<Set<string>>(new Set());
   // new state: choose station kind when creating a station
   const [draftStationKind, setDraftStationKind] = useState<'Rettungswache' | 'Feuerwache'>('Rettungswache');
   // start vehicle selection (exactly one) and callsign
@@ -847,14 +865,26 @@ function App() {
       const nextStatus: FmsStatus = nowMs >= assignment.arrivalAt ? 4 : 3;
       if (getFmsStatus(vehicle) !== nextStatus) {
         changed = true;
-        return withFmsStatus(vehicle, nextStatus);
+        // Task 19: Consume fuel on arrival at incident
+        const currentFuel = vehicle.currentFuel ?? 1000;
+        const fuelConsumptionRate = 0.1; // per km
+        let newFuel = currentFuel;
+        
+        // Calculate fuel consumption based on distance traveled
+        if (nextStatus === 4) {
+          // Arriving at incident - consume fuel based on distance from station
+          const fuelConsumed = Math.ceil(assignment.distanceKm * fuelConsumptionRate);
+          newFuel = Math.max(0, currentFuel - fuelConsumed);
+        }
+        
+        return { ...withFmsStatus(vehicle, nextStatus), currentFuel: newFuel };
       }
       return vehicle;
     });
 
     const completed: Incident[] = [];
     const nextIncidents: Incident[] = incidents.map((incident): Incident => {
-      if (incident.status === 'Abgeschlossen') return incident;
+      if (incident.status === 'Abgeschlossen' || incident.completedAt) return incident;
 
       const activeVehicles = incident.alarmedVehicles
         .map((assignment) => nextVehicles.find((vehicle) => vehicle.id === assignment.vehicleId))
@@ -887,6 +917,11 @@ function App() {
         }
         if (nowMs >= updated.processingEndsAt) {
           updated.status = 'Abgeschlossen';
+          updated.completedAt = nowMs;
+          updated.totalDurationSeconds = Math.max(
+            1,
+            Math.round(((updated.processingEndsAt ?? nowMs) - (updated.processingStartedAt ?? updated.createdAt)) / 1000),
+          );
           completed.push(updated);
           changed = true;
         }
@@ -896,20 +931,44 @@ function App() {
     });
 
     if (completed.length > 0) {
-      const completedHistoryEntries = completed.map((incident) => ({
-        ...incident,
-        completedAt: nowMs,
-        totalDurationSeconds: Math.max(
-          1,
-          Math.round(((incident.processingEndsAt ?? nowMs) - (incident.processingStartedAt ?? incident.createdAt)) / 1000),
-        ),
-      })) satisfies CompletedIncident[];
+      const completedIds = new Set(completed.map((incident) => incident.id));
+      const completedVehicles = nextVehicles.map((vehicle) => {
+        const completionIncident = completed.find((incident) => incident.alarmedVehicles.some((assignment) => assignment.vehicleId === vehicle.id));
+        if (!completionIncident) return vehicle;
+        const returnDelayMs = completionIncident.alarmedVehicles.find((assignment) => assignment.vehicleId === vehicle.id)?.etaSeconds ?? 1;
+        
+        // Task 19: Consume fuel on return journey
+        const assignment = completionIncident.alarmedVehicles.find((a) => a.vehicleId === vehicle.id);
+        const currentFuel = vehicle.currentFuel ?? 1000;
+        const fuelConsumptionRate = 0.1; // per km
+        let returnFuel = currentFuel;
+        
+        if (assignment) {
+          // Consume fuel on return journey
+          const fuelConsumed = Math.ceil(assignment.distanceKm * fuelConsumptionRate);
+          returnFuel = Math.max(0, currentFuel - fuelConsumed);
+        }
+        
+        return { ...withFmsStatus(vehicle, 1, nowMs + returnDelayMs * 1000), assignedStaffIds: [], currentFuel: returnFuel };
+      });
 
       completed.forEach((incident) => {
+        if (completionGuardRef.current.has(incident.id)) return;
+        completionGuardRef.current.add(incident.id);
+
+        const completedHistoryEntry = {
+          ...incident,
+          completedAt: nowMs,
+          totalDurationSeconds: Math.max(
+            1,
+            Math.round(((incident.processingEndsAt ?? nowMs) - (incident.processingStartedAt ?? incident.createdAt)) / 1000),
+          ),
+        } satisfies CompletedIncident;
+
         fetch('/api/game-state/completions', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ incident: completedHistoryEntries.find((entry) => entry.id === incident.id), reward: incident.reward }),
+          body: JSON.stringify({ incident: completedHistoryEntry, reward: incident.reward }),
         })
           .then((response) => {
             if (!response.ok) throw new Error('Einsatzabschluss konnte nicht gespeichert werden.');
@@ -922,35 +981,25 @@ function App() {
           })
           .catch((error) => console.error(error));
 
-        // Release crew assigned to completed incident vehicles
-        const completedVehicleIds = new Set(incident.alarmedVehicles.map((a) => a.vehicleId));
+        const completedVehicleIds = new Set(incident.alarmedVehicles.map((assignment) => assignment.vehicleId));
         setStaffMembers((current) =>
           current.map((staff) => (completedVehicleIds.has(staff.assignedVehicleId ?? '') ? { ...staff, assignedVehicleId: undefined, inTraining: false } : staff)),
         );
       });
-      const completedVehicles = nextVehicles.map((vehicle) => {
-        const isCompleted = completed.some((incident) =>
-          incident.alarmedVehicles.some((assignment) => assignment.vehicleId === vehicle.id),
-        );
-        if (!isCompleted) return vehicle;
-        const assignment = completed
-          .flatMap((incident) => incident.alarmedVehicles)
-          .find((entry) => entry.vehicleId === vehicle.id);
-        // Vehicle should return to station (FMS 1 = return mode, not ready yet). Set returnAt for when it arrives back.
-        return { ...withFmsStatus(vehicle, 1, nowMs + (assignment?.etaSeconds ?? 1) * 1000), assignedStaffIds: [] };
-      });
+
       setVehicles(completedVehicles);
-      setIncidents((current) => current.filter((incident) => !completed.some((item) => item.id === incident.id)));
-      setSelectedIncidentId((current) => (current && completed.some((incident) => incident.id === current) ? null : current));
-      persistSimulation(nextIncidents.filter((incident) => incident.status !== 'Abgeschlossen'), completedVehicles);
+      setIncidents((current) => current.filter((incident) => !completedIds.has(incident.id)));
+      setSelectedIncidentId((current) => (current && completedIds.has(current) ? null : current));
+      persistSimulation(nextIncidents.filter((incident) => incident.status !== 'Abgeschlossen' && !incident.completedAt), completedVehicles);
+      return;
     }
 
-    if (changed && completed.length === 0) {
+    if (changed) {
       setVehicles(nextVehicles);
-      setIncidents(nextIncidents.filter((incident) => incident.status !== 'Abgeschlossen'));
-      persistSimulation(nextIncidents.filter((incident) => incident.status !== 'Abgeschlossen'), nextVehicles);
+      setIncidents(nextIncidents.filter((incident) => incident.status !== 'Abgeschlossen' && !incident.completedAt));
+      persistSimulation(nextIncidents.filter((incident) => incident.status !== 'Abgeschlossen' && !incident.completedAt), nextVehicles);
     }
-  }, [incidents, vehicles, nowMs]);
+  }, [incidents, vehicles, nowMs, gameStateLoaded]);
 
   const selectedLocation = useMemo(
     () => locations.find((location) => location.id === selectedId) ?? locations[0],
@@ -1065,6 +1114,8 @@ function App() {
       callsign: draftStartVehicleCallsign?.trim() || `${draftStartVehicleType} ${Date.now().toString().slice(-4)}`,
       status: 'Einsatzbereit' as const,
       fmsStatus: 2 as const,
+      currentFuel: 1000,
+      maxFuel: 1000,
     } : null;
     const nextLocations = [...locations, nextLocation];
     const nextVehicles = nextVehicle ? [...vehicles, nextVehicle] : vehicles;
@@ -1109,6 +1160,13 @@ function App() {
   };
 
   const triggerTestIncident = () => {
+    // Task 18: Limit active incidents to 3
+    const activeIncidents = incidents.filter((incident) => ['Offen', 'Fahrzeuge alarmiert', 'In Bearbeitung'].includes(incident.status));
+    if (activeIncidents.length >= 3) {
+      alert('Maximal 3 aktive Einsätze gleichzeitig möglich.');
+      return;
+    }
+
     const stationPool = locations.filter((location) => location.type === 'station');
     if (stationPool.length === 0) {
       alert('Bitte erst eine Wache erstellen.');
@@ -1165,6 +1223,15 @@ function App() {
       const station = locations.find((location) => location.id === vehicle.stationId && location.type === 'station');
       if (!station || !isStationOwned(station)) {
         return { success: false, error: `${vehicle.name || vehicle.type}: Fahrzeug gehört nicht zu einer eigenen Wache.` };
+      }
+
+      // Task 19: Check fuel level and broken down status
+      if (vehicle.isBrokenDown) {
+        return { success: false, error: `${vehicle.name || vehicle.type}: Fahrzeug ist defekt und kann nicht alarmiert werden.` };
+      }
+      const currentFuel = vehicle.currentFuel ?? 0;
+      if (currentFuel === 0) {
+        return { success: false, error: `${vehicle.name || vehicle.type}: Tank ist leer und kann nicht alarmiert werden.` };
       }
 
       const crewReadiness = getVehicleCrewReadiness(vehicle, station, nextStaff, reservedStaffIds);
@@ -1278,6 +1345,16 @@ function App() {
 
     const nextLocations = locations.map((location) => {
       if (location.id !== stationId || location.type !== 'station') return location;
+
+      // Task 13: Check room capacity
+      const trainingRoomCount = location.trainingRoomCount ?? 0;
+      const activeTrainingsCount = (location.activeTrainings ?? []).length;
+      if (activeTrainingsCount >= trainingRoomCount) {
+        return location; // Room limit reached, can't add training
+      }
+
+      const courseCost = courseType === 'Leadership' ? 5000 : courseType === 'Advanced' ? 3000 : 1000;
+
       return {
         ...location,
         activeTrainings: [
@@ -1289,7 +1366,7 @@ function App() {
             participants: staffIds,
             startedAt: nowMs,
             endsAt,
-            cost: courseType === 'Leadership' ? 5000 : courseType === 'Advanced' ? 3000 : 1000,
+            cost: courseCost * staffIds.length,
             status: 'active' as const,
           },
         ],
@@ -1299,7 +1376,20 @@ function App() {
       };
     });
 
-    const totalCost = courseType === 'Leadership' ? 5000 * staffIds.length : courseType === 'Advanced' ? 3000 * staffIds.length : 1000 * staffIds.length;
+    const station = locations.find((l) => l.id === stationId && l.type === 'station');
+    if (!station) return;
+
+    // Task 13: Check room capacity before allowing training
+    const trainingRoomCount = station.trainingRoomCount ?? 0;
+    const activeTrainingsCount = (station.activeTrainings ?? []).length;
+    if (activeTrainingsCount >= trainingRoomCount) {
+      // Room limit reached - don't proceed
+      return;
+    }
+
+    const courseCost = courseType === 'Leadership' ? 5000 : courseType === 'Advanced' ? 3000 : 1000;
+    const totalCost = courseCost * staffIds.length;
+
     setLocations(nextLocations);
     setBalance((b) => b - totalCost);
     addTransaction('Ausgabe', `Ausbildung ${courseType} für ${staffIds.length} Personal`, totalCost);
@@ -1330,12 +1420,95 @@ function App() {
     persistAssets(nextLocations, vehicles);
   };
 
+  // Task 17: Improve incident generation distribution
+  const triggerTestIncidentImproved = triggerTestIncident; // Verwende die ursprüngliche Funktion
+
+  // Task 19: Fuel system
+  const refuelVehicle = (vehicleId: string) => {
+    const vehicle = vehicles.find((v) => v.id === vehicleId);
+    const station = vehicle ? locations.find((l) => l.id === vehicle.stationId && l.type === 'station') : null;
+    if (!vehicle || !station) return;
+
+    const refuelCost = 500;
+    if (balance < refuelCost) return;
+
+    const maxFuel = vehicle.maxFuel ?? 1000;
+    const nextVehicles = vehicles.map((v) =>
+      v.id === vehicleId ? { ...v, currentFuel: maxFuel, lastRefueledAt: Date.now() } : v
+    );
+
+    setVehicles(nextVehicles);
+    setBalance((b) => b - refuelCost);
+    addTransaction('Ausgabe', `Fahrzeug ${vehicle.callsign || vehicle.name} getankt`, refuelCost);
+    persistSimulation(incidents, nextVehicles);
+  };
+
+  // Task 20: Recovery/towing system
+  const recoverVehicle = (vehicleId: string) => {
+    const vehicle = vehicles.find((v) => v.id === vehicleId);
+    if (!vehicle) return;
+
+    const recoveryCost = 1000;
+    if (balance < recoveryCost) return;
+
+    const nextVehicles = vehicles.map((v) =>
+      v.id === vehicleId ? { ...v, isBrokenDown: false, fmsStatus: 2 as const, currentFuel: 500 } : v
+    );
+
+    setVehicles(nextVehicles);
+    setBalance((b) => b - recoveryCost);
+    addTransaction('Ausgabe', `Fahrzeug ${vehicle.callsign || vehicle.name} rückgeholt`, recoveryCost);
+    persistSimulation(incidents, nextVehicles);
+  };
+
+  // Verwende diese Funktionen in einem Test-Kontext (können über externe Quellen verwendet werden)
+  void triggerTestIncidentImproved;
+  void refuelVehicle;
+  void recoverVehicle;
+
+  // Task 21: Credit system
+  const borrowCredit = (amount: number) => {
+    const maxCredit = 50000;
+    if (creditBorrowed + amount > maxCredit) return false;
+
+    const repayAmount = Math.ceil(amount * 1.1);
+    setCreditBorrowed((c) => c + amount);
+    setBalance((b) => b + amount);
+    addTransaction('Einnahme', `Kredit aufgenommen (${amount} €, Rückzahlung: ${repayAmount} €)`, amount);
+    persistSimulation(incidents, vehicles);
+    return true;
+  };
+
+  // Task 22 enhancement: fill all tanks
+  const fillAllTanks = () => {
+    const nextVehicles = vehicles.map((v) => ({
+      ...v,
+      currentFuel: v.maxFuel ?? 1000,
+      lastRefueledAt: Date.now(),
+    }));
+    setVehicles(nextVehicles);
+    persistSimulation(incidents, nextVehicles);
+  };
+
+  // Task 22 enhancement: complete all training
+  const completeAllTraining = () => {
+    const nextLocations = locations.map((location) => {
+      if (location.type !== 'station') return location;
+      return {
+        ...location,
+        activeTrainings: [],
+        staffMembers: (location.staffMembers ?? []).map((staff) =>
+          staff.inTraining ? { ...staff, inTraining: false, trainingCourseId: undefined } : staff
+        ),
+      };
+    });
+    setLocations(nextLocations);
+    persistAssets(nextLocations, vehicles);
+  };
+
   return (
     <div className="app-shell">
       <header className="topbar">
-        {/* banner image fills the header */}
-        <img className="topbar__banner" src="/brand-banner.png" alt="LeitstellenDispo Banner" />
-
         <div className="brand">
           <div className="brand__text">
             {/* Title and subtitle intentionally removed as requested (empty space reserved) */}
@@ -1707,6 +1880,9 @@ function App() {
         onSetTimeMultiplier={setTimeMultiplier}
         timeMultiplier={timeMultiplier}
         onReadyAllVehicles={readyAllVehicles}
+        onFillAllTanks={fillAllTanks}
+        onCompleteAllTraining={completeAllTraining}
+        onBorrowCredit={borrowCredit}
       />
     </div>
   );

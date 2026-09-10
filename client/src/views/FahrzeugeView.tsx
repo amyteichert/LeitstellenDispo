@@ -1,23 +1,8 @@
-import { FMS_STATUS_LABELS, type FmsStatus, type OperationalFmsStatus } from '@leitstellendispo/shared';
+import { FMS_STATUS_LABELS, type FmsStatus, type Vehicle } from '@leitstellendispo/shared';
 import { useState } from 'react';
 import { VehicleDetailsModal } from '../components/VehicleDetailsModal';
 
-export type Vehicle = {
-  id: string;
-  name: string;
-  type?: string;
-  stationId?: string;
-  price: number;
-  callsign?: string; // Funkrufname
-  status?: 'Einsatzbereit' | 'Alarmiert / auf Anfahrt' | 'Im Einsatz' | 'Nicht einsatzbereit';
-  fmsStatus?: FmsStatus;
-  speechRequest?: boolean;
-  previousOperationalStatus?: OperationalFmsStatus;
-  returnAt?: number;
-  crewRequired?: number;
-  crewCapacity?: number;
-  assignedStaffIds?: string[];
-};
+export type { Vehicle };
 
 export const getFmsStatus = (vehicle: Vehicle): FmsStatus => vehicle.fmsStatus ?? 2;
 export const getFmsStatusLabel = (vehicle: Vehicle) => FMS_STATUS_LABELS[getFmsStatus(vehicle)];
