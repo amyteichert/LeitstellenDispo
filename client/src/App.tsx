@@ -11,6 +11,7 @@ import { DevPanel } from './components/DevPanel';
 
 import type { MapLocation, StationStaffMember } from './types';
 import FahrzeugeView, { type Vehicle } from './views/FahrzeugeView';
+import PersonnelView from './views/PersonnelView';
 import WachenView from './views/WachenView';
 import EinsaetzeView from './views/EinsaetzeView';
 import FinanzenView from './views/FinanzenView';
@@ -965,7 +966,7 @@ function App() {
   }, [completedIncidentHistory]);
 
   // Navigation / view state (default: Karte)
-  const [currentView, setCurrentView] = useState<'Leitstelle'|'Karte'|'Wachen'|'Fahrzeuge'|'Einsätze'|'Finanzen'|'Einstellungen'>('Leitstelle');
+  const [currentView, setCurrentView] = useState<'Leitstelle'|'Karte'|'Wachen'|'Fahrzeuge'|'Personal'|'Einsätze'|'Finanzen'|'Einstellungen'>('Leitstelle');
   const [stationKindFilter, setStationKindFilter] = useState<'Rettungswache' | 'Feuerwache' | undefined>();
   const [incidentInitialTab, setIncidentInitialTab] = useState<'Aktive' | 'Abgeschlossen'>('Aktive');
   const [dropdownOpen, setDropdownOpen] = useState(false);
@@ -1284,7 +1285,7 @@ function App() {
 
         <div className="topbar__meta">
           <nav aria-label="Hauptnavigation" style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', justifyContent: 'flex-end' }}>
-            {['Leitstelle', 'Karte', 'Wachen', 'Fahrzeuge', 'Einsätze', 'Finanzen'].map((view) => (
+            {['Leitstelle', 'Karte', 'Wachen', 'Fahrzeuge', 'Personal', 'Einsätze', 'Finanzen'].map((view) => (
               <button
                 key={view}
                 type="button"
@@ -1598,6 +1599,10 @@ function App() {
 
             {currentView === 'Fahrzeuge' && (
               <FahrzeugeView vehicles={vehicles} addVehicle={addVehicle} stations={locations.filter(l => l.type === 'station')} staffMembers={staffMembers} onAcknowledgeSpeechRequest={acknowledgeSpeechRequest} onToggleAvailability={toggleVehicleAvailability} onUpdateCallsign={updateVehicleCallsign} />
+            )}
+
+            {currentView === 'Personal' && (
+              <PersonnelView staff={staffMembers} stations={locations} vehicles={vehicles} />
             )}
 
             {currentView === 'Einsätze' && (
