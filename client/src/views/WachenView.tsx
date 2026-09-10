@@ -5,6 +5,7 @@ import { getFmsStatus, getFmsStatusLabel } from './FahrzeugeView';
 import { getAvailableVehicleCategories, VEHICLE_CATALOG, type VehicleCatalogCategory } from '../vehicleCatalog';
 import { getAvailableUpgrades, getUpgradeDefinition, getUpgradePrice, UPGRADE_CATALOG } from '../upgradeCatalog';
 import { formatCurrency } from '../utils/formatCurrency';
+import { TrainingPanel } from '../components/TrainingPanel';
 
 const formatPrice = formatCurrency;
 
@@ -34,6 +35,8 @@ export default function WachenView({
   onPurchaseStation,
   onPurchaseVehicle,
   onPurchaseUpgrade,
+  onStartTraining,
+  onCompleteTraining,
 }: {
   locations: MapLocation[];
   selectedId: string;
@@ -44,6 +47,8 @@ export default function WachenView({
   onPurchaseStation: (stationId: string) => boolean;
   onPurchaseVehicle: (stationId: string, type: string, callsign: string) => boolean;
   onPurchaseUpgrade: (stationId: string, upgradeId: string) => boolean;
+  onStartTraining?: (stationId: string, staffIds: string[], courseType: string, durationMinutes: number) => void;
+  onCompleteTraining?: (stationId: string, trainingId: string) => void;
 }) {
   const allStations = locations.filter((l) => l.type === 'station' && (!stationKindFilter || (l.stationKind ?? l.kind ?? 'Rettungswache') === stationKindFilter));
   const ownedStations = allStations.filter((station) => isStationOwned(station));
@@ -353,6 +358,14 @@ export default function WachenView({
                 ))}
                 {vehicles.filter((vehicle) => vehicle.stationId === selected.id).length === 0 && <li>Noch keine Fahrzeuge vorhanden.</li>}
               </ul>
+
+              {onStartTraining && onCompleteTraining && (
+                <TrainingPanel
+                  station={selected}
+                  onStartTraining={onStartTraining}
+                  onCompleteTraining={onCompleteTraining}
+                />
+              )}
 
               {isStationOwned(selected) && (
                 <button className="btn btn--primary station-buy-vehicle" type="button" onClick={() => { setPurchaseError(null); setPurchaseOpen(true); }}>Fahrzeug kaufen</button>

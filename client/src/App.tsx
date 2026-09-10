@@ -1271,6 +1271,65 @@ function App() {
     persistSimulation(incidents, nextVehicles);
   };
 
+  const startTraining = (stationId: string, staffIds: string[], courseType: string, durationMinutes: number) => {
+    const trainingId = `training-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+    const nowMs = Date.now();
+    const endsAt = nowMs + durationMinutes * 60 * 1000;
+
+    const nextLocations = locations.map((location) => {
+      if (location.id !== stationId || location.type !== 'station') return location;
+      return {
+        ...location,
+        activeTrainings: [
+          ...(location.activeTrainings ?? []),
+          {
+            id: trainingId,
+            stationId,
+            courseType,
+            participants: staffIds,
+            startedAt: nowMs,
+            endsAt,
+            cost: courseType === 'Leadership' ? 5000 : courseType === 'Advanced' ? 3000 : 1000,
+            status: 'active' as const,
+          },
+        ],
+        staffMembers: (location.staffMembers ?? []).map((staff) =>
+          staffIds.includes(staff.id) ? { ...staff, inTraining: true, trainingCourseId: trainingId } : staff
+        ),
+      };
+    });
+
+    const totalCost = courseType === 'Leadership' ? 5000 * staffIds.length : courseType === 'Advanced' ? 3000 * staffIds.length : 1000 * staffIds.length;
+    setLocations(nextLocations);
+    setBalance((b) => b - totalCost);
+    addTransaction('Ausgabe', `Ausbildung ${courseType} für ${staffIds.length} Personal`, totalCost);
+    persistAssets(nextLocations, vehicles);
+  };
+
+  const completeTraining = (stationId: string, trainingId: string) => {
+    const nextLocations = locations.map((location) => {
+      if (location.id !== stationId || location.type !== 'station') return location;
+      const training = (location.activeTrainings ?? []).find((t) => t.id === trainingId);
+      if (!training) return location;
+
+      return {
+        ...location,
+        activeTrainings: (location.activeTrainings ?? [])
+          .map((t) => (t.id === trainingId ? { ...t, status: 'completed' as const } : t))
+          .filter((t) => t.status !== 'completed'),
+        staffMembers: (location.staffMembers ?? []).map((staff) =>
+          training.participants.includes(staff.id)
+            ? { ...staff, inTraining: false, trainingCourseId: undefined, qualifications: [...(staff.qualifications ?? []), training.courseType].filter((q, i, a) => a.indexOf(q) === i) }
+            : staff
+        ),
+        completedTrainingIds: [...(location.completedTrainingIds ?? []), trainingId],
+      };
+    });
+
+    setLocations(nextLocations);
+    persistAssets(nextLocations, vehicles);
+  };
+
   return (
     <div className="app-shell">
       <header className="topbar">
@@ -1551,7 +1610,7 @@ function App() {
         ) : (
           <section className="panel--secondary workspace-panel">
             {currentView === 'Wachen' && (
-              <WachenView locations={locations} selectedId={selectedId} setSelectedId={setSelectedId} vehicles={vehicles} stationKindFilter={stationKindFilter} balance={balance} onPurchaseStation={purchaseStation} onPurchaseVehicle={purchaseVehicle} onPurchaseUpgrade={purchaseUpgrade} />
+              <WachenView locations={locations} selectedId={selectedId} setSelectedId={setSelectedId} vehicles={vehicles} stationKindFilter={stationKindFilter} balance={balance} onPurchaseStation={purchaseStation} onPurchaseVehicle={purchaseVehicle} onPurchaseUpgrade={purchaseUpgrade} onStartTraining={startTraining} onCompleteTraining={completeTraining} />
             )}
 
             {currentView === 'Leitstelle' && (
