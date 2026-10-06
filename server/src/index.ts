@@ -1,6 +1,7 @@
 import cors from 'cors';
 import express from 'express';
 import { getAppInfo } from '@leitstellendispo/shared';
+import type { Einsatz } from '@leitstellendispo/shared';
 
 const app = express();
 const PORT = process.env.PORT ?? 3001;
@@ -14,6 +15,17 @@ app.get('/api/health', (_req, res) => {
 
 app.get('/api/info', (_req, res) => {
   res.json(getAppInfo());
+});
+
+// Feste Beispieldaten für den ersten Durchstich – wird später durch echte Einsatzlogik ersetzt.
+const beispielEinsaetze: Einsatz[] = [
+  { id: 'E-001', stichwort: 'RD 1 – Internistischer Notfall', status: 'offen' },
+  { id: 'E-002', stichwort: 'B 2 – Zimmerbrand', status: 'alarmiert' },
+  { id: 'E-003', stichwort: 'TH 1 – Ölspur', status: 'in_bearbeitung' },
+];
+
+app.get('/api/einsaetze', (_req, res) => {
+  res.json(beispielEinsaetze);
 });
 
 app.listen(PORT, () => {

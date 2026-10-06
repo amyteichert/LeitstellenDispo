@@ -521,6 +521,16 @@
   box-shadow: inset 0 0 0 1px rgba(196,30,58,0.08);
 }
 
+/* Variante für helle Hintergründe (z. B. Einsatzliste) */
+.view-menu-item--light,
+.view-menu-item--light.active {
+  color: #111827;
+}
+
+.view-menu-item--light:hover {
+  background: rgba(0,0,0,0.04);
+}
+
 /* Button system */
 .btn {
   display: inline-flex;

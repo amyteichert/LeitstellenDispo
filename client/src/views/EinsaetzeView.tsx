@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { MapLocation } from '../types';
 import type { Vehicle } from './FahrzeugeView';
+import ServerEinsaetzeList, { einsatzStatusLabels, useServerEinsaetze } from './ServerEinsaetzeList';
 
 type IncidentStatus = 'Offen' | 'Fahrzeuge alarmiert' | 'In Bearbeitung' | 'Abgeschlossen';
 
@@ -81,6 +82,17 @@ export default function EinsaetzeView({
 }) {
   const [selectedVehicleIds, setSelectedVehicleIds] = useState<string[]>([]);
   const [activeTab, setActiveTab] = useState<'Aktive' | 'Abgeschlossen'>('Aktive');
+  const serverEinsaetze = useServerEinsaetze();
+  const [selectedServerEinsatzId, setSelectedServerEinsatzId] = useState<string | null>(null);
+
+  const selectedServerEinsatz = activeTab === 'Aktive'
+    ? serverEinsaetze.einsaetze.find((einsatz) => einsatz.id === selectedServerEinsatzId) ?? null
+    : null;
+
+  const selectLocalIncident = (id: string) => {
+    setSelectedServerEinsatzId(null);
+    setSelectedIncidentId(id);
+  };
 
   useEffect(() => {
     setSelectedVehicleIds([]);
@@ -170,8 +182,8 @@ export default function EinsaetzeView({
                   <li key={incident.id}>
                     <button
                       type="button"
-                      className={`view-menu-item ${selectedIncident?.id === incident.id ? 'active' : ''}`}
-                      onClick={() => setSelectedIncidentId(incident.id)}
+                      className={`view-menu-item view-menu-item--light ${!selectedServerEinsatz && selectedIncident?.id === incident.id ? 'active' : ''}`}
+                      onClick={() => selectLocalIncident(incident.id)}
                       style={{ width: '100%', textAlign: 'left' }}
                     >
                       <strong>{incident.type}</strong>
@@ -185,6 +197,11 @@ export default function EinsaetzeView({
                   </li>
                 ))}
               </ul>
+              <ServerEinsaetzeList
+                {...serverEinsaetze}
+                selectedId={selectedServerEinsatz?.id ?? null}
+                onSelect={setSelectedServerEinsatzId}
+              />
             </>
           ) : (
             <>
@@ -194,8 +211,8 @@ export default function EinsaetzeView({
                   <li key={incident.id}>
                     <button
                       type="button"
-                      className={`view-menu-item ${selectedIncident?.id === incident.id ? 'active' : ''}`}
-                      onClick={() => setSelectedIncidentId(incident.id)}
+                      className={`view-menu-item view-menu-item--light ${!selectedServerEinsatz && selectedIncident?.id === incident.id ? 'active' : ''}`}
+                      onClick={() => selectLocalIncident(incident.id)}
                       style={{ width: '100%', textAlign: 'left' }}
                     >
                       <strong>{incident.type}</strong>
@@ -214,7 +231,14 @@ export default function EinsaetzeView({
         </div>
 
         <div>
-          {selectedIncident ? (
+          {selectedServerEinsatz ? (
+            <div style={{ background: '#fff', padding: 16, borderRadius: 12, boxShadow: '0 6px 18px rgba(0,0,0,0.04)' }}>
+              <h3>{selectedServerEinsatz.stichwort}</h3>
+              <p><strong>Status:</strong> {einsatzStatusLabels[selectedServerEinsatz.status]}</p>
+              <p><strong>Einsatznummer:</strong> {selectedServerEinsatz.id}</p>
+              <p style={{ fontSize: 12, color: '#6b7280' }}>Server-Einsatz – Fahrzeuge und Alarmierung folgen später.</p>
+            </div>
+          ) : selectedIncident ? (
             <div style={{ background: '#fff', padding: 16, borderRadius: 12, boxShadow: '0 6px 18px rgba(0,0,0,0.04)' }}>
               <h3>{selectedIncident.type}</h3>
               <p><strong>Status:</strong> {selectedIncident.status}</p>

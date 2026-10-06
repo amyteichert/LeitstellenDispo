@@ -56,6 +56,14 @@ export interface Incident {
   notes?: string;
 }
 
+export type EinsatzStatus = 'offen' | 'alarmiert' | 'in_bearbeitung' | 'abgeschlossen';
+
+export interface Einsatz {
+  id: string;
+  stichwort: string;
+  status: EinsatzStatus;
+}
+
 export interface GameUser {
   id: string;
   username: string;
