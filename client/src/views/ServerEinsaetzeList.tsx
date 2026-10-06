@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { EINSATZ_STATUS_LABELS, type Einsatz } from '@leitstellendispo/shared';
+import { EINSATZ_STATUS_LABELS, formatEinsatzTitel, type Einsatz } from '@leitstellendispo/shared';
 
 export function useServerEinsaetze() {
   const [einsaetze, setEinsaetze] = useState<Einsatz[]>([]);
@@ -45,7 +45,7 @@ export default function ServerEinsaetzeList({
 }) {
   return (
     <div style={{ marginTop: 16 }}>
-      <div style={{ fontSize: 12, color: '#6b7280', marginBottom: 8 }}>Vom Server</div>
+      <div style={{ fontSize: 12, color: 'var(--color-text-muted)', marginBottom: 8 }}>Vom Server</div>
       {loading && <p>Lade Einsätze…</p>}
       {error && <p>Einsätze konnten nicht geladen werden: {error}</p>}
       {!loading && !error && einsaetze.length === 0 && <p>Keine Einsätze vom Server.</p>}
@@ -58,8 +58,8 @@ export default function ServerEinsaetzeList({
               onClick={() => onSelect(einsatz.id)}
               style={{ width: '100%', textAlign: 'left' }}
             >
-              <strong>{einsatz.stichwort}</strong>
-              <div style={{ fontSize: 12, color: '#6b7280' }}>
+              <strong>{formatEinsatzTitel(einsatz)}</strong>
+              <div style={{ fontSize: 12, color: 'var(--color-text-muted)' }}>
                 {einsatz.id} · {EINSATZ_STATUS_LABELS[einsatz.status]}
               </div>
             </button>

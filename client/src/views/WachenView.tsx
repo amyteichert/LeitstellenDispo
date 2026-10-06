@@ -1,3 +1,5 @@
+import { useEffect, useState } from 'react';
+import { getFahrzeugTypenFuerWache } from '@leitstellendispo/shared';
 import type { MapLocation } from '../types';
 import type { Vehicle } from './FahrzeugeView';
 
@@ -6,14 +8,23 @@ export default function WachenView({
   selectedId,
   setSelectedId,
   vehicles,
+  buyVehicle,
 }: {
   locations: MapLocation[];
   selectedId: string;
   setSelectedId: (id: string) => void;
   vehicles: Vehicle[];
+  buyVehicle: (stationId: string, typ: string) => void;
 }) {
   const stations = locations.filter((l) => l.type === 'station');
   const selected = locations.find((l) => l.id === selectedId && l.type === 'station');
+  const kaufbareTypen = getFahrzeugTypenFuerWache(selected?.stationKind ?? 'Rettungswache');
+  const [kaufTyp, setKaufTyp] = useState('');
+
+  // Beim Wechsel der Wache den ersten passenden Fahrzeugtyp vorauswählen
+  useEffect(() => {
+    setKaufTyp(kaufbareTypen[0]?.typ ?? '');
+  }, [selected?.id]);
 
   return (
     <div>
@@ -29,7 +40,7 @@ export default function WachenView({
                   onClick={() => setSelectedId(s.id)}
                 >
                   <strong>{s.name}</strong>
-                  <div style={{ fontSize: 12, color: '#6b7280' }}>{s.description}</div>
+                  <div style={{ fontSize: 12, color: 'var(--color-text-muted)' }}>{s.description}</div>
                 </button>
               </li>
             ))}
@@ -38,7 +49,7 @@ export default function WachenView({
 
         <div style={{ flex: 2 }}>
           {selected ? (
-            <div style={{ padding: 12, borderRadius: 8, background: '#fff', boxShadow: '0 6px 18px rgba(0,0,0,0.04)' }}>
+            <div style={{ padding: 12, borderRadius: 8, background: 'var(--color-surface)', boxShadow: 'var(--shadow-card)' }}>
               <h3>{selected.name}</h3>
               <p>{selected.details}</p>
               <p>Typ: {selected.stationKind ?? 'Rettungswache'}</p>
@@ -52,6 +63,27 @@ export default function WachenView({
                 ))}
                 {vehicles.filter(v => v.stationId === selected.id).length === 0 && <li>Noch keine Fahrzeuge vorhanden.</li>}
               </ul>
+
+              <h4>Fahrzeug kaufen</h4>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+                <label className="field" style={{ flex: '1 1 160px' }}>
+                  <select value={kaufTyp} onChange={(e) => setKaufTyp(e.target.value)}>
+                    {kaufbareTypen.map((fahrzeugTyp) => (
+                      <option key={fahrzeugTyp.typ} value={fahrzeugTyp.typ}>
+                        {fahrzeugTyp.typ} – {fahrzeugTyp.preis} €
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <button
+                  className="btn btn--primary"
+                  type="button"
+                  disabled={!kaufTyp}
+                  onClick={() => buyVehicle(selected.id, kaufTyp)}
+                >
+                  Kaufen
+                </button>
+              </div>
             </div>
           ) : (
             <p>Keine Wache ausgewählt.</p>

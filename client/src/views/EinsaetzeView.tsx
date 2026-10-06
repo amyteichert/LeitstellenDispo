@@ -1,19 +1,15 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
   EINSATZ_STATUS_LABELS,
+  formatEinsatzTitel,
+  getBedarfsAbdeckung,
+  getFahrzeugKategorie,
   type AbgeschlossenerSpielEinsatz,
   type SpielEinsatz,
 } from '@leitstellendispo/shared';
 import type { MapLocation } from '../types';
 import type { Vehicle } from './FahrzeugeView';
 import ServerEinsaetzeList, { useServerEinsaetze } from './ServerEinsaetzeList';
-
-const getVehicleCategory = (type?: string) => {
-  if (!type) return null;
-  if (type === 'RTW') return 'RTW';
-  if (['LF 10', 'LF 20', 'TLF 2000', 'TLF 3000', 'TLF 4000'].includes(type)) return 'Löschfahrzeug';
-  return null;
-};
 
 const haversineKm = (from: [number, number], to: [number, number]) => {
   const toRadians = (deg: number) => (deg * Math.PI) / 180;
@@ -87,8 +83,8 @@ export default function EinsaetzeView({
     if (!selectedIncident || selectedIncident.status === 'abgeschlossen') return [] as Vehicle[];
 
     return vehicles.filter((vehicle) => {
-      if (vehicle.status !== 'Einsatzbereit') return false;
-      const category = getVehicleCategory(vehicle.type);
+      if (vehicle.status !== 'Einsatzbereit' || !vehicle.stationId) return false;
+      const category = getFahrzeugKategorie(vehicle.type);
       if (!category) return false;
       return selectedIncident.requiredVehicles.some((requirement) => requirement.category === category);
     }).sort((a, b) => {
@@ -98,6 +94,30 @@ export default function EinsaetzeView({
       return haversineKm(aCoords, selectedIncident.coords) - haversineKm(bCoords, selectedIncident.coords);
     });
   }, [selectedIncident, vehicles, locations]);
+
+  const kannAlarmieren = selectedIncident?.status === 'offen' || selectedIncident?.status === 'alarmiert';
+
+  // Wie viele Fahrzeuge je Kategorie sind dem Einsatz bereits zugeteilt?
+  const abdeckung = selectedIncident ? getBedarfsAbdeckung(selectedIncident, vehicles) : [];
+  const getAlarmierteAnzahl = (category: string) => abdeckung.find((eintrag) => eintrag.category === category)?.alarmiert ?? 0;
+
+  // Alarmierungsvorschlag: je Anforderung die nächstgelegenen freien Fahrzeuge, die noch fehlen
+  const alarmVorschlag = useMemo(() => {
+    if (!selectedIncident || !kannAlarmieren) return [] as string[];
+    return selectedIncident.requiredVehicles.flatMap((requirement) => {
+      const fehlend = Math.max(0, requirement.amount - getAlarmierteAnzahl(requirement.category));
+      return availableVehiclesForSelectedIncident
+        .filter((vehicle) => getFahrzeugKategorie(vehicle.type) === requirement.category)
+        .slice(0, fehlend)
+        .map((vehicle) => vehicle.id);
+    });
+  }, [selectedIncident, kannAlarmieren, availableVehiclesForSelectedIncident, vehicles]);
+
+  const alarmieren = () => {
+    if (!selectedIncident) return;
+    alarmIncidentVehicles(selectedIncident.id, selectedVehicleIds);
+    setSelectedVehicleIds([]);
+  };
 
   const visibleIncidents = incidents.filter((incident) => incident.status !== 'abgeschlossen');
   const completedList = useMemo(
@@ -127,20 +147,20 @@ export default function EinsaetzeView({
       </div>
 
       <div style={{ marginBottom: 16, display: 'grid', gridTemplateColumns: 'repeat(4, minmax(120px, 1fr))', gap: 8 }}>
-        <div style={{ background: '#fff', padding: 10, borderRadius: 8, border: '1px solid #e5e7eb' }}>
-          <div style={{ fontSize: 12, color: '#6b7280' }}>Abgeschlossen</div>
+        <div style={{ background: 'var(--color-surface)', padding: 10, borderRadius: 8, border: '1px solid var(--color-border)' }}>
+          <div style={{ fontSize: 12, color: 'var(--color-text-muted)' }}>Abgeschlossen</div>
           <strong>{stats.total}</strong>
         </div>
-        <div style={{ background: '#fff', padding: 10, borderRadius: 8, border: '1px solid #e5e7eb' }}>
-          <div style={{ fontSize: 12, color: '#6b7280' }}>RD</div>
+        <div style={{ background: 'var(--color-surface)', padding: 10, borderRadius: 8, border: '1px solid var(--color-border)' }}>
+          <div style={{ fontSize: 12, color: 'var(--color-text-muted)' }}>RD</div>
           <strong>{stats.rettungsdienst}</strong>
         </div>
-        <div style={{ background: '#fff', padding: 10, borderRadius: 8, border: '1px solid #e5e7eb' }}>
-          <div style={{ fontSize: 12, color: '#6b7280' }}>FW</div>
+        <div style={{ background: 'var(--color-surface)', padding: 10, borderRadius: 8, border: '1px solid var(--color-border)' }}>
+          <div style={{ fontSize: 12, color: 'var(--color-text-muted)' }}>FW</div>
           <strong>{stats.feuerwehr}</strong>
         </div>
-        <div style={{ background: '#fff', padding: 10, borderRadius: 8, border: '1px solid #e5e7eb' }}>
-          <div style={{ fontSize: 12, color: '#6b7280' }}>Verdient</div>
+        <div style={{ background: 'var(--color-surface)', padding: 10, borderRadius: 8, border: '1px solid var(--color-border)' }}>
+          <div style={{ fontSize: 12, color: 'var(--color-text-muted)' }}>Verdient</div>
           <strong>{stats.earned} €</strong>
         </div>
       </div>
@@ -164,11 +184,11 @@ export default function EinsaetzeView({
                       onClick={() => selectLocalIncident(incident.id)}
                       style={{ width: '100%', textAlign: 'left' }}
                     >
-                      <strong>{incident.stichwort}</strong>
-                      <div style={{ fontSize: 12, color: '#6b7280' }}>
+                      <strong>{formatEinsatzTitel(incident)}</strong>
+                      <div style={{ fontSize: 12, color: 'var(--color-text-muted)' }}>
                         {incident.organization} · {EINSATZ_STATUS_LABELS[incident.status]} · {incident.generatedByStationName}
                       </div>
-                      <div style={{ fontSize: 12, color: '#6b7280' }}>
+                      <div style={{ fontSize: 12, color: 'var(--color-text-muted)' }}>
                         {incident.reward} € · {incident.alarmedVehicles.length} alarmiert
                       </div>
                     </button>
@@ -193,11 +213,11 @@ export default function EinsaetzeView({
                       onClick={() => selectLocalIncident(incident.id)}
                       style={{ width: '100%', textAlign: 'left' }}
                     >
-                      <strong>{incident.stichwort}</strong>
-                      <div style={{ fontSize: 12, color: '#6b7280' }}>
+                      <strong>{formatEinsatzTitel(incident)}</strong>
+                      <div style={{ fontSize: 12, color: 'var(--color-text-muted)' }}>
                         {incident.organization} · Abgeschlossen · {incident.generatedByStationName}
                       </div>
-                      <div style={{ fontSize: 12, color: '#6b7280' }}>
+                      <div style={{ fontSize: 12, color: 'var(--color-text-muted)' }}>
                         {incident.reward} € · {formatDateTime(incident.completedAt)}
                       </div>
                     </button>
@@ -210,15 +230,15 @@ export default function EinsaetzeView({
 
         <div>
           {selectedServerEinsatz ? (
-            <div style={{ background: '#fff', padding: 16, borderRadius: 12, boxShadow: '0 6px 18px rgba(0,0,0,0.04)' }}>
-              <h3>{selectedServerEinsatz.stichwort}</h3>
+            <div style={{ background: 'var(--color-surface)', padding: 16, borderRadius: 12, boxShadow: 'var(--shadow-card)' }}>
+              <h3>{formatEinsatzTitel(selectedServerEinsatz)}</h3>
               <p><strong>Status:</strong> {EINSATZ_STATUS_LABELS[selectedServerEinsatz.status]}</p>
               <p><strong>Einsatznummer:</strong> {selectedServerEinsatz.id}</p>
-              <p style={{ fontSize: 12, color: '#6b7280' }}>Server-Einsatz – Fahrzeuge und Alarmierung folgen später.</p>
+              <p style={{ fontSize: 12, color: 'var(--color-text-muted)' }}>Server-Einsatz – Fahrzeuge und Alarmierung folgen später.</p>
             </div>
           ) : selectedIncident ? (
-            <div style={{ background: '#fff', padding: 16, borderRadius: 12, boxShadow: '0 6px 18px rgba(0,0,0,0.04)' }}>
-              <h3>{selectedIncident.stichwort}</h3>
+            <div style={{ background: 'var(--color-surface)', padding: 16, borderRadius: 12, boxShadow: 'var(--shadow-card)' }}>
+              <h3>{formatEinsatzTitel(selectedIncident)}</h3>
               <p><strong>Status:</strong> {EINSATZ_STATUS_LABELS[selectedIncident.status]}</p>
               <p><strong>Organisation:</strong> {selectedIncident.organization}</p>
               <p><strong>Adresse:</strong> {selectedIncident.address}</p>
@@ -234,9 +254,14 @@ export default function EinsaetzeView({
 
               <h4>Benötigte Fahrzeuge</h4>
               <ul>
-                {selectedIncident.requiredVehicles.map((requirement) => (
-                  <li key={requirement.id}>{requirement.amount} × {requirement.category}</li>
-                ))}
+                {selectedIncident.requiredVehicles.map((requirement) => {
+                  const alarmiert = Math.min(getAlarmierteAnzahl(requirement.category), requirement.amount);
+                  return (
+                    <li key={requirement.id}>
+                      {requirement.category}: {alarmiert}/{requirement.amount} {alarmiert >= requirement.amount ? '✓' : ''}
+                    </li>
+                  );
+                })}
               </ul>
 
               <h4>Eingesetzte Fahrzeuge</h4>
@@ -260,7 +285,7 @@ export default function EinsaetzeView({
                 </ul>
               )}
 
-              {selectedIncident.status !== 'abgeschlossen' ? (
+              {kannAlarmieren ? (
                 <>
                   <h4>Verfügbare passende Fahrzeuge</h4>
                   {availableVehiclesForSelectedIncident.length === 0 ? (
@@ -286,24 +311,30 @@ export default function EinsaetzeView({
                     </ul>
                   )}
 
-                  {selectedIncident.status === 'offen' && (
-                    <div style={{ marginTop: 12 }}>
-                      <button
-                        className="btn btn--primary"
-                        type="button"
-                        onClick={() => alarmIncidentVehicles(selectedIncident.id, selectedVehicleIds)}
-                        disabled={selectedVehicleIds.length === 0}
-                      >
-                        Alarmieren
-                      </button>
-                    </div>
-                  )}
-
-                  {selectedIncident.status === 'in_bearbeitung' && selectedIncident.processingEndsAt && (
-                    <p><strong>Einsatz wird bearbeitet – noch</strong> {Math.max(0, Math.ceil((selectedIncident.processingEndsAt - Date.now()) / 1000))} Sek.</p>
-                  )}
+                  <div style={{ marginTop: 12, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                    <button
+                      className="btn btn--secondary"
+                      type="button"
+                      onClick={() => setSelectedVehicleIds(alarmVorschlag)}
+                      disabled={alarmVorschlag.length === 0}
+                    >
+                      Vorschlag
+                    </button>
+                    <button
+                      className="btn btn--primary"
+                      type="button"
+                      onClick={alarmieren}
+                      disabled={selectedVehicleIds.length === 0}
+                    >
+                      {selectedIncident.status === 'alarmiert' ? 'Nachalarmieren' : 'Alarmieren'}
+                    </button>
+                  </div>
                 </>
               ) : null}
+
+              {selectedIncident.status === 'in_bearbeitung' && selectedIncident.processingEndsAt && (
+                <p><strong>Einsatz wird bearbeitet – noch</strong> {Math.max(0, Math.ceil((selectedIncident.processingEndsAt - Date.now()) / 1000))} Sek.</p>
+              )}
             </div>
           ) : (
             <p>Kein Einsatz ausgewählt.</p>

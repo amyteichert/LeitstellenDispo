@@ -18,10 +18,10 @@ export default function FahrzeugeView({ vehicles, stations }: { vehicles: Vehicl
           <ul style={{ listStyle: 'none', padding: 0 }}>
             {vehicles.map((v) => (
               <li key={v.id} style={{ marginBottom: 8 }}>
-                <div style={{ padding: 10, borderRadius: 8, background: '#fff', boxShadow: '0 6px 18px rgba(0,0,0,0.04)' }}>
+                <div style={{ padding: 10, borderRadius: 8, background: 'var(--color-surface)', boxShadow: 'var(--shadow-card)' }}>
                   <strong>{v.callsign ? `${v.callsign} (${v.name})` : v.name}</strong>
-                  <div style={{ fontSize: 12, color: '#6b7280' }}>Typ: {v.type ?? '–'}</div>
-                  <div style={{ fontSize: 12, color: '#6b7280' }}>
+                  <div style={{ fontSize: 12, color: 'var(--color-text-muted)' }}>Typ: {v.type ?? '–'}</div>
+                  <div style={{ fontSize: 12, color: 'var(--color-text-muted)' }}>
                     Station: {v.stationId ? (stations.find((s) => s.id === v.stationId)?.name ?? v.stationId) : 'Nicht zugeordnet'}
                   </div>
                 </div>

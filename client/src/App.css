@@ -2,7 +2,9 @@
   min-height: 100vh;
   display: flex;
   flex-direction: column;
-  background: #f4f5f7;
+  background:
+    radial-gradient(1200px 600px at 85% -10%, rgba(196, 30, 58, 0.12), transparent 60%),
+    var(--color-bg);
 }
 
 .topbar {
@@ -15,7 +17,7 @@
   background: transparent;
   border-bottom: none;
   box-shadow: none;
-  color: #111827;
+  color: var(--color-text);
   position: relative;
  z-index: 1200; /* Header über Karteninhalten platzieren (überschaubarer Wert, nicht willkürlich hoch) */
  overflow: visible;
@@ -198,9 +200,13 @@
   min-height: 0;
 }
 
+.dashboard--full {
+  grid-template-columns: minmax(0, 1fr);
+}
+
 .sidebar {
-  background: #f8fafc;
-  border-right: 1px solid #e5e7eb;
+  background: var(--color-surface);
+  border-right: 1px solid var(--color-border);
   padding: 1rem;
   display: flex;
   flex-direction: column;
@@ -217,7 +223,7 @@
 .panel-header h2 {
   font-size: 1rem;
   font-weight: 700;
-  color: #111827;
+  color: var(--color-text);
 }
 
 .panel-header span {
@@ -227,15 +233,15 @@
   min-width: 30px;
   height: 30px;
   border-radius: 999px;
-  background: #fff;
-  border: 1px solid #e5e7eb;
-  color: #6b7280;
+  background: var(--color-surface-raised);
+  border: 1px solid var(--color-border);
+  color: var(--color-text-muted);
   font-size: 0.75rem;
 }
 
 .location-form {
-  background: #fff;
-  border: 1px solid #e5e7eb;
+  background: var(--color-surface-raised);
+  border: 1px solid var(--color-border);
   border-radius: 12px;
   padding: 0.9rem;
   display: grid;
@@ -252,24 +258,24 @@
   font-weight: 700;
   letter-spacing: 0.04em;
   text-transform: uppercase;
-  color: #6b7280;
+  color: var(--color-text-muted);
 }
 
 .field input,
 .field select {
   width: 100%;
-  border: 1px solid #d8dce3;
+  border: 1px solid var(--color-border-strong);
   border-radius: 10px;
-  background: #fff;
+  background: var(--color-input);
   padding: 0.7rem 0.8rem;
   font: inherit;
-  color: #111827;
+  color: var(--color-text);
 }
 
 .map-hint {
   font-size: 0.72rem;
   line-height: 1.5;
-  color: #6b7280;
+  color: var(--color-text-muted);
 }
 
 .location-list {
@@ -290,11 +296,11 @@
   display: flex;
   align-items: center;
   gap: 0.75rem;
-  background: #fff;
-  border: 1px solid #e5e7eb;
+  background: var(--color-surface-raised);
+  border: 1px solid var(--color-border);
   border-radius: 12px;
   padding: 0.75rem 0.8rem;
-  color: #111827;
+  color: var(--color-text);
   text-align: left;
   cursor: pointer;
   transition: transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
@@ -302,7 +308,7 @@
 
 .location-item:hover {
   transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(17, 24, 39, 0.05);
+  box-shadow: var(--shadow-md);
 }
 
 .location-item--active {
@@ -312,16 +318,16 @@
 
 .delete-button {
   background: transparent;
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--color-border);
   padding: 0.4rem 0.6rem;
   border-radius: 10px;
   font-size: 0.82rem;
-  color: #9a1830;
+  color: var(--color-primary-text);
   cursor: pointer;
 }
 
 .delete-button:hover {
-  background: #fff5f6;
+  background: var(--color-primary-light);
 }
 
 @media (max-width: 900px) {
@@ -362,23 +368,23 @@
 }
 
 .location-copy small {
-  color: #6b7280;
+  color: var(--color-text-muted);
   font-size: 0.74rem;
 }
 
 .detail-card {
-  background: #fff;
-  border: 1px solid #e5e7eb;
+  background: var(--color-surface-raised);
+  border: 1px solid var(--color-border);
   border-radius: 14px;
   padding: 1rem;
-  box-shadow: 0 4px 12px rgba(17, 24, 39, 0.04);
+  box-shadow: var(--shadow-md);
 }
 
 .detail-card__label {
   font-size: 0.7rem;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: #9a1830;
+  color: var(--color-primary-text);
   font-weight: 700;
   margin-bottom: 0.5rem;
 }
@@ -386,11 +392,11 @@
 .detail-card h3 {
   font-size: 1.1rem;
   margin-bottom: 0.4rem;
-  color: #111827;
+  color: var(--color-text);
 }
 
 .detail-card p {
-  color: #4b5563;
+  color: var(--color-text-muted);
   font-size: 0.92rem;
   line-height: 1.5;
   margin-bottom: 0.8rem;
@@ -400,13 +406,174 @@
   list-style: none;
   display: grid;
   gap: 0.4rem;
-  color: #374151;
+  color: var(--color-text);
   font-size: 0.82rem;
 }
 
 .map-panel {
   padding: 1rem;
   min-height: 0;
+  position: relative; /* Bezug für Einsatzleiste und Einsatzfenster */
+}
+
+/* Einsatz-Marker: offene Einsätze pulsieren */
+.incident-marker--offen span {
+  animation: incident-pulse 1.6s ease-out infinite;
+}
+
+@keyframes incident-pulse {
+  0% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.7); }
+  70% { box-shadow: 0 0 0 12px rgba(245, 158, 11, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0); }
+}
+
+/* Leiste mit laufenden Einsätzen oben auf der Karte */
+.map-incident-bar {
+  position: absolute;
+  top: 1.6rem;
+  left: 4.5rem; /* rechts neben den Zoom-Knöpfen */
+  right: 1.6rem;
+  z-index: 1001; /* über Leaflet-Ebenen und -Bedienelementen */
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  overflow-x: auto;
+  pointer-events: none; /* leere Flächen lassen Klicks zur Karte durch */
+}
+
+.map-incident-bar > * {
+  pointer-events: auto;
+  flex-shrink: 0;
+}
+
+.map-incident-bar__count,
+.map-incident-chip {
+  min-height: 34px;
+  padding: 0 12px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(33, 16, 21, 0.92);
+  border: 1px solid var(--color-border-strong);
+  color: var(--color-text);
+  font: inherit;
+  font-size: 0.82rem;
+  box-shadow: var(--shadow-md);
+}
+
+.map-incident-bar__count {
+  font-weight: 700;
+}
+
+.map-incident-chip {
+  cursor: pointer;
+}
+
+.map-incident-chip--active {
+  border-color: var(--color-primary);
+  background: var(--color-surface-raised);
+}
+
+.map-incident-chip__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.map-incident-chip--offen .map-incident-chip__dot { background: #f59e0b; }
+.map-incident-chip--alarmiert .map-incident-chip__dot { background: #3b82f6; }
+.map-incident-chip--in_bearbeitung .map-incident-chip__dot { background: #c41e3a; }
+
+/* Schwebendes Einsatzfenster rechts auf der Karte */
+.map-incident-panel {
+  position: absolute;
+  top: 4.6rem;
+  right: 1.6rem;
+  z-index: 1001;
+  width: min(300px, calc(100% - 3.2rem));
+  max-height: calc(100% - 9rem);
+  overflow-y: auto;
+  padding: 1rem;
+  border-radius: 14px;
+  background: var(--color-surface-raised);
+  border: 1px solid var(--color-border-strong);
+  box-shadow: var(--shadow-card);
+  color: var(--color-text);
+  font-size: 0.9rem;
+  display: grid;
+  gap: 0.35rem;
+}
+
+.map-incident-panel__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.map-incident-panel__header h3 {
+  font-size: 1.05rem;
+}
+
+.map-incident-panel__close {
+  background: transparent;
+  border: none;
+  color: var(--color-text-muted);
+  font-size: 1rem;
+  min-width: 32px;
+  min-height: 32px;
+  cursor: pointer;
+}
+
+.map-incident-panel h4 {
+  margin-top: 0.4rem;
+}
+
+.map-incident-panel ul {
+  padding-left: 1.1rem;
+}
+
+.map-incident-panel__open {
+  margin-top: 0.6rem;
+  justify-content: center;
+  min-height: 44px;
+}
+
+/* Handy: Fenster unten statt rechts */
+@media (max-width: 900px) {
+  .map-incident-panel {
+    top: 4.4rem;
+    bottom: 1rem;
+    left: 1.6rem;
+    right: 1.6rem;
+    width: auto;
+    max-height: none;
+    align-content: start;
+    font-size: 0.85rem;
+  }
+}
+
+/* Knopf zum Wechseln zwischen Karte und Satellit (unten rechts auf der Karte) */
+.map-style-toggle {
+  min-height: 44px; /* gut mit dem Finger treffbar */
+  padding: 0 1rem;
+  border-radius: 999px;
+  border: 1px solid var(--color-border-strong);
+  background: var(--color-surface-raised);
+  color: var(--color-text);
+  font: inherit;
+  font-size: 0.95rem;
+  font-weight: 600;
+  box-shadow: var(--shadow-md);
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: transform 0.12s ease, box-shadow 0.12s ease;
+}
+
+.map-style-toggle:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-card);
 }
 
 .map-view {
@@ -415,8 +582,8 @@
   min-height: 70vh;
   border-radius: 16px;
   overflow: hidden;
-  border: 1px solid #dfe3ea;
-  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
+  border: 1px solid var(--color-border);
+  box-shadow: var(--shadow-card);
 }
 
 .custom-marker {
@@ -431,6 +598,34 @@
 
 .leaflet-container {
   font: inherit;
+  background: #0e0e10; /* Farbe, solange Kacheln laden (passend zu Dark Matter) */
+}
+
+/* Leaflet-Bedienelemente an das dunkle Design anpassen */
+.leaflet-bar a,
+.leaflet-bar a:hover {
+  background: var(--color-surface-raised);
+  color: var(--color-text);
+  border-bottom-color: var(--color-border);
+}
+
+.leaflet-container .leaflet-control-attribution {
+  background: rgba(21, 10, 13, 0.75);
+  color: var(--color-text-muted);
+}
+
+.leaflet-container .leaflet-control-attribution a {
+  color: var(--color-primary-text);
+}
+
+.leaflet-popup-content-wrapper,
+.leaflet-popup-tip {
+  background: var(--color-surface-raised);
+  color: var(--color-text);
+}
+
+.leaflet-container a.leaflet-popup-close-button {
+  color: var(--color-text-muted);
 }
 
 /* Dropdown / view-trigger styling */
@@ -524,11 +719,11 @@
 /* Variante für helle Hintergründe (z. B. Einsatzliste) */
 .view-menu-item--light,
 .view-menu-item--light.active {
-  color: #111827;
+  color: var(--color-text);
 }
 
 .view-menu-item--light:hover {
-  background: rgba(0,0,0,0.04);
+  background: rgba(255,255,255,0.04);
 }
 
 /* Button system */
@@ -539,6 +734,8 @@
   padding: 0.5rem 0.9rem;
   border-radius: 10px;
   border: 0;
+  background: var(--color-surface-raised);
+  color: var(--color-text);
   font-size: 0.95rem;
   cursor: pointer;
   transition: transform 0.12s ease, box-shadow 0.12s ease, opacity 0.12s ease;
@@ -563,15 +760,15 @@
 }
 
 .btn--secondary {
-  background: linear-gradient(180deg,#ffffff,#f3f4f6);
-  color: #111827;
-  border: 1px solid #e6e7ea;
-  box-shadow: 0 4px 12px rgba(15,23,42,0.05);
+  background: var(--color-surface-raised);
+  color: var(--color-text);
+  border: 1px solid var(--color-border-strong);
+  box-shadow: var(--shadow-sm);
 }
 
 .btn--secondary:hover:not(:disabled) {
   transform: translateY(-1px);
-  box-shadow: 0 8px 18px rgba(15,23,42,0.08);
+  box-shadow: var(--shadow-md);
 }
 
 .btn--ghost {
@@ -596,12 +793,12 @@
   padding: 0.4rem 0.6rem;
   border-radius: 10px;
   background: transparent;
-  border: 1px solid #e5e7eb;
-  color: #9a1830;
+  border: 1px solid var(--color-border);
+  color: var(--color-primary-text);
 }
 
 .delete-button:hover {
-  background: #fff5f6;
+  background: var(--color-primary-light);
 }
 
 .view-dropdown__menu button[disabled] {
@@ -649,7 +846,7 @@
 
   .sidebar {
     border-right: none;
-    border-bottom: 1px solid #e5e7eb;
+    border-bottom: 1px solid var(--color-border);
   }
 
   .map-view {
@@ -664,7 +861,7 @@
 
   .sidebar {
     border-right: none;
-    border-bottom: 1px solid #e5e7eb;
+    border-bottom: 1px solid var(--color-border);
   }
 
   .map-view {

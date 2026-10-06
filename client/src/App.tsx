@@ -1,14 +1,18 @@
 import { useMemo, useState, useRef, useEffect } from 'react';
-import { MapContainer, Marker, Popup, TileLayer, useMapEvents } from 'react-leaflet';
+import { createPortal } from 'react-dom';
+import { MapContainer, Marker, Popup, TileLayer, useMap, useMapEvents } from 'react-leaflet';
 import L, { type LeafletMouseEvent } from 'leaflet';
 import {
   APP_VERSION,
-  EINSATZ_STATUS_LABELS,
+  EINSATZ_VORLAGEN,
+  getFahrzeugKategorie,
+  getFahrzeugTyp,
+  getFahrzeugTypenFuerWache,
+  istVorlageErfuellbar,
+  formatEinsatzTitel,
   type AbgeschlossenerSpielEinsatz,
   type AlarmiertesFahrzeug,
-  type EinsatzOrganisation,
-  type FahrzeugBedarf,
-  type FahrzeugKategorie,
+  type EinsatzVorlage,
   type SpielEinsatz,
 } from '@leitstellendispo/shared';
 import 'leaflet/dist/leaflet.css';
@@ -20,6 +24,7 @@ import type { MapLocation, LocationType } from './types';
 import FahrzeugeView, { type Vehicle } from './views/FahrzeugeView';
 import WachenView from './views/WachenView';
 import EinsaetzeView from './views/EinsaetzeView';
+import { KarteEinsatzLeiste, KarteEinsatzPanel } from './views/KarteEinsatzOverlay';
 import FinanzenView from './views/FinanzenView';
 import EinstellungenView from './views/EinstellungenView';
 
@@ -28,30 +33,12 @@ const STATION_PRICE_BY_KIND = {
   Feuerwache: 0,
 } as const;
 
-const VEHICLE_PRICE_BY_TYPE: Record<string, number> = {
-  RTW: 0,
-  'LF 10': 0,
-  'LF 20': 0,
-  'TLF 2000': 0,
-  'TLF 3000': 0,
-  'TLF 4000': 0,
-};
-
 type FinanceTransaction = {
   id: string;
   kind: 'Einnahme' | 'Ausgabe';
   label: string;
   amount: number;
   createdAt: string;
-};
-
-type IncidentTemplate = {
-  id: string;
-  type: string;
-  organization: EinsatzOrganisation;
-  requiredVehicles: FahrzeugBedarf[];
-  reward: number;
-  durationSeconds: number;
 };
 
 const initialLocations: MapLocation[] = [
@@ -85,6 +72,24 @@ const createMarkerIcon = (color: string) =>
     iconAnchor: [8, 8],
   });
 
+const INCIDENT_MARKER_COLORS: Record<SpielEinsatz['status'], string> = {
+  offen: '#f59e0b',
+  alarmiert: '#3b82f6',
+  in_bearbeitung: '#c41e3a',
+  abgeschlossen: '#6b7280',
+};
+
+/** Einsatz-Marker in Statusfarbe; offene Einsätze pulsieren, der gewählte ist größer. */
+const createIncidentMarkerIcon = (status: SpielEinsatz['status'], selected: boolean) => {
+  const size = selected ? 22 : 16;
+  return L.divIcon({
+    className: `custom-marker incident-marker incident-marker--${status}`,
+    html: `<span style="display:block; width:${size}px; height:${size}px; border-radius:50%; background:${INCIDENT_MARKER_COLORS[status]}; border:2px solid #fff; box-shadow:0 2px 8px rgba(0,0,0,0.25);"></span>`,
+    iconSize: [size, size],
+    iconAnchor: [size / 2, size / 2],
+  });
+};
+
 const GAME_CONFIG = {
   startWacheMaxDriveSeconds: 10,
   averageSpeedKmh: 54,
@@ -101,13 +106,6 @@ const INCIDENT_SPAWN_CONFIG = {
   latePhaseMaxRadiusKm: 8,
   preferredVehicleMinRadiusKm: 0.15,
 } as const;
-
-const getVehicleCategory = (type?: string): FahrzeugKategorie | null => {
-  if (!type) return null;
-  if (type === 'RTW') return 'RTW';
-  if (['LF 10', 'LF 20', 'TLF 2000', 'TLF 3000', 'TLF 4000'].includes(type)) return 'Löschfahrzeug';
-  return null;
-};
 
 const clamp = (value: number, min: number, max: number) => Math.min(Math.max(value, min), max);
 
@@ -129,127 +127,11 @@ const getStationCoords = (stationId: string | undefined, locations: MapLocation[
   return found ? found.coords : null;
 };
 
-const INCIDENT_TEMPLATE_SETS: Record<'Rettungswache' | 'Feuerwache', IncidentTemplate[]> = {
-  Rettungswache: [
-    {
-      id: 'kreislaufprobleme',
-      type: 'Kreislaufprobleme',
-      organization: 'Rettungsdienst',
-      requiredVehicles: [{ id: 'req-rtw', category: 'RTW', amount: 1 }],
-      reward: 240,
-      durationSeconds: 11,
-    },
-    {
-      id: 'gestuerzte-person',
-      type: 'Gestürzte Person',
-      organization: 'Rettungsdienst',
-      requiredVehicles: [{ id: 'req-rtw', category: 'RTW', amount: 1 }],
-      reward: 220,
-      durationSeconds: 10,
-    },
-    {
-      id: 'atemnot',
-      type: 'Atemnot',
-      organization: 'Rettungsdienst',
-      requiredVehicles: [{ id: 'req-rtw', category: 'RTW', amount: 1 }],
-      reward: 260,
-      durationSeconds: 12,
-    },
-    {
-      id: 'brustschmerzen',
-      type: 'Brustschmerzen',
-      organization: 'Rettungsdienst',
-      requiredVehicles: [{ id: 'req-rtw', category: 'RTW', amount: 1 }],
-      reward: 280,
-      durationSeconds: 13,
-    },
-    {
-      id: 'schnittverletzung',
-      type: 'Schnittverletzung',
-      organization: 'Rettungsdienst',
-      requiredVehicles: [{ id: 'req-rtw', category: 'RTW', amount: 1 }],
-      reward: 230,
-      durationSeconds: 9,
-    },
-    {
-      id: 'sturz',
-      type: 'Sturz',
-      organization: 'Rettungsdienst',
-      requiredVehicles: [{ id: 'req-rtw', category: 'RTW', amount: 1 }],
-      reward: 220,
-      durationSeconds: 10,
-    },
-    {
-      id: 'bewusstlose-person',
-      type: 'Bewusstlose Person',
-      organization: 'Rettungsdienst',
-      requiredVehicles: [{ id: 'req-rtw', category: 'RTW', amount: 1 }],
-      reward: 260,
-      durationSeconds: 12,
-    },
-  ],
-  Feuerwache: [
-    {
-      id: 'brennender-papierkorb',
-      type: 'Brennender Papierkorb',
-      organization: 'Feuerwehr',
-      requiredVehicles: [{ id: 'req-lz', category: 'Löschfahrzeug', amount: 1 }],
-      reward: 220,
-      durationSeconds: 10,
-    },
-    {
-      id: 'brennende-muelltonne',
-      type: 'Brennende Mülltonne',
-      organization: 'Feuerwehr',
-      requiredVehicles: [{ id: 'req-lz', category: 'Löschfahrzeug', amount: 1 }],
-      reward: 240,
-      durationSeconds: 11,
-    },
-    {
-      id: 'heckenbrand',
-      type: 'Heckenbrand',
-      organization: 'Feuerwehr',
-      requiredVehicles: [{ id: 'req-lz', category: 'Löschfahrzeug', amount: 1 }],
-      reward: 260,
-      durationSeconds: 12,
-    },
-    {
-      id: 'brennender-pkw',
-      type: 'Brennender PKW',
-      organization: 'Feuerwehr',
-      requiredVehicles: [{ id: 'req-lz', category: 'Löschfahrzeug', amount: 1 }],
-      reward: 310,
-      durationSeconds: 15,
-    },
-    {
-      id: 'unklare-rauchentwicklung',
-      type: 'Unklare Rauchentwicklung',
-      organization: 'Feuerwehr',
-      requiredVehicles: [{ id: 'req-lz', category: 'Löschfahrzeug', amount: 1 }],
-      reward: 290,
-      durationSeconds: 14,
-    },
-    {
-      id: 'muelleimerbrand',
-      type: 'Mülleimerbrand',
-      organization: 'Feuerwehr',
-      requiredVehicles: [{ id: 'req-lz', category: 'Löschfahrzeug', amount: 1 }],
-      reward: 250,
-      durationSeconds: 12,
-    },
-    {
-      id: 'kleinbrand',
-      type: 'Kleinbrand',
-      organization: 'Feuerwehr',
-      requiredVehicles: [{ id: 'req-lz', category: 'Löschfahrzeug', amount: 1 }],
-      reward: 300,
-      durationSeconds: 14,
-    },
-  ],
-};
-
-const getAvailableIncidentTemplates = (stationKind?: 'Rettungswache' | 'Feuerwache'): IncidentTemplate[] => { 
-  return INCIDENT_TEMPLATE_SETS[stationKind ?? 'Rettungswache'] ?? INCIDENT_TEMPLATE_SETS.Rettungswache;
+const getAvailableIncidentTemplates = (stationKind: 'Rettungswache' | 'Feuerwache' | undefined, vehicles: Vehicle[]): EinsatzVorlage[] => {
+  // Nur Vorlagen, die der Spieler mit seinen stationierten Fahrzeugen grundsätzlich schaffen kann
+  const fahrzeugTypen = vehicles.filter((vehicle) => vehicle.stationId).map((vehicle) => vehicle.type);
+  const templates = EINSATZ_VORLAGEN[stationKind ?? 'Rettungswache'] ?? EINSATZ_VORLAGEN.Rettungswache;
+  return templates.filter((template) => istVorlageErfuellbar(template, fahrzeugTypen));
 };
 
 const getIncidentSpawnRadiusKm = (stationCount: number) => {
@@ -264,7 +146,7 @@ const getIncidentSpawnRadiusKm = (stationCount: number) => {
 
 const getBestIncidentStation = (
   stations: MapLocation[],
-  template: IncidentTemplate,
+  template: EinsatzVorlage,
   vehicles: Vehicle[],
 ) => {
   const matchingStations = stations
@@ -273,7 +155,7 @@ const getBestIncidentStation = (
         (vehicle) =>
           vehicle.stationId === station.id &&
           vehicle.status === 'Einsatzbereit' &&
-          getVehicleCategory(vehicle.type) === template.requiredVehicles[0]?.category,
+          getFahrzeugKategorie(vehicle.type) === template.requiredVehicles[0]?.category,
       );
       return { station, matchingVehicles: matchingVehicles.length };
     })
@@ -305,13 +187,14 @@ const getRandomCoordsAroundStation = (station: MapLocation, stationCount: number
 };
 
 const createSpielEinsatz = (
-  template: IncidentTemplate,
+  template: EinsatzVorlage,
   station: MapLocation,
   coords: [number, number],
   address: string,
 ): SpielEinsatz => ({
   id: `incident-${Date.now()}-${Math.random().toString(16).slice(2)}`,
-  stichwort: template.type,
+  stichwort: template.stichwort,
+  meldebild: template.meldebild,
   organization: template.organization,
   status: 'offen',
   coords,
@@ -335,6 +218,41 @@ function MapClickHandler({
   });
 
   return null;
+}
+
+/** Knopf unten rechts auf der Karte, als echtes Leaflet-Bedienelement (stapelt sich über der Quellenangabe). */
+function MapStyleToggle({
+  mapStyle,
+  onToggle,
+}: {
+  mapStyle: 'karte' | 'satellit';
+  onToggle: () => void;
+}) {
+  const map = useMap();
+  const [container, setContainer] = useState<HTMLElement | null>(null);
+
+  useEffect(() => {
+    const control = new L.Control({ position: 'bottomright' });
+    control.onAdd = () => {
+      const div = L.DomUtil.create('div', 'leaflet-control');
+      L.DomEvent.disableClickPropagation(div);
+      return div;
+    };
+    control.addTo(map);
+    setContainer(control.getContainer() ?? null);
+    return () => {
+      control.remove();
+    };
+  }, [map]);
+
+  if (!container) return null;
+
+  return createPortal(
+    <button type="button" className="map-style-toggle" onClick={onToggle}>
+      {mapStyle === 'karte' ? '🛰️ Satellit' : '🗺️ Karte'}
+    </button>,
+    container,
+  );
 }
 
 function App() {
@@ -371,6 +289,31 @@ function App() {
     setVehicles((cur) => [...cur, { ...v, id, status: v.status ?? 'Einsatzbereit' }]);
   };
 
+  const buyVehicle = (stationId: string, typ: string) => {
+    const station = locations.find((location) => location.id === stationId && location.type === 'station');
+    const fahrzeugTyp = getFahrzeugTyp(typ);
+    if (!station || !fahrzeugTyp) return;
+    if (fahrzeugTyp.wachenArt !== (station.stationKind ?? 'Rettungswache')) {
+      alert(`${typ} passt nicht zu einer ${station.stationKind ?? 'Rettungswache'}.`);
+      return;
+    }
+    if (balance < fahrzeugTyp.preis) {
+      alert(`Nicht genügend Guthaben. Benötigt: ${fahrzeugTyp.preis} €, verfügbar: ${balance} €.`);
+      return;
+    }
+
+    const nummer = vehicles.filter((vehicle) => vehicle.type === typ).length + 1;
+    setBalance((cur) => cur - fahrzeugTyp.preis);
+    addTransaction('Ausgabe', `${typ} für ${station.name} gekauft`, fahrzeugTyp.preis);
+    addVehicle({
+      name: typ,
+      type: typ,
+      stationId,
+      price: fahrzeugTyp.preis,
+      callsign: `${typ.replace(/\s+/g, '')}-${nummer}`,
+    });
+  };
+
   const [incidents, setIncidents] = useState<SpielEinsatz[]>([]);
   const [completedIncidentHistory, setCompletedIncidentHistory] = useState<AbgeschlossenerSpielEinsatz[]>([]);
   const [selectedIncidentId, setSelectedIncidentId] = useState<string | null>(null);
@@ -385,6 +328,9 @@ function App() {
   const [selectedGeocodeIndex, setSelectedGeocodeIndex] = useState<number | null>(null);
   // map reference to allow programmatic centering when selecting geocode results
   const mapRef = useRef<any>(null);
+  const [mapStyle, setMapStyle] = useState<'karte' | 'satellit'>('karte');
+  // Einsatz, dessen Kurzinfo gerade als schwebendes Fenster auf der Karte angezeigt wird
+  const [mapIncidentId, setMapIncidentId] = useState<string | null>(null);
   // new state: choose station kind when creating a station
   const [draftStationKind, setDraftStationKind] = useState<'Rettungswache' | 'Feuerwache'>('Rettungswache');
   // start vehicle selection (exactly one) and callsign
@@ -411,12 +357,13 @@ function App() {
         if (activeStations.length === 0) return current;
 
         const stationKind = activeStations[Math.floor(Math.random() * activeStations.length)].stationKind;
-        const templates = getAvailableIncidentTemplates(stationKind);
+        const templates = getAvailableIncidentTemplates(stationKind, vehicles);
+        if (templates.length === 0) return current;
         const template = templates[Math.floor(Math.random() * templates.length)];
         const station = getBestIncidentStation(activeStations, template, vehicles);
         const coords = getRandomCoordsAroundStation(station, activeStations.length);
 
-        const nextIncident = createSpielEinsatz(template, station, coords, `${template.type} in der Nähe von ${station.name}`);
+        const nextIncident = createSpielEinsatz(template, station, coords, `${template.meldebild} in der Nähe von ${station.name}`);
 
         return [nextIncident, ...current];
       });
@@ -426,8 +373,7 @@ function App() {
   }, [locations, incidents, vehicles]);
 
   useEffect(() => {
-    if (draftStationKind === 'Rettungswache') setDraftStartVehicleType('RTW');
-    else setDraftStartVehicleType('LF 10');
+    setDraftStartVehicleType(getFahrzeugTypenFuerWache(draftStationKind)[0]?.typ ?? '');
   }, [draftStationKind]);
 
   useEffect(() => {
@@ -467,7 +413,7 @@ function App() {
         .filter((vehicle): vehicle is Vehicle => Boolean(vehicle));
 
       const requirementSatisfied = incident.requiredVehicles.every((requirement) => {
-        const matches = activeVehicles.filter((vehicle) => getVehicleCategory(vehicle.type) === requirement.category).length;
+        const matches = activeVehicles.filter((vehicle) => getFahrzeugKategorie(vehicle.type) === requirement.category).length;
         return matches >= requirement.amount;
       });
 
@@ -516,7 +462,7 @@ function App() {
       ].slice(0, GAME_CONFIG.completedIncidentHistoryLimit));
 
       setBalance((cur) => cur + completed.reduce((sum, incident) => sum + incident.reward, 0));
-      completed.forEach((incident) => addTransaction('Einnahme', `${incident.organization} – ${incident.stichwort} abgeschlossen`, incident.reward));
+      completed.forEach((incident) => addTransaction('Einnahme', `${incident.organization} – ${formatEinsatzTitel(incident)} abgeschlossen`, incident.reward));
       setVehicles((current) => current.map((vehicle) => {
         const isCompleted = completed.some((incident) =>
           incident.alarmedVehicles.some((assignment) => assignment.vehicleId === vehicle.id),
@@ -611,7 +557,7 @@ function App() {
     }
 
     const stationPrice = STATION_PRICE_BY_KIND[draftStationKind] ?? 0;
-    const vehiclePrice = VEHICLE_PRICE_BY_TYPE[draftStartVehicleType] ?? 0;
+    const vehiclePrice = getFahrzeugTyp(draftStartVehicleType)?.preis ?? 0;
     const totalCost = stationPrice + vehiclePrice;
 
     if (balance < totalCost) {
@@ -686,12 +632,16 @@ function App() {
     }
 
     const stationKind = stationPool[Math.floor(Math.random() * stationPool.length)].stationKind;
-    const templates = getAvailableIncidentTemplates(stationKind);
+    const templates = getAvailableIncidentTemplates(stationKind, vehicles);
+    if (templates.length === 0) {
+      alert('Für diese Wache gibt es aktuell keinen Einsatz, den deine Fahrzeuge schaffen können.');
+      return;
+    }
     const template = templates[Math.floor(Math.random() * templates.length)];
     const station = getBestIncidentStation(stationPool, template, vehicles);
     const coords = getRandomCoordsAroundStation(station, stationPool.length);
 
-    const newIncident = createSpielEinsatz(template, station, coords, `${template.type} in ${station.name}`);
+    const newIncident = createSpielEinsatz(template, station, coords, `${template.meldebild} in ${station.name}`);
 
     setIncidents((current) => [newIncident, ...current]);
     setSelectedIncidentId(newIncident.id);
@@ -703,6 +653,8 @@ function App() {
 
     setIncidents((current) => current.map((incident) => {
       if (incident.id !== incidentId) return incident;
+      // (Nach-)Alarmierung nur, solange der Einsatz noch nicht bearbeitet wird
+      if (incident.status !== 'offen' && incident.status !== 'alarmiert') return incident;
 
       const vehiclesToAssign = selectedVehicleIds
         .map((vehicleId) => {
@@ -784,179 +736,214 @@ function App() {
         </div>
       </header>
 
-      <main className="dashboard">
-        <aside className="sidebar">
-          <div className="panel-header">
-            <h2>Standorte</h2>
-            <span>{locations.length}</span>
-          </div>
+      <main className={`dashboard ${currentView === 'Karte' ? '' : 'dashboard--full'}`}>
+        {currentView === 'Karte' && (
+          <aside className="sidebar">
+            <div className="panel-header">
+              <h2>Standorte</h2>
+              <span>{locations.length}</span>
+            </div>
 
-          <div className="location-form">
-            <label className="field">
-              <span>Name</span>
-              <input
-                type="text"
-                value={draftName}
-                onChange={(event) => setDraftName(event.target.value)}
-                placeholder="z. B. Rettungswache Nord"
-              />
-            </label>
+            <div className="location-form">
+              <label className="field">
+                <span>Name</span>
+                <input
+                  type="text"
+                  value={draftName}
+                  onChange={(event) => setDraftName(event.target.value)}
+                  placeholder="z. B. Rettungswache Nord"
+                />
+              </label>
 
-            <label className="field">
-              <span>Typ</span>
-              <select value={draftType} onChange={(event) => setDraftType(event.target.value as LocationType)}>
-                <option value="station">Standort (station)</option>
-              </select>
-            </label>
+              <label className="field">
+                <span>Typ</span>
+                <select value={draftType} onChange={(event) => setDraftType(event.target.value as LocationType)}>
+                  <option value="station">Standort (station)</option>
+                </select>
+              </label>
 
-            <label className="field">
-              <span>Wachentyp</span>
-              <select value={draftStationKind} onChange={(event) => setDraftStationKind(event.target.value as any)}>
-                <option value="Rettungswache">Rettungswache</option>
-                <option value="Feuerwache">Feuerwache</option>
-              </select>
-            </label>
+              <label className="field">
+                <span>Wachentyp</span>
+                <select value={draftStationKind} onChange={(event) => setDraftStationKind(event.target.value as any)}>
+                  <option value="Rettungswache">Rettungswache</option>
+                  <option value="Feuerwache">Feuerwache</option>
+                </select>
+              </label>
 
-            <label className="field field--address">
-              <span>Adresse</span>
-              <input
-                type="text"
-                value={address}
-                onChange={(event) => setAddress(event.target.value)}
-                placeholder="Musterstraße 12, 14467 Potsdam"
-              />
+              <label className="field field--address">
+                <span>Adresse</span>
+                <input
+                  type="text"
+                  value={address}
+                  onChange={(event) => setAddress(event.target.value)}
+                  placeholder="Musterstraße 12, 14467 Potsdam"
+                />
+
+                <div style={{ marginTop: 8 }}>
+                  <button className="btn btn--primary" type="button" onClick={() => geocodeAddress(address)} disabled={geocodeLoading}>
+                    {geocodeLoading ? 'Suche...' : 'Adresse suchen'}
+                  </button>
+                </div>
+
+                {geocodeError && <div className="field-error">{geocodeError}</div>}
+
+                {geocodeResults.length > 0 && (
+                  <div className="geocode-results">
+                    <small style={{ display: 'block', color: 'rgba(255,255,255,0.7)', marginBottom: 6 }}>Gefundene Adressen — Auswahl zur Prüfung:</small>
+                    <ul>
+                      {geocodeResults.map((r, idx) => (
+                        <li key={r.place_id}>
+                          <button
+                            type="button"
+                            className={`view-menu-item ${selectedGeocodeIndex === idx ? 'active' : ''}`}
+                            onClick={() => {
+                                                                      const coords: [number, number] = [parseFloat(r.lat), parseFloat(r.lon)];
+                                                                      // Übernommenes Ergebnis im Adressfeld anzeigen
+                                                                      setAddress(r.display_name);
+                                                                      // Preview-Marker und Auswahl setzen
+                                                                      setTempCoords(coords);
+                                                                      setSelectedGeocodeIndex(idx);
+                                                                      // Liste der Suchergebnisse schließen
+                                                                      setGeocodeResults([]);
+                                                                      setGeocodeError(null);
+                                                                      // Karte zur Position zentrieren
+                                                                      try {
+                                                                        mapRef.current?.setView(coords, mapRef.current.getZoom?.() ?? 13);
+                                                                      } catch (e) { }
+                                                                    }}
+                                                              >
+                                                                    {r.display_name}
+                                                              </button>
+                                                            </li>
+                                    ))}
+                                  </ul>
+                                </div>
+                              )}
+              </label>
+
+              <p className="map-hint">Adresse eingeben → Adresse suchen → Karte zeigt Position (Vorschau). Klicke auf die Karte, um Vorschau zu verschieben.</p>
+
+              {/* Startfahrzeug Auswahl (genau EIN Fahrzeug) */}
+              <label className="field">
+                <span>Startfahrzeug</span>
+                <select value={draftStartVehicleType} onChange={(e) => setDraftStartVehicleType(e.target.value)}>
+                  {getFahrzeugTypenFuerWache(draftStationKind).map((fahrzeugTyp) => (
+                    <option key={fahrzeugTyp.typ} value={fahrzeugTyp.typ}>{fahrzeugTyp.typ}</option>
+                  ))}
+                </select>
+              </label>
+
+              <label className="field">
+                <span>Funkrufname (z. B. "Wache-1")</span>
+                <input type="text" value={draftStartVehicleCallsign} onChange={(e) => setDraftStartVehicleCallsign(e.target.value)} placeholder="z. B. RTW-1" />
+              </label>
+
+              <p className="map-hint">Anschließend auf „Standort erstellen“ klicken — Wache und das ausgewählte Startfahrzeug werden gemeinsam erstellt.</p>
 
               <div style={{ marginTop: 8 }}>
-                <button className="btn btn--primary" type="button" onClick={() => geocodeAddress(address)} disabled={geocodeLoading}>
-                  {geocodeLoading ? 'Suche...' : 'Adresse suchen'}
+                <button className="btn btn--primary" type="button" onClick={createLocationFromTemp} disabled={!tempCoords}>
+                  Standort erstellen
                 </button>
               </div>
-
-              {geocodeError && <div className="field-error">{geocodeError}</div>}
-
-              {geocodeResults.length > 0 && (
-                <div className="geocode-results">
-                  <small style={{ display: 'block', color: 'rgba(255,255,255,0.7)', marginBottom: 6 }}>Gefundene Adressen — Auswahl zur Prüfung:</small>
-                  <ul>
-                    {geocodeResults.map((r, idx) => (
-                      <li key={r.place_id}>
-                        <button
-                          type="button"
-                          className={`view-menu-item ${selectedGeocodeIndex === idx ? 'active' : ''}`}
-                          onClick={() => {
-                                                                    const coords: [number, number] = [parseFloat(r.lat), parseFloat(r.lon)];
-                                                                    // Übernommenes Ergebnis im Adressfeld anzeigen
-                                                                    setAddress(r.display_name);
-                                                                    // Preview-Marker und Auswahl setzen
-                                                                    setTempCoords(coords);
-                                                                    setSelectedGeocodeIndex(idx);
-                                                                    // Liste der Suchergebnisse schließen
-                                                                    setGeocodeResults([]);
-                                                                    setGeocodeError(null);
-                                                                    // Karte zur Position zentrieren
-                                                                    try {
-                                                                      mapRef.current?.setView(coords, mapRef.current.getZoom?.() ?? 13);
-                                                                    } catch (e) { }
-                                                                  }}
-                                                            >
-                                                                  {r.display_name}
-                                                            </button>
-                                                          </li>
-                                  ))}
-                                </ul>
-                              </div>
-                            )}
-            </label>
-
-            <p className="map-hint">Adresse eingeben → Adresse suchen → Karte zeigt Position (Vorschau). Klicke auf die Karte, um Vorschau zu verschieben.</p>
-
-            {/* Startfahrzeug Auswahl (genau EIN Fahrzeug) */}
-            <label className="field">
-              <span>Startfahrzeug</span>
-              <select value={draftStartVehicleType} onChange={(e) => setDraftStartVehicleType(e.target.value)}>
-                {draftStationKind === 'Rettungswache' ? (
-                  <option value="RTW">RTW</option>
-                ) : (
-                  <>
-                    <option value="LF 10">LF 10</option>
-                    <option value="LF 20">LF 20</option>
-                    <option value="TLF 2000">TLF 2000</option>
-                    <option value="TLF 3000">TLF 3000</option>
-                    <option value="TLF 4000">TLF 4000</option>
-                  </>
-                )}
-              </select>
-            </label>
-
-            <label className="field">
-              <span>Funkrufname (z. B. "Wache-1")</span>
-              <input type="text" value={draftStartVehicleCallsign} onChange={(e) => setDraftStartVehicleCallsign(e.target.value)} placeholder="z. B. RTW-1" />
-            </label>
-
-            <p className="map-hint">Anschließend auf „Standort erstellen“ klicken — Wache und das ausgewählte Startfahrzeug werden gemeinsam erstellt.</p>
-
-            <div style={{ marginTop: 8 }}>
-              <button className="btn btn--primary" type="button" onClick={createLocationFromTemp} disabled={!tempCoords}>
-                Standort erstellen
-              </button>
             </div>
-          </div>
 
-          <div className="location-list">
-            {locations.map((location) => (
-              <div key={location.id} className={`location-item-wrapper`}>
-                <button
-                  className={`location-item${selectedId === location.id ? ' location-item--active' : ''}`}
-                  onClick={() => setSelectedId(location.id)}
-                  type="button"
-                >
-                  <span className={`color-dot color-dot--${location.type}`} aria-hidden="true" />
-                  <span className="location-copy">
-                    <strong>{location.name}</strong>
-                    <small>{location.description}</small>
-                  </span>
-                </button>
-
-                {/* Lösch-Button nur für Wachen (station) anzeigen */}
-                {location.type === 'station' && (
+            <div className="location-list">
+              {locations.map((location) => (
+                <div key={location.id} className={`location-item-wrapper`}>
                   <button
-                  className="btn btn--danger delete-button"
-                    title={`Standort ${location.name} löschen`}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      deleteLocation(location.id);
-                    }}
+                    className={`location-item${selectedId === location.id ? ' location-item--active' : ''}`}
+                    onClick={() => setSelectedId(location.id)}
                     type="button"
                   >
-                    Löschen
+                    <span className={`color-dot color-dot--${location.type}`} aria-hidden="true" />
+                    <span className="location-copy">
+                      <strong>{location.name}</strong>
+                      <small>{location.description}</small>
+                    </span>
                   </button>
-                )}
-              </div>
-            ))}
-          </div>
 
-          <div className="detail-card">
-            <div className="detail-card__label">Ausgewählt</div>
-            <h3>{selectedLocation.name}</h3>
-            <p>{selectedLocation.details}</p>
-            <ul>
-              <li>Typ: {selectedLocation.type}</li>
-              <li>
-                Koordinaten: {selectedLocation.coords[0].toFixed(4)}, {selectedLocation.coords[1].toFixed(4)}
-              </li>
-            </ul>
-          </div>
-        </aside>
+                  {/* Lösch-Button nur für Wachen (station) anzeigen */}
+                  {location.type === 'station' && (
+                    <button
+                    className="btn btn--danger delete-button"
+                      title={`Standort ${location.name} löschen`}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        deleteLocation(location.id);
+                      }}
+                      type="button"
+                    >
+                      Löschen
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+
+            <div className="detail-card">
+              <div className="detail-card__label">Ausgewählt</div>
+              <h3>{selectedLocation.name}</h3>
+              <p>{selectedLocation.details}</p>
+              <ul>
+                <li>Typ: {selectedLocation.type}</li>
+                <li>
+                  Koordinaten: {selectedLocation.coords[0].toFixed(4)}, {selectedLocation.coords[1].toFixed(4)}
+                </li>
+              </ul>
+            </div>
+          </aside>
+        )}
 
         {currentView === 'Karte' ? (
           <section className="map-panel">
+            <KarteEinsatzLeiste
+              incidents={incidents.filter((incident) => incident.status !== 'abgeschlossen')}
+              selectedId={mapIncidentId}
+              onSelect={(incident) => {
+                setMapIncidentId(incident.id);
+                mapRef.current?.setView(incident.coords, Math.max(mapRef.current.getZoom(), 14));
+              }}
+            />
+
+            {(() => {
+              const mapIncident = incidents.find((incident) => incident.id === mapIncidentId && incident.status !== 'abgeschlossen');
+              return mapIncident ? (
+                <KarteEinsatzPanel
+                  incident={mapIncident}
+                  vehicles={vehicles}
+                  onClose={() => setMapIncidentId(null)}
+                  onOpenInEinsaetze={() => {
+                    setSelectedIncidentId(mapIncident.id);
+                    setMapIncidentId(null);
+                    setCurrentView('Einsätze');
+                  }}
+                />
+              ) : null;
+            })()}
+
             <MapContainer center={[48.775, 9.185]} zoom={13} scrollWheelZoom className="map-view" ref={mapRef}>
-              <TileLayer
-                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-              />
+              {mapStyle === 'karte' ? (
+                <TileLayer
+                  key="karte"
+                  attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
+                  url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
+                  subdomains="abcd"
+                  maxZoom={20}
+                />
+              ) : (
+                <TileLayer
+                  key="satellit"
+                  attribution='Tiles &copy; Esri &mdash; Source: Esri, Maxar, Earthstar Geographics, and the GIS User Community'
+                  url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
+                  maxZoom={19}
+                />
+              )}
 
               <MapClickHandler onMapClick={handleMapClick} />
+              <MapStyleToggle
+                mapStyle={mapStyle}
+                onToggle={() => setMapStyle((current) => (current === 'karte' ? 'satellit' : 'karte'))}
+              />
 
               {tempCoords && (
                 <Marker position={tempCoords} icon={createMarkerIcon('#2563eb')}>
@@ -993,24 +980,17 @@ function App() {
                   <Marker
                     key={incident.id}
                     position={incident.coords}
-                    icon={createMarkerIcon('#f59e0b')}
-                    eventHandlers={{ click: () => setSelectedIncidentId(incident.id) }}
-                  >
-                    <Popup>
-                      <strong>{incident.stichwort}</strong>
-                      <br />
-                      {incident.organization}
-                      <br />
-                      Status: {EINSATZ_STATUS_LABELS[incident.status]}
-                    </Popup>
-                  </Marker>
+                    icon={createIncidentMarkerIcon(incident.status, incident.id === mapIncidentId)}
+                    zIndexOffset={incident.id === mapIncidentId ? 1000 : 500}
+                    eventHandlers={{ click: () => setMapIncidentId(incident.id) }}
+                  />
                 ))}
             </MapContainer>
           </section>
         ) : (
           <section className="panel--secondary" style={{ padding: 16 }}>
             {currentView === 'Wachen' && (
-              <WachenView locations={locations} selectedId={selectedId} setSelectedId={setSelectedId} vehicles={vehicles} />
+              <WachenView locations={locations} selectedId={selectedId} setSelectedId={setSelectedId} vehicles={vehicles} buyVehicle={buyVehicle} />
             )}
 
             {currentView === 'Fahrzeuge' && (

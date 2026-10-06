@@ -6,7 +6,7 @@ export default function EinstellungenView({ defaultView }: { defaultView?: strin
   return (
     <div>
       <h2>Einstellungen</h2>
-      <div style={{ padding: 8, background: '#fff', borderRadius: 8 }}>
+      <div style={{ padding: 8, background: 'var(--color-surface)', borderRadius: 8 }}>
         <label style={{ display: 'block', marginBottom: 8 }}>
           Standardansicht beim Start
         </label>
@@ -16,7 +16,7 @@ export default function EinstellungenView({ defaultView }: { defaultView?: strin
           <option>Fahrzeuge</option>
           <option>Einsätze</option>
         </select>
-        <p style={{ fontSize: 12, color: '#6b7280', marginTop: 8 }}>Hinweis: Diese Einstellung ist derzeit nur UI-seitig vorbereitet.</p>
+        <p style={{ fontSize: 12, color: 'var(--color-text-muted)', marginTop: 8 }}>Hinweis: Diese Einstellung ist derzeit nur UI-seitig vorbereitet.</p>
       </div>
     </div>
   );

@@ -28,9 +28,9 @@ export default function FinanzenView({ balance, locations, vehicles, transaction
       <h3>Transaktionsverlauf</h3>
       <ul style={{ listStyle: 'none', padding: 0, display: 'grid', gap: 8 }}>
         {transactions.map((tx) => (
-          <li key={tx.id} style={{ background: '#fff', padding: 10, borderRadius: 8, boxShadow: '0 6px 18px rgba(0,0,0,0.04)' }}>
+          <li key={tx.id} style={{ background: 'var(--color-surface)', padding: 10, borderRadius: 8, boxShadow: 'var(--shadow-card)' }}>
             <div><strong>{tx.kind}</strong> — {tx.label}</div>
-            <div style={{ fontSize: 12, color: '#6b7280' }}>{new Date(tx.createdAt).toLocaleString('de-DE')} · {tx.amount} €</div>
+            <div style={{ fontSize: 12, color: 'var(--color-text-muted)' }}>{new Date(tx.createdAt).toLocaleString('de-DE')} · {tx.amount} €</div>
           </li>
         ))}
         {transactions.length === 0 && <li>Keine Transaktionen.</li>}

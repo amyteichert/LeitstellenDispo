@@ -1,16 +1,22 @@
 :root {
-  /* LeitstellenDispo Design – hell, rot */
+  /* LeitstellenDispo Design – dunkles Weinrot */
+  color-scheme: dark;
   --color-primary: #c41e3a;
   --color-primary-dark: #9a1830;
-  --color-primary-light: #fde8ec;
-  --color-bg: #f5f6f8;
-  --color-surface: #ffffff;
-  --color-text: #1a1a2e;
-  --color-text-muted: #6b7280;
-  --color-border: #e5e7eb;
+  --color-primary-light: rgba(196, 30, 58, 0.14);
+  --color-primary-text: #f08a9b; /* Rot-Akzent für Text auf dunklem Grund */
+  --color-bg: #150a0d;
+  --color-surface: #211015;
+  --color-surface-raised: #2b151c;
+  --color-input: #1a0c10;
+  --color-text: #f3e8ea;
+  --color-text-muted: #b09aa0;
+  --color-border: #3a1d25;
+  --color-border-strong: #4d2631;
   --color-success: #16a34a;
-  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.08);
-  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.1);
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.35);
+  --shadow-card: 0 6px 18px rgba(0, 0, 0, 0.35);
   --radius: 8px;
   --font: 'Inter', system-ui, -apple-system, sans-serif;
 }

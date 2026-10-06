@@ -19,9 +19,9 @@ app.get('/api/info', (_req, res) => {
 
 // Feste Beispieldaten für den ersten Durchstich – wird später durch echte Einsatzlogik ersetzt.
 const beispielEinsaetze: Einsatz[] = [
-  { id: 'E-001', stichwort: 'RD 1 – Internistischer Notfall', status: 'offen' },
-  { id: 'E-002', stichwort: 'B 2 – Zimmerbrand', status: 'alarmiert' },
-  { id: 'E-003', stichwort: 'TH 1 – Ölspur', status: 'in_bearbeitung' },
+  { id: 'E-001', stichwort: 'RD 1', meldebild: 'Internistischer Notfall', status: 'offen' },
+  { id: 'E-002', stichwort: 'B 2', meldebild: 'Zimmerbrand', status: 'alarmiert' },
+  { id: 'E-003', stichwort: 'TH 1', meldebild: 'Ölspur', status: 'in_bearbeitung' },
 ];
 
 app.get('/api/einsaetze', (_req, res) => {
