@@ -1,12 +1,5 @@
 import { useEffect, useState } from 'react';
-import type { Einsatz, EinsatzStatus } from '@leitstellendispo/shared';
-
-export const einsatzStatusLabels: Record<EinsatzStatus, string> = {
-  offen: 'Offen',
-  alarmiert: 'Fahrzeuge alarmiert',
-  in_bearbeitung: 'In Bearbeitung',
-  abgeschlossen: 'Abgeschlossen',
-};
+import { EINSATZ_STATUS_LABELS, type Einsatz } from '@leitstellendispo/shared';
 
 export function useServerEinsaetze() {
   const [einsaetze, setEinsaetze] = useState<Einsatz[]>([]);
@@ -67,7 +60,7 @@ export default function ServerEinsaetzeList({
             >
               <strong>{einsatz.stichwort}</strong>
               <div style={{ fontSize: 12, color: '#6b7280' }}>
-                {einsatz.id} · {einsatzStatusLabels[einsatz.status]}
+                {einsatz.id} · {EINSATZ_STATUS_LABELS[einsatz.status]}
               </div>
             </button>
           </li>

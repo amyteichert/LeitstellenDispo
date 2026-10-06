@@ -1,29 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
+import {
+  EINSATZ_STATUS_LABELS,
+  type AbgeschlossenerSpielEinsatz,
+  type SpielEinsatz,
+} from '@leitstellendispo/shared';
 import type { MapLocation } from '../types';
 import type { Vehicle } from './FahrzeugeView';
-import ServerEinsaetzeList, { einsatzStatusLabels, useServerEinsaetze } from './ServerEinsaetzeList';
-
-type IncidentStatus = 'Offen' | 'Fahrzeuge alarmiert' | 'In Bearbeitung' | 'Abgeschlossen';
-
-type Incident = {
-  id: string;
-  type: string;
-  organization: 'Rettungsdienst' | 'Feuerwehr';
-  status: IncidentStatus;
-  coords: [number, number];
-  address: string;
-  generatedByStationId: string;
-  generatedByStationName: string;
-  requiredVehicles: Array<{ id: string; category: 'RTW' | 'Löschfahrzeug'; amount: number }>;
-  alarmedVehicles: Array<{ vehicleId: string; distanceKm: number; etaSeconds: number; arrivalAt: number }>;
-  reward: number;
-  durationSeconds: number;
-  createdAt: number;
-  processingStartedAt?: number;
-  processingEndsAt?: number;
-  completedAt?: number;
-  totalDurationSeconds?: number;
-};
+import ServerEinsaetzeList, { useServerEinsaetze } from './ServerEinsaetzeList';
 
 const getVehicleCategory = (type?: string) => {
   if (!type) return null;
@@ -52,11 +35,6 @@ const formatEtaLabel = (seconds: number) => {
   return `${totalSeconds} Sek.`;
 };
 
-type CompletedIncidentHistoryEntry = Incident & {
-  completedAt: number;
-  totalDurationSeconds: number;
-};
-
 export default function EinsaetzeView({
   incidents,
   completedIncidentHistory,
@@ -69,8 +47,8 @@ export default function EinsaetzeView({
   nowMs,
   stats,
 }: {
-  incidents: Incident[];
-  completedIncidentHistory: CompletedIncidentHistoryEntry[];
+  incidents: SpielEinsatz[];
+  completedIncidentHistory: AbgeschlossenerSpielEinsatz[];
   vehicles: Vehicle[];
   locations: MapLocation[];
   selectedIncidentId: string | null;
@@ -106,7 +84,7 @@ export default function EinsaetzeView({
   );
 
   const availableVehiclesForSelectedIncident = useMemo(() => {
-    if (!selectedIncident || selectedIncident.status === 'Abgeschlossen') return [] as Vehicle[];
+    if (!selectedIncident || selectedIncident.status === 'abgeschlossen') return [] as Vehicle[];
 
     return vehicles.filter((vehicle) => {
       if (vehicle.status !== 'Einsatzbereit') return false;
@@ -121,7 +99,7 @@ export default function EinsaetzeView({
     });
   }, [selectedIncident, vehicles, locations]);
 
-  const visibleIncidents = incidents.filter((incident) => incident.status !== 'Abgeschlossen');
+  const visibleIncidents = incidents.filter((incident) => incident.status !== 'abgeschlossen');
   const completedList = useMemo(
     () => [...completedIncidentHistory].sort((a, b) => b.completedAt - a.completedAt),
     [completedIncidentHistory],
@@ -186,9 +164,9 @@ export default function EinsaetzeView({
                       onClick={() => selectLocalIncident(incident.id)}
                       style={{ width: '100%', textAlign: 'left' }}
                     >
-                      <strong>{incident.type}</strong>
+                      <strong>{incident.stichwort}</strong>
                       <div style={{ fontSize: 12, color: '#6b7280' }}>
-                        {incident.organization} · {incident.status} · {incident.generatedByStationName}
+                        {incident.organization} · {EINSATZ_STATUS_LABELS[incident.status]} · {incident.generatedByStationName}
                       </div>
                       <div style={{ fontSize: 12, color: '#6b7280' }}>
                         {incident.reward} € · {incident.alarmedVehicles.length} alarmiert
@@ -215,7 +193,7 @@ export default function EinsaetzeView({
                       onClick={() => selectLocalIncident(incident.id)}
                       style={{ width: '100%', textAlign: 'left' }}
                     >
-                      <strong>{incident.type}</strong>
+                      <strong>{incident.stichwort}</strong>
                       <div style={{ fontSize: 12, color: '#6b7280' }}>
                         {incident.organization} · Abgeschlossen · {incident.generatedByStationName}
                       </div>
@@ -234,20 +212,20 @@ export default function EinsaetzeView({
           {selectedServerEinsatz ? (
             <div style={{ background: '#fff', padding: 16, borderRadius: 12, boxShadow: '0 6px 18px rgba(0,0,0,0.04)' }}>
               <h3>{selectedServerEinsatz.stichwort}</h3>
-              <p><strong>Status:</strong> {einsatzStatusLabels[selectedServerEinsatz.status]}</p>
+              <p><strong>Status:</strong> {EINSATZ_STATUS_LABELS[selectedServerEinsatz.status]}</p>
               <p><strong>Einsatznummer:</strong> {selectedServerEinsatz.id}</p>
               <p style={{ fontSize: 12, color: '#6b7280' }}>Server-Einsatz – Fahrzeuge und Alarmierung folgen später.</p>
             </div>
           ) : selectedIncident ? (
             <div style={{ background: '#fff', padding: 16, borderRadius: 12, boxShadow: '0 6px 18px rgba(0,0,0,0.04)' }}>
-              <h3>{selectedIncident.type}</h3>
-              <p><strong>Status:</strong> {selectedIncident.status}</p>
+              <h3>{selectedIncident.stichwort}</h3>
+              <p><strong>Status:</strong> {EINSATZ_STATUS_LABELS[selectedIncident.status]}</p>
               <p><strong>Organisation:</strong> {selectedIncident.organization}</p>
               <p><strong>Adresse:</strong> {selectedIncident.address}</p>
               <p><strong>Erzeugt durch:</strong> {selectedIncident.generatedByStationName}</p>
               <p><strong>Belohnung:</strong> {selectedIncident.reward} €</p>
 
-              {selectedIncident.status === 'Abgeschlossen' && (
+              {selectedIncident.status === 'abgeschlossen' && (
                 <>
                   <p><strong>Abschlusszeit:</strong> {formatDateTime(selectedIncident.completedAt ?? nowMs)}</p>
                   <p><strong>Einsatzdauer:</strong> {formatEtaLabel(selectedIncident.totalDurationSeconds ?? selectedIncident.durationSeconds)}</p>
@@ -269,7 +247,7 @@ export default function EinsaetzeView({
                   {selectedIncident.alarmedVehicles.map((assignment) => {
                     const vehicle = vehicles.find((item) => item.id === assignment.vehicleId);
                     const callSign = vehicle?.callsign ?? vehicle?.name ?? 'Fahrzeug';
-                    const durationLabel = selectedIncident.status === 'Abgeschlossen'
+                    const durationLabel = selectedIncident.status === 'abgeschlossen'
                       ? `– ${callSign}`
                       : `– ${assignment.distanceKm.toFixed(1)} km – ${assignment.arrivalAt > nowMs ? `Ankunft in ${formatEtaLabel((assignment.arrivalAt - nowMs) / 1000)}` : 'angekommen'}`;
 
@@ -282,7 +260,7 @@ export default function EinsaetzeView({
                 </ul>
               )}
 
-              {selectedIncident.status !== 'Abgeschlossen' ? (
+              {selectedIncident.status !== 'abgeschlossen' ? (
                 <>
                   <h4>Verfügbare passende Fahrzeuge</h4>
                   {availableVehiclesForSelectedIncident.length === 0 ? (
@@ -308,7 +286,7 @@ export default function EinsaetzeView({
                     </ul>
                   )}
 
-                  {selectedIncident.status === 'Offen' && (
+                  {selectedIncident.status === 'offen' && (
                     <div style={{ marginTop: 12 }}>
                       <button
                         className="btn btn--primary"
@@ -321,7 +299,7 @@ export default function EinsaetzeView({
                     </div>
                   )}
 
-                  {selectedIncident.status === 'In Bearbeitung' && selectedIncident.processingEndsAt && (
+                  {selectedIncident.status === 'in_bearbeitung' && selectedIncident.processingEndsAt && (
                     <p><strong>Einsatz wird bearbeitet – noch</strong> {Math.max(0, Math.ceil((selectedIncident.processingEndsAt - Date.now()) / 1000))} Sek.</p>
                   )}
                 </>

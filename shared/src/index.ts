@@ -44,25 +44,61 @@ export interface Vehicle {
   description?: string;
 }
 
-export interface Incident {
-  id: string;
-  title?: string;
-  organizationId?: string;
-  location?: GameLocation;
-  type?: string;
-  status?: string;
-  priority?: string;
-  assignedVehicleIds?: string[];
-  notes?: string;
-}
-
 export type EinsatzStatus = 'offen' | 'alarmiert' | 'in_bearbeitung' | 'abgeschlossen';
 
+export const EINSATZ_STATUS_LABELS: Record<EinsatzStatus, string> = {
+  offen: 'Offen',
+  alarmiert: 'Fahrzeuge alarmiert',
+  in_bearbeitung: 'In Bearbeitung',
+  abgeschlossen: 'Abgeschlossen',
+};
+
+export type EinsatzOrganisation = 'Rettungsdienst' | 'Feuerwehr';
+
+export type FahrzeugKategorie = 'RTW' | 'Löschfahrzeug';
+
+export interface FahrzeugBedarf {
+  id: string;
+  category: FahrzeugKategorie;
+  amount: number;
+}
+
+export interface AlarmiertesFahrzeug {
+  vehicleId: string;
+  distanceKm: number;
+  etaSeconds: number;
+  arrivalAt: number;
+}
+
+/** Basisdaten eines Einsatzes – so liefert ihn aktuell auch der Server. */
 export interface Einsatz {
   id: string;
   stichwort: string;
   status: EinsatzStatus;
 }
+
+/** Vollständiger Einsatz, wie ihn die Spiellogik verwendet. */
+export interface SpielEinsatz extends Einsatz {
+  organization: EinsatzOrganisation;
+  coords: [number, number];
+  address: string;
+  generatedByStationId: string;
+  generatedByStationName: string;
+  requiredVehicles: FahrzeugBedarf[];
+  alarmedVehicles: AlarmiertesFahrzeug[];
+  reward: number;
+  durationSeconds: number;
+  createdAt: number;
+  processingStartedAt?: number;
+  processingEndsAt?: number;
+  completedAt?: number;
+  totalDurationSeconds?: number;
+}
+
+export type AbgeschlossenerSpielEinsatz = SpielEinsatz & {
+  completedAt: number;
+  totalDurationSeconds: number;
+};
 
 export interface GameUser {
   id: string;

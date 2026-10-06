@@ -1,7 +1,16 @@
 import { useMemo, useState, useRef, useEffect } from 'react';
 import { MapContainer, Marker, Popup, TileLayer, useMapEvents } from 'react-leaflet';
 import L, { type LeafletMouseEvent } from 'leaflet';
-import { APP_VERSION } from '@leitstellendispo/shared';
+import {
+  APP_VERSION,
+  EINSATZ_STATUS_LABELS,
+  type AbgeschlossenerSpielEinsatz,
+  type AlarmiertesFahrzeug,
+  type EinsatzOrganisation,
+  type FahrzeugBedarf,
+  type FahrzeugKategorie,
+  type SpielEinsatz,
+} from '@leitstellendispo/shared';
 import 'leaflet/dist/leaflet.css';
 import './App.css';
 
@@ -28,9 +37,6 @@ const VEHICLE_PRICE_BY_TYPE: Record<string, number> = {
   'TLF 4000': 0,
 };
 
-type IncidentStatus = 'Offen' | 'Fahrzeuge alarmiert' | 'In Bearbeitung' | 'Abgeschlossen';
-type VehicleCategory = 'RTW' | 'Löschfahrzeug';
-
 type FinanceTransaction = {
   id: string;
   kind: 'Einnahme' | 'Ausgabe';
@@ -39,51 +45,13 @@ type FinanceTransaction = {
   createdAt: string;
 };
 
-type IncidentRequirement = {
-  id: string;
-  category: VehicleCategory;
-  amount: number;
-};
-
-type AlarmedVehicle = {
-  vehicleId: string;
-  distanceKm: number;
-  etaSeconds: number;
-  arrivalAt: number;
-};
-
 type IncidentTemplate = {
   id: string;
   type: string;
-  organization: 'Rettungsdienst' | 'Feuerwehr';
-  requiredVehicles: IncidentRequirement[];
+  organization: EinsatzOrganisation;
+  requiredVehicles: FahrzeugBedarf[];
   reward: number;
   durationSeconds: number;
-};
-
-type Incident = {
-  id: string;
-  type: string;
-  organization: 'Rettungsdienst' | 'Feuerwehr';
-  status: IncidentStatus;
-  coords: [number, number];
-  address: string;
-  generatedByStationId: string;
-  generatedByStationName: string;
-  requiredVehicles: IncidentRequirement[];
-  alarmedVehicles: AlarmedVehicle[];
-  reward: number;
-  durationSeconds: number;
-  createdAt: number;
-  processingStartedAt?: number;
-  processingEndsAt?: number;
-  completedAt?: number;
-  totalDurationSeconds?: number;
-};
-
-type CompletedIncident = Incident & {
-  completedAt: number;
-  totalDurationSeconds: number;
 };
 
 const initialLocations: MapLocation[] = [
@@ -134,7 +102,7 @@ const INCIDENT_SPAWN_CONFIG = {
   preferredVehicleMinRadiusKm: 0.15,
 } as const;
 
-const getVehicleCategory = (type?: string): VehicleCategory | null => {
+const getVehicleCategory = (type?: string): FahrzeugKategorie | null => {
   if (!type) return null;
   if (type === 'RTW') return 'RTW';
   if (['LF 10', 'LF 20', 'TLF 2000', 'TLF 3000', 'TLF 4000'].includes(type)) return 'Löschfahrzeug';
@@ -336,6 +304,27 @@ const getRandomCoordsAroundStation = (station: MapLocation, stationCount: number
   return [clamp(station.coords[0] + latShift, 47.5, 55.2), clamp(station.coords[1] + lngShift, 7.5, 14.9)];
 };
 
+const createSpielEinsatz = (
+  template: IncidentTemplate,
+  station: MapLocation,
+  coords: [number, number],
+  address: string,
+): SpielEinsatz => ({
+  id: `incident-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+  stichwort: template.type,
+  organization: template.organization,
+  status: 'offen',
+  coords,
+  address,
+  generatedByStationId: station.id,
+  generatedByStationName: station.name,
+  requiredVehicles: template.requiredVehicles,
+  alarmedVehicles: [],
+  reward: template.reward,
+  durationSeconds: template.durationSeconds,
+  createdAt: Date.now(),
+});
+
 function MapClickHandler({
   onMapClick,
 }: {
@@ -382,8 +371,8 @@ function App() {
     setVehicles((cur) => [...cur, { ...v, id, status: v.status ?? 'Einsatzbereit' }]);
   };
 
-  const [incidents, setIncidents] = useState<Incident[]>([]);
-  const [completedIncidentHistory, setCompletedIncidentHistory] = useState<CompletedIncident[]>([]);
+  const [incidents, setIncidents] = useState<SpielEinsatz[]>([]);
+  const [completedIncidentHistory, setCompletedIncidentHistory] = useState<AbgeschlossenerSpielEinsatz[]>([]);
   const [selectedIncidentId, setSelectedIncidentId] = useState<string | null>(null);
   const [nowMs, setNowMs] = useState(Date.now());
 
@@ -410,11 +399,11 @@ function App() {
   useEffect(() => {
     const stationPool = locations.filter((location) => location.type === 'station');
     if (stationPool.length === 0) return;
-    if (incidents.filter((incident) => incident.status !== 'Abgeschlossen').length >= GAME_CONFIG.maxOpenIncidents) return;
+    if (incidents.filter((incident) => incident.status !== 'abgeschlossen').length >= GAME_CONFIG.maxOpenIncidents) return;
 
     const interval = setInterval(() => {
       setIncidents((current) => {
-        if (current.filter((incident) => incident.status !== 'Abgeschlossen').length >= GAME_CONFIG.maxOpenIncidents) {
+        if (current.filter((incident) => incident.status !== 'abgeschlossen').length >= GAME_CONFIG.maxOpenIncidents) {
           return current;
         }
 
@@ -427,21 +416,7 @@ function App() {
         const station = getBestIncidentStation(activeStations, template, vehicles);
         const coords = getRandomCoordsAroundStation(station, activeStations.length);
 
-        const nextIncident: Incident = {
-          id: `incident-${Date.now()}-${Math.random().toString(16).slice(2)}`,
-          type: template.type,
-          organization: template.organization,
-          status: 'Offen',
-          coords,
-          address: `${template.type} in der Nähe von ${station.name}`,
-          generatedByStationId: station.id,
-          generatedByStationName: station.name,
-          requiredVehicles: template.requiredVehicles,
-          alarmedVehicles: [],
-          reward: template.reward,
-          durationSeconds: template.durationSeconds,
-          createdAt: Date.now(),
-        };
+        const nextIncident = createSpielEinsatz(template, station, coords, `${template.type} in der Nähe von ${station.name}`);
 
         return [nextIncident, ...current];
       });
@@ -459,7 +434,7 @@ function App() {
     let changed = false;
     const nextVehicles: Vehicle[] = vehicles.map((vehicle): Vehicle => {
       const activeIncident = incidents.find(
-        (incident) => incident.status !== 'Abgeschlossen' && incident.alarmedVehicles.some((entry) => entry.vehicleId === vehicle.id),
+        (incident) => incident.status !== 'abgeschlossen' && incident.alarmedVehicles.some((entry) => entry.vehicleId === vehicle.id),
       );
 
       if (!activeIncident) {
@@ -483,9 +458,9 @@ function App() {
       return vehicle;
     });
 
-    const completed: Incident[] = [];
-    const nextIncidents: Incident[] = incidents.map((incident): Incident => {
-      if (incident.status === 'Abgeschlossen') return incident;
+    const completed: SpielEinsatz[] = [];
+    const nextIncidents: SpielEinsatz[] = incidents.map((incident): SpielEinsatz => {
+      if (incident.status === 'abgeschlossen') return incident;
 
       const activeVehicles = incident.alarmedVehicles
         .map((assignment) => nextVehicles.find((vehicle) => vehicle.id === assignment.vehicleId))
@@ -499,24 +474,24 @@ function App() {
       const allArrived = incident.alarmedVehicles.every((assignment) => nowMs >= assignment.arrivalAt);
       let updated = { ...incident };
 
-      if (incident.alarmedVehicles.length > 0 && incident.status === 'Offen') {
-        updated.status = 'Fahrzeuge alarmiert';
+      if (incident.alarmedVehicles.length > 0 && incident.status === 'offen') {
+        updated.status = 'alarmiert';
         changed = true;
       }
 
-      if (updated.status === 'Fahrzeuge alarmiert' && requirementSatisfied && allArrived && !updated.processingStartedAt) {
-        updated.status = 'In Bearbeitung';
+      if (updated.status === 'alarmiert' && requirementSatisfied && allArrived && !updated.processingStartedAt) {
+        updated.status = 'in_bearbeitung';
         updated.processingStartedAt = nowMs;
         updated.processingEndsAt = nowMs + updated.durationSeconds * 1000;
         changed = true;
       }
 
-      if (updated.status === 'In Bearbeitung') {
+      if (updated.status === 'in_bearbeitung') {
         if (!updated.processingEndsAt) {
           updated.processingEndsAt = nowMs + updated.durationSeconds * 1000;
         }
         if (nowMs >= updated.processingEndsAt) {
-          updated.status = 'Abgeschlossen';
+          updated.status = 'abgeschlossen';
           completed.push(updated);
           changed = true;
         }
@@ -533,7 +508,7 @@ function App() {
           1,
           Math.round(((incident.processingEndsAt ?? nowMs) - (incident.processingStartedAt ?? incident.createdAt)) / 1000),
         ),
-      })) satisfies CompletedIncident[];
+      })) satisfies AbgeschlossenerSpielEinsatz[];
 
       setCompletedIncidentHistory((current) => [
         ...completedHistoryEntries,
@@ -541,7 +516,7 @@ function App() {
       ].slice(0, GAME_CONFIG.completedIncidentHistoryLimit));
 
       setBalance((cur) => cur + completed.reduce((sum, incident) => sum + incident.reward, 0));
-      completed.forEach((incident) => addTransaction('Einnahme', `${incident.organization} – ${incident.type} abgeschlossen`, incident.reward));
+      completed.forEach((incident) => addTransaction('Einnahme', `${incident.organization} – ${incident.stichwort} abgeschlossen`, incident.reward));
       setVehicles((current) => current.map((vehicle) => {
         const isCompleted = completed.some((incident) =>
           incident.alarmedVehicles.some((assignment) => assignment.vehicleId === vehicle.id),
@@ -554,7 +529,7 @@ function App() {
 
     if (changed) {
       setVehicles(nextVehicles);
-      setIncidents(nextIncidents.filter((incident) => incident.status !== 'Abgeschlossen'));
+      setIncidents(nextIncidents.filter((incident) => incident.status !== 'abgeschlossen'));
     }
   }, [incidents, vehicles, nowMs]);
 
@@ -716,21 +691,7 @@ function App() {
     const station = getBestIncidentStation(stationPool, template, vehicles);
     const coords = getRandomCoordsAroundStation(station, stationPool.length);
 
-    const newIncident: Incident = {
-      id: `incident-${Date.now()}-${Math.random().toString(16).slice(2)}`,
-      type: template.type,
-      organization: template.organization,
-      status: 'Offen',
-      coords,
-      address: `${template.type} in ${station.name}`,
-      generatedByStationId: station.id,
-      generatedByStationName: station.name,
-      requiredVehicles: template.requiredVehicles,
-      alarmedVehicles: [],
-      reward: template.reward,
-      durationSeconds: template.durationSeconds,
-      createdAt: Date.now(),
-    };
+    const newIncident = createSpielEinsatz(template, station, coords, `${template.type} in ${station.name}`);
 
     setIncidents((current) => [newIncident, ...current]);
     setSelectedIncidentId(newIncident.id);
@@ -755,9 +716,9 @@ function App() {
             distanceKm: Number(distance.toFixed(1)),
             etaSeconds,
             arrivalAt: Date.now() + etaSeconds * 1000,
-          } satisfies AlarmedVehicle;
+          } satisfies AlarmiertesFahrzeug;
         })
-        .filter((entry): entry is AlarmedVehicle => Boolean(entry));
+        .filter((entry): entry is AlarmiertesFahrzeug => Boolean(entry));
 
       const nextAlarmed = [...incident.alarmedVehicles, ...vehiclesToAssign.filter(
         (entry) => !incident.alarmedVehicles.some((existing) => existing.vehicleId === entry.vehicleId),
@@ -770,7 +731,7 @@ function App() {
       return {
         ...incident,
         alarmedVehicles: nextAlarmed,
-        status: nextAlarmed.length > 0 ? 'Fahrzeuge alarmiert' : 'Offen',
+        status: nextAlarmed.length > 0 ? 'alarmiert' : 'offen',
       };
     }));
   };
@@ -1027,7 +988,7 @@ function App() {
               })}
 
               {incidents
-                .filter((incident) => incident.status !== 'Abgeschlossen')
+                .filter((incident) => incident.status !== 'abgeschlossen')
                 .map((incident) => (
                   <Marker
                     key={incident.id}
@@ -1036,11 +997,11 @@ function App() {
                     eventHandlers={{ click: () => setSelectedIncidentId(incident.id) }}
                   >
                     <Popup>
-                      <strong>{incident.type}</strong>
+                      <strong>{incident.stichwort}</strong>
                       <br />
                       {incident.organization}
                       <br />
-                      Status: {incident.status}
+                      Status: {EINSATZ_STATUS_LABELS[incident.status]}
                     </Popup>
                   </Marker>
                 ))}
