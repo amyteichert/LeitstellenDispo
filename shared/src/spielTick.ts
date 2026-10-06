@@ -7,6 +7,7 @@ import {
   type SpielEinsatz,
 } from './daten.js';
 import { getFahrzeitSekunden, getStationCoords } from './geo.js';
+import { GAME_CONFIG } from './konfig.js';
 import type { MapLocation, Vehicle } from './typen.js';
 
 export interface SpielTickZustand {
@@ -21,6 +22,8 @@ export interface SpielTickErgebnis {
   incidents: SpielEinsatz[];
   /** In diesem Schritt abgeschlossene Einsätze – für Belohnung und Verlauf */
   abgeschlossen: AbgeschlossenerSpielEinsatz[];
+  /** Einsätze, die nie alarmiert wurden und nach langer Zeit verschwunden sind */
+  verfallen: SpielEinsatz[];
   geaendert: boolean;
 }
 
@@ -71,8 +74,30 @@ export const berechneSpielTick = ({ vehicles, incidents, locations }: SpielTickZ
   });
 
   const completed: SpielEinsatz[] = [];
+  const verfallen: SpielEinsatz[] = [];
   const nextIncidents: SpielEinsatz[] = incidents.map((incident): SpielEinsatz => {
     if (incident.status === 'abgeschlossen') return incident;
+
+    // Einsätze, um die sich niemand kümmert
+    if (incident.status === 'offen' && incident.alarmedVehicles.length === 0) {
+      if (jetzt - incident.createdAt >= GAME_CONFIG.einsatzVerfallNachMs) {
+        verfallen.push(incident);
+        geaendert = true;
+        return incident;
+      }
+      if (incident.eskalationOhneAlarmAt !== undefined && jetzt >= incident.eskalationOhneAlarmAt) {
+        const eskalation = findeEinsatzVorlage(incident.vorlageId)?.eskalation;
+        const ziel = eskalation ? findeEinsatzVorlage(eskalation.zielVorlageId) : undefined;
+        const fahrzeugTypen = nextVehicles.filter((vehicle) => vehicle.stationId).map((vehicle) => vehicle.type);
+        geaendert = true;
+        // Lage verschärft sich – nur in Einsätze, die der Spieler überhaupt schaffen kann
+        if (eskalation && ziel && istVorlageErfuellbar(ziel, fahrzeugTypen)) {
+          return eskaliereEinsatz(incident, ziel, eskalation.meldung, incident.eskalationOhneAlarmAt);
+        }
+        return { ...incident, eskalationOhneAlarmAt: undefined };
+      }
+      return incident;
+    }
 
     const activeVehicles = incident.alarmedVehicles
       .map((assignment) => nextVehicles.find((vehicle) => vehicle.id === assignment.vehicleId))
@@ -162,13 +187,14 @@ export const berechneSpielTick = ({ vehicles, incidents, locations }: SpielTickZ
   }
 
   if (!geaendert) {
-    return { vehicles, incidents, abgeschlossen: [], geaendert: false };
+    return { vehicles, incidents, abgeschlossen: [], verfallen: [], geaendert: false };
   }
 
   return {
     vehicles: nextVehicles,
-    incidents: nextIncidents.filter((incident) => incident.status !== 'abgeschlossen'),
+    incidents: nextIncidents.filter((incident) => incident.status !== 'abgeschlossen' && !verfallen.includes(incident)),
     abgeschlossen,
+    verfallen,
     geaendert: true,
   };
 };

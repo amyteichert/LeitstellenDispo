@@ -38,3 +38,28 @@ describe('alarmiereFahrzeuge', () => {
     expect(ergebnis.vehicles).toBe(vehicles);
   });
 });
+
+describe('alarmiereFahrzeuge – belegte Fahrzeuge', () => {
+  it.each(['Alarmiert / auf Anfahrt', 'Im Einsatz', 'Rückfahrt'] as const)('alarmiert kein Fahrzeug mit Status „%s“', (status) => {
+    const e = einsatz('sturz');
+    const vehicles = [{ ...fahrzeug('rtw', 'RTW'), status }];
+    const ergebnis = alarmiereFahrzeuge({ incidents: [e], vehicles, locations }, e.id, ['rtw'], T0);
+    expect(ergebnis.incidents[0].alarmedVehicles).toHaveLength(0);
+    expect(ergebnis.vehicles[0].status).toBe(status);
+  });
+
+  it('alarmiert kein Fahrzeug, das schon einem anderen Einsatz zugeteilt ist', () => {
+    const a = einsatz('sturz');
+    const b = einsatz('atemnot');
+    const vehicles = [fahrzeug('rtw', 'RTW')];
+    const erst = alarmiereFahrzeuge({ incidents: [a, b], vehicles, locations }, a.id, ['rtw'], T0);
+    // Status absichtlich zurücksetzen, um nur die Zuteilungsprüfung zu testen
+    const zweit = alarmiereFahrzeuge(
+      { incidents: erst.incidents, vehicles: [{ ...erst.vehicles[0], status: 'Einsatzbereit' }], locations },
+      b.id,
+      ['rtw'],
+      T0 + 1000,
+    );
+    expect(zweit.incidents[1].alarmedVehicles).toHaveLength(0);
+  });
+});

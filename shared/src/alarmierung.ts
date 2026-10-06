@@ -8,8 +8,20 @@ export interface AlarmierungErgebnis {
 }
 
 /**
+ * Ist ein Fahrzeug frei für eine neue Alarmierung?
+ * Nur einsatzbereite Fahrzeuge mit Wache, die keinem laufenden Einsatz zugeteilt sind
+ * (also nicht alarmiert, auf Anfahrt, am Einsatzort oder auf Rückfahrt).
+ */
+export const istFahrzeugVerfuegbar = (vehicle: Vehicle, incidents: SpielEinsatz[]): boolean =>
+  (vehicle.status ?? 'Einsatzbereit') === 'Einsatzbereit'
+  && Boolean(vehicle.stationId)
+  && !vehicle.rueckfahrt
+  && !incidents.some((incident) => incident.status !== 'abgeschlossen'
+    && incident.alarmedVehicles.some((assignment) => assignment.vehicleId === vehicle.id));
+
+/**
  * Alarmiert (bzw. alarmiert nach) Fahrzeuge zu einem Einsatz.
- * Nur möglich, solange der Einsatz offen oder alarmiert ist; Fahrzeuge ohne Wache werden ignoriert.
+ * Nur möglich, solange der Einsatz offen oder alarmiert ist; nicht verfügbare Fahrzeuge werden ignoriert.
  */
 export const alarmiereFahrzeuge = (
   zustand: { incidents: SpielEinsatz[]; vehicles: Vehicle[]; locations: MapLocation[] },
@@ -27,7 +39,7 @@ export const alarmiereFahrzeuge = (
     .map((vehicleId): AlarmiertesFahrzeug | null => {
       const vehicle = vehicles.find((item) => item.id === vehicleId);
       const coords = getStationCoords(vehicle?.stationId, locations);
-      if (!vehicle || !coords) return null;
+      if (!vehicle || !coords || !istFahrzeugVerfuegbar(vehicle, incidents)) return null;
       const etaSeconds = getFahrzeitSekunden(coords, incident.coords);
       return {
         vehicleId,

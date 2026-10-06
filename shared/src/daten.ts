@@ -1,3 +1,5 @@
+import { GAME_CONFIG } from './konfig.js';
+
 export const APP_NAME = 'LeitstellenDispo';
 export const APP_SUBTITLE = 'Deine Leitstelle. Deine Einsätze. Deine Entscheidungen.';
 export const APP_VERSION = '0.1.0-alpha';
@@ -139,6 +141,8 @@ export interface SpielEinsatz extends Einsatz {
   eskalationBei?: number;
   /** Neue Meldung, die der Spieler noch nicht angesehen hat */
   neueMeldung?: boolean;
+  /** Falls gesetzt: Zeitpunkt, zu dem der Einsatz eskaliert, wenn bis dahin niemand alarmiert wurde */
+  eskalationOhneAlarmAt?: number;
 }
 
 export interface EinsatzMeldung {
@@ -404,6 +408,16 @@ export function findeEinsatzVorlage(id: string): EinsatzVorlage | undefined {
 }
 
 /** Würfelt aus, ob (und wann während der Bearbeitung) ein Einsatz aus dieser Vorlage eskaliert. */
+/**
+ * Würfelt aus, ob (und wann) ein Einsatz eskaliert, wenn sich niemand um ihn kümmert.
+ * Nicht jeder Einsatz eskaliert – nur Vorlagen mit Eskalationsstufe und auch dann nur mit deren Wahrscheinlichkeit.
+ */
+export function planeEskalationOhneAlarm(vorlage: EinsatzVorlage, jetzt: number): number | undefined {
+  if (!vorlage.eskalation || Math.random() >= vorlage.eskalation.wahrscheinlichkeit) return undefined;
+  const { eskalationOhneAlarmMinMs: min, eskalationOhneAlarmMaxMs: max } = GAME_CONFIG;
+  return jetzt + min + Math.random() * (max - min);
+}
+
 export function planeEskalation(vorlage: EinsatzVorlage): number | undefined {
   if (!vorlage.eskalation || Math.random() >= vorlage.eskalation.wahrscheinlichkeit) return undefined;
   return 0.3 + Math.random() * 0.4;
@@ -426,6 +440,7 @@ export function eskaliereEinsatz(einsatz: SpielEinsatz, ziel: EinsatzVorlage, me
     processingStartedAt: undefined,
     processingEndsAt: undefined,
     eskalationBei: planeEskalation(ziel),
+    eskalationOhneAlarmAt: planeEskalationOhneAlarm(ziel, jetzt),
     neueMeldung: true,
     meldungen: [...einsatz.meldungen, { zeit: jetzt, text: meldung }],
   };

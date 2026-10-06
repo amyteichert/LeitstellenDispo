@@ -5,6 +5,11 @@ export const GAME_CONFIG = {
   maxOpenIncidents: 4,
   incidentGenerationMs: 20000,
   completedIncidentHistoryLimit: 100,
+  /** Ein nie alarmierter Einsatz verschwindet frühestens nach dieser Zeit */
+  einsatzVerfallNachMs: 12 * 60 * 60 * 1000,
+  /** Zeitfenster, in dem ein nicht alarmierter Einsatz (evtl.) eskaliert */
+  eskalationOhneAlarmMinMs: 2 * 60 * 1000,
+  eskalationOhneAlarmMaxMs: 4 * 60 * 1000,
 };
 
 /** Wie weit neue Einsätze um eine Wache herum entstehen – wächst mit der Anzahl der Wachen. */

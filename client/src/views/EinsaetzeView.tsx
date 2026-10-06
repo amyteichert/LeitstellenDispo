@@ -6,6 +6,7 @@ import {
   getFahrzeitSekunden,
   getFahrzeugKategorie,
   haversineKm,
+  istFahrzeugVerfuegbar,
   type AbgeschlossenerSpielEinsatz,
   type SpielEinsatz,
 } from '@leitstellendispo/shared';
@@ -48,9 +49,18 @@ export default function EinsaetzeView({
 }) {
   const [selectedVehicleIds, setSelectedVehicleIds] = useState<string[]>([]);
   const [activeTab, setActiveTab] = useState<'Aktive' | 'Abgeschlossen'>('Aktive');
+  const [rueckmeldung, setRueckmeldung] = useState<string | null>(null);
+
+  // Rückmeldung nach einer Aktion nach ein paar Sekunden wieder ausblenden
+  useEffect(() => {
+    if (!rueckmeldung) return;
+    const timeout = setTimeout(() => setRueckmeldung(null), 4000);
+    return () => clearTimeout(timeout);
+  }, [rueckmeldung]);
 
   useEffect(() => {
     setSelectedVehicleIds([]);
+    setRueckmeldung(null);
   }, [selectedIncidentId]);
 
   const selectedIncident = useMemo(
@@ -71,7 +81,7 @@ export default function EinsaetzeView({
     if (!selectedIncident || selectedIncident.status === 'abgeschlossen') return [] as Vehicle[];
 
     return vehicles.filter((vehicle) => {
-      if (vehicle.status !== 'Einsatzbereit' || !vehicle.stationId) return false;
+      if (!istFahrzeugVerfuegbar(vehicle, incidents)) return false;
       const category = getFahrzeugKategorie(vehicle.type);
       if (!category) return false;
       return selectedIncident.requiredVehicles.some((requirement) => requirement.category === category);
@@ -81,7 +91,15 @@ export default function EinsaetzeView({
       if (!aCoords || !bCoords) return 0;
       return haversineKm(aCoords, selectedIncident.coords) - haversineKm(bCoords, selectedIncident.coords);
     });
-  }, [selectedIncident, vehicles, locations]);
+  }, [selectedIncident, vehicles, locations, incidents]);
+
+  // Häkchen bei Fahrzeugen entfernen, die inzwischen nicht mehr verfügbar sind
+  useEffect(() => {
+    setSelectedVehicleIds((current) => {
+      const verfuegbar = current.filter((id) => availableVehiclesForSelectedIncident.some((vehicle) => vehicle.id === id));
+      return verfuegbar.length === current.length ? current : verfuegbar;
+    });
+  }, [availableVehiclesForSelectedIncident]);
 
   const kannAlarmieren = selectedIncident?.status === 'offen' || selectedIncident?.status === 'alarmiert';
 
@@ -104,6 +122,12 @@ export default function EinsaetzeView({
   const alarmieren = () => {
     if (!selectedIncident) return;
     alarmIncidentVehicles(selectedIncident.id, selectedVehicleIds);
+    // Rückmeldung nur zur Anzeige: welche Fahrzeuge wurden alarmiert?
+    const namen = selectedVehicleIds.map((id) => {
+      const vehicle = vehicles.find((item) => item.id === id);
+      return vehicle?.callsign ?? vehicle?.name ?? 'Fahrzeug';
+    });
+    setRueckmeldung(`✓ ${namen.join(', ')} ${namen.length === 1 ? 'wurde' : 'wurden'} alarmiert.`);
     setSelectedVehicleIds([]);
   };
 
@@ -153,57 +177,70 @@ export default function EinsaetzeView({
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(260px, 1fr) minmax(0, 1.4fr)', gap: 16 }}>
+      <div className="einsatz-layout">
         <div>
           <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
-            <button type="button" className={`btn ${activeTab === 'Aktive' ? 'btn--primary' : ''}`} onClick={() => setActiveTab('Aktive')}>Aktive Einsätze</button>
+            <button type="button" className={`btn ${activeTab === 'Aktive' ? 'btn--primary' : ''}`} onClick={() => setActiveTab('Aktive')}>
+              Aktive Einsätze ({visibleIncidents.length})
+            </button>
             <button type="button" className={`btn ${activeTab === 'Abgeschlossen' ? 'btn--primary' : ''}`} onClick={() => setActiveTab('Abgeschlossen')}>Abgeschlossen</button>
           </div>
 
           {activeTab === 'Aktive' ? (
             <>
-              {visibleIncidents.length === 0 && <p>Keine offenen Einsätze.</p>}
-              <ul style={{ listStyle: 'none', padding: 0, display: 'grid', gap: 8 }}>
-                {visibleIncidents.map((incident) => (
-                  <li key={incident.id}>
-                    <button
-                      type="button"
-                      className={`view-menu-item view-menu-item--light ${selectedIncident?.id === incident.id ? 'active' : ''}`}
-                      onClick={() => setSelectedIncidentId(incident.id)}
-                      style={{ width: '100%', textAlign: 'left' }}
-                    >
-                      <strong>{formatEinsatzTitel(incident)}</strong>
-                      {incident.neueMeldung && <span className="neue-meldung-badge">⚠ Neue Meldung</span>}
-                      <div style={{ fontSize: 12, color: 'var(--color-text-muted)' }}>
-                        {incident.organization} · {EINSATZ_STATUS_LABELS[incident.status]} · {incident.generatedByStationName}
-                      </div>
-                      <div style={{ fontSize: 12, color: 'var(--color-text-muted)' }}>
-                        {incident.reward} € · {incident.alarmedVehicles.length} alarmiert
-                      </div>
-                    </button>
-                  </li>
-                ))}
+              {visibleIncidents.length === 0 && (
+                <div className="leerzustand">
+                  <strong>Keine aktiven Einsätze</strong>
+                  Neue Einsätze gehen automatisch ein – du hörst einen Gong und siehst eine Einblendung.
+                </div>
+              )}
+              <ul className="einsatz-liste">
+                {visibleIncidents.map((incident) => {
+                  const abdeckungEintrag = getBedarfsAbdeckung(incident, vehicles);
+                  const benoetigt = abdeckungEintrag.reduce((summe, eintrag) => summe + eintrag.amount, 0);
+                  const zugeteilt = abdeckungEintrag.reduce((summe, eintrag) => summe + Math.min(eintrag.alarmiert, eintrag.amount), 0);
+                  return (
+                    <li key={incident.id}>
+                      <button
+                        type="button"
+                        className={`einsatz-eintrag einsatz-eintrag--${incident.status} ${selectedIncident?.id === incident.id ? 'einsatz-eintrag--aktiv' : ''}`}
+                        onClick={() => setSelectedIncidentId(incident.id)}
+                      >
+                        <span className="einsatz-eintrag__kopf">
+                          <strong>{formatEinsatzTitel(incident)}</strong>
+                          <span className={`status-badge status-badge--${incident.status}`}>{EINSATZ_STATUS_LABELS[incident.status]}</span>
+                        </span>
+                        {incident.neueMeldung && <span className="neue-meldung-badge" style={{ marginLeft: 0, width: 'fit-content' }}>⚠ Neue Meldung</span>}
+                        <span className="einsatz-eintrag__zeile">{incident.organization} · {incident.address}</span>
+                        <span className="einsatz-eintrag__zeile">Fahrzeuge {zugeteilt}/{benoetigt} · {incident.reward} €</span>
+                      </button>
+                    </li>
+                  );
+                })}
               </ul>
             </>
           ) : (
             <>
-              {completedList.length === 0 && <p>Keine abgeschlossenen Einsätze.</p>}
-              <ul style={{ listStyle: 'none', padding: 0, display: 'grid', gap: 8 }}>
+              {completedList.length === 0 && (
+                <div className="leerzustand">
+                  <strong>Noch keine abgeschlossenen Einsätze</strong>
+                  Abgeschlossene Einsätze und deine Einnahmen erscheinen hier.
+                </div>
+              )}
+              <ul className="einsatz-liste">
                 {completedList.map((incident) => (
                   <li key={incident.id}>
                     <button
                       type="button"
-                      className={`view-menu-item view-menu-item--light ${selectedIncident?.id === incident.id ? 'active' : ''}`}
+                      className={`einsatz-eintrag einsatz-eintrag--abgeschlossen ${selectedIncident?.id === incident.id ? 'einsatz-eintrag--aktiv' : ''}`}
                       onClick={() => setSelectedIncidentId(incident.id)}
-                      style={{ width: '100%', textAlign: 'left' }}
                     >
-                      <strong>{formatEinsatzTitel(incident)}</strong>
-                      <div style={{ fontSize: 12, color: 'var(--color-text-muted)' }}>
-                        {incident.organization} · Abgeschlossen · {incident.generatedByStationName}
-                      </div>
-                      <div style={{ fontSize: 12, color: 'var(--color-text-muted)' }}>
-                        {incident.reward} € · {formatDateTime(incident.completedAt)}
-                      </div>
+                      <span className="einsatz-eintrag__kopf">
+                        <strong>{formatEinsatzTitel(incident)}</strong>
+                        <span className="status-badge status-badge--abgeschlossen">Abgeschlossen</span>
+                      </span>
+                      <span className="einsatz-eintrag__zeile">{incident.organization} · {incident.generatedByStationName}</span>
+                      <span className="einsatz-eintrag__zeile">{incident.reward} € · {formatDateTime(incident.completedAt)}</span>
                     </button>
                   </li>
                 ))}
@@ -214,13 +251,15 @@ export default function EinsaetzeView({
 
         <div>
           {selectedIncident ? (
-            <div style={{ background: 'var(--color-surface)', padding: 16, borderRadius: 12, boxShadow: 'var(--shadow-card)' }}>
-              <h3>{formatEinsatzTitel(selectedIncident)}</h3>
-              <p><strong>Status:</strong> {EINSATZ_STATUS_LABELS[selectedIncident.status]}</p>
+            <div className="einsatz-details">
+              <div className="einsatz-details__kopf">
+                <h3>{formatEinsatzTitel(selectedIncident)}</h3>
+                <span className={`status-badge status-badge--${selectedIncident.status}`}>{EINSATZ_STATUS_LABELS[selectedIncident.status]}</span>
+              </div>
 
               {selectedIncident.meldungen.length > 0 && (
                 <div className="einsatz-meldungen">
-                  <h4>Lagemeldungen</h4>
+                  <h4>⚠ Lagemeldungen</h4>
                   <ul>
                     {[...selectedIncident.meldungen].reverse().map((meldung) => (
                       <li key={meldung.zeit}>
@@ -230,58 +269,43 @@ export default function EinsaetzeView({
                   </ul>
                 </div>
               )}
-              <p><strong>Organisation:</strong> {selectedIncident.organization}</p>
-              <p><strong>Adresse:</strong> {selectedIncident.address}</p>
-              <p><strong>Erzeugt durch:</strong> {selectedIncident.generatedByStationName}</p>
-              <p><strong>Belohnung:</strong> {selectedIncident.reward} €</p>
 
-              {selectedIncident.status === 'abgeschlossen' && (
-                <>
-                  <p><strong>Abschlusszeit:</strong> {formatDateTime(selectedIncident.completedAt ?? nowMs)}</p>
-                  <p><strong>Einsatzdauer:</strong> {formatEtaLabel(selectedIncident.totalDurationSeconds ?? selectedIncident.durationSeconds)}</p>
-                </>
+              {rueckmeldung && <div className="aktion-rueckmeldung" role="status">{rueckmeldung}</div>}
+
+              {selectedIncident.status === 'in_bearbeitung' && selectedIncident.processingEndsAt && selectedIncident.processingStartedAt && (
+                <div className="bearbeitung-fortschritt">
+                  <span><strong>Einsatz wird bearbeitet</strong> – noch {Math.max(0, Math.ceil((selectedIncident.processingEndsAt - Date.now()) / 1000))} Sek.</span>
+                  <div className="bearbeitung-fortschritt__balken">
+                    <span style={{ width: `${Math.min(100, Math.max(0, ((nowMs - selectedIncident.processingStartedAt) / (selectedIncident.processingEndsAt - selectedIncident.processingStartedAt)) * 100))}%` }} />
+                  </div>
+                </div>
               )}
 
-              <h4>Benötigte Fahrzeuge</h4>
-              <ul>
-                {selectedIncident.requiredVehicles.map((requirement) => {
-                  const alarmiert = Math.min(getAlarmierteAnzahl(requirement.category), requirement.amount);
-                  return (
-                    <li key={requirement.id}>
-                      {requirement.category}: {alarmiert}/{requirement.amount} {alarmiert >= requirement.amount ? '✓' : ''}
-                    </li>
-                  );
-                })}
-              </ul>
-
-              <h4>Eingesetzte Fahrzeuge</h4>
-              {selectedIncident.alarmedVehicles.length === 0 ? (
-                <p>Keine Fahrzeuge eingesetzt.</p>
-              ) : (
-                <ul>
-                  {selectedIncident.alarmedVehicles.map((assignment) => {
-                    const vehicle = vehicles.find((item) => item.id === assignment.vehicleId);
-                    const callSign = vehicle?.callsign ?? vehicle?.name ?? 'Fahrzeug';
-                    const durationLabel = selectedIncident.status === 'abgeschlossen'
-                      ? `– ${callSign}`
-                      : `– ${assignment.distanceKm.toFixed(1)} km – ${assignment.arrivalAt > nowMs ? `Ankunft in ${formatEtaLabel((assignment.arrivalAt - nowMs) / 1000)}` : 'angekommen'}`;
-
+              <section className="einsatz-abschnitt">
+                <h4>Fahrzeugbedarf</h4>
+                <ul className="bedarf-liste">
+                  {selectedIncident.requiredVehicles.map((requirement) => {
+                    const alarmiert = Math.min(getAlarmierteAnzahl(requirement.category), requirement.amount);
+                    const erfuellt = alarmiert >= requirement.amount;
                     return (
-                      <li key={assignment.vehicleId}>
-                        {callSign}{durationLabel}
+                      <li key={requirement.id} className={`bedarf-chip ${erfuellt ? 'bedarf-chip--erfuellt' : 'bedarf-chip--fehlt'}`}>
+                        {requirement.category}: {alarmiert}/{requirement.amount} {erfuellt ? '✓' : ''}
                       </li>
                     );
                   })}
                 </ul>
-              )}
+              </section>
 
               {kannAlarmieren ? (
-                <>
+                <section className="einsatz-abschnitt">
                   <h4>Verfügbare passende Fahrzeuge</h4>
                   {availableVehiclesForSelectedIncident.length === 0 ? (
-                    <p>Aktuell kein geeignetes Fahrzeug verfügbar.</p>
+                    <div className="leerzustand">
+                      <strong>Aktuell kein geeignetes Fahrzeug verfügbar.</strong>
+                      Warte, bis Fahrzeuge zurück an der Wache sind, oder kaufe unter „Wachen“ weitere Fahrzeuge.
+                    </div>
                   ) : (
-                    <ul style={{ listStyle: 'none', padding: 0, display: 'grid', gap: 8 }}>
+                    <ul className="fahrzeug-auswahl">
                       {availableVehiclesForSelectedIncident.map((vehicle) => {
                         const vehicleStation = vehicle.stationId ? locations.find((loc) => loc.id === vehicle.stationId) : undefined;
                         const distanceKm = vehicleStation ? haversineKm(vehicleStation.coords, selectedIncident.coords) : 0;
@@ -289,10 +313,11 @@ export default function EinsaetzeView({
                         const checked = selectedVehicleIds.includes(vehicle.id);
                         return (
                           <li key={vehicle.id}>
-                            <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                            <label>
                               <input type="checkbox" checked={checked} onChange={() => toggleVehicle(vehicle.id)} />
                               <span>
-                                {vehicle.callsign ?? vehicle.name} – {vehicle.type} – {distanceKm.toFixed(1)} km – ca. {formatEtaLabel(etaSeconds)}
+                                <strong>{vehicle.callsign ?? vehicle.name}</strong> – {vehicle.type}
+                                <small>{distanceKm.toFixed(1)} km · ca. {formatEtaLabel(etaSeconds)} · {vehicleStation?.name ?? ''}</small>
                               </span>
                             </label>
                           </li>
@@ -301,7 +326,7 @@ export default function EinsaetzeView({
                     </ul>
                   )}
 
-                  <div style={{ marginTop: 12, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                     <button
                       className="btn btn--secondary"
                       type="button"
@@ -317,17 +342,53 @@ export default function EinsaetzeView({
                       disabled={selectedVehicleIds.length === 0}
                     >
                       {selectedIncident.status === 'alarmiert' ? 'Nachalarmieren' : 'Alarmieren'}
+                      {selectedVehicleIds.length > 0 ? ` (${selectedVehicleIds.length})` : ''}
                     </button>
                   </div>
-                </>
+                </section>
               ) : null}
 
-              {selectedIncident.status === 'in_bearbeitung' && selectedIncident.processingEndsAt && (
-                <p><strong>Einsatz wird bearbeitet – noch</strong> {Math.max(0, Math.ceil((selectedIncident.processingEndsAt - Date.now()) / 1000))} Sek.</p>
-              )}
+              <section className="einsatz-abschnitt">
+                <h4>Eingesetzte Fahrzeuge</h4>
+                {selectedIncident.alarmedVehicles.length === 0 ? (
+                  <p className="einsatz-eintrag__zeile">Noch keine Fahrzeuge alarmiert.</p>
+                ) : (
+                  <ul className="einsatz-fahrzeuge">
+                    {selectedIncident.alarmedVehicles.map((assignment) => {
+                      const vehicle = vehicles.find((item) => item.id === assignment.vehicleId);
+                      const callSign = vehicle?.callsign ?? vehicle?.name ?? 'Fahrzeug';
+                      const durationLabel = selectedIncident.status === 'abgeschlossen'
+                        ? ''
+                        : `${assignment.distanceKm.toFixed(1)} km – ${assignment.arrivalAt > nowMs ? `Ankunft in ${formatEtaLabel((assignment.arrivalAt - nowMs) / 1000)}` : 'angekommen'}`;
+
+                      return (
+                        <li key={assignment.vehicleId}>
+                          <strong>{callSign}</strong> {durationLabel && <span>– {durationLabel}</span>}
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
+              </section>
+
+              <dl className="einsatz-infos">
+                <div><dt>Organisation</dt><dd>{selectedIncident.organization}</dd></div>
+                <div><dt>Adresse</dt><dd>{selectedIncident.address}</dd></div>
+                <div><dt>Erzeugt durch</dt><dd>{selectedIncident.generatedByStationName}</dd></div>
+                <div><dt>Belohnung</dt><dd>{selectedIncident.reward} €</dd></div>
+                {selectedIncident.status === 'abgeschlossen' && (
+                  <>
+                    <div><dt>Abschlusszeit</dt><dd>{formatDateTime(selectedIncident.completedAt ?? nowMs)}</dd></div>
+                    <div><dt>Einsatzdauer</dt><dd>{formatEtaLabel(selectedIncident.totalDurationSeconds ?? selectedIncident.durationSeconds)}</dd></div>
+                  </>
+                )}
+              </dl>
             </div>
           ) : (
-            <p>Kein Einsatz ausgewählt.</p>
+            <div className="leerzustand">
+              <strong>Kein Einsatz ausgewählt</strong>
+              Wähle links einen Einsatz aus, um Details zu sehen und Fahrzeuge zu alarmieren.
+            </div>
           )}
         </div>
       </div>

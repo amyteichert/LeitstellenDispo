@@ -68,6 +68,8 @@ interface UseSpielOptionen {
   onSpielstandAngewendet?: (spielstand: Spielstand) => void;
   /** Wird aufgerufen, wenn Einsätze abgeschlossen wurden */
   onEinsaetzeAbgeschlossen?: (einsatzIds: string[]) => void;
+  /** Wird aufgerufen, wenn nie alarmierte Einsätze nach langer Zeit verschwunden sind */
+  onEinsaetzeVerfallen?: (einsatzIds: string[]) => void;
 }
 
 /**
@@ -187,6 +189,9 @@ export function useSpiel(optionen: UseSpielOptionen = {}) {
       ergebnis.abgeschlossen.forEach((incident) => addTransaction('Einnahme', `${incident.organization} – ${formatEinsatzTitel(incident)} abgeschlossen`, incident.reward));
       optionenRef.current.onEinsaetzeAbgeschlossen?.(ergebnis.abgeschlossen.map((incident) => incident.id));
     }
+    if (ergebnis.verfallen.length > 0) {
+      optionenRef.current.onEinsaetzeVerfallen?.(ergebnis.verfallen.map((incident) => incident.id));
+    }
   }, [incidents, vehicles, nowMs, locations]);
 
   const completedIncidentStats = useMemo(() => {
@@ -299,6 +304,7 @@ export function useSpiel(optionen: UseSpielOptionen = {}) {
   };
 
   return {
+    spielstandGeladen,
     locations,
     vehicles,
     balance,

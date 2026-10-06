@@ -107,3 +107,125 @@ describe('berechneSpielTick – Eskalation', () => {
     expect(spaeter.abgeschlossen[0].stichwort).toBe('RD 1');
   });
 });
+
+describe('berechneSpielTick – Einsätze ohne Alarmierung', () => {
+  const feuerwache = [wache('rw-1', 'Feuerwache')];
+
+  it('eskaliert einen liegen gelassenen Einsatz und lässt ihn bestehen', () => {
+    const eskalationsZeit = T0 + 3 * 60 * 1000;
+    const e = einsatz('kleinbrand', undefined, eskalationsZeit);
+    const vehicles = [fahrzeug('lf1', 'LF 10'), fahrzeug('lf2', 'LF 20')];
+
+    const vorher = berechneSpielTick({ vehicles, incidents: [e], locations: feuerwache }, eskalationsZeit - 1);
+    expect(vorher.geaendert).toBe(false);
+
+    const ergebnis = berechneSpielTick({ vehicles, incidents: [e], locations: feuerwache }, eskalationsZeit);
+    const eskaliert = ergebnis.incidents[0];
+    expect(eskaliert.stichwort).toBe('B 2');
+    expect(eskaliert.meldebild).toBe('Kellerbrand');
+    expect(eskaliert.status).toBe('offen');
+    expect(eskaliert.neueMeldung).toBe(true);
+    expect(eskaliert.meldungen[0].zeit).toBe(eskalationsZeit);
+  });
+
+  it('eskaliert nicht, wenn der größere Einsatz nicht schaffbar wäre', () => {
+    const eskalationsZeit = T0 + 3 * 60 * 1000;
+    const e = einsatz('kleinbrand', undefined, eskalationsZeit);
+    const ergebnis = berechneSpielTick({ vehicles: [fahrzeug('lf1', 'LF 10')], incidents: [e], locations: feuerwache }, eskalationsZeit);
+    expect(ergebnis.incidents[0].stichwort).toBe('B 1');
+    expect(ergebnis.incidents[0].eskalationOhneAlarmAt).toBeUndefined();
+  });
+
+  it('lässt nie alarmierte Einsätze frühestens nach 12 Stunden verschwinden', () => {
+    const e = einsatz('sturz');
+    const vehicles = [fahrzeug('rtw', 'RTW')];
+    const zwoelfStunden = 12 * 60 * 60 * 1000;
+
+    const knappDavor = berechneSpielTick({ vehicles, incidents: [e], locations }, T0 + zwoelfStunden - 1);
+    expect(knappDavor.incidents).toHaveLength(1);
+
+    const danach = berechneSpielTick({ vehicles, incidents: [e], locations }, T0 + zwoelfStunden);
+    expect(danach.incidents).toHaveLength(0);
+    expect(danach.verfallen).toEqual([e]);
+    expect(danach.abgeschlossen).toHaveLength(0);
+  });
+});
+
+describe('berechneSpielTick – Randfälle der Eskalation', () => {
+  const feuerwache = [wache('rw-1', 'Feuerwache')];
+  /** Tickt so lange zum selben Zeitpunkt, bis sich nichts mehr ändert (wie beim Öffnen nach langer Pause). */
+  const tickeBisRuhe = (zustand: Parameters<typeof berechneSpielTick>[0], jetzt: number) => {
+    let aktuell = { ...zustand };
+    const abgeschlossen = [];
+    for (let i = 0; i < 10; i += 1) {
+      const ergebnis = berechneSpielTick(aktuell, jetzt);
+      abgeschlossen.push(...ergebnis.abgeschlossen);
+      if (!ergebnis.geaendert) break;
+      aktuell = { ...aktuell, vehicles: ergebnis.vehicles, incidents: ergebnis.incidents };
+    }
+    return { ...aktuell, abgeschlossen };
+  };
+
+  it('setzt die Bearbeitung fort, wenn die Fahrzeuge vor Ort für den größeren Einsatz reichen', () => {
+    const e = einsatz('kleinbrand', 0.5);
+    const vehicles = [fahrzeug('lf1', 'LF 10'), fahrzeug('lf2', 'LF 20')];
+    const start = alarmiereFahrzeuge({ incidents: [e], vehicles, locations: feuerwache }, e.id, ['lf1', 'lf2'], T0);
+    const ankunft = Math.max(...start.incidents[0].alarmedVehicles.map((a) => a.arrivalAt));
+
+    const inBearbeitung = berechneSpielTick({ ...start, locations: feuerwache }, ankunft);
+    const eskalationsZeit = ankunft + 0.5 * inBearbeitung.incidents[0].durationSeconds * 1000;
+    const eskaliert = berechneSpielTick({ ...inBearbeitung, locations: feuerwache }, eskalationsZeit);
+    expect(eskaliert.incidents[0].meldebild).toBe('Kellerbrand');
+
+    // Beide LF sind schon vor Ort → Bearbeitung des Kellerbrands beginnt ab der Lagemeldung
+    const weiter = berechneSpielTick({ ...eskaliert, locations: feuerwache }, eskalationsZeit);
+    expect(weiter.incidents[0].status).toBe('in_bearbeitung');
+    expect(weiter.incidents[0].processingStartedAt).toBe(eskalationsZeit);
+  });
+
+  it('schließt einen eskalierten Einsatz offline korrekt ab (mit Belohnung des größeren Einsatzes)', () => {
+    const e = einsatz('kleinbrand', 0.5);
+    const vehicles = [fahrzeug('lf1', 'LF 10'), fahrzeug('lf2', 'LF 20')];
+    const start = alarmiereFahrzeuge({ incidents: [e], vehicles, locations: feuerwache }, e.id, ['lf1', 'lf2'], T0);
+
+    const ergebnis = tickeBisRuhe({ ...start, locations: feuerwache }, T0 + 60 * 60 * 1000);
+    expect(ergebnis.incidents).toHaveLength(0);
+    expect(ergebnis.abgeschlossen).toHaveLength(1);
+    const fertig = ergebnis.abgeschlossen[0];
+    expect(fertig.meldebild).toBe('Kellerbrand');
+    expect(fertig.reward).toBe(520);
+    // Ende = Lagemeldung + Dauer des Kellerbrands (nicht "jetzt")
+    expect(fertig.completedAt).toBe(fertig.meldungen[0].zeit + fertig.durationSeconds * 1000);
+    expect(ergebnis.vehicles.every((v) => v.status === 'Einsatzbereit')).toBe(true);
+  });
+
+  it('wartet nach einer Eskalation auf Nachalarmierung und schließt nicht vorzeitig ab', () => {
+    const e = einsatz('kleinbrand', 0.5);
+    const vehicles = [fahrzeug('lf1', 'LF 10'), fahrzeug('lf2', 'LF 20')];
+    const start = alarmiereFahrzeuge({ incidents: [e], vehicles, locations: feuerwache }, e.id, ['lf1'], T0);
+
+    const ergebnis = tickeBisRuhe({ ...start, locations: feuerwache }, T0 + 60 * 60 * 1000);
+    expect(ergebnis.abgeschlossen).toHaveLength(0);
+    expect(ergebnis.incidents[0].meldebild).toBe('Kellerbrand');
+    expect(ergebnis.incidents[0].status).toBe('alarmiert');
+    // Das LF bleibt am Einsatzort und ist nicht verfügbar
+    expect(ergebnis.vehicles.find((v) => v.id === 'lf1')?.status).toBe('Im Einsatz');
+  });
+
+  it('kann über mehrere Stufen eskalieren (Kleinbrand → Kellerbrand → Zimmerbrand)', () => {
+    const e = einsatz('kleinbrand', undefined, T0 + 1000);
+    const vehicles = [fahrzeug('lf1', 'LF 10'), fahrzeug('lf2', 'LF 20'), fahrzeug('dlk', 'DLK 23/12')];
+    const erste = berechneSpielTick({ vehicles, incidents: [e], locations: feuerwache }, T0 + 1000);
+    expect(erste.incidents[0].meldebild).toBe('Kellerbrand');
+
+    // Zweite Stufe gezielt auslösen (die Wahrscheinlichkeit wird im Spiel ausgewürfelt)
+    const zweiteZeit = T0 + 5000;
+    const zweite = berechneSpielTick(
+      { vehicles, incidents: [{ ...erste.incidents[0], eskalationOhneAlarmAt: zweiteZeit }], locations: feuerwache },
+      zweiteZeit,
+    );
+    expect(zweite.incidents[0].meldebild).toBe('Zimmerbrand');
+    expect(zweite.incidents[0].meldungen).toHaveLength(2);
+    expect(zweite.incidents[0].createdAt).toBe(T0); // 12-Stunden-Frist läuft ab der ersten Meldung
+  });
+});

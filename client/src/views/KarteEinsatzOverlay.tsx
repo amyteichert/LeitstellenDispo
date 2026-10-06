@@ -25,11 +25,11 @@ export function KarteEinsatzLeiste({
         <button
           key={incident.id}
           type="button"
-          className={`map-incident-chip map-incident-chip--${incident.status} ${selectedId === incident.id ? 'map-incident-chip--active' : ''}`}
+          className={`map-incident-chip map-incident-chip--${incident.status} ${incident.meldungen.length > 0 ? 'map-incident-chip--eskaliert' : ''} ${selectedId === incident.id ? 'map-incident-chip--active' : ''}`}
           onClick={() => onSelect(incident)}
         >
           <span className="map-incident-chip__dot" />
-          {incident.neueMeldung && '⚠ '}
+          {incident.meldungen.length > 0 && '⚠ '}
           {formatEinsatzTitel(incident)}
         </button>
       ))}
@@ -60,7 +60,7 @@ export function KarteEinsatzPanel({
 
       {incident.meldungen.length > 0 && (
         <div className="einsatz-meldungen">
-          <strong>⚠ Neue Meldung:</strong> {incident.meldungen[incident.meldungen.length - 1].text}
+          <strong>{incident.neueMeldung ? '⚠ Neue Lagemeldung:' : '⚠ Lagemeldung:'}</strong> {incident.meldungen[incident.meldungen.length - 1].text}
         </div>
       )}
 

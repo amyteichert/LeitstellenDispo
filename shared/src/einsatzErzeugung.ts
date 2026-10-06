@@ -3,6 +3,7 @@ import {
   getFahrzeugKategorie,
   istVorlageErfuellbar,
   planeEskalation,
+  planeEskalationOhneAlarm,
   type EinsatzVorlage,
   type SpielEinsatz,
 } from './daten.js';
@@ -94,6 +95,7 @@ export const createSpielEinsatz = (
   vorlageId: template.id,
   meldungen: [],
   eskalationBei: planeEskalation(template),
+  eskalationOhneAlarmAt: planeEskalationOhneAlarm(template, jetzt),
 });
 
 export type EinsatzErzeugungErgebnis =

@@ -26,9 +26,9 @@ export const fahrzeug = (id: string, type: string, stationId: string | null = 'r
   status: 'Einsatzbereit',
 });
 
-/** Einsatz aus einer Vorlage, ca. 1 km von der Wache entfernt; Eskalation standardmäßig aus. */
-export const einsatz = (vorlageId: string, eskalationBei?: number): SpielEinsatz => {
+/** Einsatz aus einer Vorlage, ca. 1 km von der Wache entfernt; Eskalationen standardmäßig aus. */
+export const einsatz = (vorlageId: string, eskalationBei?: number, eskalationOhneAlarmAt?: number): SpielEinsatz => {
   const vorlage = findeEinsatzVorlage(vorlageId);
   if (!vorlage) throw new Error(`Vorlage ${vorlageId} fehlt`);
-  return { ...createSpielEinsatz(vorlage, wache(), [48.784, 9.1771], 'Testadresse', T0), eskalationBei };
+  return { ...createSpielEinsatz(vorlage, wache(), [48.784, 9.1771], 'Testadresse', T0), eskalationBei, eskalationOhneAlarmAt };
 };

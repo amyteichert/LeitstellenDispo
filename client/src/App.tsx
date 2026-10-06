@@ -15,6 +15,7 @@ import ViewDropdown from './ViewDropdown';
 
 import type { LocationType } from './types';
 import { useSpiel } from './useSpiel';
+import { useEinsatzHinweise } from './useEinsatzHinweise';
 import FahrzeugeView from './views/FahrzeugeView';
 import WachenView from './views/WachenView';
 import EinsaetzeView from './views/EinsaetzeView';
@@ -37,11 +38,11 @@ const INCIDENT_MARKER_COLORS: Record<SpielEinsatz['status'], string> = {
   abgeschlossen: '#6b7280',
 };
 
-/** Einsatz-Marker in Statusfarbe; offene Einsätze pulsieren, der gewählte ist größer. */
-const createIncidentMarkerIcon = (status: SpielEinsatz['status'], selected: boolean) => {
+/** Einsatz-Marker in Statusfarbe; offene Einsätze pulsieren, eskalierte sind rot umrandet, der gewählte ist größer. */
+const createIncidentMarkerIcon = (status: SpielEinsatz['status'], selected: boolean, eskaliert: boolean) => {
   const size = selected ? 22 : 16;
   return L.divIcon({
-    className: `custom-marker incident-marker incident-marker--${status}`,
+    className: `custom-marker incident-marker incident-marker--${status} ${eskaliert ? 'incident-marker--eskaliert' : ''}`,
     html: `<span style="display:block; width:${size}px; height:${size}px; border-radius:50%; background:${INCIDENT_MARKER_COLORS[status]}; border:2px solid #fff; box-shadow:0 2px 8px rgba(0,0,0,0.25);"></span>`,
     iconSize: [size, size],
     iconAnchor: [size / 2, size / 2],
@@ -119,6 +120,10 @@ function App() {
     onEinsaetzeAbgeschlossen: (einsatzIds) => {
       setSelectedIncidentId((current) => (current && einsatzIds.includes(current) ? null : current));
     },
+    onEinsaetzeVerfallen: (einsatzIds) => {
+      setSelectedIncidentId((current) => (current && einsatzIds.includes(current) ? null : current));
+      setMapIncidentId((current) => (current && einsatzIds.includes(current) ? null : current));
+    },
   });
   const {
     locations,
@@ -132,6 +137,13 @@ function App() {
     addVehicle,
     markiereMeldungGelesen,
   } = spiel;
+
+  const { hinweise, schliesseHinweis, tonAn, setTonAn } = useEinsatzHinweise(incidents, spiel.spielstandGeladen);
+  const oeffneHinweis = (einsatzId: string, hinweisId: string) => {
+    schliesseHinweis(hinweisId);
+    setSelectedIncidentId(einsatzId);
+    setCurrentView('Einsätze');
+  };
 
   const [draftName, setDraftName] = useState('Neue Rettungswache');
   const [draftType, setDraftType] = useState<LocationType>('station');
@@ -290,6 +302,19 @@ function App() {
 
   return (
     <div className="app-shell">
+      {hinweise.length > 0 && (
+        <div className="einsatz-hinweise" role="status" aria-live="polite">
+          {hinweise.map((hinweis) => (
+            <div key={hinweis.id} className={`einsatz-hinweis einsatz-hinweis--${hinweis.art}`}>
+              <button type="button" className="einsatz-hinweis__inhalt" onClick={() => oeffneHinweis(hinweis.einsatzId, hinweis.id)}>
+                <strong>{hinweis.art === 'meldung' ? '⚠ ' : '🚨 '}{hinweis.titel}</strong>
+                <span>{hinweis.text}</span>
+              </button>
+              <button type="button" className="einsatz-hinweis__schliessen" onClick={() => schliesseHinweis(hinweis.id)} aria-label="Schließen">✕</button>
+            </div>
+          ))}
+        </div>
+      )}
       <header className="topbar">
         {/* banner image fills the header */}
         <img className="topbar__banner" src="/brand-banner.png" alt="LeitstellenDispo Banner" />
@@ -588,7 +613,7 @@ function App() {
                   <Marker
                     key={incident.id}
                     position={incident.coords}
-                    icon={createIncidentMarkerIcon(incident.status, incident.id === mapIncidentId)}
+                    icon={createIncidentMarkerIcon(incident.status, incident.id === mapIncidentId, incident.meldungen.length > 0)}
                     zIndexOffset={incident.id === mapIncidentId ? 1000 : 500}
                     eventHandlers={{ click: () => setMapIncidentId(incident.id) }}
                   />
@@ -649,7 +674,7 @@ function App() {
             )}
 
             {currentView === 'Einstellungen' && (
-              <EinstellungenView defaultView={currentView} onNeuesSpiel={neuesSpiel} />
+              <EinstellungenView defaultView={currentView} onNeuesSpiel={neuesSpiel} tonAn={tonAn} setTonAn={setTonAn} />
             )}
           </section>
         )}

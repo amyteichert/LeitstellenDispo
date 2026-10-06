@@ -1,6 +1,16 @@
 import { useState } from 'react';
 
-export default function EinstellungenView({ defaultView, onNeuesSpiel }: { defaultView?: string; onNeuesSpiel: () => void }) {
+export default function EinstellungenView({
+  defaultView,
+  onNeuesSpiel,
+  tonAn,
+  setTonAn,
+}: {
+  defaultView?: string;
+  onNeuesSpiel: () => void;
+  tonAn: boolean;
+  setTonAn: (an: boolean) => void;
+}) {
   const [local, setLocal] = useState(defaultView ?? 'Karte');
 
   return (
@@ -17,6 +27,14 @@ export default function EinstellungenView({ defaultView, onNeuesSpiel }: { defau
           <option>Einsätze</option>
         </select>
         <p style={{ fontSize: 12, color: 'var(--color-text-muted)', marginTop: 8 }}>Hinweis: Diese Einstellung ist derzeit nur UI-seitig vorbereitet.</p>
+      </div>
+
+      <div style={{ padding: 8, background: 'var(--color-surface)', borderRadius: 8, marginTop: 12 }}>
+        <h3 style={{ marginBottom: 6 }}>Alarmton</h3>
+        <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <input type="checkbox" checked={tonAn} onChange={(e) => setTonAn(e.target.checked)} />
+          Gong bei neuen Einsätzen und Lagemeldungen
+        </label>
       </div>
 
       <div style={{ padding: 8, background: 'var(--color-surface)', borderRadius: 8, marginTop: 12 }}>
