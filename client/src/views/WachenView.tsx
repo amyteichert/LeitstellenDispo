@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { getFahrzeugTypenFuerWache } from '@leitstellendispo/shared';
+import { FAEHIGKEIT_LABELS, formatAdresse, getFahrzeugTyp, getFahrzeugTypenFuerWache } from '@leitstellendispo/shared';
 import type { MapLocation, Vehicle } from '../types';
 
 export default function WachenView({
@@ -50,7 +50,7 @@ export default function WachenView({
           {selected ? (
             <div style={{ padding: 12, borderRadius: 8, background: 'var(--color-surface)', boxShadow: 'var(--shadow-card)' }}>
               <h3>{selected.name}</h3>
-              <p>{selected.details}</p>
+              <p>{selected.adresse ? formatAdresse(selected.adresse) : selected.details}</p>
               <p>Typ: {selected.stationKind ?? 'Rettungswache'}</p>
               <p>Koordinaten: {selected.coords[0].toFixed(4)}, {selected.coords[1].toFixed(4)}</p>
               <p>Preis: {selected.price ? `${selected.price} €` : '0 €'}</p>
@@ -58,7 +58,7 @@ export default function WachenView({
               <h4>Fahrzeuge</h4>
               <ul>
                 {vehicles.filter(v => v.stationId === selected.id).map(v => (
-                  <li key={v.id}>{v.callsign ? `${v.callsign} (${v.name})` : v.name} — Typ: {v.type ?? '–'}</li>
+                  <li key={v.id}>{v.callsign ? `${v.callsign} (${v.name})` : v.name} — Typ: {v.type ?? '–'} · {v.status ?? 'Einsatzbereit'}</li>
                 ))}
                 {vehicles.filter(v => v.stationId === selected.id).length === 0 && <li>Noch keine Fahrzeuge vorhanden.</li>}
               </ul>
@@ -83,6 +83,12 @@ export default function WachenView({
                   Kaufen
                 </button>
               </div>
+              {getFahrzeugTyp(kaufTyp) && (
+                <p style={{ fontSize: 12, color: 'var(--color-text-muted)', marginTop: 6 }}>
+                  {getFahrzeugTyp(kaufTyp)!.bezeichnung} · {getFahrzeugTyp(kaufTyp)!.besatzung} Personen · {getFahrzeugTyp(kaufTyp)!.geschwindigkeitKmh} km/h
+                  {' · '}{getFahrzeugTyp(kaufTyp)!.faehigkeiten.map((f) => FAEHIGKEIT_LABELS[f]).join(', ')}
+                </p>
+              )}
             </div>
           ) : (
             <p>Keine Wache ausgewählt.</p>

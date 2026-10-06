@@ -1,4 +1,15 @@
 import { GAME_CONFIG } from './konfig.js';
+import type { Adresse, OrtsArt } from './adressen.js';
+import {
+  ergaenzeBedarf,
+  formatBedarfsListe,
+  istBedarfGedeckt,
+  ordneFahrzeugeBedarfZu,
+  type BedarfsKlasse,
+  type FahrzeugBedarf,
+} from './fahrzeuge.js';
+import { erzeugePatienten, schwererZustand, type Patient, type PatientenVorgabe } from './patienten.js';
+import type { EinsatzOrganisation, WachenArt } from './typen.js';
 
 export const APP_NAME = 'LeitstellenDispo';
 export const APP_SUBTITLE = 'Deine Leitstelle. Deine Einsätze. Deine Entscheidungen.';
@@ -35,26 +46,15 @@ export interface Station {
   description?: string;
 }
 
-export type EinsatzStatus = 'offen' | 'alarmiert' | 'in_bearbeitung' | 'abgeschlossen';
+export type EinsatzStatus = 'offen' | 'alarmiert' | 'in_bearbeitung' | 'transport' | 'abgeschlossen';
 
 export const EINSATZ_STATUS_LABELS: Record<EinsatzStatus, string> = {
   offen: 'Offen',
   alarmiert: 'Fahrzeuge alarmiert',
   in_bearbeitung: 'In Bearbeitung',
+  transport: 'Patiententransport',
   abgeschlossen: 'Abgeschlossen',
 };
-
-export type EinsatzOrganisation = 'Rettungsdienst' | 'Feuerwehr';
-
-export type FahrzeugKategorie = 'RTW' | 'NEF' | 'Löschfahrzeug' | 'Drehleiter';
-
-export interface FahrzeugTyp {
-  /** Typbezeichnung, z. B. "RTW" oder "HLF 20" */
-  typ: string;
-  kategorie: FahrzeugKategorie;
-  wachenArt: WachenArt;
-  preis: number;
-}
 
 /** Startguthaben für ein neues Spiel */
 export const START_GUTHABEN = 20000;
@@ -65,42 +65,13 @@ export const WACHEN_PREISE: Record<WachenArt, number> = {
   Feuerwache: 15000,
 };
 
-/** Alle Fahrzeugtypen, die im Spiel gekauft bzw. als Startfahrzeug gewählt werden können. */
-export const FAHRZEUG_TYPEN: FahrzeugTyp[] = [
-  { typ: 'RTW', kategorie: 'RTW', wachenArt: 'Rettungswache', preis: 4000 },
-  { typ: 'NEF', kategorie: 'NEF', wachenArt: 'Rettungswache', preis: 3500 },
-  { typ: 'LF 10', kategorie: 'Löschfahrzeug', wachenArt: 'Feuerwache', preis: 5000 },
-  { typ: 'LF 20', kategorie: 'Löschfahrzeug', wachenArt: 'Feuerwache', preis: 6500 },
-  { typ: 'HLF 20', kategorie: 'Löschfahrzeug', wachenArt: 'Feuerwache', preis: 8000 },
-  { typ: 'TLF 2000', kategorie: 'Löschfahrzeug', wachenArt: 'Feuerwache', preis: 4500 },
-  { typ: 'TLF 3000', kategorie: 'Löschfahrzeug', wachenArt: 'Feuerwache', preis: 5500 },
-  { typ: 'TLF 4000', kategorie: 'Löschfahrzeug', wachenArt: 'Feuerwache', preis: 7000 },
-  { typ: 'DLK 23/12', kategorie: 'Drehleiter', wachenArt: 'Feuerwache', preis: 9000 },
-];
-
-export function getFahrzeugTyp(typ?: string): FahrzeugTyp | undefined {
-  return FAHRZEUG_TYPEN.find((eintrag) => eintrag.typ === typ);
-}
-
-export function getFahrzeugKategorie(typ?: string): FahrzeugKategorie | null {
-  return getFahrzeugTyp(typ)?.kategorie ?? null;
-}
-
-export function getFahrzeugTypenFuerWache(wachenArt: WachenArt): FahrzeugTyp[] {
-  return FAHRZEUG_TYPEN.filter((eintrag) => eintrag.wachenArt === wachenArt);
-}
-
-export interface FahrzeugBedarf {
-  id: string;
-  category: FahrzeugKategorie;
-  amount: number;
-}
-
 export interface AlarmiertesFahrzeug {
   vehicleId: string;
   distanceKm: number;
   etaSeconds: number;
   arrivalAt: number;
+  /** Gesetzt, sobald das Fahrzeug vom Einsatz entlassen wurde (z. B. NEF nach der Behandlung, RTW nach der Übergabe) */
+  freigegebenAt?: number;
 }
 
 /** Basisdaten eines Einsatzes – so liefert ihn aktuell auch der Server. */
@@ -111,6 +82,8 @@ export interface Einsatz {
   /** Klartext-Meldebild, z. B. "Gestürzte Person" */
   meldebild: string;
   status: EinsatzStatus;
+  /** Einsatzadresse als Text */
+  address?: string;
 }
 
 export function formatEinsatzTitel(einsatz: Pick<Einsatz, 'stichwort' | 'meldebild'>): string {
@@ -120,8 +93,10 @@ export function formatEinsatzTitel(einsatz: Pick<Einsatz, 'stichwort' | 'meldebi
 /** Vollständiger Einsatz, wie ihn die Spiellogik verwendet. */
 export interface SpielEinsatz extends Einsatz {
   organization: EinsatzOrganisation;
+  /** Einsatzort: `coords` und `adresse` gehören zusammen; `address` ist die formatierte Adresse */
   coords: [number, number];
   address: string;
+  adresse?: Adresse;
   generatedByStationId: string;
   generatedByStationName: string;
   requiredVehicles: FahrzeugBedarf[];
@@ -131,26 +106,50 @@ export interface SpielEinsatz extends Einsatz {
   createdAt: number;
   processingStartedAt?: number;
   processingEndsAt?: number;
+  /** Zeitpunkt, an dem der Einsatz vollständig erledigt ist (bei Transporten: nach der letzten Übergabe) */
+  abschlussAt?: number;
   completedAt?: number;
   totalDurationSeconds?: number;
   /** Vorlage, aus der der Einsatz (zuletzt) entstanden ist – wichtig für Eskalationen */
   vorlageId: string;
-  /** Lagemeldungen während des Einsatzes, z. B. bei einer Eskalation */
+  /** Lagemeldungen, zeitlich sortiert (älteste zuerst) */
   meldungen: EinsatzMeldung[];
   /** Falls gesetzt: Anteil der Bearbeitungszeit (0–1), nach dem der Einsatz eskaliert */
   eskalationBei?: number;
-  /** Neue Meldung, die der Spieler noch nicht angesehen hat */
+  /** Neue wichtige Meldung, die der Spieler noch nicht angesehen hat */
   neueMeldung?: boolean;
   /** Falls gesetzt: Zeitpunkt, zu dem der Einsatz eskaliert, wenn bis dahin niemand alarmiert wurde */
   eskalationOhneAlarmAt?: number;
+  /** Patienten (Rettungsdienst). Fehlt bei älteren Spielständen. */
+  patienten?: Patient[];
+  /** Ankunft des ersten Fahrzeugs (erste Lagemeldung von der Einsatzstelle) */
+  erstesEintreffenAt?: number;
+  /** Ausgewürfelt: Das erste Fahrzeug fordert bei Eintreffen weitere Kräfte nach */
+  nachforderungGeplant?: boolean;
 }
+
+/** Art einer Lagemeldung – wichtige Meldungen lösen einen Hinweis aus */
+export type MeldungsArt = 'eskalation' | 'nachforderung' | 'lage' | 'patient' | 'abschluss';
 
 export interface EinsatzMeldung {
   zeit: number;
   text: string;
+  /** Fehlt bei älteren Spielständen (dort waren es immer Eskalationen) */
+  art?: MeldungsArt;
 }
 
-export type WachenArt = 'Rettungswache' | 'Feuerwache';
+export const istWichtigeMeldung = (meldung: EinsatzMeldung) =>
+  meldung.art === undefined || meldung.art === 'eskalation' || meldung.art === 'nachforderung';
+
+/** Ist der Einsatz seit der Alarmierung eskaliert (größeres Stichwort)? */
+export const istEskaliert = (einsatz: Pick<SpielEinsatz, 'meldungen'>) =>
+  einsatz.meldungen.some((meldung) => meldung.art === undefined || meldung.art === 'eskalation');
+
+/** Hängt Meldungen an und hält die Liste zeitlich sortiert (wichtig beim Nachholen von Offline-Zeit). */
+export function fuegeMeldungenHinzu(meldungen: EinsatzMeldung[], neue: EinsatzMeldung[]): EinsatzMeldung[] {
+  if (neue.length === 0) return meldungen;
+  return [...meldungen, ...neue].sort((a, b) => a.zeit - b.zeit);
+}
 
 /** Vorlage, aus der die Spiellogik neue Einsätze erzeugt. */
 export interface EinsatzVorlage {
@@ -161,6 +160,14 @@ export interface EinsatzVorlage {
   requiredVehicles: FahrzeugBedarf[];
   reward: number;
   durationSeconds: number;
+  /** Wie der Einsatzort beschrieben wird (Standard: Gebäude mit Hausnummer) */
+  ortsArt?: OrtsArt;
+  /** Patienten, die versorgt werden müssen */
+  patienten?: PatientenVorgabe;
+  /** Erste Lagemeldung beim Eintreffen */
+  lage?: string;
+  /** Mögliche Nachforderung durch das erste Fahrzeug vor Ort */
+  nachforderung?: EinsatzNachforderung;
   /** Möglicher Übergang in einen größeren Einsatz während der Bearbeitung */
   eskalation?: EinsatzEskalation;
 }
@@ -172,6 +179,27 @@ export interface EinsatzEskalation {
   meldung: string;
 }
 
+export interface EinsatzNachforderung {
+  wahrscheinlichkeit: number;
+  bedarf: FahrzeugBedarf[];
+  meldung: string;
+  /** Zusätzliche Belohnung für den aufwendigeren Einsatz */
+  zusatzBelohnung: number;
+}
+
+const RTW = (amount = 1): FahrzeugBedarf => ({ id: 'req-rtw', category: 'RTW', amount });
+const NEF = (amount = 1): FahrzeugBedarf => ({ id: 'req-nef', category: 'NEF', amount });
+const LF = (amount = 1): FahrzeugBedarf => ({ id: 'req-lz', category: 'Löschfahrzeug', amount });
+const DLK = (amount = 1): FahrzeugBedarf => ({ id: 'req-dlk', category: 'Drehleiter', amount });
+const TH = (amount = 1): FahrzeugBedarf => ({ id: 'req-th', category: 'Technische Hilfe', amount });
+
+const NEF_NACHFORDERUNG = (wahrscheinlichkeit: number, meldung: string): EinsatzNachforderung => ({
+  wahrscheinlichkeit,
+  bedarf: [NEF()],
+  meldung,
+  zusatzBelohnung: 120,
+});
+
 export const EINSATZ_VORLAGEN: Record<WachenArt, EinsatzVorlage[]> = {
   Rettungswache: [
     {
@@ -179,9 +207,11 @@ export const EINSATZ_VORLAGEN: Record<WachenArt, EinsatzVorlage[]> = {
       stichwort: 'RD 1',
       meldebild: 'Kreislaufprobleme',
       organization: 'Rettungsdienst',
-      requiredVehicles: [{ id: 'req-rtw', category: 'RTW', amount: 1 }],
+      requiredVehicles: [RTW()],
       reward: 240,
       durationSeconds: 11,
+      patienten: { anzahl: 1, zustand: 'mittel', transportWahrscheinlichkeit: 0.7 },
+      lage: 'Patient blass und kaltschweißig, wird untersucht.',
       eskalation: {
         zielVorlageId: 'reanimation',
         wahrscheinlichkeit: 0.2,
@@ -193,9 +223,11 @@ export const EINSATZ_VORLAGEN: Record<WachenArt, EinsatzVorlage[]> = {
       stichwort: 'RD 1',
       meldebild: 'Gestürzte Person',
       organization: 'Rettungsdienst',
-      requiredVehicles: [{ id: 'req-rtw', category: 'RTW', amount: 1 }],
+      requiredVehicles: [RTW()],
       reward: 220,
       durationSeconds: 10,
+      patienten: { anzahl: 1, zustand: 'leicht', transportWahrscheinlichkeit: 0.6 },
+      lage: 'Ältere Person liegt am Boden, ansprechbar.',
       eskalation: {
         zielVorlageId: 'bewusstlose-person',
         wahrscheinlichkeit: 0.15,
@@ -207,9 +239,12 @@ export const EINSATZ_VORLAGEN: Record<WachenArt, EinsatzVorlage[]> = {
       stichwort: 'RD 1',
       meldebild: 'Atemnot',
       organization: 'Rettungsdienst',
-      requiredVehicles: [{ id: 'req-rtw', category: 'RTW', amount: 1 }],
+      requiredVehicles: [RTW()],
       reward: 260,
       durationSeconds: 12,
+      patienten: { anzahl: 1, zustand: 'mittel', transportWahrscheinlichkeit: 0.85 },
+      lage: 'Patient sitzt am Fenster, deutliche Atemnot.',
+      nachforderung: NEF_NACHFORDERUNG(0.2, 'Sauerstoffsättigung fällt weiter, Patient erschöpft – Notarzt erforderlich.'),
       eskalation: {
         zielVorlageId: 'bewusstlose-person',
         wahrscheinlichkeit: 0.25,
@@ -221,12 +256,11 @@ export const EINSATZ_VORLAGEN: Record<WachenArt, EinsatzVorlage[]> = {
       stichwort: 'RD 2',
       meldebild: 'Brustschmerzen',
       organization: 'Rettungsdienst',
-      requiredVehicles: [
-        { id: 'req-rtw', category: 'RTW', amount: 1 },
-        { id: 'req-nef', category: 'NEF', amount: 1 },
-      ],
+      requiredVehicles: [RTW(), NEF()],
       reward: 380,
       durationSeconds: 15,
+      patienten: { anzahl: 1, zustand: 'schwer', transportWahrscheinlichkeit: 1 },
+      lage: 'Patient mit Druck auf der Brust, Verdacht auf Herzinfarkt.',
       eskalation: {
         zielVorlageId: 'reanimation',
         wahrscheinlichkeit: 0.2,
@@ -238,18 +272,23 @@ export const EINSATZ_VORLAGEN: Record<WachenArt, EinsatzVorlage[]> = {
       stichwort: 'RD 1',
       meldebild: 'Schnittverletzung',
       organization: 'Rettungsdienst',
-      requiredVehicles: [{ id: 'req-rtw', category: 'RTW', amount: 1 }],
+      requiredVehicles: [RTW()],
       reward: 230,
       durationSeconds: 9,
+      patienten: { anzahl: 1, zustand: 'leicht', transportWahrscheinlichkeit: 0.5 },
+      lage: 'Blutende Schnittwunde an der Hand, Druckverband angelegt.',
     },
     {
       id: 'sturz',
       stichwort: 'RD 1',
       meldebild: 'Sturz',
       organization: 'Rettungsdienst',
-      requiredVehicles: [{ id: 'req-rtw', category: 'RTW', amount: 1 }],
+      requiredVehicles: [RTW()],
       reward: 220,
       durationSeconds: 10,
+      patienten: { anzahl: 1, zustand: 'leicht', transportWahrscheinlichkeit: 0.65 },
+      lage: 'Person nach Sturz auf der Treppe, Schmerzen im Bein.',
+      nachforderung: NEF_NACHFORDERUNG(0.15, 'Kopfverletzung, Patient zunehmend eingetrübt – Notarzt erforderlich.'),
       eskalation: {
         zielVorlageId: 'bewusstlose-person',
         wahrscheinlichkeit: 0.15,
@@ -261,24 +300,35 @@ export const EINSATZ_VORLAGEN: Record<WachenArt, EinsatzVorlage[]> = {
       stichwort: 'RD 2',
       meldebild: 'Bewusstlose Person',
       organization: 'Rettungsdienst',
-      requiredVehicles: [
-        { id: 'req-rtw', category: 'RTW', amount: 1 },
-        { id: 'req-nef', category: 'NEF', amount: 1 },
-      ],
+      requiredVehicles: [RTW(), NEF()],
       reward: 360,
       durationSeconds: 14,
+      patienten: { anzahl: 1, zustand: 'schwer', transportWahrscheinlichkeit: 1 },
+      lage: 'Person nicht ansprechbar, Atmung vorhanden.',
     },
     {
       id: 'reanimation',
       stichwort: 'RD 2',
       meldebild: 'Reanimation',
       organization: 'Rettungsdienst',
-      requiredVehicles: [
-        { id: 'req-rtw', category: 'RTW', amount: 1 },
-        { id: 'req-nef', category: 'NEF', amount: 1 },
-      ],
+      requiredVehicles: [RTW(), NEF()],
       reward: 450,
       durationSeconds: 18,
+      patienten: { anzahl: 1, zustand: 'kritisch', transportWahrscheinlichkeit: 1 },
+      lage: 'Laienreanimation läuft, Übernahme durch den Rettungsdienst.',
+    },
+    {
+      id: 'verkehrsunfall-rd',
+      stichwort: 'RD 2',
+      meldebild: 'Verkehrsunfall mit Verletzten',
+      organization: 'Rettungsdienst',
+      requiredVehicles: [RTW(2)],
+      reward: 520,
+      durationSeconds: 16,
+      ortsArt: 'kreuzung',
+      patienten: { anzahl: 2, zustand: 'mittel', transportWahrscheinlichkeit: 0.9 },
+      lage: 'Zwei PKW kollidiert, zwei Verletzte außerhalb der Fahrzeuge.',
+      nachforderung: NEF_NACHFORDERUNG(0.25, 'Ein Patient mit Verdacht auf innere Blutung – Notarzt erforderlich.'),
     },
   ],
   Feuerwache: [
@@ -287,16 +337,17 @@ export const EINSATZ_VORLAGEN: Record<WachenArt, EinsatzVorlage[]> = {
       stichwort: 'B 1',
       meldebild: 'Brennender Papierkorb',
       organization: 'Feuerwehr',
-      requiredVehicles: [{ id: 'req-lz', category: 'Löschfahrzeug', amount: 1 }],
+      requiredVehicles: [LF()],
       reward: 220,
       durationSeconds: 10,
+      ortsArt: 'strasse',
     },
     {
       id: 'brennende-muelltonne',
       stichwort: 'B 1',
       meldebild: 'Brennende Mülltonne',
       organization: 'Feuerwehr',
-      requiredVehicles: [{ id: 'req-lz', category: 'Löschfahrzeug', amount: 1 }],
+      requiredVehicles: [LF()],
       reward: 240,
       durationSeconds: 11,
     },
@@ -305,9 +356,10 @@ export const EINSATZ_VORLAGEN: Record<WachenArt, EinsatzVorlage[]> = {
       stichwort: 'B 1',
       meldebild: 'Heckenbrand',
       organization: 'Feuerwehr',
-      requiredVehicles: [{ id: 'req-lz', category: 'Löschfahrzeug', amount: 1 }],
+      requiredVehicles: [LF()],
       reward: 260,
       durationSeconds: 12,
+      lage: 'Hecke auf ca. 10 m in Brand, Wohnhaus nicht gefährdet.',
       eskalation: {
         zielVorlageId: 'garagenbrand',
         wahrscheinlichkeit: 0.25,
@@ -319,9 +371,11 @@ export const EINSATZ_VORLAGEN: Record<WachenArt, EinsatzVorlage[]> = {
       stichwort: 'B 1',
       meldebild: 'Brennender PKW',
       organization: 'Feuerwehr',
-      requiredVehicles: [{ id: 'req-lz', category: 'Löschfahrzeug', amount: 1 }],
+      requiredVehicles: [LF()],
       reward: 310,
       durationSeconds: 15,
+      ortsArt: 'strasse',
+      lage: 'PKW im Motorraum in Vollbrand, keine Personen im Fahrzeug.',
       eskalation: {
         zielVorlageId: 'garagenbrand',
         wahrscheinlichkeit: 0.25,
@@ -333,9 +387,10 @@ export const EINSATZ_VORLAGEN: Record<WachenArt, EinsatzVorlage[]> = {
       stichwort: 'B 1',
       meldebild: 'Unklare Rauchentwicklung',
       organization: 'Feuerwehr',
-      requiredVehicles: [{ id: 'req-lz', category: 'Löschfahrzeug', amount: 1 }],
+      requiredVehicles: [LF()],
       reward: 290,
       durationSeconds: 14,
+      lage: 'Leichter Brandgeruch im Treppenhaus, Erkundung läuft.',
       eskalation: {
         zielVorlageId: 'zimmerbrand',
         wahrscheinlichkeit: 0.35,
@@ -347,18 +402,26 @@ export const EINSATZ_VORLAGEN: Record<WachenArt, EinsatzVorlage[]> = {
       stichwort: 'B 1',
       meldebild: 'Mülleimerbrand',
       organization: 'Feuerwehr',
-      requiredVehicles: [{ id: 'req-lz', category: 'Löschfahrzeug', amount: 1 }],
+      requiredVehicles: [LF()],
       reward: 250,
       durationSeconds: 12,
+      ortsArt: 'strasse',
     },
     {
       id: 'kleinbrand',
       stichwort: 'B 1',
       meldebild: 'Kleinbrand',
       organization: 'Feuerwehr',
-      requiredVehicles: [{ id: 'req-lz', category: 'Löschfahrzeug', amount: 1 }],
+      requiredVehicles: [LF()],
       reward: 300,
       durationSeconds: 14,
+      lage: 'Kleinbrand im Hinterhof, Löschangriff mit einem C-Rohr.',
+      nachforderung: {
+        wahrscheinlichkeit: 0.15,
+        bedarf: [LF()],
+        meldung: 'Brand größer als gemeldet, Holzlager betroffen – weiteres Löschfahrzeug erforderlich.',
+        zusatzBelohnung: 150,
+      },
       eskalation: {
         zielVorlageId: 'kellerbrand',
         wahrscheinlichkeit: 0.25,
@@ -370,18 +433,20 @@ export const EINSATZ_VORLAGEN: Record<WachenArt, EinsatzVorlage[]> = {
       stichwort: 'B 2',
       meldebild: 'Garagenbrand',
       organization: 'Feuerwehr',
-      requiredVehicles: [{ id: 'req-lz', category: 'Löschfahrzeug', amount: 2 }],
+      requiredVehicles: [LF(2)],
       reward: 480,
       durationSeconds: 18,
+      lage: 'Garage in Vollbrand, Riegelstellung zum Wohnhaus.',
     },
     {
       id: 'kellerbrand',
       stichwort: 'B 2',
       meldebild: 'Kellerbrand',
       organization: 'Feuerwehr',
-      requiredVehicles: [{ id: 'req-lz', category: 'Löschfahrzeug', amount: 2 }],
+      requiredVehicles: [LF(2)],
       reward: 520,
       durationSeconds: 20,
+      lage: 'Starke Verrauchung im Keller, Trupp unter Atemschutz geht vor.',
       eskalation: {
         zielVorlageId: 'zimmerbrand',
         wahrscheinlichkeit: 0.2,
@@ -393,21 +458,97 @@ export const EINSATZ_VORLAGEN: Record<WachenArt, EinsatzVorlage[]> = {
       stichwort: 'B 2',
       meldebild: 'Zimmerbrand',
       organization: 'Feuerwehr',
-      requiredVehicles: [
-        { id: 'req-lz', category: 'Löschfahrzeug', amount: 2 },
-        { id: 'req-dlk', category: 'Drehleiter', amount: 1 },
-      ],
+      requiredVehicles: [LF(2), DLK()],
       reward: 650,
       durationSeconds: 24,
+      lage: 'Rauch aus Fenster im 2. OG, Menschenrettung über Drehleiter wird vorbereitet.',
+      eskalation: {
+        zielVorlageId: 'gebaeudebrand',
+        wahrscheinlichkeit: 0.15,
+        meldung: 'Feuer hat den Dachstuhl erreicht – Gebäudebrand!',
+      },
+    },
+    {
+      id: 'gebaeudebrand',
+      stichwort: 'B 3',
+      meldebild: 'Gebäudebrand',
+      organization: 'Feuerwehr',
+      requiredVehicles: [LF(3), DLK()],
+      reward: 950,
+      durationSeconds: 32,
+      lage: 'Mehrfamilienhaus, Flammen aus mehreren Fenstern, Bewohner an den Fenstern.',
+    },
+    {
+      id: 'oelspur',
+      stichwort: 'TH 1',
+      meldebild: 'Ölspur',
+      organization: 'Feuerwehr',
+      requiredVehicles: [TH()],
+      reward: 200,
+      durationSeconds: 12,
+      ortsArt: 'strasse',
+      lage: 'Ölspur auf ca. 200 m, Bindemittel wird aufgebracht.',
+    },
+    {
+      id: 'baum-auf-strasse',
+      stichwort: 'TH 1',
+      meldebild: 'Baum auf Straße',
+      organization: 'Feuerwehr',
+      requiredVehicles: [TH()],
+      reward: 240,
+      durationSeconds: 14,
+      ortsArt: 'strasse',
+      lage: 'Baum blockiert beide Fahrspuren, Motorsäge im Einsatz.',
+    },
+    {
+      id: 'verkehrsunfall-th',
+      stichwort: 'TH 1',
+      meldebild: 'Verkehrsunfall, auslaufende Betriebsstoffe',
+      organization: 'Feuerwehr',
+      requiredVehicles: [TH()],
+      reward: 280,
+      durationSeconds: 14,
+      ortsArt: 'kreuzung',
+      lage: 'Zwei PKW, Betriebsstoffe laufen aus, Brandschutz sichergestellt.',
+      eskalation: {
+        zielVorlageId: 'vu-eingeklemmt',
+        wahrscheinlichkeit: 0.15,
+        meldung: 'Bei der Erkundung: Fahrer im Fahrzeug eingeklemmt!',
+      },
+    },
+    {
+      id: 'person-hinter-tuer',
+      stichwort: 'TH 1',
+      meldebild: 'Person hinter verschlossener Tür',
+      organization: 'Feuerwehr',
+      requiredVehicles: [TH(), RTW()],
+      reward: 330,
+      durationSeconds: 12,
+      patienten: { anzahl: 1, zustand: 'mittel', transportWahrscheinlichkeit: 0.6 },
+      lage: 'Hilferufe aus der Wohnung, Tür wird geöffnet.',
+    },
+    {
+      id: 'vu-eingeklemmt',
+      stichwort: 'TH 2',
+      meldebild: 'VU – Person eingeklemmt',
+      organization: 'Feuerwehr',
+      requiredVehicles: [TH(), LF(), RTW()],
+      reward: 700,
+      durationSeconds: 26,
+      ortsArt: 'kreuzung',
+      patienten: { anzahl: 1, zustand: 'schwer', transportWahrscheinlichkeit: 1 },
+      lage: 'PKW gegen Baum, Fahrer eingeklemmt, technische Rettung wird vorbereitet.',
+      nachforderung: NEF_NACHFORDERUNG(0.5, 'Eingeklemmter Fahrer mit schweren Verletzungen – Notarzt erforderlich.'),
     },
   ],
 };
 
+export const ALLE_EINSATZ_VORLAGEN: EinsatzVorlage[] = [...EINSATZ_VORLAGEN.Rettungswache, ...EINSATZ_VORLAGEN.Feuerwache];
+
 export function findeEinsatzVorlage(id: string): EinsatzVorlage | undefined {
-  return [...EINSATZ_VORLAGEN.Rettungswache, ...EINSATZ_VORLAGEN.Feuerwache].find((vorlage) => vorlage.id === id);
+  return ALLE_EINSATZ_VORLAGEN.find((vorlage) => vorlage.id === id);
 }
 
-/** Würfelt aus, ob (und wann während der Bearbeitung) ein Einsatz aus dieser Vorlage eskaliert. */
 /**
  * Würfelt aus, ob (und wann) ein Einsatz eskaliert, wenn sich niemand um ihn kümmert.
  * Nicht jeder Einsatz eskaliert – nur Vorlagen mit Eskalationsstufe und auch dann nur mit deren Wahrscheinlichkeit.
@@ -418,9 +559,32 @@ export function planeEskalationOhneAlarm(vorlage: EinsatzVorlage, jetzt: number)
   return jetzt + min + Math.random() * (max - min);
 }
 
+/** Würfelt aus, ob (und wann während der Bearbeitung) ein Einsatz aus dieser Vorlage eskaliert. */
 export function planeEskalation(vorlage: EinsatzVorlage): number | undefined {
   if (!vorlage.eskalation || Math.random() >= vorlage.eskalation.wahrscheinlichkeit) return undefined;
   return 0.3 + Math.random() * 0.4;
+}
+
+/** Würfelt aus, ob das erste Fahrzeug vor Ort weitere Kräfte nachfordert. */
+export function planeNachforderung(vorlage: EinsatzVorlage, zufall: () => number = Math.random): boolean {
+  return Boolean(vorlage.nachforderung) && zufall() < (vorlage.nachforderung?.wahrscheinlichkeit ?? 0);
+}
+
+/** Patienten nach einer Eskalation: Zustand verschlechtert sich, Transport wird nötig, ggf. kommen Patienten dazu. */
+function passePatientenAn(einsatz: SpielEinsatz, ziel: EinsatzVorlage): Patient[] | undefined {
+  const bisher = einsatz.patienten ?? [];
+  if (!ziel.patienten) return einsatz.patienten;
+  const angepasst = bisher.map((patient) => ({
+    ...patient,
+    zustand: schwererZustand(patient.zustand, ziel.patienten!.zustand),
+    transportErforderlich: true,
+    status: 'wartet' as const,
+  }));
+  const fehlend = Math.max(0, ziel.patienten.anzahl - angepasst.length);
+  return [
+    ...angepasst,
+    ...erzeugePatienten({ ...ziel.patienten, anzahl: fehlend, transportWahrscheinlichkeit: 1 }, einsatz.id, Math.random, angepasst.length),
+  ];
 }
 
 /**
@@ -441,39 +605,110 @@ export function eskaliereEinsatz(einsatz: SpielEinsatz, ziel: EinsatzVorlage, me
     processingEndsAt: undefined,
     eskalationBei: planeEskalation(ziel),
     eskalationOhneAlarmAt: planeEskalationOhneAlarm(ziel, jetzt),
+    // Eine Nachforderung gibt es nur beim ersten Eintreffen – danach nicht mehr
+    nachforderungGeplant: einsatz.erstesEintreffenAt === undefined ? planeNachforderung(ziel) : false,
+    patienten: passePatientenAn(einsatz, ziel),
     neueMeldung: true,
-    meldungen: [...einsatz.meldungen, { zeit: jetzt, text: meldung }],
+    meldungen: fuegeMeldungenHinzu(einsatz.meldungen, [{ zeit: jetzt, text: meldung, art: 'eskalation' }]),
+  };
+}
+
+/** Fügt den Bedarf einer Nachforderung zum Einsatz hinzu (inkl. Lagemeldung). */
+export function wendeNachforderungAn(
+  einsatz: SpielEinsatz,
+  nachforderung: EinsatzNachforderung,
+  zeit: number,
+  quelle: string,
+): SpielEinsatz {
+  return {
+    ...einsatz,
+    requiredVehicles: ergaenzeBedarf(einsatz.requiredVehicles, nachforderung.bedarf),
+    reward: einsatz.reward + nachforderung.zusatzBelohnung,
+    nachforderungGeplant: false,
+    neueMeldung: true,
+    meldungen: fuegeMeldungenHinzu(einsatz.meldungen, [{
+      zeit,
+      text: `${quelle}: ${nachforderung.meldung} Nachforderung: ${formatBedarfsListe(nachforderung.bedarf.map((b) => ({ category: b.category, anzahl: b.amount })))}.`,
+      art: 'nachforderung',
+    }]),
   };
 }
 
 /** Prüft, ob die vorhandenen Fahrzeugtypen alle Anforderungen einer Vorlage grundsätzlich erfüllen können. */
-export function istVorlageErfuellbar(vorlage: EinsatzVorlage, fahrzeugTypen: Array<string | undefined>): boolean {
-  return vorlage.requiredVehicles.every((bedarf) => {
-    const anzahl = fahrzeugTypen.filter((typ) => getFahrzeugKategorie(typ) === bedarf.category).length;
-    return anzahl >= bedarf.amount;
-  });
+export function istVorlageErfuellbar(vorlage: Pick<EinsatzVorlage, 'requiredVehicles'>, fahrzeugTypen: Array<string | undefined>): boolean {
+  return istBedarfGedeckt(vorlage.requiredVehicles, fahrzeugTypen.map((type, index) => ({ id: String(index), type })));
 }
+
+/** Zuteilungen, die (noch) zum Einsatz gehören – entlassene Fahrzeuge zählen nicht mehr. */
+export const getAktiveZuteilungen = (einsatz: Pick<SpielEinsatz, 'alarmedVehicles'>) =>
+  einsatz.alarmedVehicles.filter((assignment) => assignment.freigegebenAt === undefined);
 
 export interface BedarfsAbdeckung {
-  category: FahrzeugKategorie;
+  category: BedarfsKlasse;
   amount: number;
-  /** Anzahl bereits alarmierter Fahrzeuge dieser Kategorie */
+  /** Anzahl alarmierter Fahrzeuge, die diesen Bedarf decken */
   alarmiert: number;
+  /** Davon bereits an der Einsatzstelle */
+  vorOrt: number;
 }
 
-/** Wie viele der benötigten Fahrzeuge sind einem Einsatz bereits zugeteilt? */
+/**
+ * Wie viele der benötigten Fahrzeuge sind einem Einsatz zugeteilt bzw. schon vor Ort?
+ * Bei laufendem Transport oder abgeschlossenem Einsatz zählen auch bereits entlassene Fahrzeuge.
+ */
 export function getBedarfsAbdeckung(
   einsatz: SpielEinsatz,
   fahrzeuge: Array<{ id: string; type?: string }>,
+  jetzt: number = Date.now(),
 ): BedarfsAbdeckung[] {
-  const alarmierteKategorien = einsatz.alarmedVehicles.map((assignment) =>
-    getFahrzeugKategorie(fahrzeuge.find((fahrzeug) => fahrzeug.id === assignment.vehicleId)?.type),
-  );
-  return einsatz.requiredVehicles.map((bedarf) => ({
+  const zuteilungen = einsatz.status === 'transport' || einsatz.status === 'abgeschlossen'
+    ? einsatz.alarmedVehicles
+    : getAktiveZuteilungen(einsatz);
+  const zugeteilt = zuteilungen.map((assignment) => ({
+    id: assignment.vehicleId,
+    type: fahrzeuge.find((fahrzeug) => fahrzeug.id === assignment.vehicleId)?.type,
+    angekommen: assignment.arrivalAt <= jetzt,
+  }));
+  const alarmiert = ordneFahrzeugeBedarfZu(einsatz.requiredVehicles, zugeteilt);
+  const vorOrt = ordneFahrzeugeBedarfZu(einsatz.requiredVehicles, zugeteilt.filter((fahrzeug) => fahrzeug.angekommen));
+  return einsatz.requiredVehicles.map((bedarf, index) => ({
     category: bedarf.category,
     amount: bedarf.amount,
-    alarmiert: alarmierteKategorien.filter((kategorie) => kategorie === bedarf.category).length,
+    alarmiert: alarmiert[index].length,
+    vorOrt: vorOrt[index].length,
   }));
+}
+
+export interface EinsatzVersorgung {
+  abdeckung: BedarfsAbdeckung[];
+  /** Was noch alarmiert werden muss */
+  fehlendAlarmiert: Array<{ category: BedarfsKlasse; anzahl: number }>;
+  /** Was noch nicht an der Einsatzstelle ist */
+  fehlendVorOrt: Array<{ category: BedarfsKlasse; anzahl: number }>;
+  ausreichendAlarmiert: boolean;
+  ausreichendVorOrt: boolean;
+}
+
+/** Ist der Einsatz ausreichend versorgt? Grundlage für Anzeige („unterversorgt“) und Vorschlag. */
+export function getEinsatzVersorgung(
+  einsatz: SpielEinsatz,
+  fahrzeuge: Array<{ id: string; type?: string }>,
+  jetzt: number = Date.now(),
+): EinsatzVersorgung {
+  const abdeckung = getBedarfsAbdeckung(einsatz, fahrzeuge, jetzt);
+  const fehlendAlarmiert = abdeckung
+    .map((eintrag) => ({ category: eintrag.category, anzahl: eintrag.amount - eintrag.alarmiert }))
+    .filter((eintrag) => eintrag.anzahl > 0);
+  const fehlendVorOrt = abdeckung
+    .map((eintrag) => ({ category: eintrag.category, anzahl: eintrag.amount - eintrag.vorOrt }))
+    .filter((eintrag) => eintrag.anzahl > 0);
+  return {
+    abdeckung,
+    fehlendAlarmiert,
+    fehlendVorOrt,
+    ausreichendAlarmiert: fehlendAlarmiert.length === 0,
+    ausreichendVorOrt: fehlendVorOrt.length === 0,
+  };
 }
 
 export type AbgeschlossenerSpielEinsatz = SpielEinsatz & {

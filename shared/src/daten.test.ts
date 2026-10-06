@@ -1,13 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import {
   EINSATZ_VORLAGEN,
-  FAHRZEUG_TYPEN,
   findeEinsatzVorlage,
   getBedarfsAbdeckung,
-  getFahrzeugKategorie,
-  getFahrzeugTypenFuerWache,
   istVorlageErfuellbar,
 } from './daten.js';
+import { FAHRZEUG_TYPEN, getFahrzeugKategorie, getFahrzeugTypenFuerWache } from './fahrzeuge.js';
 import { erzeugeZufallsEinsatz } from './einsatzErzeugung.js';
 import { haversineKm } from './geo.js';
 import { einsatz, fahrzeug, wache } from './testHilfen.js';
@@ -51,10 +49,10 @@ describe('Machbarkeit und Abdeckung', () => {
       ...einsatz('reanimation'),
       alarmedVehicles: [{ vehicleId: 'rtw', distanceKm: 1, etaSeconds: 60, arrivalAt: 0 }],
     };
-    const abdeckung = getBedarfsAbdeckung(e, [fahrzeug('rtw', 'RTW'), fahrzeug('nef', 'NEF')]);
+    const abdeckung = getBedarfsAbdeckung(e, [fahrzeug('rtw', 'RTW'), fahrzeug('nef', 'NEF')], 0);
     expect(abdeckung).toEqual([
-      { category: 'RTW', amount: 1, alarmiert: 1 },
-      { category: 'NEF', amount: 1, alarmiert: 0 },
+      { category: 'RTW', amount: 1, alarmiert: 1, vorOrt: 1 },
+      { category: 'NEF', amount: 1, alarmiert: 0, vorOrt: 0 },
     ]);
   });
 });
@@ -62,7 +60,7 @@ describe('Machbarkeit und Abdeckung', () => {
 describe('erzeugeZufallsEinsatz', () => {
   it('erzeugt ohne NEF nie einen RD-2-Einsatz', () => {
     for (let i = 0; i < 200; i += 1) {
-      const ergebnis = erzeugeZufallsEinsatz([wache()], [fahrzeug('rtw', 'RTW')], () => '');
+      const ergebnis = erzeugeZufallsEinsatz([wache()], [fahrzeug('rtw', 'RTW')]);
       if (!('einsatz' in ergebnis)) throw new Error('Einsatz erwartet');
       expect(ergebnis.einsatz.stichwort).toBe('RD 1');
     }
@@ -71,14 +69,14 @@ describe('erzeugeZufallsEinsatz', () => {
   it('erzeugt Einsätze in der Nähe der Wache', () => {
     const w = wache();
     for (let i = 0; i < 50; i += 1) {
-      const ergebnis = erzeugeZufallsEinsatz([w], [fahrzeug('rtw', 'RTW')], () => '');
+      const ergebnis = erzeugeZufallsEinsatz([w], [fahrzeug('rtw', 'RTW')]);
       if (!('einsatz' in ergebnis)) throw new Error('Einsatz erwartet');
       expect(haversineKm(w.coords, ergebnis.einsatz.coords)).toBeLessThanOrEqual(1.25);
     }
   });
 
   it('meldet einen Fehler ohne Wache bzw. ohne passende Fahrzeuge', () => {
-    expect(erzeugeZufallsEinsatz([], [], () => '')).toEqual({ fehler: 'keine-wache' });
-    expect(erzeugeZufallsEinsatz([wache('fw', 'Feuerwache')], [fahrzeug('rtw', 'RTW', 'fw')], () => '')).toEqual({ fehler: 'keine-machbare-vorlage' });
+    expect(erzeugeZufallsEinsatz([], [])).toEqual({ fehler: 'keine-wache' });
+    expect(erzeugeZufallsEinsatz([wache('fw', 'Feuerwache')], [fahrzeug('rtw', 'RTW', 'fw')])).toEqual({ fehler: 'keine-machbare-vorlage' });
   });
 });

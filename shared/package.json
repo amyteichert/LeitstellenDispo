@@ -14,8 +14,9 @@
   "scripts": {
     "build": "tsc",
     "dev": "tsc --watch",
-    "test": "vitest run",
-    "test:watch": "vitest"
+    "test": "tsc -p tsconfig.test.json && vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit -p tsconfig.json && tsc -p tsconfig.test.json"
   },
   "devDependencies": {
     "typescript": "^5.7.3",

@@ -478,6 +478,32 @@
   background: #6b7280;
 }
 
+/* Patiententransport und Übergabe im Krankenhaus */
+.vehicle-marker--transport span,
+.vehicle-marker--krankenhaus span {
+  background: #7c3aed;
+}
+
+/* Feuerwehr-Fahrzeuge mit rotem Rand – später leicht unterscheidbar */
+.vehicle-marker--fw span {
+  border-color: #ff8a9b;
+}
+
+/* Krankenhäuser */
+.hospital-marker span {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 5px;
+  background: #1d4ed8;
+  color: #fff;
+  font-size: 0.8rem;
+  font-weight: 800;
+  border: 2px solid #fff;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.45);
+}
+
 /* Einblendungen bei neuen Einsätzen und Lagemeldungen */
 .einsatz-hinweise {
   position: fixed;
@@ -578,6 +604,11 @@
   animation: incident-pulse 1.6s ease-out infinite;
 }
 
+/* Feuerwehr-Einsätze eckig, Rettungsdienst rund */
+.incident-marker--fw span {
+  border-radius: 4px !important;
+}
+
 /* Eskalierte Einsätze: roter Ring und Ausrufezeichen */
 .incident-marker--eskaliert span {
   outline: 3px solid #ff3b5c;
@@ -668,6 +699,7 @@
 .map-incident-chip--offen .map-incident-chip__dot { background: #f59e0b; }
 .map-incident-chip--alarmiert .map-incident-chip__dot { background: #3b82f6; }
 .map-incident-chip--in_bearbeitung .map-incident-chip__dot { background: #c41e3a; }
+.map-incident-chip--transport .map-incident-chip__dot { background: #8b5cf6; }
 
 /* Schwebendes Einsatzfenster rechts auf der Karte */
 .map-incident-panel {
@@ -1081,6 +1113,7 @@
 .status-badge--offen { color: #fbbf24; background: rgba(245, 158, 11, 0.14); border-color: rgba(245, 158, 11, 0.35); }
 .status-badge--alarmiert { color: #93c5fd; background: rgba(59, 130, 246, 0.14); border-color: rgba(59, 130, 246, 0.35); }
 .status-badge--in_bearbeitung { color: #fca5b5; background: rgba(196, 30, 58, 0.18); border-color: rgba(196, 30, 58, 0.45); }
+.status-badge--transport { color: #c4b5fd; background: rgba(139, 92, 246, 0.16); border-color: rgba(139, 92, 246, 0.4); }
 .status-badge--abgeschlossen { color: #b9c0c8; background: rgba(128, 138, 151, 0.16); border-color: rgba(128, 138, 151, 0.3); }
 
 /* [O2] Einsatzliste: Karten mit farbiger Statusleiste links */
@@ -1113,6 +1146,7 @@
 .einsatz-eintrag--offen { --status-farbe: #f59e0b; }
 .einsatz-eintrag--alarmiert { --status-farbe: #3b82f6; }
 .einsatz-eintrag--in_bearbeitung { --status-farbe: #c41e3a; }
+.einsatz-eintrag--transport { --status-farbe: #8b5cf6; }
 .einsatz-eintrag--abgeschlossen { --status-farbe: #6b7280; }
 
 .einsatz-eintrag__kopf {
@@ -1164,6 +1198,25 @@
 .bedarf-chip { padding: 4px 10px; border-radius: 8px; font-size: 0.85rem; font-weight: 600; border: 1px solid; }
 .bedarf-chip--erfuellt { color: #86efac; background: rgba(34, 197, 94, 0.12); border-color: rgba(34, 197, 94, 0.35); }
 .bedarf-chip--fehlt { color: #fca5b5; background: rgba(196, 30, 58, 0.14); border-color: rgba(196, 30, 58, 0.4); }
+/* Alarmiert, aber noch auf Anfahrt */
+.bedarf-chip--unterwegs { color: #93c5fd; background: rgba(59, 130, 246, 0.12); border-color: rgba(59, 130, 246, 0.35); }
+.bedarf-chip small { font-weight: 500; opacity: 0.85; }
+
+/* Versorgungslage: deutlich, wenn Kräfte fehlen */
+.versorgung-hinweis { padding: 8px 12px; border-radius: 8px; font-size: 0.88rem; border: 1px solid; }
+.versorgung-hinweis--fehlt { color: #ffd4da; background: rgba(196, 30, 58, 0.22); border-color: rgba(196, 30, 58, 0.6); }
+.versorgung-hinweis--unterwegs { color: #cfe0ff; background: rgba(59, 130, 246, 0.14); border-color: rgba(59, 130, 246, 0.4); }
+.versorgung-hinweis--ok { color: #b8f0cf; background: rgba(67, 181, 129, 0.12); border-color: rgba(67, 181, 129, 0.38); }
+
+/* Patienten */
+.patienten-liste { list-style: none; padding: 0; display: grid; gap: 6px; }
+.patienten-liste li { padding: 8px 12px; border-radius: 10px; background: var(--color-surface-raised); border: 1px solid var(--color-border); display: grid; gap: 2px; font-size: 0.9rem; }
+.patienten-liste small { color: var(--color-text-muted); }
+.patient-zustand--schwer, .patient-zustand--kritisch { color: #fca5b5; font-weight: 700; }
+
+/* Lagemeldungen nach Art */
+.einsatz-meldungen li[data-art='lage'], .einsatz-meldungen li[data-art='patient'] { font-weight: 400 !important; font-size: 0.9rem !important; }
+.meldung-zeit { color: var(--color-text-muted); font-size: 0.8rem; font-variant-numeric: tabular-nums; margin-right: 4px; }
 
 .einsatz-fahrzeuge { list-style: none; padding: 0; display: grid; gap: 4px; font-size: 0.9rem; }
 .einsatz-fahrzeuge span { color: var(--color-text-muted); }

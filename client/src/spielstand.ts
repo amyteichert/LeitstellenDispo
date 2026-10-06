@@ -1,20 +1,7 @@
-import type { AbgeschlossenerSpielEinsatz, SpielEinsatz } from '@leitstellendispo/shared';
-import type { FinanceTransaction, MapLocation, Vehicle } from './types';
+import { migriereSpielstand, type Spielstand } from '@leitstellendispo/shared';
 
-/** Wird erhöht, wenn sich der Aufbau des Spielstands inkompatibel ändert. */
-export const SPIELSTAND_VERSION = 2;
-
-/** Alles, was zum Fortsetzen eines Spiels gespeichert werden muss. */
-export interface Spielstand {
-  version: number;
-  gespeichertAm: string;
-  balance: number;
-  transactions: FinanceTransaction[];
-  locations: MapLocation[];
-  vehicles: Vehicle[];
-  incidents: SpielEinsatz[];
-  completedIncidentHistory: AbgeschlossenerSpielEinsatz[];
-}
+// Aufbau, Version und Migration des Spielstands liegen in shared (reine Funktionen, getestet)
+export { SPIELSTAND_VERSION, type Spielstand } from '@leitstellendispo/shared';
 
 /**
  * Speicherort für den Spielstand.
@@ -34,11 +21,8 @@ export const localStorageSpeicher: SpielstandSpeicher = {
     try {
       const roh = localStorage.getItem(LOCAL_STORAGE_KEY);
       if (!roh) return null;
-      const spielstand = JSON.parse(roh) as Spielstand;
-      if (spielstand.version !== SPIELSTAND_VERSION) {
-        console.warn('Gespeicherter Spielstand hat eine alte Version und wird ignoriert.');
-        return null;
-      }
+      const spielstand = migriereSpielstand(JSON.parse(roh));
+      if (!spielstand) console.warn('Gespeicherter Spielstand ist unbekannt oder beschädigt und wird ignoriert.');
       return spielstand;
     } catch (error) {
       console.error('Spielstand konnte nicht geladen werden:', error);

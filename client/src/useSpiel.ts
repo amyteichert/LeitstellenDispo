@@ -1,58 +1,22 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   GAME_CONFIG,
-  START_GUTHABEN,
   WACHEN_PREISE,
   alarmiereFahrzeuge,
   berechneSpielTick,
+  createNeuesSpiel,
+  ergaenzeKrankenhaeuser,
   erzeugeZufallsEinsatz,
   formatEinsatzTitel,
   getFahrzeugTyp,
   type AbgeschlossenerSpielEinsatz,
+  type Adresse,
+  type Krankenhaus,
   type SpielEinsatz,
   type StationKind,
 } from '@leitstellendispo/shared';
 import type { FinanceTransaction, MapLocation, Vehicle } from './types';
 import { SPIELSTAND_VERSION, spielstandSpeicher, type Spielstand } from './spielstand';
-
-const initialLocations: MapLocation[] = [
-  {
-    id: 'rettungswache-zentrum',
-    name: 'Rettungswache Zentrum',
-    type: 'station',
-    stationKind: 'Rettungswache',
-    coords: [48.775, 9.1771],
-    description: 'Rettungsdienst',
-    details: 'Frei platzierbarer Standort',
-    price: 0,
-  },
-  {
-    id: 'rettungswache-sued',
-    name: 'Rettungswache Süd',
-    type: 'station',
-    stationKind: 'Rettungswache',
-    coords: [48.7692, 9.1931],
-    description: 'Rettungsdienst',
-    details: 'Frei platzierbarer Standort',
-    price: 0,
-  },
-];
-
-/** Startzustand für ein neues Spiel: zwei Rettungswachen mit einem RTW und Startguthaben. */
-export const createNeuesSpiel = (): Spielstand => ({
-  version: SPIELSTAND_VERSION,
-  gespeichertAm: new Date().toISOString(),
-  balance: START_GUTHABEN,
-  transactions: [
-    { id: 'initial-balance', kind: 'Einnahme', label: 'Startguthaben', amount: START_GUTHABEN, createdAt: new Date().toISOString() },
-  ],
-  locations: initialLocations,
-  vehicles: [
-    { id: 'fahrzeug-1', name: 'RTW 1', type: 'RTW', stationId: 'rettungswache-zentrum', price: 0, callsign: 'RTW-1', status: 'Einsatzbereit' },
-  ],
-  incidents: [],
-  completedIncidentHistory: [],
-});
 
 export interface NeueWache {
   name: string;
@@ -61,6 +25,8 @@ export interface NeueWache {
   details: string;
   startFahrzeugTyp: string;
   funkrufname: string;
+  /** Strukturierte Adresse aus der Adresssuche (fehlt bei Klick auf die Karte) */
+  adresse?: Adresse;
 }
 
 interface UseSpielOptionen {
@@ -87,6 +53,7 @@ export function useSpiel(optionen: UseSpielOptionen = {}) {
   const [transactions, setTransactions] = useState<FinanceTransaction[]>(startSpiel.transactions);
   const [incidents, setIncidents] = useState<SpielEinsatz[]>(startSpiel.incidents);
   const [completedIncidentHistory, setCompletedIncidentHistory] = useState<AbgeschlossenerSpielEinsatz[]>(startSpiel.completedIncidentHistory);
+  const [krankenhaeuser, setKrankenhaeuser] = useState<Krankenhaus[]>(startSpiel.krankenhaeuser);
   const [nowMs, setNowMs] = useState(Date.now());
   // Erst nach dem Laden wird gespeichert und werden Einsätze erzeugt (sonst würde ein leerer Stand den gespeicherten überschreiben)
   const [spielstandGeladen, setSpielstandGeladen] = useState(false);
@@ -102,8 +69,10 @@ export function useSpiel(optionen: UseSpielOptionen = {}) {
   };
 
   const addVehicle = (v: Omit<Vehicle, 'id'>) => {
-    const id = `fahrzeug-${Date.now()}`;
-    setVehicles((cur) => [...cur, { ...v, id, status: v.status ?? 'Einsatzbereit' }]);
+    const id = `fahrzeug-${Date.now()}-${Math.random().toString(16).slice(2, 6)}`;
+    // Ohne Personalsystem ist jedes neue Fahrzeug voll besetzt (Sollstärke laut Katalog)
+    const besatzung = v.besatzung ?? getFahrzeugTyp(v.type)?.besatzung;
+    setVehicles((cur) => [...cur, { ...v, id, besatzung, status: v.status ?? 'Einsatzbereit' }]);
   };
 
   const spielstandAnwenden = (spielstand: Spielstand) => {
@@ -113,6 +82,7 @@ export function useSpiel(optionen: UseSpielOptionen = {}) {
     setVehicles(spielstand.vehicles);
     setIncidents(spielstand.incidents);
     setCompletedIncidentHistory(spielstand.completedIncidentHistory);
+    setKrankenhaeuser(spielstand.krankenhaeuser);
     optionenRef.current.onSpielstandAngewendet?.(spielstand);
   };
 
@@ -142,10 +112,11 @@ export function useSpiel(optionen: UseSpielOptionen = {}) {
         vehicles,
         incidents,
         completedIncidentHistory,
+        krankenhaeuser,
       });
     }, 1000);
     return () => clearTimeout(timeout);
-  }, [spielstandGeladen, balance, transactions, locations, vehicles, incidents, completedIncidentHistory]);
+  }, [spielstandGeladen, balance, transactions, locations, vehicles, incidents, completedIncidentHistory, krankenhaeuser]);
 
   // Spielzeit
   useEffect(() => {
@@ -164,7 +135,7 @@ export function useSpiel(optionen: UseSpielOptionen = {}) {
         if (current.filter((incident) => incident.status !== 'abgeschlossen').length >= GAME_CONFIG.maxOpenIncidents) {
           return current;
         }
-        const ergebnis = erzeugeZufallsEinsatz(locations, vehicles, (vorlage, station) => `${vorlage.meldebild} in der Nähe von ${station.name}`);
+        const ergebnis = erzeugeZufallsEinsatz(locations, vehicles);
         return 'einsatz' in ergebnis ? [ergebnis.einsatz, ...current] : current;
       });
     }, GAME_CONFIG.incidentGenerationMs);
@@ -172,9 +143,9 @@ export function useSpiel(optionen: UseSpielOptionen = {}) {
     return () => clearInterval(interval);
   }, [spielstandGeladen, locations, incidents, vehicles]);
 
-  // Spiel-Tick: Ankunft, Bearbeitung, Eskalation, Abschluss, Rückfahrt
+  // Spiel-Tick: Ankunft, Lagemeldungen, Bearbeitung, Eskalation, Transport, Abschluss, Rückfahrt
   useEffect(() => {
-    const ergebnis = berechneSpielTick({ vehicles, incidents, locations }, nowMs);
+    const ergebnis = berechneSpielTick({ vehicles, incidents, locations, krankenhaeuser }, nowMs);
     if (!ergebnis.geaendert) return;
 
     setVehicles(ergebnis.vehicles);
@@ -192,7 +163,7 @@ export function useSpiel(optionen: UseSpielOptionen = {}) {
     if (ergebnis.verfallen.length > 0) {
       optionenRef.current.onEinsaetzeVerfallen?.(ergebnis.verfallen.map((incident) => incident.id));
     }
-  }, [incidents, vehicles, nowMs, locations]);
+  }, [incidents, vehicles, nowMs, locations, krankenhaeuser]);
 
   const completedIncidentStats = useMemo(() => {
     const total = completedIncidentHistory.length;
@@ -242,7 +213,7 @@ export function useSpiel(optionen: UseSpielOptionen = {}) {
     const name = wache.name.trim() || 'Neuer Standort';
     const locationId = `${name.toLowerCase().replace(/\s+/g, '-')}-${Date.now()}`;
 
-    setLocations((current) => [...current, {
+    const neueWache: MapLocation = {
       id: locationId,
       name,
       type: 'station',
@@ -251,7 +222,11 @@ export function useSpiel(optionen: UseSpielOptionen = {}) {
       description: wache.stationKind === 'Feuerwache' ? 'Feuerwehr' : 'Rettungsdienst',
       details: wache.details.trim() || `Frei platzierbare ${wache.stationKind}`,
       price: stationPrice,
-    }]);
+      adresse: wache.adresse,
+    };
+    setLocations((current) => [...current, neueWache]);
+    // Patienten brauchen ein Krankenhaus in erreichbarer Nähe
+    setKrankenhaeuser((current) => ergaenzeKrankenhaeuser(current, neueWache));
     setBalance((cur) => cur - totalCost);
     addTransaction('Ausgabe', `${wache.stationKind} mit ${wache.startFahrzeugTyp} erstellt`, totalCost);
 
@@ -274,7 +249,7 @@ export function useSpiel(optionen: UseSpielOptionen = {}) {
 
   /** Erzeugt sofort einen Test-Einsatz. Gibt die Einsatz-ID oder eine Fehlermeldung zurück. */
   const erzeugeTestEinsatz = (): { id: string } | { fehler: string } => {
-    const ergebnis = erzeugeZufallsEinsatz(locations, vehicles, (vorlage, station) => `${vorlage.meldebild} in ${station.name}`);
+    const ergebnis = erzeugeZufallsEinsatz(locations, vehicles);
     if ('fehler' in ergebnis) {
       return {
         fehler: ergebnis.fehler === 'keine-wache'
@@ -312,6 +287,7 @@ export function useSpiel(optionen: UseSpielOptionen = {}) {
     incidents,
     completedIncidentHistory,
     completedIncidentStats,
+    krankenhaeuser,
     nowMs,
     addVehicle,
     buyVehicle,

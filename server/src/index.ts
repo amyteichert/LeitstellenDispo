@@ -1,6 +1,6 @@
 import cors from 'cors';
 import express from 'express';
-import { getAppInfo } from '@leitstellendispo/shared';
+import { FAHRZEUG_TYPEN, STANDARD_KRANKENHAEUSER, getAppInfo } from '@leitstellendispo/shared';
 import type { Einsatz } from '@leitstellendispo/shared';
 
 const app = express();
@@ -19,13 +19,22 @@ app.get('/api/info', (_req, res) => {
 
 // Feste Beispieldaten für den ersten Durchstich – wird später durch echte Einsatzlogik ersetzt.
 const beispielEinsaetze: Einsatz[] = [
-  { id: 'E-001', stichwort: 'RD 1', meldebild: 'Internistischer Notfall', status: 'offen' },
-  { id: 'E-002', stichwort: 'B 2', meldebild: 'Zimmerbrand', status: 'alarmiert' },
-  { id: 'E-003', stichwort: 'TH 1', meldebild: 'Ölspur', status: 'in_bearbeitung' },
+  { id: 'E-001', stichwort: 'RD 1', meldebild: 'Internistischer Notfall', status: 'offen', address: 'Bahnhofstraße 12, 70173 Stuttgart' },
+  { id: 'E-002', stichwort: 'B 2', meldebild: 'Zimmerbrand', status: 'alarmiert', address: 'Goethestraße 7, 70174 Stuttgart' },
+  { id: 'E-003', stichwort: 'TH 1', meldebild: 'Ölspur', status: 'in_bearbeitung', address: 'Hauptstraße (Höhe Nr. 40), 70173 Stuttgart' },
 ];
 
 app.get('/api/einsaetze', (_req, res) => {
   res.json(beispielEinsaetze);
+});
+
+// Zentraler Fahrzeugkatalog und Krankenhäuser – dieselben Daten wie im Spiel (aus shared)
+app.get('/api/fahrzeugtypen', (_req, res) => {
+  res.json(FAHRZEUG_TYPEN);
+});
+
+app.get('/api/krankenhaeuser', (_req, res) => {
+  res.json(STANDARD_KRANKENHAEUSER);
 });
 
 app.listen(PORT, () => {

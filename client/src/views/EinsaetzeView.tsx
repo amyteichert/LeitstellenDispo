@@ -1,13 +1,18 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
   EINSATZ_STATUS_LABELS,
+  FMS_STATUS,
+  PATIENTEN_STATUS_LABELS,
+  PATIENTEN_ZUSTAND_LABELS,
+  erstelleAlarmVorschlag,
+  formatBedarfsListe,
   formatEinsatzTitel,
-  getBedarfsAbdeckung,
-  getFahrzeitSekunden,
-  getFahrzeugKategorie,
-  haversineKm,
-  istFahrzeugVerfuegbar,
+  getBedarfsLabel,
+  getEinsatzVersorgung,
+  getPassendeVerfuegbareFahrzeuge,
+  istWichtigeMeldung,
   type AbgeschlossenerSpielEinsatz,
+  type EinsatzMeldung,
   type SpielEinsatz,
 } from '@leitstellendispo/shared';
 import type { MapLocation, Vehicle } from '../types';
@@ -20,6 +25,29 @@ const formatEtaLabel = (seconds: number) => {
     return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
   }
   return `${totalSeconds} Sek.`;
+};
+
+const formatUhrzeit = (zeit: number) => new Date(zeit).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+
+const MELDUNG_SYMBOL: Record<NonNullable<EinsatzMeldung['art']>, string> = {
+  eskalation: '⚠',
+  nachforderung: '📣',
+  lage: '📍',
+  patient: '🩺',
+  abschluss: '✓',
+};
+
+/** Was macht ein dem Einsatz zugeteiltes Fahrzeug gerade? */
+const beschreibeZuteilung = (incident: SpielEinsatz, assignment: SpielEinsatz['alarmedVehicles'][number], nowMs: number) => {
+  if (assignment.freigegebenAt !== undefined) return 'entlassen – Rückfahrt zur Wache';
+  const transport = incident.patienten?.find((p) => p.transport?.fahrzeugId === assignment.vehicleId)?.transport;
+  if (transport && nowMs >= transport.startAt) {
+    return nowMs < transport.ankunftAt
+      ? `Transport → ${transport.krankenhausName} (Ankunft in ${formatEtaLabel((transport.ankunftAt - nowMs) / 1000)})`
+      : `Übergabe in ${transport.krankenhausName}`;
+  }
+  if (assignment.arrivalAt > nowMs) return `${assignment.distanceKm.toFixed(1)} km – Ankunft in ${formatEtaLabel((assignment.arrivalAt - nowMs) / 1000)}`;
+  return 'vor Ort';
 };
 
 export default function EinsaetzeView({
@@ -77,47 +105,28 @@ export default function EinsaetzeView({
     }
   }, [selectedIncident]);
 
-  const availableVehiclesForSelectedIncident = useMemo(() => {
-    if (!selectedIncident || selectedIncident.status === 'abgeschlossen') return [] as Vehicle[];
+  const kannAlarmieren = selectedIncident?.status === 'offen' || selectedIncident?.status === 'alarmiert';
 
-    return vehicles.filter((vehicle) => {
-      if (!istFahrzeugVerfuegbar(vehicle, incidents)) return false;
-      const category = getFahrzeugKategorie(vehicle.type);
-      if (!category) return false;
-      return selectedIncident.requiredVehicles.some((requirement) => requirement.category === category);
-    }).sort((a, b) => {
-      const aCoords = a.stationId ? locations.find((loc) => loc.id === a.stationId)?.coords : undefined;
-      const bCoords = b.stationId ? locations.find((loc) => loc.id === b.stationId)?.coords : undefined;
-      if (!aCoords || !bCoords) return 0;
-      return haversineKm(aCoords, selectedIncident.coords) - haversineKm(bCoords, selectedIncident.coords);
-    });
-  }, [selectedIncident, vehicles, locations, incidents]);
+  const passendeFahrzeuge = useMemo(
+    () => (selectedIncident && kannAlarmieren ? getPassendeVerfuegbareFahrzeuge(selectedIncident, { incidents, vehicles, locations }) : []),
+    [selectedIncident, kannAlarmieren, vehicles, locations, incidents],
+  );
 
   // Häkchen bei Fahrzeugen entfernen, die inzwischen nicht mehr verfügbar sind
   useEffect(() => {
     setSelectedVehicleIds((current) => {
-      const verfuegbar = current.filter((id) => availableVehiclesForSelectedIncident.some((vehicle) => vehicle.id === id));
+      const verfuegbar = current.filter((id) => passendeFahrzeuge.some((eintrag) => eintrag.vehicle.id === id));
       return verfuegbar.length === current.length ? current : verfuegbar;
     });
-  }, [availableVehiclesForSelectedIncident]);
+  }, [passendeFahrzeuge]);
 
-  const kannAlarmieren = selectedIncident?.status === 'offen' || selectedIncident?.status === 'alarmiert';
+  // Alarmierungsvorschlag: deckt den noch fehlenden Bedarf mit den schnellsten freien Fahrzeugen
+  const alarmVorschlag = useMemo(
+    () => (selectedIncident ? erstelleAlarmVorschlag(selectedIncident, { incidents, vehicles, locations }) : { fahrzeugIds: [], nichtVerfuegbar: [] }),
+    [selectedIncident, vehicles, locations, incidents],
+  );
 
-  // Wie viele Fahrzeuge je Kategorie sind dem Einsatz bereits zugeteilt?
-  const abdeckung = selectedIncident ? getBedarfsAbdeckung(selectedIncident, vehicles) : [];
-  const getAlarmierteAnzahl = (category: string) => abdeckung.find((eintrag) => eintrag.category === category)?.alarmiert ?? 0;
-
-  // Alarmierungsvorschlag: je Anforderung die nächstgelegenen freien Fahrzeuge, die noch fehlen
-  const alarmVorschlag = useMemo(() => {
-    if (!selectedIncident || !kannAlarmieren) return [] as string[];
-    return selectedIncident.requiredVehicles.flatMap((requirement) => {
-      const fehlend = Math.max(0, requirement.amount - getAlarmierteAnzahl(requirement.category));
-      return availableVehiclesForSelectedIncident
-        .filter((vehicle) => getFahrzeugKategorie(vehicle.type) === requirement.category)
-        .slice(0, fehlend)
-        .map((vehicle) => vehicle.id);
-    });
-  }, [selectedIncident, kannAlarmieren, availableVehiclesForSelectedIncident, vehicles]);
+  const versorgung = selectedIncident ? getEinsatzVersorgung(selectedIncident, vehicles, nowMs) : null;
 
   const alarmieren = () => {
     if (!selectedIncident) return;
@@ -150,6 +159,8 @@ export default function EinsaetzeView({
     hour: '2-digit',
     minute: '2-digit',
   });
+
+  const hatWichtigeMeldung = selectedIncident?.meldungen.some(istWichtigeMeldung) ?? false;
 
   return (
     <div>
@@ -196,9 +207,11 @@ export default function EinsaetzeView({
               )}
               <ul className="einsatz-liste">
                 {visibleIncidents.map((incident) => {
-                  const abdeckungEintrag = getBedarfsAbdeckung(incident, vehicles);
-                  const benoetigt = abdeckungEintrag.reduce((summe, eintrag) => summe + eintrag.amount, 0);
-                  const zugeteilt = abdeckungEintrag.reduce((summe, eintrag) => summe + Math.min(eintrag.alarmiert, eintrag.amount), 0);
+                  const { abdeckung, ausreichendAlarmiert } = getEinsatzVersorgung(incident, vehicles, nowMs);
+                  const benoetigt = abdeckung.reduce((summe, eintrag) => summe + eintrag.amount, 0);
+                  const vorOrt = abdeckung.reduce((summe, eintrag) => summe + eintrag.vorOrt, 0);
+                  const alarmiert = abdeckung.reduce((summe, eintrag) => summe + eintrag.alarmiert, 0);
+                  const unterversorgt = (incident.status === 'offen' || incident.status === 'alarmiert') && !ausreichendAlarmiert;
                   return (
                     <li key={incident.id}>
                       <button
@@ -211,8 +224,11 @@ export default function EinsaetzeView({
                           <span className={`status-badge status-badge--${incident.status}`}>{EINSATZ_STATUS_LABELS[incident.status]}</span>
                         </span>
                         {incident.neueMeldung && <span className="neue-meldung-badge" style={{ marginLeft: 0, width: 'fit-content' }}>⚠ Neue Meldung</span>}
-                        <span className="einsatz-eintrag__zeile">{incident.organization} · {incident.address}</span>
-                        <span className="einsatz-eintrag__zeile">Fahrzeuge {zugeteilt}/{benoetigt} · {incident.reward} €</span>
+                        <span className="einsatz-eintrag__zeile">📍 {incident.address}</span>
+                        <span className="einsatz-eintrag__zeile">
+                          {incident.organization} · Fahrzeuge {alarmiert}/{benoetigt} alarmiert, {vorOrt} vor Ort · {incident.reward} €
+                          {unterversorgt && <strong style={{ color: 'var(--color-primary-text)' }}> · Kräfte fehlen!</strong>}
+                        </span>
                       </button>
                     </li>
                   );
@@ -239,8 +255,8 @@ export default function EinsaetzeView({
                         <strong>{formatEinsatzTitel(incident)}</strong>
                         <span className="status-badge status-badge--abgeschlossen">Abgeschlossen</span>
                       </span>
-                      <span className="einsatz-eintrag__zeile">{incident.organization} · {incident.generatedByStationName}</span>
-                      <span className="einsatz-eintrag__zeile">{incident.reward} € · {formatDateTime(incident.completedAt)}</span>
+                      <span className="einsatz-eintrag__zeile">📍 {incident.address}</span>
+                      <span className="einsatz-eintrag__zeile">{incident.organization} · {incident.reward} € · {formatDateTime(incident.completedAt)}</span>
                     </button>
                   </li>
                 ))}
@@ -253,17 +269,21 @@ export default function EinsaetzeView({
           {selectedIncident ? (
             <div className="einsatz-details">
               <div className="einsatz-details__kopf">
-                <h3>{formatEinsatzTitel(selectedIncident)}</h3>
+                <div>
+                  <h3>{formatEinsatzTitel(selectedIncident)}</h3>
+                  <div className="einsatz-eintrag__zeile" style={{ fontSize: '0.95rem', marginTop: 2 }}>📍 {selectedIncident.address}</div>
+                </div>
                 <span className={`status-badge status-badge--${selectedIncident.status}`}>{EINSATZ_STATUS_LABELS[selectedIncident.status]}</span>
               </div>
 
               {selectedIncident.meldungen.length > 0 && (
-                <div className="einsatz-meldungen">
-                  <h4>⚠ Lagemeldungen</h4>
+                <div className="einsatz-meldungen" style={hatWichtigeMeldung ? undefined : { background: 'var(--color-surface-raised)', borderLeftColor: 'var(--color-border-strong)' }}>
+                  <h4>{hatWichtigeMeldung ? '⚠ Lagemeldungen' : 'Lagemeldungen'}</h4>
                   <ul>
-                    {[...selectedIncident.meldungen].reverse().map((meldung) => (
-                      <li key={meldung.zeit}>
-                        <span>{new Date(meldung.zeit).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })}</span> {meldung.text}
+                    {[...selectedIncident.meldungen].reverse().map((meldung, index) => (
+                      <li key={`${meldung.zeit}-${index}`} data-art={meldung.art ?? 'eskalation'}>
+                        <span className="meldung-zeit">{formatUhrzeit(meldung.zeit)}</span>
+                        {MELDUNG_SYMBOL[meldung.art ?? 'eskalation']} {meldung.text}
                       </li>
                     ))}
                   </ul>
@@ -272,9 +292,24 @@ export default function EinsaetzeView({
 
               {rueckmeldung && <div className="aktion-rueckmeldung" role="status">{rueckmeldung}</div>}
 
+              {versorgung && kannAlarmieren && (
+                !versorgung.ausreichendAlarmiert ? (
+                  <div className="versorgung-hinweis versorgung-hinweis--fehlt">
+                    <strong>Nicht ausreichend versorgt.</strong> Es fehlen: {formatBedarfsListe(versorgung.fehlendAlarmiert)}.
+                  </div>
+                ) : !versorgung.ausreichendVorOrt ? (
+                  <div className="versorgung-hinweis versorgung-hinweis--unterwegs">
+                    Alle benötigten Fahrzeuge sind alarmiert – noch auf Anfahrt: {formatBedarfsListe(versorgung.fehlendVorOrt)}.
+                  </div>
+                ) : null
+              )}
+
               {selectedIncident.status === 'in_bearbeitung' && selectedIncident.processingEndsAt && selectedIncident.processingStartedAt && (
                 <div className="bearbeitung-fortschritt">
-                  <span><strong>Einsatz wird bearbeitet</strong> – noch {Math.max(0, Math.ceil((selectedIncident.processingEndsAt - Date.now()) / 1000))} Sek.</span>
+                  <span>
+                    <strong>{selectedIncident.organization === 'Rettungsdienst' || selectedIncident.patienten?.length ? 'Patientenversorgung vor Ort' : 'Einsatz wird abgearbeitet'}</strong>
+                    {' '}– noch {formatEtaLabel((selectedIncident.processingEndsAt - nowMs) / 1000)}
+                  </span>
                   <div className="bearbeitung-fortschritt__balken">
                     <span style={{ width: `${Math.min(100, Math.max(0, ((nowMs - selectedIncident.processingStartedAt) / (selectedIncident.processingEndsAt - selectedIncident.processingStartedAt)) * 100))}%` }} />
                   </div>
@@ -284,56 +319,81 @@ export default function EinsaetzeView({
               <section className="einsatz-abschnitt">
                 <h4>Fahrzeugbedarf</h4>
                 <ul className="bedarf-liste">
-                  {selectedIncident.requiredVehicles.map((requirement) => {
-                    const alarmiert = Math.min(getAlarmierteAnzahl(requirement.category), requirement.amount);
-                    const erfuellt = alarmiert >= requirement.amount;
+                  {(versorgung?.abdeckung ?? []).map((eintrag, index) => {
+                    const fertig = selectedIncident.status === 'transport' || selectedIncident.status === 'abgeschlossen';
+                    const klasse = fertig || eintrag.vorOrt >= eintrag.amount
+                      ? 'bedarf-chip--erfuellt'
+                      : eintrag.alarmiert >= eintrag.amount ? 'bedarf-chip--unterwegs' : 'bedarf-chip--fehlt';
                     return (
-                      <li key={requirement.id} className={`bedarf-chip ${erfuellt ? 'bedarf-chip--erfuellt' : 'bedarf-chip--fehlt'}`}>
-                        {requirement.category}: {alarmiert}/{requirement.amount} {erfuellt ? '✓' : ''}
+                      <li key={`${eintrag.category}-${index}`} className={`bedarf-chip ${klasse}`}>
+                        {getBedarfsLabel(eintrag.category)}: {eintrag.alarmiert}/{eintrag.amount}
+                        {!fertig && eintrag.alarmiert > 0 && <small> ({eintrag.vorOrt} vor Ort)</small>}
+                        {klasse === 'bedarf-chip--erfuellt' ? ' ✓' : ''}
                       </li>
                     );
                   })}
                 </ul>
               </section>
 
+              {selectedIncident.patienten && selectedIncident.patienten.length > 0 && (
+                <section className="einsatz-abschnitt">
+                  <h4>Patienten ({selectedIncident.patienten.length})</h4>
+                  <ul className="patienten-liste">
+                    {selectedIncident.patienten.map((patient, index) => (
+                      <li key={patient.id}>
+                        <span>
+                          <strong>Patient {index + 1}</strong> –{' '}
+                          <span className={`patient-zustand--${patient.zustand}`}>{PATIENTEN_ZUSTAND_LABELS[patient.zustand]}</span>
+                        </span>
+                        <small>
+                          {PATIENTEN_STATUS_LABELS[patient.status]}
+                          {patient.transport ? ` · Ziel: ${patient.transport.krankenhausName}` : ''}
+                          {patient.status === 'transport' && patient.transport ? ` · Ankunft in ${formatEtaLabel((patient.transport.ankunftAt - nowMs) / 1000)}` : ''}
+                        </small>
+                      </li>
+                    ))}
+                  </ul>
+                </section>
+              )}
+
               {kannAlarmieren ? (
                 <section className="einsatz-abschnitt">
                   <h4>Verfügbare passende Fahrzeuge</h4>
-                  {availableVehiclesForSelectedIncident.length === 0 ? (
+                  {passendeFahrzeuge.length === 0 ? (
                     <div className="leerzustand">
                       <strong>Aktuell kein geeignetes Fahrzeug verfügbar.</strong>
                       Warte, bis Fahrzeuge zurück an der Wache sind, oder kaufe unter „Wachen“ weitere Fahrzeuge.
                     </div>
                   ) : (
                     <ul className="fahrzeug-auswahl">
-                      {availableVehiclesForSelectedIncident.map((vehicle) => {
-                        const vehicleStation = vehicle.stationId ? locations.find((loc) => loc.id === vehicle.stationId) : undefined;
-                        const distanceKm = vehicleStation ? haversineKm(vehicleStation.coords, selectedIncident.coords) : 0;
-                        const etaSeconds = vehicleStation ? getFahrzeitSekunden(vehicleStation.coords, selectedIncident.coords) : 1;
-                        const checked = selectedVehicleIds.includes(vehicle.id);
-                        return (
-                          <li key={vehicle.id}>
-                            <label>
-                              <input type="checkbox" checked={checked} onChange={() => toggleVehicle(vehicle.id)} />
-                              <span>
-                                <strong>{vehicle.callsign ?? vehicle.name}</strong> – {vehicle.type}
-                                <small>{distanceKm.toFixed(1)} km · ca. {formatEtaLabel(etaSeconds)} · {vehicleStation?.name ?? ''}</small>
-                              </span>
-                            </label>
-                          </li>
-                        );
-                      })}
+                      {passendeFahrzeuge.map(({ vehicle, station, distanzKm, anfahrtSekunden }) => (
+                        <li key={vehicle.id}>
+                          <label>
+                            <input type="checkbox" checked={selectedVehicleIds.includes(vehicle.id)} onChange={() => toggleVehicle(vehicle.id)} />
+                            <span>
+                              <strong>{vehicle.callsign ?? vehicle.name}</strong> – {vehicle.type}
+                              <small>{distanzKm.toFixed(1)} km · ca. {formatEtaLabel(anfahrtSekunden)} · {station?.name ?? ''}</small>
+                            </span>
+                          </label>
+                        </li>
+                      ))}
                     </ul>
+                  )}
+
+                  {alarmVorschlag.nichtVerfuegbar.length > 0 && (
+                    <div className="versorgung-hinweis versorgung-hinweis--fehlt">
+                      Kein freies Fahrzeug für: {formatBedarfsListe(alarmVorschlag.nichtVerfuegbar)}.
+                    </div>
                   )}
 
                   <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                     <button
                       className="btn btn--secondary"
                       type="button"
-                      onClick={() => setSelectedVehicleIds(alarmVorschlag)}
-                      disabled={alarmVorschlag.length === 0}
+                      onClick={() => setSelectedVehicleIds(alarmVorschlag.fahrzeugIds)}
+                      disabled={alarmVorschlag.fahrzeugIds.length === 0}
                     >
-                      Vorschlag
+                      Vorschlag{alarmVorschlag.fahrzeugIds.length > 0 ? ` (${alarmVorschlag.fahrzeugIds.length})` : ''}
                     </button>
                     <button
                       className="btn btn--primary"
@@ -357,13 +417,13 @@ export default function EinsaetzeView({
                     {selectedIncident.alarmedVehicles.map((assignment) => {
                       const vehicle = vehicles.find((item) => item.id === assignment.vehicleId);
                       const callSign = vehicle?.callsign ?? vehicle?.name ?? 'Fahrzeug';
-                      const durationLabel = selectedIncident.status === 'abgeschlossen'
-                        ? ''
-                        : `${assignment.distanceKm.toFixed(1)} km – ${assignment.arrivalAt > nowMs ? `Ankunft in ${formatEtaLabel((assignment.arrivalAt - nowMs) / 1000)}` : 'angekommen'}`;
-
+                      const fms = vehicle?.status ? FMS_STATUS[vehicle.status] : undefined;
                       return (
                         <li key={assignment.vehicleId}>
-                          <strong>{callSign}</strong> {durationLabel && <span>– {durationLabel}</span>}
+                          <strong>{callSign}</strong>
+                          {selectedIncident.status !== 'abgeschlossen' && (
+                            <span> – {fms !== undefined ? `S${fms} · ` : ''}{beschreibeZuteilung(selectedIncident, assignment, nowMs)}</span>
+                          )}
                         </li>
                       );
                     })}
@@ -373,8 +433,9 @@ export default function EinsaetzeView({
 
               <dl className="einsatz-infos">
                 <div><dt>Organisation</dt><dd>{selectedIncident.organization}</dd></div>
-                <div><dt>Adresse</dt><dd>{selectedIncident.address}</dd></div>
-                <div><dt>Erzeugt durch</dt><dd>{selectedIncident.generatedByStationName}</dd></div>
+                <div><dt>Einsatzort</dt><dd>{selectedIncident.address}</dd></div>
+                <div><dt>Eingegangen</dt><dd>{formatUhrzeit(selectedIncident.createdAt)}</dd></div>
+                <div><dt>Wachbereich</dt><dd>{selectedIncident.generatedByStationName}</dd></div>
                 <div><dt>Belohnung</dt><dd>{selectedIncident.reward} €</dd></div>
                 {selectedIncident.status === 'abgeschlossen' && (
                   <>

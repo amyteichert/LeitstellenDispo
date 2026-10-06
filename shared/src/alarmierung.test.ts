@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { alarmiereFahrzeuge } from './alarmierung.js';
+import { getFahrzeugGeschwindigkeit } from './fahrzeuge.js';
 import { getFahrzeitSekunden } from './geo.js';
 import { T0, einsatz, fahrzeug, wache } from './testHilfen.js';
 
@@ -10,7 +11,8 @@ describe('alarmiereFahrzeuge', () => {
     const e = einsatz('sturz');
     const ergebnis = alarmiereFahrzeuge({ incidents: [e], vehicles: [fahrzeug('rtw', 'RTW')], locations }, e.id, ['rtw'], T0);
     const zuteilung = ergebnis.incidents[0].alarmedVehicles[0];
-    expect(zuteilung.etaSeconds).toBe(getFahrzeitSekunden(locations[0].coords, e.coords));
+    // Fahrzeit mit der Geschwindigkeit des Fahrzeugtyps aus dem Katalog
+    expect(zuteilung.etaSeconds).toBe(getFahrzeitSekunden(locations[0].coords, e.coords, getFahrzeugGeschwindigkeit('RTW')));
     expect(zuteilung.arrivalAt).toBe(T0 + zuteilung.etaSeconds * 1000);
     expect(ergebnis.vehicles[0].status).toBe('Alarmiert / auf Anfahrt');
   });

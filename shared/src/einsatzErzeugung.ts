@@ -1,15 +1,18 @@
+import { erzeugeAdresse, ermittleOrtFuerWache, formatAdresse, type Ort } from './adressen.js';
 import {
   EINSATZ_VORLAGEN,
-  getFahrzeugKategorie,
   istVorlageErfuellbar,
   planeEskalation,
   planeEskalationOhneAlarm,
+  planeNachforderung,
   type EinsatzVorlage,
   type SpielEinsatz,
 } from './daten.js';
+import { fahrzeugErfuelltBedarf } from './fahrzeuge.js';
 import { INCIDENT_SPAWN_CONFIG } from './konfig.js';
-import { clamp, type Koordinaten } from './geo.js';
-import type { MapLocation, StationKind, Vehicle } from './typen.js';
+import { clamp } from './geo.js';
+import { erzeugePatienten } from './patienten.js';
+import type { Koordinaten, MapLocation, StationKind, Vehicle } from './typen.js';
 
 /** Nur Vorlagen, die der Spieler mit seinen stationierten Fahrzeugen grundsätzlich schaffen kann. */
 export const getAvailableIncidentTemplates = (stationKind: StationKind | undefined, vehicles: Vehicle[]): EinsatzVorlage[] => {
@@ -40,7 +43,7 @@ export const getBestIncidentStation = (
         (vehicle) =>
           vehicle.stationId === station.id &&
           vehicle.status === 'Einsatzbereit' &&
-          getFahrzeugKategorie(vehicle.type) === template.requiredVehicles[0]?.category,
+          fahrzeugErfuelltBedarf(vehicle.type, template.requiredVehicles[0]?.category),
       );
       return { station, matchingVehicles: matchingVehicles.length };
     })
@@ -71,45 +74,57 @@ export const getRandomCoordsAroundStation = (station: MapLocation, stationCount:
   return [clamp(station.coords[0] + latShift, 47.5, 55.2), clamp(station.coords[1] + lngShift, 7.5, 14.9)];
 };
 
+/** Einsatzort rund um eine Wache: Koordinaten und eine dazu passende Adresse im Ort der Wache. */
+export const erzeugeEinsatzort = (
+  station: MapLocation,
+  stationCount: number,
+  template: Pick<EinsatzVorlage, 'ortsArt'>,
+  zufall: () => number = Math.random,
+): Ort => ({
+  coords: getRandomCoordsAroundStation(station, stationCount),
+  adresse: erzeugeAdresse(ermittleOrtFuerWache(station), template.ortsArt, zufall),
+});
+
 export const createSpielEinsatz = (
   template: EinsatzVorlage,
   station: MapLocation,
-  coords: Koordinaten,
-  address: string,
+  ort: Ort,
   jetzt: number = Date.now(),
-): SpielEinsatz => ({
-  id: `incident-${jetzt}-${Math.random().toString(16).slice(2)}`,
-  stichwort: template.stichwort,
-  meldebild: template.meldebild,
-  organization: template.organization,
-  status: 'offen',
-  coords,
-  address,
-  generatedByStationId: station.id,
-  generatedByStationName: station.name,
-  requiredVehicles: template.requiredVehicles,
-  alarmedVehicles: [],
-  reward: template.reward,
-  durationSeconds: template.durationSeconds,
-  createdAt: jetzt,
-  vorlageId: template.id,
-  meldungen: [],
-  eskalationBei: planeEskalation(template),
-  eskalationOhneAlarmAt: planeEskalationOhneAlarm(template, jetzt),
-});
+): SpielEinsatz => {
+  const id = `incident-${jetzt}-${Math.random().toString(16).slice(2)}`;
+  return {
+    id,
+    stichwort: template.stichwort,
+    meldebild: template.meldebild,
+    organization: template.organization,
+    status: 'offen',
+    coords: ort.coords,
+    adresse: ort.adresse,
+    address: formatAdresse(ort.adresse),
+    generatedByStationId: station.id,
+    generatedByStationName: station.name,
+    requiredVehicles: template.requiredVehicles,
+    alarmedVehicles: [],
+    reward: template.reward,
+    durationSeconds: template.durationSeconds,
+    createdAt: jetzt,
+    vorlageId: template.id,
+    meldungen: [],
+    patienten: erzeugePatienten(template.patienten, id),
+    nachforderungGeplant: planeNachforderung(template),
+    eskalationBei: planeEskalation(template),
+    eskalationOhneAlarmAt: planeEskalationOhneAlarm(template, jetzt),
+  };
+};
 
 export type EinsatzErzeugungErgebnis =
   | { einsatz: SpielEinsatz }
   | { fehler: 'keine-wache' | 'keine-machbare-vorlage' };
 
-/**
- * Erzeugt einen zufälligen, für den Spieler machbaren Einsatz in der Nähe einer seiner Wachen.
- * `adresse` bestimmt den Adresstext (z. B. "Sturz in der Nähe von Rettungswache Zentrum").
- */
+/** Erzeugt einen zufälligen, für den Spieler machbaren Einsatz mit Adresse in der Nähe einer seiner Wachen. */
 export const erzeugeZufallsEinsatz = (
   locations: MapLocation[],
   vehicles: Vehicle[],
-  adresse: (vorlage: EinsatzVorlage, station: MapLocation) => string,
   jetzt: number = Date.now(),
 ): EinsatzErzeugungErgebnis => {
   const stations = locations.filter((location) => location.type === 'station');
@@ -121,6 +136,6 @@ export const erzeugeZufallsEinsatz = (
 
   const template = templates[Math.floor(Math.random() * templates.length)];
   const station = getBestIncidentStation(stations, template, vehicles);
-  const coords = getRandomCoordsAroundStation(station, stations.length);
-  return { einsatz: createSpielEinsatz(template, station, coords, adresse(template, station), jetzt) };
+  const ort = erzeugeEinsatzort(station, stations.length, template);
+  return { einsatz: createSpielEinsatz(template, station, ort, jetzt) };
 };

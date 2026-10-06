@@ -93,8 +93,10 @@ describe('berechneSpielTick – Eskalation', () => {
     expect(e.status).toBe('alarmiert');
     expect(e.reward).toBe(450);
     expect(e.neueMeldung).toBe(true);
-    expect(e.meldungen).toHaveLength(1);
-    expect(e.meldungen[0].zeit).toBe(eskalationsZeit);
+    // Erst die Lagemeldung beim Eintreffen, dann die Eskalation samt begründeter Nachforderung
+    expect(e.meldungen.map((m) => m.art)).toEqual(['lage', 'eskalation', 'nachforderung']);
+    expect(e.meldungen[1].zeit).toBe(eskalationsZeit);
+    expect(e.meldungen[2].text).toContain('1× NEF');
     expect(e.processingStartedAt).toBeUndefined();
     // Der RTW bleibt am Einsatz, es fehlt nur der NEF
     expect(e.alarmedVehicles.map((a) => a.vehicleId)).toEqual(['rtw']);
@@ -173,7 +175,10 @@ describe('berechneSpielTick – Randfälle der Eskalation', () => {
     const ankunft = Math.max(...start.incidents[0].alarmedVehicles.map((a) => a.arrivalAt));
 
     const inBearbeitung = berechneSpielTick({ ...start, locations: feuerwache }, ankunft);
-    const eskalationsZeit = ankunft + 0.5 * inBearbeitung.incidents[0].durationSeconds * 1000;
+    // Bearbeitung beginnt mit dem ersten LF – mehr braucht der Kleinbrand nicht
+    const beginn = inBearbeitung.incidents[0].processingStartedAt!;
+    expect(beginn).toBe(Math.min(...start.incidents[0].alarmedVehicles.map((a) => a.arrivalAt)));
+    const eskalationsZeit = beginn + 0.5 * inBearbeitung.incidents[0].durationSeconds * 1000;
     const eskaliert = berechneSpielTick({ ...inBearbeitung, locations: feuerwache }, eskalationsZeit);
     expect(eskaliert.incidents[0].meldebild).toBe('Kellerbrand');
 
@@ -195,7 +200,8 @@ describe('berechneSpielTick – Randfälle der Eskalation', () => {
     expect(fertig.meldebild).toBe('Kellerbrand');
     expect(fertig.reward).toBe(520);
     // Ende = Lagemeldung + Dauer des Kellerbrands (nicht "jetzt")
-    expect(fertig.completedAt).toBe(fertig.meldungen[0].zeit + fertig.durationSeconds * 1000);
+    const eskalation = fertig.meldungen.find((m) => m.art === 'eskalation')!;
+    expect(fertig.completedAt).toBe(eskalation.zeit + fertig.durationSeconds * 1000);
     expect(ergebnis.vehicles.every((v) => v.status === 'Einsatzbereit')).toBe(true);
   });
 

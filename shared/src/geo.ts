@@ -1,8 +1,6 @@
 import { GAME_CONFIG } from './konfig.js';
-import type { MapLocation, Vehicle } from './typen.js';
-import type { SpielEinsatz } from './daten.js';
-
-export type Koordinaten = [number, number];
+import type { Koordinaten, MapLocation, Vehicle } from './typen.js';
+import type { AlarmiertesFahrzeug, SpielEinsatz } from './daten.js';
 
 export const clamp = (value: number, min: number, max: number) => Math.min(Math.max(value, min), max);
 
@@ -19,9 +17,12 @@ export const haversineKm = (from: Koordinaten, to: Koordinaten) => {
   return 2 * 6371 * Math.asin(Math.sqrt(a));
 };
 
-/** Fahrzeit in Sekunden auf der Luftlinie (später durch echtes Straßen-Routing ersetzen). */
-export const getFahrzeitSekunden = (from: Koordinaten, to: Koordinaten) =>
-  Math.max(1, Math.round((haversineKm(from, to) / GAME_CONFIG.averageSpeedKmh) * 3600));
+/**
+ * Fahrzeit in Sekunden auf der Luftlinie (später durch echtes Straßen-Routing ersetzen).
+ * Ohne Geschwindigkeit gilt der Durchschnittswert aus der Konfiguration.
+ */
+export const getFahrzeitSekunden = (from: Koordinaten, to: Koordinaten, geschwindigkeitKmh: number = GAME_CONFIG.averageSpeedKmh) =>
+  Math.max(1, Math.round((haversineKm(from, to) / geschwindigkeitKmh) * 3600));
 
 export const getStationCoords = (stationId: string | undefined, locations: MapLocation[]): Koordinaten | null => {
   if (!stationId) return null;
@@ -29,10 +30,26 @@ export const getStationCoords = (stationId: string | undefined, locations: MapLo
   return found ? found.coords : null;
 };
 
+/** Punkt zwischen zwei Koordinaten zum Zeitpunkt `jetzt` einer Fahrt von `startAt` bis `ankunftAt`. */
+export const interpoliereFahrt = (von: Koordinaten, nach: Koordinaten, startAt: number, ankunftAt: number, jetzt: number): Koordinaten => {
+  const anteil = clamp((jetzt - startAt) / Math.max(1, ankunftAt - startAt), 0, 1);
+  return [von[0] + (nach[0] - von[0]) * anteil, von[1] + (nach[1] - von[1]) * anteil];
+};
+
+/** Position eines Fahrzeugs auf der Anfahrt (Wache → Einsatzort) zu einem Zeitpunkt. */
+export const getPositionAufAnfahrt = (
+  wache: Koordinaten,
+  einsatzort: Koordinaten,
+  assignment: Pick<AlarmiertesFahrzeug, 'arrivalAt' | 'etaSeconds'>,
+  jetzt: number,
+): Koordinaten => interpoliereFahrt(wache, einsatzort, assignment.arrivalAt - assignment.etaSeconds * 1000, assignment.arrivalAt, jetzt);
+
 export interface FahrzeugFahrt {
   position: Koordinaten;
   ziel: Koordinaten;
   unterwegs: boolean;
+  /** Was das Fahrzeug gerade tut – für Farbe/Linie auf der Karte */
+  art: 'anfahrt' | 'einsatzstelle' | 'transport' | 'krankenhaus' | 'rueckfahrt';
 }
 
 /** Aktuelle Position eines Fahrzeugs unterwegs – oder null, wenn es an der Wache steht. */
@@ -45,24 +62,32 @@ export const getFahrzeugPosition = (
   const wache = getStationCoords(vehicle.stationId, locations);
   if (!wache) return null;
 
-  const interpoliere = (von: Koordinaten, nach: Koordinaten, startAt: number, ankunftAt: number): Koordinaten => {
-    const anteil = clamp((nowMs - startAt) / Math.max(1, ankunftAt - startAt), 0, 1);
-    return [von[0] + (nach[0] - von[0]) * anteil, von[1] + (nach[1] - von[1]) * anteil];
-  };
-
   if (vehicle.rueckfahrt) {
     const { von, startAt, ankunftAt } = vehicle.rueckfahrt;
-    return { position: interpoliere(von, wache, startAt, ankunftAt), ziel: wache, unterwegs: nowMs < ankunftAt };
+    return { position: interpoliereFahrt(von, wache, startAt, ankunftAt, nowMs), ziel: wache, unterwegs: nowMs < ankunftAt, art: 'rueckfahrt' };
   }
 
   for (const incident of incidents) {
-    const assignment = incident.alarmedVehicles.find((entry) => entry.vehicleId === vehicle.id);
-    if (!assignment || incident.status === 'abgeschlossen') continue;
-    const startAt = assignment.arrivalAt - assignment.etaSeconds * 1000;
+    if (incident.status === 'abgeschlossen') continue;
+    const assignment = incident.alarmedVehicles.find((entry) => entry.vehicleId === vehicle.id && entry.freigegebenAt === undefined);
+    if (!assignment) continue;
+
+    // Patiententransport ins Krankenhaus
+    const transport = incident.patienten?.find((patient) => patient.transport?.fahrzeugId === vehicle.id)?.transport;
+    if (transport && nowMs >= transport.startAt) {
+      return {
+        position: interpoliereFahrt(incident.coords, transport.ziel, transport.startAt, transport.ankunftAt, nowMs),
+        ziel: transport.ziel,
+        unterwegs: nowMs < transport.ankunftAt,
+        art: nowMs < transport.ankunftAt ? 'transport' : 'krankenhaus',
+      };
+    }
+
     return {
-      position: interpoliere(wache, incident.coords, startAt, assignment.arrivalAt),
+      position: getPositionAufAnfahrt(wache, incident.coords, assignment, nowMs),
       ziel: incident.coords,
       unterwegs: nowMs < assignment.arrivalAt,
+      art: nowMs < assignment.arrivalAt ? 'anfahrt' : 'einsatzstelle',
     };
   }
 

@@ -1,0 +1,103 @@
+import { describe, expect, it } from 'vitest';
+import { alarmiereFahrzeuge } from './alarmierung.js';
+import { ergaenzeKrankenhaeuser, findeZielKrankenhaus, STANDARD_KRANKENHAEUSER } from './krankenhaeuser.js';
+import { berechneSpielTick } from './spielTick.js';
+import { SPIELSTAND_VERSION, createNeuesSpiel, migriereSpielstand, type Spielstand } from './spielstand.js';
+import { T0, einsatz, fahrzeug, krankenhaus, wache } from './testHilfen.js';
+import { haversineKm } from './geo.js';
+
+describe('Krankenhäuser', () => {
+  it('findet das nächste aufnahmebereite Krankenhaus', () => {
+    const nah = { ...krankenhaus('nah', false), coords: [48.776, 9.1771] as [number, number] };
+    const mittel = { ...krankenhaus('mittel'), coords: [48.79, 9.1771] as [number, number] };
+    expect(findeZielKrankenhaus([48.775, 9.1771], [krankenhaus(), nah, mittel])?.id).toBe('mittel');
+    expect(findeZielKrankenhaus([48.775, 9.1771], [nah])).toBeNull();
+  });
+
+  it('legt für eine abgelegene Wache ein Klinikum im Ort an – sonst nicht', () => {
+    const stuttgart = wache();
+    expect(ergaenzeKrankenhaeuser(STANDARD_KRANKENHAEUSER, stuttgart)).toBe(STANDARD_KRANKENHAEUSER);
+
+    const brandenburg = { ...wache('rw-bb'), coords: [52.41, 12.53] as [number, number], adresse: { strasse: 'X', plz: '14770', ort: 'Brandenburg an der Havel' } };
+    const ergaenzt = ergaenzeKrankenhaeuser(STANDARD_KRANKENHAEUSER, brandenburg);
+    expect(ergaenzt).toHaveLength(STANDARD_KRANKENHAEUSER.length + 1);
+    const neu = ergaenzt.at(-1)!;
+    expect(neu.name).toBe('Klinikum Brandenburg an der Havel');
+    expect(neu.adresse.plz).toBe('14770');
+    expect(neu.aufnahme).toBe(true);
+    expect(haversineKm(neu.coords, brandenburg.coords)).toBeLessThan(3.1);
+  });
+});
+
+describe('Spielstand speichern und laden', () => {
+  it('startet ein neues Spiel mit Wachen-Adressen, Krankenhäusern und besetztem RTW', () => {
+    const spiel = createNeuesSpiel();
+    expect(spiel.version).toBe(SPIELSTAND_VERSION);
+    expect(spiel.krankenhaeuser.length).toBeGreaterThan(0);
+    expect(spiel.locations.every((l) => l.adresse?.ort === 'Stuttgart')).toBe(true);
+    expect(spiel.vehicles[0]).toMatchObject({ type: 'RTW', besatzung: 2 });
+  });
+
+  it('übersteht JSON-Speichern und -Laden mit laufendem Transport unverändert', () => {
+    const e = einsatz('sturz', undefined, undefined, { transport: true });
+    const start = alarmiereFahrzeuge({ incidents: [e], vehicles: [fahrzeug('rtw', 'RTW')], locations: [wache()] }, e.id, ['rtw'], T0);
+    const kh = [krankenhaus()];
+    const ende = berechneSpielTick({ ...start, locations: [wache()], krankenhaeuser: kh }, start.incidents[0].alarmedVehicles[0].arrivalAt).incidents[0].processingEndsAt!;
+    let zustand = { ...start, locations: [wache()], krankenhaeuser: kh };
+    for (const zeit of [start.incidents[0].alarmedVehicles[0].arrivalAt, ende]) {
+      const r = berechneSpielTick(zustand, zeit);
+      zustand = { ...zustand, vehicles: r.vehicles, incidents: r.incidents };
+    }
+    expect(zustand.incidents[0].status).toBe('transport');
+
+    const spielstand: Spielstand = {
+      ...createNeuesSpiel(new Date(T0)),
+      locations: zustand.locations,
+      vehicles: zustand.vehicles,
+      incidents: zustand.incidents,
+      krankenhaeuser: kh,
+    };
+    const geladen = migriereSpielstand(JSON.parse(JSON.stringify(spielstand)));
+    expect(geladen).toEqual(spielstand);
+
+    // Offline-Fortschritt nach dem Laden: Einsatz wird abgeschlossen
+    const spaeter = berechneSpielTick({ ...geladen!, locations: geladen!.locations }, T0 + 60 * 60 * 1000);
+    expect(spaeter.abgeschlossen).toHaveLength(1);
+  });
+
+  it('rüstet einen Spielstand der Version 2 nach (Adresse, Patienten, Krankenhäuser)', () => {
+    const alterEinsatz = {
+      ...einsatz('sturz'),
+      address: 'Sturz in der Nähe von Rettungswache Zentrum',
+      adresse: undefined,
+      patienten: undefined,
+      nachforderungGeplant: undefined,
+    };
+    const v2 = {
+      version: 2,
+      gespeichertAm: new Date(T0).toISOString(),
+      balance: 1234,
+      transactions: [],
+      locations: [{ ...wache('rettungswache-zentrum'), adresse: undefined }],
+      vehicles: [fahrzeug('rtw', 'RTW', 'rettungswache-zentrum')],
+      incidents: [alterEinsatz],
+      completedIncidentHistory: [],
+    };
+    const geladen = migriereSpielstand(JSON.parse(JSON.stringify(v2)))!;
+    expect(geladen.version).toBe(SPIELSTAND_VERSION);
+    expect(geladen.balance).toBe(1234);
+    expect(geladen.locations[0].adresse?.ort).toBe('Stuttgart');
+    expect(geladen.krankenhaeuser.length).toBeGreaterThanOrEqual(STANDARD_KRANKENHAEUSER.length);
+    const e = geladen.incidents[0];
+    expect(e.address).toMatch(/, 70173 Stuttgart$/);
+    expect(e.adresse?.ort).toBe('Stuttgart');
+    expect(e.patienten).toHaveLength(1);
+  });
+
+  it('verwirft unbrauchbare oder unbekannte Spielstände', () => {
+    expect(migriereSpielstand(null)).toBeNull();
+    expect(migriereSpielstand('kaputt')).toBeNull();
+    expect(migriereSpielstand({ version: 1, locations: [], vehicles: [], incidents: [] })).toBeNull();
+    expect(migriereSpielstand({ version: SPIELSTAND_VERSION })).toBeNull();
+  });
+});

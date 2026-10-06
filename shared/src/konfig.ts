@@ -10,6 +10,10 @@ export const GAME_CONFIG = {
   /** Zeitfenster, in dem ein nicht alarmierter Einsatz (evtl.) eskaliert */
   eskalationOhneAlarmMinMs: 2 * 60 * 1000,
   eskalationOhneAlarmMaxMs: 4 * 60 * 1000,
+  /** Liegt kein Krankenhaus in diesem Umkreis einer Rettungswache, wird eines angelegt */
+  krankenhausEinzugsbereichKm: 20,
+  /** Dauer der Patientenübergabe im Krankenhaus */
+  patientenUebergabeSekunden: 15,
 };
 
 /** Wie weit neue Einsätze um eine Wache herum entstehen – wächst mit der Anzahl der Wachen. */

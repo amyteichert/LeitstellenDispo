@@ -4,8 +4,15 @@ import { MapContainer, Marker, Polyline, Popup, TileLayer, useMap, useMapEvents 
 import L, { type LeafletMouseEvent } from 'leaflet';
 import {
   APP_VERSION,
+  adresseAusOsm,
+  formatAdresse,
+  formatEinsatzTitel,
   getFahrzeugPosition,
+  getFahrzeugTyp,
   getFahrzeugTypenFuerWache,
+  istEskaliert,
+  type Adresse,
+  type FahrzeugFahrt,
   type SpielEinsatz,
 } from '@leitstellendispo/shared';
 import 'leaflet/dist/leaflet.css';
@@ -35,23 +42,42 @@ const INCIDENT_MARKER_COLORS: Record<SpielEinsatz['status'], string> = {
   offen: '#f59e0b',
   alarmiert: '#3b82f6',
   in_bearbeitung: '#c41e3a',
+  transport: '#8b5cf6',
   abgeschlossen: '#6b7280',
 };
 
 /** Einsatz-Marker in Statusfarbe; offene Einsätze pulsieren, eskalierte sind rot umrandet, der gewählte ist größer. */
-const createIncidentMarkerIcon = (status: SpielEinsatz['status'], selected: boolean, eskaliert: boolean) => {
+const createIncidentMarkerIcon = (incident: SpielEinsatz, selected: boolean) => {
+  const { status } = incident;
   const size = selected ? 22 : 16;
+  const organisation = incident.organization === 'Feuerwehr' ? 'fw' : 'rd';
   return L.divIcon({
-    className: `custom-marker incident-marker incident-marker--${status} ${eskaliert ? 'incident-marker--eskaliert' : ''}`,
+    className: `custom-marker incident-marker incident-marker--${status} incident-marker--${organisation} ${istEskaliert(incident) ? 'incident-marker--eskaliert' : ''}`,
     html: `<span style="display:block; width:${size}px; height:${size}px; border-radius:50%; background:${INCIDENT_MARKER_COLORS[status]}; border:2px solid #fff; box-shadow:0 2px 8px rgba(0,0,0,0.25);"></span>`,
     iconSize: [size, size],
     iconAnchor: [size / 2, size / 2],
   });
 };
 
-const createVehicleMarkerIcon = (label: string, rueckfahrt: boolean) =>
+/** Krankenhaus als Ziel für Patiententransporte */
+const hospitalMarkerIcon = L.divIcon({
+  className: 'hospital-marker',
+  html: '<span>H</span>',
+  iconSize: [22, 22],
+  iconAnchor: [11, 11],
+});
+
+const FAHRT_LINIEN_FARBEN: Record<FahrzeugFahrt['art'], string> = {
+  anfahrt: '#3b82f6',
+  einsatzstelle: '#3b82f6',
+  transport: '#a78bfa',
+  krankenhaus: '#a78bfa',
+  rueckfahrt: '#9ca3af',
+};
+
+const createVehicleMarkerIcon = (label: string, art: FahrzeugFahrt['art'], organisation: 'fw' | 'rd') =>
   L.divIcon({
-    className: `vehicle-marker ${rueckfahrt ? 'vehicle-marker--rueckfahrt' : ''}`,
+    className: `vehicle-marker vehicle-marker--${art} vehicle-marker--${organisation}`,
     html: `<span>${label}</span>`,
     iconSize: undefined,
     iconAnchor: [0, 0],
@@ -154,6 +180,8 @@ function App() {
   const [geocodeLoading, setGeocodeLoading] = useState(false);
   const [geocodeError, setGeocodeError] = useState<string | null>(null);
   const [tempCoords, setTempCoords] = useState<[number, number] | null>(null);
+  // Strukturierte Adresse des gewählten Suchergebnisses (für PLZ/Ort der Einsätze rund um die neue Wache)
+  const [tempAdresse, setTempAdresse] = useState<Adresse | null>(null);
   const [selectedGeocodeIndex, setSelectedGeocodeIndex] = useState<number | null>(null);
   // map reference to allow programmatic centering when selecting geocode results
   const mapRef = useRef<any>(null);
@@ -186,6 +214,7 @@ function App() {
     // Move temporary preview marker to clicked position; do NOT create a location
     const coords: [number, number] = [event.latlng.lat, event.latlng.lng];
     setTempCoords(coords);
+    setTempAdresse(null);
     setSelectedGeocodeIndex(null);
     setGeocodeResults([]);
     setGeocodeError(null);
@@ -216,6 +245,7 @@ function App() {
         const first = data[0];
         const coords: [number, number] = [parseFloat(first.lat), parseFloat(first.lon)];
         setTempCoords(coords);
+        setTempAdresse(adresseAusOsm(first.address));
         setSelectedGeocodeIndex(0);
         // center map on the preview if map is available
         try {
@@ -244,6 +274,7 @@ function App() {
       details: address,
       startFahrzeugTyp: draftStartVehicleType,
       funkrufname: draftStartVehicleCallsign,
+      adresse: tempAdresse ?? undefined,
     });
     if ('fehler' in ergebnis) {
       alert(ergebnis.fehler);
@@ -254,6 +285,7 @@ function App() {
     setDraftStartVehicleCallsign('');
     // clear temp preview and address/choices
     setTempCoords(null);
+    setTempAdresse(null);
     setAddress('');
     setGeocodeResults([]);
     setSelectedGeocodeIndex(null);
@@ -435,6 +467,7 @@ function App() {
                                                                       setAddress(r.display_name);
                                                                       // Preview-Marker und Auswahl setzen
                                                                       setTempCoords(coords);
+                                                                      setTempAdresse(adresseAusOsm(r.address));
                                                                       setSelectedGeocodeIndex(idx);
                                                                       // Liste der Suchergebnisse schließen
                                                                       setGeocodeResults([]);
@@ -513,17 +546,19 @@ function App() {
               ))}
             </div>
 
-            <div className="detail-card">
-              <div className="detail-card__label">Ausgewählt</div>
-              <h3>{selectedLocation.name}</h3>
-              <p>{selectedLocation.details}</p>
-              <ul>
-                <li>Typ: {selectedLocation.type}</li>
-                <li>
-                  Koordinaten: {selectedLocation.coords[0].toFixed(4)}, {selectedLocation.coords[1].toFixed(4)}
-                </li>
-              </ul>
-            </div>
+            {selectedLocation && (
+              <div className="detail-card">
+                <div className="detail-card__label">Ausgewählt</div>
+                <h3>{selectedLocation.name}</h3>
+                <p>{selectedLocation.adresse ? formatAdresse(selectedLocation.adresse) : selectedLocation.details}</p>
+                <ul>
+                  <li>Typ: {selectedLocation.stationKind ?? selectedLocation.type}</li>
+                  <li>
+                    Koordinaten: {selectedLocation.coords[0].toFixed(4)}, {selectedLocation.coords[1].toFixed(4)}
+                  </li>
+                </ul>
+              </div>
+            )}
           </aside>
         )}
 
@@ -544,6 +579,7 @@ function App() {
                 <KarteEinsatzPanel
                   incident={mapIncident}
                   vehicles={vehicles}
+                  nowMs={nowMs}
                   onClose={() => setMapIncidentId(null)}
                   onOpenInEinsaetze={() => {
                     setSelectedIncidentId(mapIncident.id);
@@ -601,11 +637,23 @@ function App() {
                     <Popup>
                       <strong>{location.name}</strong>
                       <br />
-                      {location.details}
+                      {location.adresse ? formatAdresse(location.adresse) : location.details}
                     </Popup>
                   </Marker>
                 );
               })}
+
+              {spiel.krankenhaeuser.map((krankenhaus) => (
+                <Marker key={krankenhaus.id} position={krankenhaus.coords} icon={hospitalMarkerIcon} zIndexOffset={100}>
+                  <Popup>
+                    <strong>{krankenhaus.name}</strong>
+                    <br />
+                    {formatAdresse(krankenhaus.adresse)}
+                    <br />
+                    {krankenhaus.aufnahme ? 'Aufnahme möglich' : 'Keine Aufnahme'}
+                  </Popup>
+                </Marker>
+              ))}
 
               {incidents
                 .filter((incident) => incident.status !== 'abgeschlossen')
@@ -613,7 +661,8 @@ function App() {
                   <Marker
                     key={incident.id}
                     position={incident.coords}
-                    icon={createIncidentMarkerIcon(incident.status, incident.id === mapIncidentId, incident.meldungen.length > 0)}
+                    icon={createIncidentMarkerIcon(incident, incident.id === mapIncidentId)}
+                    title={`${formatEinsatzTitel(incident)} – ${incident.address}`}
                     zIndexOffset={incident.id === mapIncidentId ? 1000 : 500}
                     eventHandlers={{ click: () => setMapIncidentId(incident.id) }}
                   />
@@ -623,18 +672,18 @@ function App() {
               {vehicles.map((vehicle) => {
                 const fahrt = getFahrzeugPosition(vehicle, incidents, locations, nowMs);
                 if (!fahrt) return null;
-                const rueckfahrt = vehicle.status === 'Rückfahrt';
+                const organisation = getFahrzeugTyp(vehicle.type)?.organisation === 'Feuerwehr' ? 'fw' : 'rd';
                 return (
                   <Fragment key={vehicle.id}>
                     {fahrt.unterwegs && (
                       <Polyline
                         positions={[fahrt.position, fahrt.ziel]}
-                        pathOptions={{ color: rueckfahrt ? '#9ca3af' : '#3b82f6', weight: 2, dashArray: '6 6', opacity: 0.8 }}
+                        pathOptions={{ color: FAHRT_LINIEN_FARBEN[fahrt.art], weight: 2, dashArray: '6 6', opacity: 0.8 }}
                       />
                     )}
                     <Marker
                       position={fahrt.position}
-                      icon={createVehicleMarkerIcon(vehicle.callsign ?? vehicle.name, rueckfahrt)}
+                      icon={createVehicleMarkerIcon(vehicle.callsign ?? vehicle.name, fahrt.art, organisation)}
                       zIndexOffset={2000}
                       interactive={false}
                     />
