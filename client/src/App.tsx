@@ -1,10 +1,15 @@
-import { useMemo, useState, useRef, useEffect } from 'react';
+import { Fragment, useMemo, useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { MapContainer, Marker, Popup, TileLayer, useMap, useMapEvents } from 'react-leaflet';
+import { MapContainer, Marker, Polyline, Popup, TileLayer, useMap, useMapEvents } from 'react-leaflet';
 import L, { type LeafletMouseEvent } from 'leaflet';
 import {
   APP_VERSION,
   EINSATZ_VORLAGEN,
+  eskaliereEinsatz,
+  findeEinsatzVorlage,
+  planeEskalation,
+  START_GUTHABEN,
+  WACHEN_PREISE,
   getFahrzeugKategorie,
   getFahrzeugTyp,
   getFahrzeugTypenFuerWache,
@@ -20,26 +25,14 @@ import './App.css';
 
 import ViewDropdown from './ViewDropdown';
 
-import type { MapLocation, LocationType } from './types';
+import type { FinanceTransaction, MapLocation, LocationType } from './types';
+import { SPIELSTAND_VERSION, spielstandSpeicher, type Spielstand } from './spielstand';
 import FahrzeugeView, { type Vehicle } from './views/FahrzeugeView';
 import WachenView from './views/WachenView';
 import EinsaetzeView from './views/EinsaetzeView';
 import { KarteEinsatzLeiste, KarteEinsatzPanel } from './views/KarteEinsatzOverlay';
 import FinanzenView from './views/FinanzenView';
 import EinstellungenView from './views/EinstellungenView';
-
-const STATION_PRICE_BY_KIND = {
-  Rettungswache: 0,
-  Feuerwache: 0,
-} as const;
-
-type FinanceTransaction = {
-  id: string;
-  kind: 'Einnahme' | 'Ausgabe';
-  label: string;
-  amount: number;
-  createdAt: string;
-};
 
 const initialLocations: MapLocation[] = [
   {
@@ -63,6 +56,22 @@ const initialLocations: MapLocation[] = [
     price: 0,
   },
 ];
+
+/** Startzustand für ein neues Spiel: zwei Rettungswachen mit einem RTW und Startguthaben. */
+const createNeuesSpiel = (): Spielstand => ({
+  version: SPIELSTAND_VERSION,
+  gespeichertAm: new Date().toISOString(),
+  balance: START_GUTHABEN,
+  transactions: [
+    { id: 'initial-balance', kind: 'Einnahme', label: 'Startguthaben', amount: START_GUTHABEN, createdAt: new Date().toISOString() },
+  ],
+  locations: initialLocations,
+  vehicles: [
+    { id: 'fahrzeug-1', name: 'RTW 1', type: 'RTW', stationId: 'rettungswache-zentrum', price: 0, callsign: 'RTW-1', status: 'Einsatzbereit' },
+  ],
+  incidents: [],
+  completedIncidentHistory: [],
+});
 
 const createMarkerIcon = (color: string) =>
   L.divIcon({
@@ -120,6 +129,52 @@ const haversineKm = (from: [number, number], to: [number, number]) => {
     Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) * Math.sin(dLng / 2);
   return 2 * 6371 * Math.asin(Math.sqrt(a));
 };
+
+/** Fahrzeit in Sekunden auf der Luftlinie (später durch echtes Straßen-Routing ersetzen). */
+const getFahrzeitSekunden = (from: [number, number], to: [number, number]) =>
+  Math.max(1, Math.round((haversineKm(from, to) / GAME_CONFIG.averageSpeedKmh) * 3600));
+
+/** Aktuelle Position eines Fahrzeugs unterwegs – oder null, wenn es an der Wache steht. */
+const getFahrzeugPosition = (
+  vehicle: Vehicle,
+  incidents: SpielEinsatz[],
+  locations: MapLocation[],
+  nowMs: number,
+): { position: [number, number]; ziel: [number, number]; unterwegs: boolean } | null => {
+  const wache = getStationCoords(vehicle.stationId, locations);
+  if (!wache) return null;
+
+  const interpoliere = (von: [number, number], nach: [number, number], startAt: number, ankunftAt: number): [number, number] => {
+    const anteil = clamp((nowMs - startAt) / Math.max(1, ankunftAt - startAt), 0, 1);
+    return [von[0] + (nach[0] - von[0]) * anteil, von[1] + (nach[1] - von[1]) * anteil];
+  };
+
+  if (vehicle.rueckfahrt) {
+    const { von, startAt, ankunftAt } = vehicle.rueckfahrt;
+    return { position: interpoliere(von, wache, startAt, ankunftAt), ziel: wache, unterwegs: nowMs < ankunftAt };
+  }
+
+  for (const incident of incidents) {
+    const assignment = incident.alarmedVehicles.find((entry) => entry.vehicleId === vehicle.id);
+    if (!assignment || incident.status === 'abgeschlossen') continue;
+    const startAt = assignment.arrivalAt - assignment.etaSeconds * 1000;
+    return {
+      position: interpoliere(wache, incident.coords, startAt, assignment.arrivalAt),
+      ziel: incident.coords,
+      unterwegs: nowMs < assignment.arrivalAt,
+    };
+  }
+
+  return null;
+};
+
+const createVehicleMarkerIcon = (label: string, rueckfahrt: boolean) =>
+  L.divIcon({
+    className: `vehicle-marker ${rueckfahrt ? 'vehicle-marker--rueckfahrt' : ''}`,
+    html: `<span>${label}</span>`,
+    iconSize: undefined,
+    iconAnchor: [0, 0],
+  });
 
 const getStationCoords = (stationId: string | undefined, locations: MapLocation[]) => {
   if (!stationId) return null;
@@ -206,6 +261,9 @@ const createSpielEinsatz = (
   reward: template.reward,
   durationSeconds: template.durationSeconds,
   createdAt: Date.now(),
+  vorlageId: template.id,
+  meldungen: [],
+  eskalationBei: planeEskalation(template),
 });
 
 function MapClickHandler({
@@ -256,22 +314,17 @@ function MapStyleToggle({
 }
 
 function App() {
-  const [locations, setLocations] = useState<MapLocation[]>(initialLocations);
+  const [startSpiel] = useState(createNeuesSpiel);
+  const [locations, setLocations] = useState<MapLocation[]>(startSpiel.locations);
   const [selectedId, setSelectedId] = useState<string>(initialLocations[0].id);
   const [draftName, setDraftName] = useState('Neue Rettungswache');
   const [draftType, setDraftType] = useState<LocationType>('station');
 
-  // Vehicles state (prepared)
-  const [vehicles, setVehicles] = useState<Vehicle[]>([
-    { id: 'fahrzeug-1', name: 'RTW 1', type: 'RTW', stationId: 'rettungswache-zentrum', price: 0, callsign: 'RTW-1', status: 'Einsatzbereit' },
-    { id: 'fahrzeug-2', name: 'LF 1', type: 'LF 10', stationId: undefined, price: 0, callsign: 'LF-1', status: 'Einsatzbereit' },
-  ]);
+  const [vehicles, setVehicles] = useState<Vehicle[]>(startSpiel.vehicles);
 
   // Finances
-  const [balance, setBalance] = useState<number>(0);
-  const [transactions, setTransactions] = useState<FinanceTransaction[]>([
-    { id: 'initial-balance', kind: 'Einnahme', label: 'Startguthaben', amount: 0, createdAt: new Date().toISOString() },
-  ]);
+  const [balance, setBalance] = useState<number>(startSpiel.balance);
+  const [transactions, setTransactions] = useState<FinanceTransaction[]>(startSpiel.transactions);
 
   const addTransaction = (kind: FinanceTransaction['kind'], label: string, amount: number) => {
     setTransactions((cur) => [{
@@ -314,8 +367,60 @@ function App() {
     });
   };
 
-  const [incidents, setIncidents] = useState<SpielEinsatz[]>([]);
-  const [completedIncidentHistory, setCompletedIncidentHistory] = useState<AbgeschlossenerSpielEinsatz[]>([]);
+  const [incidents, setIncidents] = useState<SpielEinsatz[]>(startSpiel.incidents);
+  const [completedIncidentHistory, setCompletedIncidentHistory] = useState<AbgeschlossenerSpielEinsatz[]>(startSpiel.completedIncidentHistory);
+  // Erst nach dem Laden wird gespeichert und werden Einsätze erzeugt (sonst würde ein leerer Stand den gespeicherten überschreiben)
+  const [spielstandGeladen, setSpielstandGeladen] = useState(false);
+
+  const spielstandAnwenden = (spielstand: Spielstand) => {
+    setBalance(spielstand.balance);
+    setTransactions(spielstand.transactions);
+    setLocations(spielstand.locations);
+    setVehicles(spielstand.vehicles);
+    setIncidents(spielstand.incidents);
+    setCompletedIncidentHistory(spielstand.completedIncidentHistory);
+    setSelectedId(spielstand.locations[0]?.id ?? '');
+    setSelectedIncidentId(null);
+    setMapIncidentId(null);
+  };
+
+  // Spielstand beim Start laden
+  useEffect(() => {
+    let abgebrochen = false;
+    spielstandSpeicher.laden().then((spielstand) => {
+      if (abgebrochen) return;
+      if (spielstand) spielstandAnwenden(spielstand);
+      setSpielstandGeladen(true);
+    });
+    return () => {
+      abgebrochen = true;
+    };
+  }, []);
+
+  // Spielstand automatisch speichern (kurz verzögert, damit nicht bei jeder Kleinigkeit geschrieben wird)
+  useEffect(() => {
+    if (!spielstandGeladen) return;
+    const timeout = setTimeout(() => {
+      spielstandSpeicher.speichern({
+        version: SPIELSTAND_VERSION,
+        gespeichertAm: new Date().toISOString(),
+        balance,
+        transactions,
+        locations,
+        vehicles,
+        incidents,
+        completedIncidentHistory,
+      });
+    }, 1000);
+    return () => clearTimeout(timeout);
+  }, [spielstandGeladen, balance, transactions, locations, vehicles, incidents, completedIncidentHistory]);
+
+  const neuesSpiel = () => {
+    if (!confirm('Wirklich ein neues Spiel starten? Der aktuelle Spielstand wird gelöscht.')) return;
+    spielstandSpeicher.loeschen();
+    spielstandAnwenden(createNeuesSpiel());
+    setCurrentView('Karte');
+  };
   const [selectedIncidentId, setSelectedIncidentId] = useState<string | null>(null);
   const [nowMs, setNowMs] = useState(Date.now());
 
@@ -331,6 +436,8 @@ function App() {
   const [mapStyle, setMapStyle] = useState<'karte' | 'satellit'>('karte');
   // Einsatz, dessen Kurzinfo gerade als schwebendes Fenster auf der Karte angezeigt wird
   const [mapIncidentId, setMapIncidentId] = useState<string | null>(null);
+  // Standorte-Leiste auf dem Handy ein-/ausgeklappt (am PC immer sichtbar)
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   // new state: choose station kind when creating a station
   const [draftStationKind, setDraftStationKind] = useState<'Rettungswache' | 'Feuerwache'>('Rettungswache');
   // start vehicle selection (exactly one) and callsign
@@ -343,6 +450,7 @@ function App() {
   }, []);
 
   useEffect(() => {
+    if (!spielstandGeladen) return;
     const stationPool = locations.filter((location) => location.type === 'station');
     if (stationPool.length === 0) return;
     if (incidents.filter((incident) => incident.status !== 'abgeschlossen').length >= GAME_CONFIG.maxOpenIncidents) return;
@@ -370,7 +478,7 @@ function App() {
     }, GAME_CONFIG.incidentGenerationMs);
 
     return () => clearInterval(interval);
-  }, [locations, incidents, vehicles]);
+  }, [spielstandGeladen, locations, incidents, vehicles]);
 
   useEffect(() => {
     setDraftStartVehicleType(getFahrzeugTypenFuerWache(draftStationKind)[0]?.typ ?? '');
@@ -378,12 +486,24 @@ function App() {
 
   useEffect(() => {
     let changed = false;
-    const nextVehicles: Vehicle[] = vehicles.map((vehicle): Vehicle => {
+    let nextVehicles: Vehicle[] = vehicles.map((vehicle): Vehicle => {
       const activeIncident = incidents.find(
         (incident) => incident.status !== 'abgeschlossen' && incident.alarmedVehicles.some((entry) => entry.vehicleId === vehicle.id),
       );
 
       if (!activeIncident) {
+        // Rückfahrt zur Wache: erst bei Ankunft wieder einsatzbereit
+        if (vehicle.rueckfahrt) {
+          if (nowMs >= vehicle.rueckfahrt.ankunftAt) {
+            changed = true;
+            return { ...vehicle, status: 'Einsatzbereit', rueckfahrt: undefined };
+          }
+          if (vehicle.status !== 'Rückfahrt') {
+            changed = true;
+            return { ...vehicle, status: 'Rückfahrt' };
+          }
+          return vehicle;
+        }
         if (vehicle.status !== 'Einsatzbereit') {
           changed = true;
           return { ...vehicle, status: 'Einsatzbereit' };
@@ -426,9 +546,14 @@ function App() {
       }
 
       if (updated.status === 'alarmiert' && requirementSatisfied && allArrived && !updated.processingStartedAt) {
+        // Echte Startzeit: Ankunft des letzten Fahrzeugs (frühestens ab der letzten Lagemeldung).
+        // So läuft die Bearbeitung auch korrekt weiter, während das Spiel geschlossen war.
+        const letzteAnkunft = Math.max(...updated.alarmedVehicles.map((assignment) => assignment.arrivalAt));
+        const letzteMeldung = updated.meldungen[updated.meldungen.length - 1]?.zeit ?? 0;
+        const startZeit = Math.min(nowMs, Math.max(letzteAnkunft, letzteMeldung));
         updated.status = 'in_bearbeitung';
-        updated.processingStartedAt = nowMs;
-        updated.processingEndsAt = nowMs + updated.durationSeconds * 1000;
+        updated.processingStartedAt = startZeit;
+        updated.processingEndsAt = startZeit + updated.durationSeconds * 1000;
         changed = true;
       }
 
@@ -436,6 +561,23 @@ function App() {
         if (!updated.processingEndsAt) {
           updated.processingEndsAt = nowMs + updated.durationSeconds * 1000;
         }
+
+        // Eskalation: Lagemeldung von der Einsatzstelle während der Bearbeitung
+        const eskalationsZeitpunkt = updated.eskalationBei !== undefined && updated.processingStartedAt
+          ? updated.processingStartedAt + updated.eskalationBei * updated.durationSeconds * 1000
+          : undefined;
+        if (eskalationsZeitpunkt !== undefined && nowMs >= eskalationsZeitpunkt) {
+          const eskalation = findeEinsatzVorlage(updated.vorlageId)?.eskalation;
+          const ziel = eskalation ? findeEinsatzVorlage(eskalation.zielVorlageId) : undefined;
+          const fahrzeugTypen = nextVehicles.filter((vehicle) => vehicle.stationId).map((vehicle) => vehicle.type);
+          changed = true;
+          // Nur eskalieren, wenn der Spieler den größeren Einsatz überhaupt schaffen kann
+          if (eskalation && ziel && istVorlageErfuellbar(ziel, fahrzeugTypen)) {
+            return eskaliereEinsatz(updated, ziel, eskalation.meldung, eskalationsZeitpunkt);
+          }
+          updated.eskalationBei = undefined;
+        }
+
         if (nowMs >= updated.processingEndsAt) {
           updated.status = 'abgeschlossen';
           completed.push(updated);
@@ -449,7 +591,7 @@ function App() {
     if (completed.length > 0) {
       const completedHistoryEntries = completed.map((incident) => ({
         ...incident,
-        completedAt: nowMs,
+        completedAt: incident.processingEndsAt ?? nowMs,
         totalDurationSeconds: Math.max(
           1,
           Math.round(((incident.processingEndsAt ?? nowMs) - (incident.processingStartedAt ?? incident.createdAt)) / 1000),
@@ -463,12 +605,26 @@ function App() {
 
       setBalance((cur) => cur + completed.reduce((sum, incident) => sum + incident.reward, 0));
       completed.forEach((incident) => addTransaction('Einnahme', `${incident.organization} – ${formatEinsatzTitel(incident)} abgeschlossen`, incident.reward));
-      setVehicles((current) => current.map((vehicle) => {
-        const isCompleted = completed.some((incident) =>
+
+      // Fahrzeuge der abgeschlossenen Einsätze fahren (Luftlinie) zurück zur Wache
+      nextVehicles = nextVehicles.map((vehicle) => {
+        const einsatz = completed.find((incident) =>
           incident.alarmedVehicles.some((assignment) => assignment.vehicleId === vehicle.id),
         );
-        return isCompleted ? { ...vehicle, status: 'Einsatzbereit' } : vehicle;
-      }));
+        if (!einsatz) return vehicle;
+        const wache = getStationCoords(vehicle.stationId, locations);
+        if (!wache) return { ...vehicle, status: 'Einsatzbereit' };
+        return {
+          ...vehicle,
+          status: 'Rückfahrt',
+          // Rückfahrt ab dem echten Einsatzende (auch wenn das Spiel zwischendurch geschlossen war)
+          rueckfahrt: (() => {
+            const startAt = einsatz.processingEndsAt ?? nowMs;
+            return { von: einsatz.coords, startAt, ankunftAt: startAt + getFahrzeitSekunden(einsatz.coords, wache) * 1000 };
+          })(),
+        };
+      });
+      changed = true;
       setIncidents((current) => current.filter((incident) => !completed.some((item) => item.id === incident.id)));
       setSelectedIncidentId((current) => (current && completed.some((incident) => incident.id === current) ? null : current));
     }
@@ -477,7 +633,7 @@ function App() {
       setVehicles(nextVehicles);
       setIncidents(nextIncidents.filter((incident) => incident.status !== 'abgeschlossen'));
     }
-  }, [incidents, vehicles, nowMs]);
+  }, [incidents, vehicles, nowMs, locations]);
 
   const selectedLocation = useMemo(
     () => locations.find((location) => location.id === selectedId) ?? locations[0],
@@ -556,7 +712,7 @@ function App() {
       return;
     }
 
-    const stationPrice = STATION_PRICE_BY_KIND[draftStationKind] ?? 0;
+    const stationPrice = WACHEN_PREISE[draftStationKind] ?? 0;
     const vehiclePrice = getFahrzeugTyp(draftStartVehicleType)?.preis ?? 0;
     const totalCost = stationPrice + vehiclePrice;
 
@@ -574,8 +730,8 @@ function App() {
       type: draftType,
       stationKind: draftStationKind,
       coords,
-      description: 'Rettungsdienst',
-      details: address.trim() || 'Frei platzierbarer Rettungsstandort',
+      description: draftStationKind === 'Feuerwache' ? 'Feuerwehr' : 'Rettungsdienst',
+      details: address.trim() || `Frei platzierbare ${draftStationKind}`,
       price: stationPrice,
     };
 
@@ -648,6 +804,12 @@ function App() {
     setCurrentView('Einsätze');
   };
 
+  const markiereMeldungGelesen = (incidentId: string) => {
+    setIncidents((current) => current.map((incident) => (
+      incident.id === incidentId ? { ...incident, neueMeldung: false } : incident
+    )));
+  };
+
   const alarmIncidentVehicles = (incidentId: string, selectedVehicleIds: string[]) => {
     if (selectedVehicleIds.length === 0) return;
 
@@ -662,7 +824,7 @@ function App() {
           const coords = getStationCoords(vehicle?.stationId, locations);
           if (!vehicle || !coords) return null;
           const distance = haversineKm(coords, incident.coords);
-          const etaSeconds = Math.max(1, Math.round((distance / GAME_CONFIG.averageSpeedKmh) * 3600));
+          const etaSeconds = getFahrzeitSekunden(coords, incident.coords);
           return {
             vehicleId,
             distanceKm: Number(distance.toFixed(1)),
@@ -738,10 +900,18 @@ function App() {
 
       <main className={`dashboard ${currentView === 'Karte' ? '' : 'dashboard--full'}`}>
         {currentView === 'Karte' && (
-          <aside className="sidebar">
+          <aside className={`sidebar ${sidebarOpen ? '' : 'sidebar--collapsed'}`}>
             <div className="panel-header">
               <h2>Standorte</h2>
               <span>{locations.length}</span>
+              <button
+                type="button"
+                className="sidebar-toggle"
+                onClick={() => setSidebarOpen((open) => !open)}
+                aria-expanded={sidebarOpen}
+              >
+                {sidebarOpen ? 'Einklappen ▴' : 'Anzeigen ▾'}
+              </button>
             </div>
 
             <div className="location-form">
@@ -985,6 +1155,29 @@ function App() {
                     eventHandlers={{ click: () => setMapIncidentId(incident.id) }}
                   />
                 ))}
+
+              {/* Fahrzeuge unterwegs: gerade Linie (Luftlinie) zum Ziel */}
+              {vehicles.map((vehicle) => {
+                const fahrt = getFahrzeugPosition(vehicle, incidents, locations, nowMs);
+                if (!fahrt) return null;
+                const rueckfahrt = vehicle.status === 'Rückfahrt';
+                return (
+                  <Fragment key={vehicle.id}>
+                    {fahrt.unterwegs && (
+                      <Polyline
+                        positions={[fahrt.position, fahrt.ziel]}
+                        pathOptions={{ color: rueckfahrt ? '#9ca3af' : '#3b82f6', weight: 2, dashArray: '6 6', opacity: 0.8 }}
+                      />
+                    )}
+                    <Marker
+                      position={fahrt.position}
+                      icon={createVehicleMarkerIcon(vehicle.callsign ?? vehicle.name, rueckfahrt)}
+                      zIndexOffset={2000}
+                      interactive={false}
+                    />
+                  </Fragment>
+                );
+              })}
             </MapContainer>
           </section>
         ) : (
@@ -1006,6 +1199,7 @@ function App() {
                 selectedIncidentId={selectedIncidentId}
                 setSelectedIncidentId={setSelectedIncidentId}
                 alarmIncidentVehicles={alarmIncidentVehicles}
+                markiereMeldungGelesen={markiereMeldungGelesen}
                 triggerTestIncident={triggerTestIncident}
                 nowMs={nowMs}
                 stats={completedIncidentStats}
@@ -1017,7 +1211,7 @@ function App() {
             )}
 
             {currentView === 'Einstellungen' && (
-              <EinstellungenView defaultView={currentView} />
+              <EinstellungenView defaultView={currentView} onNeuesSpiel={neuesSpiel} />
             )}
           </section>
         )}

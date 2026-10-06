@@ -5,7 +5,13 @@ export type Vehicle = {
   stationId?: string;
   price: number;
   callsign?: string; // Funkrufname
-  status?: 'Einsatzbereit' | 'Alarmiert / auf Anfahrt' | 'Im Einsatz';
+  status?: 'Einsatzbereit' | 'Alarmiert / auf Anfahrt' | 'Im Einsatz' | 'Rückfahrt';
+  /** Gesetzt, solange das Fahrzeug vom Einsatzort zurück zur Wache fährt */
+  rueckfahrt?: {
+    von: [number, number];
+    startAt: number;
+    ankunftAt: number;
+  };
 };
 
 export default function FahrzeugeView({ vehicles, stations }: { vehicles: Vehicle[]; addVehicle: (v: Omit<Vehicle, 'id'>) => void; stations: any[] }) {
@@ -20,7 +26,7 @@ export default function FahrzeugeView({ vehicles, stations }: { vehicles: Vehicl
               <li key={v.id} style={{ marginBottom: 8 }}>
                 <div style={{ padding: 10, borderRadius: 8, background: 'var(--color-surface)', boxShadow: 'var(--shadow-card)' }}>
                   <strong>{v.callsign ? `${v.callsign} (${v.name})` : v.name}</strong>
-                  <div style={{ fontSize: 12, color: 'var(--color-text-muted)' }}>Typ: {v.type ?? '–'}</div>
+                  <div style={{ fontSize: 12, color: 'var(--color-text-muted)' }}>Typ: {v.type ?? '–'} · Status: {v.status ?? 'Einsatzbereit'}</div>
                   <div style={{ fontSize: 12, color: 'var(--color-text-muted)' }}>
                     Station: {v.stationId ? (stations.find((s) => s.id === v.stationId)?.name ?? v.stationId) : 'Nicht zugeordnet'}
                   </div>

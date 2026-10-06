@@ -9,7 +9,6 @@ import {
 } from '@leitstellendispo/shared';
 import type { MapLocation } from '../types';
 import type { Vehicle } from './FahrzeugeView';
-import ServerEinsaetzeList, { useServerEinsaetze } from './ServerEinsaetzeList';
 
 const haversineKm = (from: [number, number], to: [number, number]) => {
   const toRadians = (deg: number) => (deg * Math.PI) / 180;
@@ -39,6 +38,7 @@ export default function EinsaetzeView({
   selectedIncidentId,
   setSelectedIncidentId,
   alarmIncidentVehicles,
+  markiereMeldungGelesen,
   triggerTestIncident,
   nowMs,
   stats,
@@ -50,23 +50,13 @@ export default function EinsaetzeView({
   selectedIncidentId: string | null;
   setSelectedIncidentId: (id: string | null) => void;
   alarmIncidentVehicles: (incidentId: string, selectedVehicleIds: string[]) => void;
+  markiereMeldungGelesen: (incidentId: string) => void;
   triggerTestIncident: () => void;
   nowMs: number;
   stats: { total: number; rettungsdienst: number; feuerwehr: number; earned: number };
 }) {
   const [selectedVehicleIds, setSelectedVehicleIds] = useState<string[]>([]);
   const [activeTab, setActiveTab] = useState<'Aktive' | 'Abgeschlossen'>('Aktive');
-  const serverEinsaetze = useServerEinsaetze();
-  const [selectedServerEinsatzId, setSelectedServerEinsatzId] = useState<string | null>(null);
-
-  const selectedServerEinsatz = activeTab === 'Aktive'
-    ? serverEinsaetze.einsaetze.find((einsatz) => einsatz.id === selectedServerEinsatzId) ?? null
-    : null;
-
-  const selectLocalIncident = (id: string) => {
-    setSelectedServerEinsatzId(null);
-    setSelectedIncidentId(id);
-  };
 
   useEffect(() => {
     setSelectedVehicleIds([]);
@@ -78,6 +68,13 @@ export default function EinsaetzeView({
       ?? (activeTab === 'Aktive' ? incidents[0] ?? null : completedIncidentHistory[0] ?? null),
     [incidents, completedIncidentHistory, selectedIncidentId, activeTab],
   );
+
+  // Neue Lagemeldung gilt als gelesen, sobald der Einsatz hier angezeigt wird
+  useEffect(() => {
+    if (selectedIncident && 'neueMeldung' in selectedIncident && selectedIncident.neueMeldung) {
+      markiereMeldungGelesen(selectedIncident.id);
+    }
+  }, [selectedIncident]);
 
   const availableVehiclesForSelectedIncident = useMemo(() => {
     if (!selectedIncident || selectedIncident.status === 'abgeschlossen') return [] as Vehicle[];
@@ -180,11 +177,12 @@ export default function EinsaetzeView({
                   <li key={incident.id}>
                     <button
                       type="button"
-                      className={`view-menu-item view-menu-item--light ${!selectedServerEinsatz && selectedIncident?.id === incident.id ? 'active' : ''}`}
-                      onClick={() => selectLocalIncident(incident.id)}
+                      className={`view-menu-item view-menu-item--light ${selectedIncident?.id === incident.id ? 'active' : ''}`}
+                      onClick={() => setSelectedIncidentId(incident.id)}
                       style={{ width: '100%', textAlign: 'left' }}
                     >
                       <strong>{formatEinsatzTitel(incident)}</strong>
+                      {incident.neueMeldung && <span className="neue-meldung-badge">⚠ Neue Meldung</span>}
                       <div style={{ fontSize: 12, color: 'var(--color-text-muted)' }}>
                         {incident.organization} · {EINSATZ_STATUS_LABELS[incident.status]} · {incident.generatedByStationName}
                       </div>
@@ -195,11 +193,6 @@ export default function EinsaetzeView({
                   </li>
                 ))}
               </ul>
-              <ServerEinsaetzeList
-                {...serverEinsaetze}
-                selectedId={selectedServerEinsatz?.id ?? null}
-                onSelect={setSelectedServerEinsatzId}
-              />
             </>
           ) : (
             <>
@@ -209,8 +202,8 @@ export default function EinsaetzeView({
                   <li key={incident.id}>
                     <button
                       type="button"
-                      className={`view-menu-item view-menu-item--light ${!selectedServerEinsatz && selectedIncident?.id === incident.id ? 'active' : ''}`}
-                      onClick={() => selectLocalIncident(incident.id)}
+                      className={`view-menu-item view-menu-item--light ${selectedIncident?.id === incident.id ? 'active' : ''}`}
+                      onClick={() => setSelectedIncidentId(incident.id)}
                       style={{ width: '100%', textAlign: 'left' }}
                     >
                       <strong>{formatEinsatzTitel(incident)}</strong>
@@ -229,17 +222,23 @@ export default function EinsaetzeView({
         </div>
 
         <div>
-          {selectedServerEinsatz ? (
-            <div style={{ background: 'var(--color-surface)', padding: 16, borderRadius: 12, boxShadow: 'var(--shadow-card)' }}>
-              <h3>{formatEinsatzTitel(selectedServerEinsatz)}</h3>
-              <p><strong>Status:</strong> {EINSATZ_STATUS_LABELS[selectedServerEinsatz.status]}</p>
-              <p><strong>Einsatznummer:</strong> {selectedServerEinsatz.id}</p>
-              <p style={{ fontSize: 12, color: 'var(--color-text-muted)' }}>Server-Einsatz – Fahrzeuge und Alarmierung folgen später.</p>
-            </div>
-          ) : selectedIncident ? (
+          {selectedIncident ? (
             <div style={{ background: 'var(--color-surface)', padding: 16, borderRadius: 12, boxShadow: 'var(--shadow-card)' }}>
               <h3>{formatEinsatzTitel(selectedIncident)}</h3>
               <p><strong>Status:</strong> {EINSATZ_STATUS_LABELS[selectedIncident.status]}</p>
+
+              {selectedIncident.meldungen.length > 0 && (
+                <div className="einsatz-meldungen">
+                  <h4>Lagemeldungen</h4>
+                  <ul>
+                    {[...selectedIncident.meldungen].reverse().map((meldung) => (
+                      <li key={meldung.zeit}>
+                        <span>{new Date(meldung.zeit).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })}</span> {meldung.text}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
               <p><strong>Organisation:</strong> {selectedIncident.organization}</p>
               <p><strong>Adresse:</strong> {selectedIncident.address}</p>
               <p><strong>Erzeugt durch:</strong> {selectedIncident.generatedByStationName}</p>

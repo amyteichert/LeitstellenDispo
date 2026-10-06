@@ -29,6 +29,7 @@ export function KarteEinsatzLeiste({
           onClick={() => onSelect(incident)}
         >
           <span className="map-incident-chip__dot" />
+          {incident.neueMeldung && '⚠ '}
           {formatEinsatzTitel(incident)}
         </button>
       ))}
@@ -56,6 +57,12 @@ export function KarteEinsatzPanel({
         <h3>{formatEinsatzTitel(incident)}</h3>
         <button type="button" className="map-incident-panel__close" onClick={onClose} aria-label="Schließen">✕</button>
       </div>
+
+      {incident.meldungen.length > 0 && (
+        <div className="einsatz-meldungen">
+          <strong>⚠ Neue Meldung:</strong> {incident.meldungen[incident.meldungen.length - 1].text}
+        </div>
+      )}
 
       <p><strong>Status:</strong> {EINSATZ_STATUS_LABELS[incident.status]}</p>
       <p><strong>Organisation:</strong> {incident.organization}</p>

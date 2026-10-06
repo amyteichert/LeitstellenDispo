@@ -1,6 +1,6 @@
 import { useState } from 'react';
 
-export default function EinstellungenView({ defaultView }: { defaultView?: string }) {
+export default function EinstellungenView({ defaultView, onNeuesSpiel }: { defaultView?: string; onNeuesSpiel: () => void }) {
   const [local, setLocal] = useState(defaultView ?? 'Karte');
 
   return (
@@ -17,6 +17,14 @@ export default function EinstellungenView({ defaultView }: { defaultView?: strin
           <option>Einsätze</option>
         </select>
         <p style={{ fontSize: 12, color: 'var(--color-text-muted)', marginTop: 8 }}>Hinweis: Diese Einstellung ist derzeit nur UI-seitig vorbereitet.</p>
+      </div>
+
+      <div style={{ padding: 8, background: 'var(--color-surface)', borderRadius: 8, marginTop: 12 }}>
+        <h3 style={{ marginBottom: 6 }}>Spielstand</h3>
+        <p style={{ fontSize: 12, color: 'var(--color-text-muted)', marginBottom: 8 }}>
+          Dein Spiel wird automatisch gespeichert. Ein neues Spiel löscht den aktuellen Spielstand.
+        </p>
+        <button className="btn btn--danger" type="button" onClick={onNeuesSpiel}>Neues Spiel starten</button>
       </div>
     </div>
   );

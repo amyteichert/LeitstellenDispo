@@ -12,3 +12,11 @@ export type MapLocation = {
   price?: number;
   stationKind?: StationKind; // optional: for type === 'station' specifies whether it's a Rettungswache or Feuerwache
 };
+
+export type FinanceTransaction = {
+  id: string;
+  kind: 'Einnahme' | 'Ausgabe';
+  label: string;
+  amount: number;
+  createdAt: string;
+};
