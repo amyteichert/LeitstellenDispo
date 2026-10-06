@@ -246,9 +246,11 @@ const beendeBearbeitung = (einsatz: SpielEinsatz, ctx: TickKontext): SpielEinsat
     };
   });
 
+  const anzahlTransporte = patienten.filter((p) => p.status === 'transport').length;
   let ergebnis: SpielEinsatz = {
     ...einsatz,
     patienten: einsatz.patienten ? patienten : undefined,
+    reward: einsatz.reward + anzahlTransporte * GAME_CONFIG.transportVerguetung,
     meldungen: fuegeMeldungenHinzu(einsatz.meldungen, neueMeldungen),
   };
   ctx.geaendert = true;

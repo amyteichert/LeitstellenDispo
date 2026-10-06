@@ -14,6 +14,8 @@ export const GAME_CONFIG = {
   krankenhausEinzugsbereichKm: 20,
   /** Dauer der Patientenübergabe im Krankenhaus */
   patientenUebergabeSekunden: 15,
+  /** Vergütung je Patient, der ins Krankenhaus transportiert wird (Transporte werden abgerechnet) */
+  transportVerguetung: 120,
 };
 
 /** Wie weit neue Einsätze um eine Wache herum entstehen – wächst mit der Anzahl der Wachen. */

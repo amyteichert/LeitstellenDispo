@@ -60,6 +60,19 @@ LeitstellenDispo/
 |----------------|---------------------------|
 | GET /api/health | Server-Status prüfen     |
 | GET /api/info   | App-Name, Version, etc.  |
+| GET /api/einsaetze | Beispiel-Einsätze (mit Adresse) |
+| GET /api/fahrzeugtypen | Zentraler Fahrzeugkatalog (Preis, Geschwindigkeit, Besatzung, Fähigkeiten) |
+| GET /api/krankenhaeuser | Krankenhäuser im Startgebiet |
+
+---
+
+## Tests
+
+```bash
+npm test
+```
+
+Prüft die Typen und führt alle Tests der Spiellogik (`shared`) aus.
 
 ---
 

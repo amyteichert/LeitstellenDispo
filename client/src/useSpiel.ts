@@ -175,6 +175,9 @@ export function useSpiel(optionen: UseSpielOptionen = {}) {
 
   // ---- Aktionen ----
 
+  /** Funkrufname nach Schema „LF10-2“ (fortlaufend je Fahrzeugtyp) */
+  const naechsterFunkrufname = (typ: string) => `${typ.replace(/\s+/g, '')}-${vehicles.filter((vehicle) => vehicle.type === typ).length + 1}`;
+
   /** Kauft ein Fahrzeug für eine Wache. Gibt eine Fehlermeldung zurück oder null bei Erfolg. */
   const buyVehicle = (stationId: string, typ: string): string | null => {
     const station = locations.find((location) => location.id === stationId && location.type === 'station');
@@ -187,7 +190,6 @@ export function useSpiel(optionen: UseSpielOptionen = {}) {
       return `Nicht genügend Guthaben. Benötigt: ${fahrzeugTyp.preis} €, verfügbar: ${balance} €.`;
     }
 
-    const nummer = vehicles.filter((vehicle) => vehicle.type === typ).length + 1;
     setBalance((cur) => cur - fahrzeugTyp.preis);
     addTransaction('Ausgabe', `${typ} für ${station.name} gekauft`, fahrzeugTyp.preis);
     addVehicle({
@@ -195,7 +197,7 @@ export function useSpiel(optionen: UseSpielOptionen = {}) {
       type: typ,
       stationId,
       price: fahrzeugTyp.preis,
-      callsign: `${typ.replace(/\s+/g, '')}-${nummer}`,
+      callsign: naechsterFunkrufname(typ),
     });
     return null;
   };
@@ -236,7 +238,7 @@ export function useSpiel(optionen: UseSpielOptionen = {}) {
         type: wache.startFahrzeugTyp,
         stationId: locationId,
         price: vehiclePrice,
-        callsign: wache.funkrufname.trim() || `${wache.startFahrzeugTyp} ${Date.now().toString().slice(-4)}`,
+        callsign: wache.funkrufname.trim() || naechsterFunkrufname(wache.startFahrzeugTyp),
       });
     }
 

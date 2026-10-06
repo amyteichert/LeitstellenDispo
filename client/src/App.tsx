@@ -218,6 +218,27 @@ function App() {
     setSelectedGeocodeIndex(null);
     setGeocodeResults([]);
     setGeocodeError(null);
+    sucheAdresseZuPosition(coords);
+  };
+
+  // Adresse zur angeklickten Position (OSM). Ohne Netz bleibt es bei der Position – PLZ/Ort werden dann geschätzt.
+  const letzteRueckwaertsSuche = useRef(0);
+  const sucheAdresseZuPosition = async (coords: [number, number]) => {
+    const anfrage = ++letzteRueckwaertsSuche.current;
+    try {
+      const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${coords[0]}&lon=${coords[1]}&addressdetails=1&zoom=18`;
+      const res = await fetch(url);
+      if (!res.ok) return;
+      const data = await res.json();
+      if (anfrage !== letzteRueckwaertsSuche.current) return; // inzwischen woanders geklickt
+      const adresse = adresseAusOsm(data?.address);
+      if (adresse) {
+        setTempAdresse(adresse);
+        setAddress(formatAdresse(adresse));
+      }
+    } catch {
+      // Adresse ist nur Komfort
+    }
   };
 
   const geocodeAddress = async (q: string) => {
@@ -577,9 +598,13 @@ function App() {
               const mapIncident = incidents.find((incident) => incident.id === mapIncidentId && incident.status !== 'abgeschlossen');
               return mapIncident ? (
                 <KarteEinsatzPanel
+                  key={mapIncident.id}
                   incident={mapIncident}
+                  incidents={incidents}
                   vehicles={vehicles}
+                  locations={locations}
                   nowMs={nowMs}
+                  onAlarmieren={(vehicleIds) => spiel.alarmieren(mapIncident.id, vehicleIds)}
                   onClose={() => setMapIncidentId(null)}
                   onOpenInEinsaetze={() => {
                     setSelectedIncidentId(mapIncident.id);

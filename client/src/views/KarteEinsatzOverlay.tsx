@@ -1,5 +1,7 @@
+import { useState } from 'react';
 import {
   EINSATZ_STATUS_LABELS,
+  erstelleAlarmVorschlag,
   PATIENTEN_STATUS_LABELS,
   formatBedarfsListe,
   formatEinsatzTitel,
@@ -9,7 +11,7 @@ import {
   istWichtigeMeldung,
   type SpielEinsatz,
 } from '@leitstellendispo/shared';
-import type { Vehicle } from '../types';
+import type { MapLocation, Vehicle } from '../types';
 
 /** Leiste oben auf der Karte mit allen laufenden Einsätzen. */
 export function KarteEinsatzLeiste({
@@ -49,18 +51,31 @@ export function KarteEinsatzLeiste({
 /** Schwebendes Fenster rechts mit einer Kurzinfo zum gewählten Einsatz. */
 export function KarteEinsatzPanel({
   incident,
+  incidents,
   vehicles,
+  locations,
   nowMs,
   onClose,
   onOpenInEinsaetze,
+  onAlarmieren,
 }: {
   incident: SpielEinsatz;
+  incidents: SpielEinsatz[];
   vehicles: Vehicle[];
+  locations: MapLocation[];
   nowMs: number;
   onClose: () => void;
   onOpenInEinsaetze: () => void;
+  /** Alarmiert die übergebenen Fahrzeuge direkt von der Karte aus */
+  onAlarmieren: (vehicleIds: string[]) => void;
 }) {
   const { abdeckung, ausreichendAlarmiert, fehlendAlarmiert } = getEinsatzVersorgung(incident, vehicles, nowMs);
+  const vorschlag = erstelleAlarmVorschlag(incident, { incidents, vehicles, locations });
+  const vorschlagNamen = vorschlag.fahrzeugIds.map((id) => {
+    const vehicle = vehicles.find((item) => item.id === id);
+    return vehicle?.callsign ?? vehicle?.name ?? 'Fahrzeug';
+  });
+  const [rueckmeldung, setRueckmeldung] = useState<string | null>(null);
   const letzteMeldung = incident.meldungen[incident.meldungen.length - 1];
   const kannAlarmieren = incident.status === 'offen' || incident.status === 'alarmiert';
 
@@ -87,6 +102,23 @@ export function KarteEinsatzPanel({
         <div className="versorgung-hinweis versorgung-hinweis--fehlt">Es fehlen: {formatBedarfsListe(fehlendAlarmiert)}</div>
       )}
 
+      {kannAlarmieren && vorschlag.fahrzeugIds.length > 0 && (
+        <button
+          type="button"
+          className="btn btn--primary map-incident-panel__open"
+          onClick={() => {
+            onAlarmieren(vorschlag.fahrzeugIds);
+            setRueckmeldung(`✓ ${vorschlagNamen.join(', ')} alarmiert.`);
+          }}
+        >
+          🚨 Vorschlag alarmieren: {vorschlagNamen.join(', ')}
+        </button>
+      )}
+      {kannAlarmieren && vorschlag.nichtVerfuegbar.length > 0 && (
+        <p className="einsatz-eintrag__zeile">Kein freies Fahrzeug für: {formatBedarfsListe(vorschlag.nichtVerfuegbar)}</p>
+      )}
+      {rueckmeldung && <div className="aktion-rueckmeldung" role="status">{rueckmeldung}</div>}
+
       <h4>Fahrzeuge</h4>
       <ul>
         {abdeckung.map((eintrag, index) => (
@@ -110,8 +142,8 @@ export function KarteEinsatzPanel({
         </>
       )}
 
-      <button type="button" className="btn btn--primary map-incident-panel__open" onClick={onOpenInEinsaetze}>
-        {kannAlarmieren ? 'Fahrzeuge alarmieren' : 'In Einsätze öffnen'}
+      <button type="button" className="btn btn--secondary map-incident-panel__open" onClick={onOpenInEinsaetze}>
+        {kannAlarmieren ? 'Details & Fahrzeugauswahl' : 'In Einsätze öffnen'}
       </button>
     </aside>
   );

@@ -169,7 +169,7 @@ export default function EinsaetzeView({
         <button className="btn btn--primary" type="button" onClick={triggerTestIncident}>Test-Einsatz erzeugen</button>
       </div>
 
-      <div style={{ marginBottom: 16, display: 'grid', gridTemplateColumns: 'repeat(4, minmax(120px, 1fr))', gap: 8 }}>
+      <div style={{ marginBottom: 16, display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: 8 }}>
         <div style={{ background: 'var(--color-surface)', padding: 10, borderRadius: 8, border: '1px solid var(--color-border)' }}>
           <div style={{ fontSize: 12, color: 'var(--color-text-muted)' }}>Abgeschlossen</div>
           <strong>{stats.total}</strong>

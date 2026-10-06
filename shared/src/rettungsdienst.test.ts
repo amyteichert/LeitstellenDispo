@@ -55,6 +55,8 @@ describe('Rettungsdienst – Patient, Transport und Krankenhaus', () => {
     expect(t.ankunftAt).toBe(behandlungsEnde + getFahrzeitSekunden(e2.coords, krankenhaeuser[0].coords, getFahrzeugGeschwindigkeit('RTW')) * 1000);
     expect(t.uebergabeBis).toBe(t.ankunftAt + GAME_CONFIG.patientenUebergabeSekunden * 1000);
     expect(transport.abgeschlossen).toHaveLength(0);
+    // Transporte werden vergütet
+    expect(e2.reward).toBe(e0.reward + GAME_CONFIG.transportVerguetung);
 
     // Unterwegs ins Krankenhaus: Status 7, sichtbar auf der Karte, nicht alarmierbar
     const unterwegs = berechneSpielTick({ ...zustand, ...transport }, behandlungsEnde + 1000);
@@ -94,6 +96,7 @@ describe('Rettungsdienst – Patient, Transport und Krankenhaus', () => {
     const fertig = ergebnis.abgeschlossen[0];
     expect(fertig.patienten![0].status).toBe('ambulant');
     expect(fertig.completedAt).toBe(fertig.processingEndsAt);
+    expect(fertig.reward).toBe(zustand.incidents[0].reward);
   });
 
   it('holt die ganze Kette offline nach – mit den echten Zeitpunkten', () => {
