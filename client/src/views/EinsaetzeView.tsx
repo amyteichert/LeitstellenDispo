@@ -3,22 +3,13 @@ import {
   EINSATZ_STATUS_LABELS,
   formatEinsatzTitel,
   getBedarfsAbdeckung,
+  getFahrzeitSekunden,
   getFahrzeugKategorie,
+  haversineKm,
   type AbgeschlossenerSpielEinsatz,
   type SpielEinsatz,
 } from '@leitstellendispo/shared';
-import type { MapLocation } from '../types';
-import type { Vehicle } from './FahrzeugeView';
-
-const haversineKm = (from: [number, number], to: [number, number]) => {
-  const toRadians = (deg: number) => (deg * Math.PI) / 180;
-  const lat1 = toRadians(from[0]);
-  const lat2 = toRadians(to[0]);
-  const dLat = toRadians(to[0] - from[0]);
-  const dLng = toRadians(to[1] - from[1]);
-  const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) * Math.sin(dLng / 2);
-  return 2 * 6371 * Math.asin(Math.sqrt(a));
-};
+import type { MapLocation, Vehicle } from '../types';
 
 const formatEtaLabel = (seconds: number) => {
   const totalSeconds = Math.max(0, Math.ceil(seconds));
@@ -294,7 +285,7 @@ export default function EinsaetzeView({
                       {availableVehiclesForSelectedIncident.map((vehicle) => {
                         const vehicleStation = vehicle.stationId ? locations.find((loc) => loc.id === vehicle.stationId) : undefined;
                         const distanceKm = vehicleStation ? haversineKm(vehicleStation.coords, selectedIncident.coords) : 0;
-                        const etaSeconds = Math.max(1, Math.round((distanceKm / 54) * 3600));
+                        const etaSeconds = vehicleStation ? getFahrzeitSekunden(vehicleStation.coords, selectedIncident.coords) : 1;
                         const checked = selectedVehicleIds.includes(vehicle.id);
                         return (
                           <li key={vehicle.id}>

@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import { getFahrzeugTypenFuerWache } from '@leitstellendispo/shared';
-import type { MapLocation } from '../types';
-import type { Vehicle } from './FahrzeugeView';
+import type { MapLocation, Vehicle } from '../types';
 
 export default function WachenView({
   locations,

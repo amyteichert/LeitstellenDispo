@@ -1,18 +1,4 @@
-export type Vehicle = {
-  id: string;
-  name: string;
-  type?: string;
-  stationId?: string;
-  price: number;
-  callsign?: string; // Funkrufname
-  status?: 'Einsatzbereit' | 'Alarmiert / auf Anfahrt' | 'Im Einsatz' | 'Rückfahrt';
-  /** Gesetzt, solange das Fahrzeug vom Einsatzort zurück zur Wache fährt */
-  rueckfahrt?: {
-    von: [number, number];
-    startAt: number;
-    ankunftAt: number;
-  };
-};
+import type { Vehicle } from '../types';
 
 export default function FahrzeugeView({ vehicles, stations }: { vehicles: Vehicle[]; addVehicle: (v: Omit<Vehicle, 'id'>) => void; stations: any[] }) {
   return (

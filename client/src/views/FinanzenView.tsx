@@ -1,5 +1,4 @@
-import type { FinanceTransaction, MapLocation } from '../types';
-import type { Vehicle } from './FahrzeugeView';
+import type { FinanceTransaction, MapLocation, Vehicle } from '../types';
 
 export default function FinanzenView({ balance, locations, vehicles, transactions }: { balance: number; locations: MapLocation[]; vehicles: Vehicle[]; transactions: FinanceTransaction[] }) {
   const stationAssets = locations.filter(l => l.type === 'station');

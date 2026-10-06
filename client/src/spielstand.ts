@@ -1,6 +1,5 @@
 import type { AbgeschlossenerSpielEinsatz, SpielEinsatz } from '@leitstellendispo/shared';
-import type { FinanceTransaction, MapLocation } from './types';
-import type { Vehicle } from './views/FahrzeugeView';
+import type { FinanceTransaction, MapLocation, Vehicle } from './types';
 
 /** Wird erhöht, wenn sich der Aufbau des Spielstands inkompatibel ändert. */
 export const SPIELSTAND_VERSION = 2;

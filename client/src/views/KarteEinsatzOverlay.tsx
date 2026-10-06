@@ -4,7 +4,7 @@ import {
   getBedarfsAbdeckung,
   type SpielEinsatz,
 } from '@leitstellendispo/shared';
-import type { Vehicle } from './FahrzeugeView';
+import type { Vehicle } from '../types';
 
 /** Leiste oben auf der Karte mit allen laufenden Einsätzen. */
 export function KarteEinsatzLeiste({
