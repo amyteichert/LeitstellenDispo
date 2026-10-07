@@ -91,6 +91,8 @@ export interface Vehicle {
   isBrokenDown?: boolean;
   price?: number;
   callsign?: string;
+  maintenanceHoursLeft?: number;
+  lastMaintenanceAt?: number;
 }
 
 export interface Incident {

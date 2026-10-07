@@ -756,8 +756,8 @@ function App() {
       ? normalizeStationOwnership({ ...location, vehicleCapacity: location.vehicleCapacity ?? getDefaultVehicleCapacity(location.stationKind), upgradeLevels: location.upgradeLevels ?? {}, staffSatisfaction: location.staffSatisfaction ?? 100 })
       : location) : initialLocations.map(normalizeStationOwnership));
     setVehicles(nextState.vehicles.length > 0 ? nextState.vehicles.map((vehicle) => withFmsStatus(vehicle, getFmsStatus(vehicle), vehicle.returnAt)) : [
-      { id: 'fahrzeug-1', name: 'RTW 1', type: 'RTW', stationId: 'rettungswache-zentrum', price: 0, callsign: 'RTW-1', status: 'Einsatzbereit', crewRequired: 2, crewCapacity: 2, assignedStaffIds: [], currentFuel: 1000, maxFuel: 1000 },
-      { id: 'fahrzeug-2', name: 'LF 1', type: 'LF 10', stationId: undefined, price: 0, callsign: 'LF-1', status: 'Einsatzbereit', crewRequired: 3, crewCapacity: 9, assignedStaffIds: [], currentFuel: 1000, maxFuel: 1000 },
+      { id: 'fahrzeug-1', name: 'RTW 1', type: 'RTW', stationId: 'rettungswache-zentrum', price: 0, callsign: 'RTW-1', status: 'Einsatzbereit', crewRequired: 2, crewCapacity: 2, assignedStaffIds: [], currentFuel: 1000, maxFuel: 1000, maintenanceHoursLeft: 200 },
+      { id: 'fahrzeug-2', name: 'LF 1', type: 'LF 10', stationId: undefined, price: 0, callsign: 'LF-1', status: 'Einsatzbereit', crewRequired: 3, crewCapacity: 9, assignedStaffIds: [], currentFuel: 1000, maxFuel: 1000, maintenanceHoursLeft: 200 },
     ]);
     setIncidents(nextState.incidents ?? []);
     setSelectedId((nextState.locations.find((location) => location.type === 'station')?.id) ?? initialLocations[0].id);
