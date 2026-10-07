@@ -814,7 +814,12 @@
 
 .leaflet-container {
   font: inherit;
-  background: #0e0e10; /* Farbe, solange Kacheln laden (passend zu Dark Matter) */
+  background: #0e0e10; /* Farbe, solange Kacheln laden */
+}
+
+/* Helle OSM-Karte in ein dunkles Kartenbild umfärben (nur die Kacheln, nicht die Marker) */
+.map-tiles--dunkel {
+  filter: invert(1) hue-rotate(180deg) brightness(0.85) contrast(0.9) saturate(0.5);
 }
 
 /* Leaflet-Bedienelemente an das dunkle Design anpassen */

@@ -619,10 +619,11 @@ function App() {
               {mapStyle === 'karte' ? (
                 <TileLayer
                   key="karte"
-                  attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
-                  url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
-                  subdomains="abcd"
-                  maxZoom={20}
+                  // Freie OSM-Kacheln (ohne API-Schlüssel), per CSS dunkel eingefärbt – CARTO verlangt inzwischen einen Schlüssel
+                  attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>-Mitwirkende'
+                  url="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
+                  className="map-tiles--dunkel"
+                  maxZoom={19}
                 />
               ) : (
                 <TileLayer
