@@ -13,6 +13,7 @@ import { STANDARD_KRANKENHAEUSER, ergaenzeKrankenhaeuser, type Krankenhaus } fro
 import { erzeugePatienten } from './patienten.js';
 import { RUF_CONFIG } from './bewertung.js';
 import { erzeugeBesatzungFuer, synchronisiereBesatzung, type Mitarbeiter } from './personal.js';
+import type { FunkSpruch } from './funk.js';
 import type { FinanceTransaction, MapLocation, Vehicle } from './typen.js';
 
 /** Wird erhöht, wenn sich der Aufbau des Spielstands ändert (ältere Versionen werden migriert). */
@@ -33,6 +34,8 @@ export interface Spielstand {
   ruf?: number;
   /** Personal aller Wachen – fehlt bei älteren Spielständen (wird dann für alle Fahrzeuge erzeugt) */
   personal?: Mitarbeiter[];
+  /** Funkverkehr (neueste zuerst) – fehlt bei älteren Spielständen */
+  funk?: FunkSpruch[];
 }
 
 export const START_WACHEN: MapLocation[] = [

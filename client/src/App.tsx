@@ -5,6 +5,7 @@ import L, { type LeafletMouseEvent } from 'leaflet';
 import {
   APP_VERSION,
   getRufLabel,
+  getOffeneSprechwuensche,
   adresseAusOsm,
   formatAdresse,
   formatEinsatzTitel,
@@ -23,7 +24,8 @@ import ViewDropdown from './ViewDropdown';
 
 import type { LocationType } from './types';
 import { useSpiel } from './useSpiel';
-import { useEinsatzHinweise } from './useEinsatzHinweise';
+import { spieleFunkPiep, useEinsatzHinweise } from './useEinsatzHinweise';
+import FunkView from './views/FunkView';
 import FahrzeugeView from './views/FahrzeugeView';
 import WachenView from './views/WachenView';
 import EinsaetzeView from './views/EinsaetzeView';
@@ -133,7 +135,7 @@ function MapStyleToggle({
 }
 function App() {
   // Navigation / view state (default: Karte)
-  const [currentView, setCurrentView] = useState<'Karte'|'Wachen'|'Fahrzeuge'|'Einsätze'|'Finanzen'|'Einstellungen'>('Karte');
+  const [currentView, setCurrentView] = useState<'Karte'|'Wachen'|'Fahrzeuge'|'Einsätze'|'Funk'|'Finanzen'|'Einstellungen'>('Karte');
   const [selectedId, setSelectedId] = useState<string>('rettungswache-zentrum');
   const [selectedIncidentId, setSelectedIncidentId] = useState<string | null>(null);
   // Einsatz, dessen Kurzinfo gerade als schwebendes Fenster auf der Karte angezeigt wird
@@ -168,6 +170,14 @@ function App() {
   } = spiel;
 
   const { hinweise, schliesseHinweis, tonAn, setTonAn } = useEinsatzHinweise(incidents, spiel.spielstandGeladen);
+
+  // Sprechwunsch (Status 5): dezenter Funkpiep, wenn ein neuer dazukommt
+  const offeneSprechwuensche = getOffeneSprechwuensche(spiel.funk);
+  const anzahlSprechwuensche = useRef(offeneSprechwuensche.length);
+  useEffect(() => {
+    if (offeneSprechwuensche.length > anzahlSprechwuensche.current && tonAn) spieleFunkPiep();
+    anzahlSprechwuensche.current = offeneSprechwuensche.length;
+  }, [offeneSprechwuensche.length, tonAn]);
   const oeffneHinweis = (einsatzId: string, hinweisId: string) => {
     schliesseHinweis(hinweisId);
     setSelectedIncidentId(einsatzId);
@@ -382,6 +392,16 @@ function App() {
           { /* Version chip kept for visibility */ }
           <span className="chip">V{APP_VERSION}</span>
           <span className="chip" title="Guthaben">💶 {balance.toLocaleString('de-DE')} €</span>
+          {offeneSprechwuensche.length > 0 && (
+            <button
+              type="button"
+              className="chip ruf-chip funk-chip"
+              title="Fahrzeuge mit Sprechwunsch (Status 5) – antippen zum Funk"
+              onClick={() => setCurrentView('Funk')}
+            >
+              📻 S5 × {offeneSprechwuensche.length}
+            </button>
+          )}
           <button
             type="button"
             className="chip ruf-chip"
@@ -625,6 +645,8 @@ function App() {
                   locations={locations}
                   nowMs={nowMs}
                   onAlarmieren={(vehicleIds) => spiel.alarmieren(mapIncident.id, vehicleIds)}
+                  funk={spiel.funk}
+                  onSprechaufforderung={spiel.gibSprechaufforderung}
                   onClose={() => setMapIncidentId(null)}
                   onOpenInEinsaetze={() => {
                     setSelectedIncidentId(mapIncident.id);
@@ -772,6 +794,19 @@ function App() {
                 triggerTestIncident={triggerTestIncident}
                 nowMs={nowMs}
                 stats={completedIncidentStats}
+                funk={spiel.funk}
+                onSprechaufforderung={spiel.gibSprechaufforderung}
+              />
+            )}
+
+            {currentView === 'Funk' && (
+              <FunkView
+                funk={spiel.funk}
+                onSprechaufforderung={spiel.gibSprechaufforderung}
+                onEinsatzOeffnen={(einsatzId) => {
+                  setSelectedIncidentId(einsatzId);
+                  setCurrentView('Einsätze');
+                }}
               />
             )}
 

@@ -50,6 +50,31 @@ const spieleGong = (dringend: boolean) => {
   }
 };
 
+/** Kurzer, leiser Funk-Doppelpiep (Sprechwunsch) – dezenter als der Alarmgong. */
+export const spieleFunkPiep = () => {
+  try {
+    const AudioCtx = window.AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+    if (!AudioCtx) return;
+    const ctx = new AudioCtx();
+    [0, 0.12].forEach((versatz) => {
+      const start = ctx.currentTime + versatz;
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'square';
+      osc.frequency.value = 1320;
+      gain.gain.setValueAtTime(0.0001, start);
+      gain.gain.exponentialRampToValueAtTime(0.06, start + 0.01);
+      gain.gain.exponentialRampToValueAtTime(0.0001, start + 0.07);
+      osc.connect(gain).connect(ctx.destination);
+      osc.start(start);
+      osc.stop(start + 0.08);
+    });
+    setTimeout(() => ctx.close(), 500);
+  } catch {
+    // Ton ist nur Komfort
+  }
+};
+
 /**
  * Erkennt neue Einsätze und neue Lagemeldungen, spielt (abschaltbar) einen Gong und liefert Einblendungen.
  * Erst ab `aktiv` (Spielstand geladen) – damit beim Laden nicht alle gespeicherten Einsätze gemeldet werden.
@@ -84,12 +109,14 @@ export function useEinsatzHinweise(incidents: SpielEinsatz[], aktiv: boolean) {
       if (bisherigeMeldungen === undefined) {
         neue.push({ id: `${incident.id}-neu`, einsatzId: incident.id, art: 'neu', titel: 'Neuer Einsatz', text: formatEinsatzTitel(incident) });
       } else if (meldungen.length > bisherigeMeldungen) {
+        // Meldungen von Fahrzeugen vor Ort kommen als Sprechwunsch – Inhalt erst nach der Sprechaufforderung
+        const sprechwunsch = incident.alarmedVehicles.some((a) => a.arrivalAt <= Date.now());
         neue.push({
           id: `${incident.id}-m${meldungen.length}`,
           einsatzId: incident.id,
           art: 'meldung',
-          titel: `Neue Meldung – ${formatEinsatzTitel(incident)}`,
-          text: meldungen[meldungen.length - 1].text,
+          titel: sprechwunsch ? `📻 Sprechwunsch – ${formatEinsatzTitel(incident)}` : `Neue Meldung – ${formatEinsatzTitel(incident)}`,
+          text: sprechwunsch ? 'Ein Fahrzeug an der Einsatzstelle möchte dich sprechen (Status 5).' : meldungen[meldungen.length - 1].text,
         });
       }
     }

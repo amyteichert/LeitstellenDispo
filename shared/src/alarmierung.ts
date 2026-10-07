@@ -8,6 +8,7 @@ import {
 } from './fahrzeuge.js';
 import { getFahrzeitSekunden, getStationCoords, haversineKm } from './geo.js';
 import type { MapLocation, Vehicle } from './typen.js';
+import { getAusrueckVerzoegerung } from './zufriedenheit.js';
 
 export interface AlarmierungErgebnis {
   incidents: SpielEinsatz[];
@@ -33,10 +34,19 @@ export const istFahrzeugVerfuegbar = (vehicle: Vehicle, incidents: SpielEinsatz[
   && !incidents.some((incident) => incident.status !== 'abgeschlossen'
     && getAktiveZuteilungen(incident).some((assignment) => assignment.vehicleId === vehicle.id));
 
-/** Fahrzeit eines Fahrzeugs von seiner Wache zu einem Ort (mit der Geschwindigkeit seines Typs). */
-export const getAnfahrtSekunden = (vehicle: Vehicle, ziel: [number, number], locations: MapLocation[]): number | null => {
-  const wache = getStationCoords(vehicle.stationId, locations);
-  return wache ? getFahrzeitSekunden(wache, ziel, getFahrzeugGeschwindigkeit(vehicle.type)) : null;
+/**
+ * Anfahrtszeit eines Fahrzeugs von seiner Wache zu einem Ort: Fahrzeit (Geschwindigkeit seines Typs)
+ * plus Ausrückverzögerung, wenn das Personal der Wache unzufrieden ist.
+ */
+export const getAnfahrtSekunden = (
+  vehicle: Vehicle,
+  ziel: [number, number],
+  locations: MapLocation[],
+  jetzt: number = Date.now(),
+): number | null => {
+  const wache = locations.find((location) => location.id === vehicle.stationId && location.type === 'station');
+  if (!wache) return null;
+  return getFahrzeitSekunden(wache.coords, ziel, getFahrzeugGeschwindigkeit(vehicle.type)) + getAusrueckVerzoegerung(wache, jetzt);
 };
 
 /**
@@ -60,7 +70,7 @@ export const alarmiereFahrzeuge = (
       const vehicle = vehicles.find((item) => item.id === vehicleId);
       const coords = getStationCoords(vehicle?.stationId, locations);
       if (!vehicle || !coords || !istFahrzeugVerfuegbar(vehicle, incidents)) return null;
-      const etaSeconds = getFahrzeitSekunden(coords, incident.coords, getFahrzeugGeschwindigkeit(vehicle.type));
+      const etaSeconds = getAnfahrtSekunden(vehicle, incident.coords, locations, jetzt) ?? 0;
       return {
         vehicleId,
         distanceKm: Number(haversineKm(coords, incident.coords).toFixed(1)),

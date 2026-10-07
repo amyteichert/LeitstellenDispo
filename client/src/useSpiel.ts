@@ -26,6 +26,21 @@ import {
   mitRaumUpgrade,
   schliesseLehrgaengeAb,
   starteLehrgang,
+  ZUFRIEDENHEITS_AUSBAUTEN,
+  erzeugeAlarmDurchsage,
+  erzeugeMeldungsFunk,
+  erzeugeStatusFunk,
+  fuegeFunkHinzu,
+  getMeldungKey,
+  getStatusStand,
+  quittiereSprechwunsch,
+  type FunkSpruch,
+  erhoeheStress,
+  getZufriedenheitsAusbauPreis,
+  mitZufriedenheitsAusbau,
+  pruefeKuendigungen,
+  type Kuendigung,
+  type ZufriedenheitsAusbau,
   type AbgeschlossenerLehrgang,
   type Bewerber,
   type Mitarbeiter,
@@ -119,6 +134,57 @@ export function useSpiel(optionen: UseSpielOptionen = {}) {
     setAusbildungsAbschluesse((current) => [...ergebnis.abgeschlossen, ...current].slice(0, 10));
   }, [locations, personal, nowMs]);
 
+  // Stündlich: Kündigt jemand wegen niedriger Zufriedenheit? (nur unter 40 %)
+  const [kuendigungen, setKuendigungen] = useState<Kuendigung[]>([]);
+  useEffect(() => {
+    if (!spielstandGeladen) return;
+    const unterwegs = (fahrzeugId: string) => {
+      const fahrzeug = vehicles.find((vehicle) => vehicle.id === fahrzeugId);
+      return fahrzeug ? !kannUmbesetzen(fahrzeug) : false;
+    };
+    const ergebnis = pruefeKuendigungen(locations, personal, unterwegs, nowMs);
+    if (ergebnis.locations !== locations) setLocations(ergebnis.locations);
+    if (ergebnis.personal !== personal) setPersonal(ergebnis.personal);
+    if (ergebnis.kuendigungen.length > 0) setKuendigungen((current) => [...ergebnis.kuendigungen, ...current].slice(0, 20));
+  }, [spielstandGeladen, locations, personal, vehicles, nowMs]);
+
+  // ---- Funkverkehr: Statuswechsel und neue Lagemeldungen erkennen ----
+  const [funk, setFunk] = useState<FunkSpruch[]>(startSpiel.funk ?? []);
+  const statusStand = useRef<Map<string, number> | null>(null);
+  const bekannteMeldungen = useRef<Set<string> | null>(null);
+
+  useEffect(() => {
+    if (!spielstandGeladen) return;
+    const stand = getStatusStand(vehicles);
+    // Erster Durchlauf nach dem Laden: nur merken, nicht funken
+    if (statusStand.current) {
+      const neue = erzeugeStatusFunk(statusStand.current, vehicles, Date.now());
+      if (neue.length > 0) setFunk((current) => fuegeFunkHinzu(current, neue));
+    }
+    statusStand.current = stand;
+  }, [spielstandGeladen, vehicles]);
+
+  useEffect(() => {
+    if (!spielstandGeladen) return;
+    // Abgeschlossene Einsätze mitprüfen – ihre letzte Meldung (z. B. Übergabe) kommt im selben Schritt wie der Abschluss
+    const einsaetze = [...incidents, ...completedIncidentHistory.slice(0, 10)];
+    const alle = einsaetze.flatMap((einsatz) => einsatz.meldungen.map((meldung) => ({ einsatz, meldung, key: getMeldungKey(einsatz.id, meldung) })));
+    if (bekannteMeldungen.current) {
+      const neue = alle
+        .filter(({ key }) => !bekannteMeldungen.current!.has(key))
+        .map(({ einsatz, meldung }) => erzeugeMeldungsFunk(einsatz, meldung, vehicles));
+      if (neue.length > 0) setFunk((current) => fuegeFunkHinzu(current, neue));
+      alle.forEach(({ key }) => bekannteMeldungen.current!.add(key));
+    } else {
+      bekannteMeldungen.current = new Set(alle.map(({ key }) => key));
+    }
+  }, [spielstandGeladen, incidents, completedIncidentHistory]);
+
+  /** Sprechaufforderung an ein Fahrzeug mit Sprechwunsch (Status 5). */
+  const gibSprechaufforderung = (sprechwunschId: string) => {
+    setFunk((current) => quittiereSprechwunsch(current, sprechwunschId, Date.now()));
+  };
+
   // Besatzung der Fahrzeuge immer aus dem Personal ableiten
   useEffect(() => {
     setVehicles((current) => synchronisiereBesatzung(current, personal));
@@ -134,6 +200,10 @@ export function useSpiel(optionen: UseSpielOptionen = {}) {
     setKrankenhaeuser(spielstand.krankenhaeuser);
     setRuf(spielstand.ruf ?? RUF_CONFIG.start);
     setPersonal(spielstand.personal ?? []);
+    setFunk(spielstand.funk ?? []);
+    // Nach dem Laden neu einlesen, ohne alte Meldungen und Status nochmal zu funken
+    statusStand.current = null;
+    bekannteMeldungen.current = null;
     optionenRef.current.onSpielstandAngewendet?.(spielstand);
   };
 
@@ -166,10 +236,11 @@ export function useSpiel(optionen: UseSpielOptionen = {}) {
         krankenhaeuser,
         ruf,
         personal,
+        funk,
       });
     }, 1000);
     return () => clearTimeout(timeout);
-  }, [spielstandGeladen, balance, transactions, locations, vehicles, incidents, completedIncidentHistory, krankenhaeuser, ruf, personal]);
+  }, [spielstandGeladen, balance, transactions, locations, vehicles, incidents, completedIncidentHistory, krankenhaeuser, ruf, personal, funk]);
 
   // Spielzeit
   useEffect(() => {
@@ -438,6 +509,20 @@ export function useSpiel(optionen: UseSpielOptionen = {}) {
     return null;
   };
 
+  /** Baut Aufenthaltsraum, Küche oder Fitnessraum aus (höhere Zufriedenheit). */
+  const baueZufriedenheitsAusbau = (wacheId: string, ausbauId: ZufriedenheitsAusbau['id']): string | null => {
+    const wache = findeWache(wacheId);
+    const ausbau = ZUFRIEDENHEITS_AUSBAUTEN.find((eintrag) => eintrag.id === ausbauId);
+    if (!wache || !ausbau) return 'Ausbau nicht gefunden.';
+    const preis = getZufriedenheitsAusbauPreis(wache, ausbau);
+    if (preis === null) return `${ausbau.name} ist bereits voll ausgebaut.`;
+    if (balance < preis) return `Nicht genügend Guthaben. Benötigt: ${preis.toLocaleString('de-DE')} €.`;
+    setBalance((cur) => cur - preis);
+    addTransaction('Ausgabe', `${ausbau.name} für ${wache.name}`, preis);
+    setLocations((current) => current.map((location) => (location.id === wacheId ? mitZufriedenheitsAusbau(location, ausbauId) : location)));
+    return null;
+  };
+
   /** Baut eine Ruheraum-Stufe (mehr Personal-Plätze). */
   const baueRuheraum = (wacheId: string): string | null => {
     const wache = findeWache(wacheId);
@@ -466,9 +551,19 @@ export function useSpiel(optionen: UseSpielOptionen = {}) {
   };
 
   const alarmieren = (incidentId: string, vehicleIds: string[]) => {
-    const ergebnis = alarmiereFahrzeuge({ incidents, vehicles, locations }, incidentId, vehicleIds);
+    const jetzt = Date.now();
+    const ergebnis = alarmiereFahrzeuge({ incidents, vehicles, locations }, incidentId, vehicleIds, jetzt);
     setIncidents(ergebnis.incidents);
     setVehicles(ergebnis.vehicles);
+    // Jede tatsächlich alarmierte Besatzung bekommt Stress (Dauerstress senkt die Zufriedenheit)
+    const vorher = new Set(incidents.find((incident) => incident.id === incidentId)?.alarmedVehicles.map((a) => a.vehicleId));
+    const neu = ergebnis.incidents.find((incident) => incident.id === incidentId)?.alarmedVehicles.filter((a) => !vorher.has(a.vehicleId)) ?? [];
+    const wacheIds = neu.map((a) => vehicles.find((vehicle) => vehicle.id === a.vehicleId)?.stationId).filter((id): id is string => Boolean(id));
+    setLocations((current) => erhoeheStress(current, wacheIds, jetzt));
+    // Alarmdurchsage
+    const einsatz = ergebnis.incidents.find((incident) => incident.id === incidentId);
+    const alarmierte = neu.map((a) => vehicles.find((vehicle) => vehicle.id === a.vehicleId)).filter((v): v is Vehicle => Boolean(v));
+    if (einsatz && alarmierte.length > 0) setFunk((current) => fuegeFunkHinzu(current, [erzeugeAlarmDurchsage(einsatz, alarmierte, jetzt)]));
   };
 
   const markiereMeldungGelesen = (incidentId: string) => {
@@ -509,6 +604,10 @@ export function useSpiel(optionen: UseSpielOptionen = {}) {
     erweitereAusbildungsraum,
     starteLehrgangAnWache,
     ausbildungsAbschluesse,
+    baueZufriedenheitsAusbau,
+    kuendigungen,
+    funk,
+    gibSprechaufforderung,
     erzeugeTestEinsatz,
     alarmieren,
     markiereMeldungGelesen,

@@ -16,6 +16,16 @@ import {
   getRuheraumPreis,
   getRuheraumStufe,
   istAusreichendBesetzt,
+  ZUFRIEDENHEIT_CONFIG,
+  ZUFRIEDENHEITS_AUSBAUTEN,
+  getAusbauStufe,
+  getAusrueckVerzoegerung,
+  getGrundZufriedenheit,
+  getStress,
+  getZufriedenheit,
+  getZufriedenheitsAusbauPreis,
+  type Kuendigung,
+  type ZufriedenheitsAusbau,
   type AbgeschlossenerLehrgang,
   type Bewerber,
   type Mitarbeiter,
@@ -29,7 +39,6 @@ const REITER: Reiter[] = ['Übersicht', 'Fahrzeuge', 'Personal', 'Ausbildung', '
 
 /** Ausbauten, die noch folgen – damit sichtbar ist, was geplant ist */
 const GEPLANTE_AUSBAUTEN = [
-  { name: 'Aufenthaltsraum & Küche', text: 'Erhöht die Zufriedenheit des Personals.' },
   { name: 'Werkstatt', text: 'Wartung und Reparatur der Fahrzeuge vor Ort.' },
   { name: 'Tankstelle', text: 'Fahrzeuge tanken günstiger und schneller an der eigenen Wache.' },
 ];
@@ -38,6 +47,8 @@ const euro = (betrag: number) => `${betrag.toLocaleString('de-DE')} €`;
 
 export interface PersonalAktionen extends AusbildungAktionen {
   ausbildungsAbschluesse: AbgeschlossenerLehrgang[];
+  kuendigungen: Kuendigung[];
+  baueZufriedenheitsAusbau: (wacheId: string, ausbauId: ZufriedenheitsAusbau['id']) => string | null;
   stellePersonalEin: (wacheId: string, bewerber: Bewerber) => string | null;
   entlassePersonal: (personId: string) => string | null;
   weisePersonalZu: (personId: string, fahrzeugId?: string) => string | null;
@@ -163,6 +174,10 @@ function WacheVerwalten({
   const ruheraumStufe = getRuheraumStufe(wache);
   const ruheraumPreis = getRuheraumPreis(wache);
   const nichtBesetzt = wachenFahrzeuge.filter((v) => !istAusreichendBesetzt(v));
+  const zufriedenheit = getZufriedenheit(wache, nowMs);
+  const stress = Math.round(getStress(wache, nowMs));
+  const verzoegerung = getAusrueckVerzoegerung(wache, nowMs);
+  const wachenKuendigungen = personalAktionen.kuendigungen.filter((k) => k.wacheId === wache.id);
 
   const kaufen = () => {
     const fehler = buyVehicle(wache.id, kaufTyp);
@@ -208,6 +223,21 @@ function WacheVerwalten({
 
       {reiter === 'Übersicht' && (
         <div className="verwalten-kacheln">
+          <div className="verwalten-kachel" style={{ gridColumn: '1 / -1' }}>
+            <small>Zufriedenheit des Personals</small>
+            <strong className={zufriedenheit < ZUFRIEDENHEIT_CONFIG.kuendigungUnter ? 'ruf-minus' : zufriedenheit >= 80 ? 'ruf-plus' : ''}>
+              {zufriedenheit} %
+            </strong>
+            <div className="ruf-fenster__balken" style={{ margin: '4px 0' }} aria-hidden><span style={{ width: `${zufriedenheit}%` }} /></div>
+            <small>
+              Grundniveau {getGrundZufriedenheit(wache)} % (Aufenthaltsraum, Küche, Fitnessraum unter „Ausbau“)
+              {' · '}Stress {stress} {stress > ZUFRIEDENHEIT_CONFIG.stressSchwelle ? '– Dauerstress!' : '(unkritisch)'}
+            </small>
+            {verzoegerung > 0 && <small className="ruf-minus">Personal rückt {verzoegerung} Sek. langsamer aus.</small>}
+            {zufriedenheit < ZUFRIEDENHEIT_CONFIG.kuendigungUnter && (
+              <small className="ruf-minus">⚠ Unter {ZUFRIEDENHEIT_CONFIG.kuendigungUnter} %: Es kann zu Kündigungen kommen (selbst Ausgebildete sind treuer).</small>
+            )}
+          </div>
           <div className="verwalten-kachel">
             <small>Stellplätze</small>
             <strong>{belegt} / {plaetze}</strong>
@@ -334,6 +364,35 @@ function WacheVerwalten({
               </>
             )}
           </article>
+          {ZUFRIEDENHEITS_AUSBAUTEN.map((ausbau) => {
+            const stufe = getAusbauStufe(wache, ausbau.id);
+            const preis = getZufriedenheitsAusbauPreis(wache, ausbau);
+            return (
+              <article key={ausbau.id} className="ausbau-karte">
+                <span className="ausbau-karte__kategorie">Zufriedenheit</span>
+                <h3>{ausbau.name}</h3>
+                <p>{ausbau.text} +{ausbau.bonusJeStufe} % Zufriedenheit je Stufe ({stufe}/{ausbau.maxStufe}).</p>
+                {preis === null ? (
+                  <div className="aktion-rueckmeldung">Voll ausgebaut</div>
+                ) : (
+                  <>
+                    <div className="ausbau-karte__preis">{euro(preis)}</div>
+                    <button
+                      type="button"
+                      className="btn btn--primary"
+                      disabled={balance < preis}
+                      onClick={() => {
+                        const fehler = personalAktionen.baueZufriedenheitsAusbau(wache.id, ausbau.id);
+                        setMeldung(fehler ? { art: 'fehler', text: fehler } : { art: 'ok', text: `✓ ${ausbau.name} ausgebaut.` });
+                      }}
+                    >
+                      {balance < preis ? `Es fehlen ${euro(preis - balance)}` : stufe === 0 ? 'Bauen' : 'Ausbauen'}
+                    </button>
+                  </>
+                )}
+              </article>
+            );
+          })}
           {GEPLANTE_AUSBAUTEN.map((ausbau) => (
             <article key={ausbau.name} className="ausbau-karte ausbau-karte--gesperrt">
               <span className="ausbau-karte__kategorie">Folgt</span>
@@ -363,8 +422,10 @@ function WacheVerwalten({
           fahrzeuge={wachenFahrzeuge}
           personal={wachenPersonal}
           balance={balance}
-          onMeldung={setMeldung}
           {...personalAktionen}
+          zufriedenheit={zufriedenheit}
+          kuendigungen={wachenKuendigungen}
+          onMeldung={setMeldung}
         />
       )}
     </div>

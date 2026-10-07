@@ -15,6 +15,8 @@ export interface Mitarbeiter {
   fahrzeugId?: string;
   /** Gesetzt, solange die Person auf einem Lehrgang ist (bis zu diesem Zeitpunkt) */
   inAusbildungBis?: number;
+  /** Hat bei uns einen Lehrgang abgeschlossen – kündigt seltener */
+  ausgebildet?: boolean;
 }
 
 /** Bewerber (noch nicht eingestellt) */
@@ -75,15 +77,19 @@ const zufallsName = (zufall: () => number) =>
 
 const neueId = (zufall: () => number) => `person-${Date.now()}-${Math.floor(zufall() * 1e9).toString(16)}`;
 
-/** Bewerber für eine Wache – Qualifikationen zufällig, passend zur Wachenart. */
+/**
+ * Bewerber für eine Wache – Qualifikationen zufällig, passend zur Wachenart.
+ * `chancenFaktor` > 1 (zufriedenes Personal spricht sich herum) macht qualifizierte Bewerber häufiger.
+ */
 export function erzeugeBewerber(
   wache: Pick<MapLocation, 'stationKind'>,
   anzahl: number = PERSONAL_CONFIG.bewerberAnzahl,
   zufall: () => number = Math.random,
+  chancenFaktor = 1,
 ): Bewerber[] {
   const chancen = Object.entries(PERSONAL_CONFIG.qualifikationsChance[wachenArt(wache)]) as Array<[Qualifikation, number]>;
   return Array.from({ length: anzahl }, () => {
-    const qualifikationen = chancen.filter(([, chance]) => zufall() < chance).map(([q]) => q);
+    const qualifikationen = chancen.filter(([, chance]) => zufall() < chance * chancenFaktor).map(([q]) => q);
     return { id: neueId(zufall), name: zufallsName(zufall), qualifikationen, preis: getEinstellungsPreis(qualifikationen) };
   });
 }

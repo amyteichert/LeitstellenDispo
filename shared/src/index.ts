@@ -14,3 +14,5 @@ export * from './bewertung.js';
 export * from './wachen.js';
 export * from './personal.js';
 export * from './ausbildung.js';
+export * from './zufriedenheit.js';
+export * from './funk.js';

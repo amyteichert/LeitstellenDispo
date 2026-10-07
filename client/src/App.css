@@ -1558,3 +1558,72 @@
   background: var(--color-surface-raised);
   color: var(--color-text-muted);
 }
+
+/* Funkverkehr */
+.funk-chip {
+  border-color: var(--color-primary);
+  animation: funk-blinken 1.4s ease-in-out infinite;
+}
+@keyframes funk-blinken {
+  50% { background: var(--color-primary-light); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .funk-chip { animation: none; }
+}
+.funk-liste {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 4px;
+  font-family: ui-monospace, 'Cascadia Mono', Consolas, monospace;
+  font-size: 0.88rem;
+}
+.funk-zeile {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  background: var(--color-surface);
+  border-left: 3px solid var(--color-border-strong);
+  border-radius: 4px;
+}
+.funk-zeile--leitstelle {
+  background: var(--color-surface-raised);
+}
+.funk-zeile--alarm {
+  border-left-color: var(--color-primary);
+}
+.funk-zeile--sprechwunsch {
+  border-left-color: #f59e0b;
+}
+.funk-zeile--lage,
+.funk-zeile--sprechaufforderung {
+  border-left-color: var(--color-success);
+}
+.funk-zeile__zeit {
+  color: var(--color-text-muted);
+  flex-shrink: 0;
+}
+.funk-zeile__text {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.funk-status {
+  flex-shrink: 0;
+  min-width: 2.2em;
+  text-align: center;
+  padding: 1px 4px;
+  border-radius: 4px;
+  font-weight: 700;
+  background: var(--color-surface-raised);
+}
+.funk-status--1, .funk-status--2 { color: var(--color-success); }
+.funk-status--3, .funk-status--4, .funk-status--7, .funk-status--8 { color: var(--color-primary-text); }
+.funk-status--5 { color: #f59e0b; }
+.funk-status--6 { color: var(--color-text-muted); }
+.funk-status--leer { background: none; }
+.einsatz-meldungen li[data-art='sprechwunsch'] {
+  color: #f59e0b;
+}

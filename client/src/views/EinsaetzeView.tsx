@@ -11,6 +11,9 @@ import {
   getEinsatzVersorgung,
   getVerfuegbareFahrzeugeFuerEinsatz,
   istAusreichendBesetzt,
+  getMeldungKey,
+  getVerborgeneMeldungen,
+  type FunkSpruch,
   istWichtigeMeldung,
   type AbgeschlossenerSpielEinsatz,
   type EinsatzMeldung,
@@ -64,7 +67,11 @@ export default function EinsaetzeView({
   triggerTestIncident,
   nowMs,
   stats,
+  funk,
+  onSprechaufforderung,
 }: {
+  funk: FunkSpruch[];
+  onSprechaufforderung: (sprechwunschId: string) => void;
   incidents: SpielEinsatz[];
   completedIncidentHistory: AbgeschlossenerSpielEinsatz[];
   vehicles: Vehicle[];
@@ -166,6 +173,7 @@ export default function EinsaetzeView({
   });
 
   const hatWichtigeMeldung = selectedIncident?.meldungen.some(istWichtigeMeldung) ?? false;
+  const verborgeneMeldungen = useMemo(() => getVerborgeneMeldungen(funk), [funk]);
 
   return (
     <div>
@@ -285,12 +293,23 @@ export default function EinsaetzeView({
                 <div className="einsatz-meldungen" style={hatWichtigeMeldung ? undefined : { background: 'var(--color-surface-raised)', borderLeftColor: 'var(--color-border-strong)' }}>
                   <h4>{hatWichtigeMeldung ? '⚠ Lagemeldungen' : 'Lagemeldungen'}</h4>
                   <ul>
-                    {[...selectedIncident.meldungen].reverse().map((meldung, index) => (
-                      <li key={`${meldung.zeit}-${index}`} data-art={meldung.art ?? 'eskalation'}>
-                        <span className="meldung-zeit">{formatUhrzeit(meldung.zeit)}</span>
-                        {MELDUNG_SYMBOL[meldung.art ?? 'eskalation']} {meldung.text}
-                      </li>
-                    ))}
+                    {[...selectedIncident.meldungen].reverse().map((meldung, index) => {
+                      const sprechwunsch = verborgeneMeldungen.get(getMeldungKey(selectedIncident.id, meldung));
+                      return sprechwunsch ? (
+                        <li key={`${meldung.zeit}-${index}`} data-art="sprechwunsch">
+                          <span className="meldung-zeit">{formatUhrzeit(meldung.zeit)}</span>
+                          📻 <strong>{sprechwunsch.von}</strong> hat Sprechwunsch (Status 5).{' '}
+                          <button type="button" className="btn btn--primary" onClick={() => onSprechaufforderung(sprechwunsch.id)}>
+                            Sprechaufforderung
+                          </button>
+                        </li>
+                      ) : (
+                        <li key={`${meldung.zeit}-${index}`} data-art={meldung.art ?? 'eskalation'}>
+                          <span className="meldung-zeit">{formatUhrzeit(meldung.zeit)}</span>
+                          {MELDUNG_SYMBOL[meldung.art ?? 'eskalation']} {meldung.text}
+                        </li>
+                      );
+                    })}
                   </ul>
                 </div>
               )}

@@ -1,7 +1,10 @@
 import { useState } from 'react';
 import {
   QUALIFIKATION_LABELS,
+  ZUFRIEDENHEIT_CONFIG,
   erzeugeBewerber,
+  getBewerberFaktor,
+  type Kuendigung,
   getFahrzeugTyp,
   getPersonalLimit,
   istInAusbildung,
@@ -26,6 +29,8 @@ export default function PersonalReiter({
   fahrzeuge,
   personal,
   balance,
+  zufriedenheit,
+  kuendigungen,
   onMeldung,
   stellePersonalEin,
   entlassePersonal,
@@ -37,13 +42,19 @@ export default function PersonalReiter({
   /** Nur das Personal dieser Wache */
   personal: Mitarbeiter[];
   balance: number;
+  /** Aktuelle Zufriedenheit der Wache (0–100) */
+  zufriedenheit: number;
+  /** Kündigungen an dieser Wache (neueste zuerst) */
+  kuendigungen: Kuendigung[];
   onMeldung: (meldung: { art: 'ok' | 'fehler'; text: string }) => void;
   stellePersonalEin: (wacheId: string, bewerber: Bewerber) => string | null;
   entlassePersonal: (personId: string) => string | null;
   weisePersonalZu: (personId: string, fahrzeugId?: string) => string | null;
   besetzeFahrzeugAutomatisch: (fahrzeugId: string) => string | null;
 }) {
-  const [bewerber, setBewerber] = useState<Bewerber[]>(() => erzeugeBewerber(wache));
+  // Zufriedenes Personal spricht sich herum: mehr qualifizierte Bewerber
+  const neueBewerber = (anzahl?: number) => erzeugeBewerber(wache, anzahl, Math.random, getBewerberFaktor(zufriedenheit));
+  const [bewerber, setBewerber] = useState<Bewerber[]>(() => neueBewerber());
   const limit = getPersonalLimit(wache);
   const voll = personal.length >= limit;
   const reserve = personal.filter((person) => !person.fahrzeugId && !istInAusbildung(person));
@@ -54,7 +65,7 @@ export default function PersonalReiter({
   const einstellen = (kandidat: Bewerber) => {
     const fehler = stellePersonalEin(wache.id, kandidat);
     melde(fehler, `✓ ${kandidat.name} eingestellt – jetzt einem Fahrzeug zuweisen.`);
-    if (!fehler) setBewerber((current) => [...current.filter((b) => b.id !== kandidat.id), ...erzeugeBewerber(wache, 1)]);
+    if (!fehler) setBewerber((current) => [...current.filter((b) => b.id !== kandidat.id), ...neueBewerber(1)]);
   };
 
   return (
@@ -70,6 +81,25 @@ export default function PersonalReiter({
           <strong>{reserve.length}</strong>
         </div>
       </div>
+
+      {zufriedenheit < ZUFRIEDENHEIT_CONFIG.kuendigungUnter && (
+        <div className="versorgung-hinweis versorgung-hinweis--fehlt">
+          ⚠ <strong>Zufriedenheit {zufriedenheit} %</strong> – unter {ZUFRIEDENHEIT_CONFIG.kuendigungUnter} % kann jede Stunde jemand kündigen.
+          Weniger Dauerstress (Einsätze auf mehrere Wachen verteilen) oder Aufenthaltsraum, Küche und Fitnessraum ausbauen.
+        </div>
+      )}
+      {kuendigungen.length > 0 && (
+        <section className="einsatz-abschnitt">
+          <h4>Kündigungen</h4>
+          <ul className="besatzung-liste">
+            {kuendigungen.map((k) => (
+              <li key={k.personId} className="ruf-minus">
+                ✗ {k.name} hat gekündigt ({new Date(k.zeit).toLocaleString('de-DE', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })})
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       <section className="einsatz-abschnitt">
         <h4>Besatzung der Fahrzeuge</h4>
@@ -196,7 +226,7 @@ export default function PersonalReiter({
       <section className="einsatz-abschnitt">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
           <h4 style={{ margin: 0 }}>Bewerber</h4>
-          <button type="button" className="btn" onClick={() => setBewerber(erzeugeBewerber(wache))}>↻ Neue Bewerber</button>
+          <button type="button" className="btn" onClick={() => setBewerber(neueBewerber())}>↻ Neue Bewerber</button>
         </div>
         <ul className="besatzung-liste" style={{ marginTop: 8 }}>
           {bewerber.map((kandidat) => (

@@ -27,6 +27,10 @@ export type MapLocation = {
   ausbau?: Record<string, number>;
   /** Räume des Ausbildungsbereichs – leer/fehlt = kein Ausbildungsbereich */
   ausbildungsRaeume?: AusbildungsRaum[];
+  /** Stress der Wache zum Zeitpunkt `stand` – baut sich über die Zeit ab */
+  stress?: { wert: number; stand: number };
+  /** Bis hierhin wurde auf Kündigungen geprüft (stündlich) */
+  kuendigungGeprueftAt?: number;
 };
 
 export interface AusbildungsRaum {

@@ -175,7 +175,7 @@ export function schliesseLehrgaengeAb(locations: MapLocation[], personal: Mitarb
       const qualifikation = fertig.get(p.id);
       if (!qualifikation) return p;
       const { inAusbildungBis: _ende, ...rest } = p;
-      return { ...rest, qualifikationen: [...new Set([...p.qualifikationen, qualifikation])] };
+      return { ...rest, ausgebildet: true, qualifikationen: [...new Set([...p.qualifikationen, qualifikation])] };
     }),
     abgeschlossen,
   };

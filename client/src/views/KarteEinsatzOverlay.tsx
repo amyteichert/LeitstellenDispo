@@ -3,6 +3,9 @@ import {
   EINSATZ_STATUS_LABELS,
   erstelleAlarmVorschlag,
   getVerfuegbareFahrzeugeFuerEinsatz,
+  getMeldungKey,
+  getVerborgeneMeldungen,
+  type FunkSpruch,
   PATIENTEN_STATUS_LABELS,
   formatBedarfsListe,
   formatEinsatzTitel,
@@ -59,7 +62,11 @@ export function KarteEinsatzPanel({
   onClose,
   onOpenInEinsaetze,
   onAlarmieren,
+  funk,
+  onSprechaufforderung,
 }: {
+  funk: FunkSpruch[];
+  onSprechaufforderung: (sprechwunschId: string) => void;
   incident: SpielEinsatz;
   incidents: SpielEinsatz[];
   vehicles: Vehicle[];
@@ -78,6 +85,7 @@ export function KarteEinsatzPanel({
   });
   const [rueckmeldung, setRueckmeldung] = useState<string | null>(null);
   const letzteMeldung = incident.meldungen[incident.meldungen.length - 1];
+  const letzterSprechwunsch = letzteMeldung ? getVerborgeneMeldungen(funk).get(getMeldungKey(incident.id, letzteMeldung)) : undefined;
   const kannAlarmieren = incident.status === 'offen' || incident.status === 'alarmiert';
   const passende = kannAlarmieren ? getVerfuegbareFahrzeugeFuerEinsatz(incident, { incidents, vehicles, locations }) : [];
   const [auswahl, setAuswahl] = useState<string[]>([]);
@@ -103,11 +111,16 @@ export function KarteEinsatzPanel({
 
       <p><strong>📍 {incident.address}</strong></p>
 
-      {letzteMeldung && (
+      {letzteMeldung && (letzterSprechwunsch ? (
+        <div className="einsatz-meldungen">
+          📻 <strong>{letzterSprechwunsch.von}</strong> hat Sprechwunsch (Status 5).{' '}
+          <button type="button" className="btn btn--primary" onClick={() => onSprechaufforderung(letzterSprechwunsch.id)}>Sprechaufforderung</button>
+        </div>
+      ) : (
         <div className="einsatz-meldungen">
           <strong>{incident.neueMeldung && istWichtigeMeldung(letzteMeldung) ? '⚠ Neue Lagemeldung:' : 'Lagemeldung:'}</strong> {letzteMeldung.text}
         </div>
-      )}
+      ))}
 
       <p><strong>Status:</strong> {EINSATZ_STATUS_LABELS[incident.status]}</p>
       <p><strong>Organisation:</strong> {incident.organization}</p>
