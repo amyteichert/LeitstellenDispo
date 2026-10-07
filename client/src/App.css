@@ -817,9 +817,9 @@
   background: #0e0e10; /* Farbe, solange Kacheln laden */
 }
 
-/* Helle OSM-Karte in ein dunkles Kartenbild umfärben (nur die Kacheln, nicht die Marker) */
+/* OSM-Karte nur leicht abdunkeln, damit sie farbig bleibt und sich klar vom Satellitenbild unterscheidet */
 .map-tiles--dunkel {
-  filter: invert(1) hue-rotate(180deg) brightness(0.85) contrast(0.9) saturate(0.5);
+  filter: brightness(0.85) contrast(1.05) saturate(0.9);
 }
 
 /* Leaflet-Bedienelemente an das dunkle Design anpassen */
@@ -1290,4 +1290,271 @@
 
 @media (max-width: 900px) {
   .einsatz-layout { grid-template-columns: 1fr; }
+}
+
+/* Ruf in der Kopfleiste: antippbar, öffnet die Fehlerübersicht */
+.ruf-chip {
+  cursor: pointer;
+  font: inherit;
+}
+.ruf-chip:hover {
+  border-color: var(--color-primary);
+}
+
+/* Fenster „Ruf der Leitstelle“ mit Fehlerübersicht */
+.ruf-fenster__hintergrund {
+  position: fixed;
+  inset: 0;
+  z-index: 3000;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+.ruf-fenster {
+  width: min(640px, 100%);
+  max-height: 85vh;
+  overflow-y: auto;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border-strong);
+  border-radius: 12px;
+  padding: 16px;
+  color: var(--color-text);
+}
+.ruf-fenster__kopf {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+.ruf-fenster__kopf h3 {
+  margin: 0;
+}
+.ruf-fenster__balken {
+  height: 8px;
+  margin: 12px 0;
+  border-radius: 4px;
+  background: var(--color-surface-raised);
+  overflow: hidden;
+}
+.ruf-fenster__balken span {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, var(--color-primary), var(--color-success));
+}
+.ruf-fenster__info {
+  font-size: 0.9rem;
+  color: var(--color-text-muted);
+  margin: 0 0 12px;
+}
+.ruf-fenster__liste {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+.ruf-eintrag {
+  width: 100%;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  background: var(--color-surface-raised);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  padding: 10px 12px;
+  cursor: pointer;
+  display: grid;
+  gap: 4px;
+}
+.ruf-eintrag:hover {
+  border-color: var(--color-border-strong);
+}
+.ruf-eintrag__kopf {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.ruf-eintrag small {
+  color: var(--color-text-muted);
+}
+.ruf-eintrag ul {
+  list-style: none;
+  margin: 4px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 2px;
+}
+.ruf-hinweis {
+  font-size: 0.9rem;
+}
+.ruf-hinweis--fehler,
+.ruf-minus {
+  color: var(--color-primary-text);
+}
+.ruf-hinweis--gut,
+.ruf-plus {
+  color: var(--color-success);
+}
+
+/* Wachenliste mit „Verwalten“ */
+.wachen-liste {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+.wachen-karte {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+}
+.wachen-karte--aktiv {
+  border-color: var(--color-primary);
+}
+.wachen-karte__info {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+}
+.wachen-karte__info small {
+  color: var(--color-text-muted);
+}
+
+/* Verwaltungsseite einer Wache */
+.verwalten-kopf {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.verwalten-kopf small {
+  color: var(--color-text-muted);
+}
+.verwalten-reiter {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+.verwalten-kacheln {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 8px;
+}
+.verwalten-kachel {
+  display: grid;
+  gap: 4px;
+  padding: 12px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+}
+.verwalten-kachel small {
+  color: var(--color-text-muted);
+}
+.verwalten-kachel strong {
+  font-size: 1.3rem;
+}
+.ausbau-raster {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 10px;
+}
+.ausbau-karte {
+  display: grid;
+  gap: 6px;
+  align-content: start;
+  padding: 12px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border-strong);
+  border-radius: 10px;
+}
+.ausbau-karte h3,
+.ausbau-karte p {
+  margin: 0;
+}
+.ausbau-karte p {
+  font-size: 0.9rem;
+  color: var(--color-text-muted);
+}
+.ausbau-karte__kategorie {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-primary-text);
+}
+.ausbau-karte__preis {
+  font-size: 1.2rem;
+  font-weight: 700;
+}
+.ausbau-karte--gesperrt {
+  opacity: 0.55;
+  border-style: dashed;
+}
+
+/* Personal einer Wache */
+.besatzung-raster {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 10px;
+}
+.besatzung-karte {
+  display: grid;
+  gap: 6px;
+  align-content: start;
+  padding: 10px 12px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border-strong);
+  border-radius: 10px;
+}
+.besatzung-karte--fehlt {
+  border-color: var(--color-primary);
+}
+.besatzung-karte__kopf {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+.besatzung-liste {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+}
+.besatzung-liste > li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.quali-chip {
+  display: inline-block;
+  margin-left: 4px;
+  padding: 1px 6px;
+  font-size: 0.72rem;
+  border-radius: 999px;
+  background: var(--color-primary-light);
+  color: var(--color-primary-text);
+}
+.quali-chip--keine {
+  background: var(--color-surface-raised);
+  color: var(--color-text-muted);
 }

@@ -72,11 +72,16 @@ export const alarmiereFahrzeuge = (
 
   if (neueZuteilungen.length === 0) return { incidents, vehicles };
 
+  // Bei der Erstalarmierung merken, wie schnell das beste freie Fahrzeug gewesen wäre (Grundlage der Bewertung)
+  const besteAnfahrtSekunden = incident.alarmedVehicles.length === 0
+    ? getPassendeVerfuegbareFahrzeuge(incident, zustand)[0]?.anfahrtSekunden
+    : incident.besteAnfahrtSekunden;
+
   const alarmierteIds = neueZuteilungen.map((entry) => entry.vehicleId);
   return {
     incidents: incidents.map((entry) => (
       entry.id === incidentId
-        ? { ...entry, alarmedVehicles: [...entry.alarmedVehicles, ...neueZuteilungen], status: 'alarmiert' }
+        ? { ...entry, alarmedVehicles: [...entry.alarmedVehicles, ...neueZuteilungen], status: 'alarmiert', besteAnfahrtSekunden }
         : entry
     )),
     vehicles: vehicles.map((vehicle) => (
@@ -108,6 +113,29 @@ export function getPassendeVerfuegbareFahrzeuge(einsatz: SpielEinsatz, zustand: 
       };
     })
     .sort((a, b) => a.anfahrtSekunden - b.anfahrtSekunden);
+}
+
+export interface VerfuegbaresFahrzeug extends PassendesFahrzeug {
+  /** Deckt das Fahrzeug einen Bedarf des Einsatzes? (Andere dürfen trotzdem alarmiert werden.) */
+  passend: boolean;
+}
+
+/** Alle freien Fahrzeuge für die Alarmierung: passende zuerst, danach alle anderen – jeweils nach Anfahrtszeit. */
+export function getVerfuegbareFahrzeugeFuerEinsatz(einsatz: SpielEinsatz, zustand: AlarmierungsZustand): VerfuegbaresFahrzeug[] {
+  const { incidents, vehicles, locations } = zustand;
+  return vehicles
+    .filter((vehicle) => istFahrzeugVerfuegbar(vehicle, incidents))
+    .map((vehicle) => {
+      const station = locations.find((location) => location.id === vehicle.stationId && location.type === 'station');
+      return {
+        vehicle,
+        station,
+        distanzKm: station ? haversineKm(station.coords, einsatz.coords) : Infinity,
+        anfahrtSekunden: getAnfahrtSekunden(vehicle, einsatz.coords, locations) ?? Infinity,
+        passend: einsatz.requiredVehicles.some((bedarf) => fahrzeugErfuelltBedarf(vehicle.type, bedarf.category)),
+      };
+    })
+    .sort((a, b) => Number(b.passend) - Number(a.passend) || a.anfahrtSekunden - b.anfahrtSekunden);
 }
 
 export interface AlarmVorschlag {

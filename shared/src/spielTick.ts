@@ -5,8 +5,10 @@ import {
   getAktiveZuteilungen,
   istVorlageErfuellbar,
   istWichtigeMeldung,
+  reduziereBedarf,
   wendeNachforderungAn,
   type AbgeschlossenerSpielEinsatz,
+  type EinsatzEntwarnung,
   type EinsatzMeldung,
   type EinsatzVorlage,
   type SpielEinsatz,
@@ -18,6 +20,7 @@ import {
   getFehlendenBedarf,
   hatFaehigkeit,
   istBedarfGedeckt,
+  ordneFahrzeugeBedarfZu,
 } from './fahrzeuge.js';
 import { getFahrzeitSekunden, getPositionAufAnfahrt, getStationCoords } from './geo.js';
 import { findeZielKrankenhaus, type Krankenhaus } from './krankenhaeuser.js';
@@ -135,7 +138,35 @@ const pruefeUnbearbeitet = (einsatz: SpielEinsatz, ctx: TickKontext): SpielEinsa
   return einsatz;
 };
 
-/** Erstes Fahrzeug an der Einsatzstelle: Lagemeldung und ggf. Nachforderung. */
+/** Lage kleiner als gemeldet: Bedarf sinkt, überzählige Fahrzeuge (auch noch auf Anfahrt) rücken ab. */
+const wendeEntwarnungAn = (
+  einsatz: SpielEinsatz,
+  entwarnung: EinsatzEntwarnung,
+  zeit: number,
+  quelle: string,
+  ctx: TickKontext,
+): SpielEinsatz => {
+  const bedarf = reduziereBedarf(einsatz.requiredVehicles, entwarnung.abzug);
+  if (bedarf.length === 0) return einsatz;
+
+  // Wer schon vor Ort ist, bleibt bevorzugt am Einsatz
+  const zugeteilt = getAktiveZuteilungen(einsatz)
+    .sort((a, b) => a.arrivalAt - b.arrivalAt)
+    .map((a) => ({ id: a.vehicleId, type: typVon(ctx, a.vehicleId) }));
+  const bleiben = new Set(ordneFahrzeugeBedarfZu(bedarf, zugeteilt).flat());
+
+  let ergebnis: SpielEinsatz = {
+    ...einsatz,
+    requiredVehicles: bedarf,
+    meldungen: fuegeMeldungenHinzu(einsatz.meldungen, [meldung(zeit, `${quelle}: ${entwarnung.meldung}`, 'entwarnung')]),
+  };
+  for (const fahrzeug of zugeteilt) {
+    if (!bleiben.has(fahrzeug.id)) ergebnis = gibFrei(ergebnis, fahrzeug.id, zeit, ctx);
+  }
+  return ergebnis;
+};
+
+/** Erstes Fahrzeug an der Einsatzstelle: Lagemeldung und ggf. Nachforderung oder Entwarnung. */
 const pruefeErstesEintreffen = (einsatz: SpielEinsatz, ctx: TickKontext): SpielEinsatz => {
   if (einsatz.erstesEintreffenAt !== undefined) return einsatz;
   const erstes = getAktiveZuteilungen(einsatz)
@@ -161,6 +192,9 @@ const pruefeErstesEintreffen = (einsatz: SpielEinsatz, ctx: TickKontext): SpielE
     return wendeNachforderungAn(ergebnis, nachforderung, zeit, quelle);
   }
   ergebnis.nachforderungGeplant = false;
+
+  if (ergebnis.entwarnungGeplant && vorlage?.entwarnung) ergebnis = wendeEntwarnungAn(ergebnis, vorlage.entwarnung, zeit, quelle, ctx);
+  ergebnis.entwarnungGeplant = false;
 
   // Der Disponent hat zu wenig geschickt: das erste Fahrzeug fordert nach
   const zugeteilt = getAktiveZuteilungen(ergebnis).map((a) => ({ id: a.vehicleId, type: typVon(ctx, a.vehicleId) }));

@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   EINSATZ_STATUS_LABELS,
   erstelleAlarmVorschlag,
+  getVerfuegbareFahrzeugeFuerEinsatz,
   PATIENTEN_STATUS_LABELS,
   formatBedarfsListe,
   formatEinsatzTitel,
@@ -78,6 +79,20 @@ export function KarteEinsatzPanel({
   const [rueckmeldung, setRueckmeldung] = useState<string | null>(null);
   const letzteMeldung = incident.meldungen[incident.meldungen.length - 1];
   const kannAlarmieren = incident.status === 'offen' || incident.status === 'alarmiert';
+  const passende = kannAlarmieren ? getVerfuegbareFahrzeugeFuerEinsatz(incident, { incidents, vehicles, locations }) : [];
+  const [auswahl, setAuswahl] = useState<string[]>([]);
+  const toggle = (vehicleId: string) =>
+    setAuswahl((current) => (current.includes(vehicleId) ? current.filter((id) => id !== vehicleId) : [...current, vehicleId]));
+
+  // Anderer Einsatz gewählt → Auswahl zurücksetzen; nicht mehr verfügbare Fahrzeuge abwählen
+  useEffect(() => setAuswahl([]), [incident.id]);
+  const verfuegbareIds = passende.map((p) => p.vehicle.id).join(',');
+  useEffect(() => {
+    setAuswahl((current) => {
+      const noch = current.filter((id) => verfuegbareIds.split(',').includes(id));
+      return noch.length === current.length ? current : noch;
+    });
+  }, [verfuegbareIds]);
 
   return (
     <aside className="map-incident-panel">
@@ -102,17 +117,44 @@ export function KarteEinsatzPanel({
         <div className="versorgung-hinweis versorgung-hinweis--fehlt">Es fehlen: {formatBedarfsListe(fehlendAlarmiert)}</div>
       )}
 
+      {/* Vorschlag ist nur ein Hinweis – die Fahrzeuge wählt der Disponent selbst aus */}
       {kannAlarmieren && vorschlag.fahrzeugIds.length > 0 && (
-        <button
-          type="button"
-          className="btn btn--primary map-incident-panel__open"
-          onClick={() => {
-            onAlarmieren(vorschlag.fahrzeugIds);
-            setRueckmeldung(`✓ ${vorschlagNamen.join(', ')} alarmiert.`);
-          }}
-        >
-          🚨 Vorschlag alarmieren: {vorschlagNamen.join(', ')}
-        </button>
+        <div className="versorgung-hinweis versorgung-hinweis--unterwegs">
+          💡 <strong>Vorschlag:</strong> {vorschlagNamen.join(', ')}
+        </div>
+      )}
+      {kannAlarmieren && passende.length > 0 && (
+        <>
+          <ul className="fahrzeug-auswahl">
+            {passende.map(({ vehicle, distanzKm, anfahrtSekunden, passend }) => (
+              <li key={vehicle.id} style={passend ? undefined : { opacity: 0.75 }}>
+                <label>
+                  <input type="checkbox" checked={auswahl.includes(vehicle.id)} onChange={() => toggle(vehicle.id)} />
+                  <span>
+                    <strong>{vehicle.callsign ?? vehicle.name}</strong> – {vehicle.type}
+                    <small>{distanzKm.toFixed(1)} km · ca. {Math.round(anfahrtSekunden)} Sek.{!passend && ' · zählt nicht zum Bedarf'}</small>
+                  </span>
+                </label>
+              </li>
+            ))}
+          </ul>
+          <button
+            type="button"
+            className="btn btn--primary map-incident-panel__open"
+            disabled={auswahl.length === 0}
+            onClick={() => {
+              const namen = auswahl.map((id) => {
+                const vehicle = vehicles.find((item) => item.id === id);
+                return vehicle?.callsign ?? vehicle?.name ?? 'Fahrzeug';
+              });
+              onAlarmieren(auswahl);
+              setAuswahl([]);
+              setRueckmeldung(`✓ ${namen.join(', ')} alarmiert.`);
+            }}
+          >
+            🚨 {incident.status === 'alarmiert' ? 'Nachalarmieren' : 'Alarmieren'}{auswahl.length > 0 ? ` (${auswahl.length})` : ''}
+          </button>
+        </>
       )}
       {kannAlarmieren && vorschlag.nichtVerfuegbar.length > 0 && (
         <p className="einsatz-eintrag__zeile">Kein freies Fahrzeug für: {formatBedarfsListe(vorschlag.nichtVerfuegbar)}</p>

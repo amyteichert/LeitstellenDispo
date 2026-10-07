@@ -3,8 +3,9 @@ import {
   EINSATZ_VORLAGEN,
   istVorlageErfuellbar,
   planeEskalation,
+  istMeldungUnklar,
   planeEskalationOhneAlarm,
-  planeNachforderung,
+  planeLageBeimEintreffen,
   type EinsatzVorlage,
   type SpielEinsatz,
 } from './daten.js';
@@ -111,7 +112,9 @@ export const createSpielEinsatz = (
     vorlageId: template.id,
     meldungen: [],
     patienten: erzeugePatienten(template.patienten, id),
-    nachforderungGeplant: planeNachforderung(template),
+    ...planeLageBeimEintreffen(template),
+    empfehlung: template.requiredVehicles,
+    meldungUnklar: istMeldungUnklar(template),
     eskalationBei: planeEskalation(template),
     eskalationOhneAlarmAt: planeEskalationOhneAlarm(template, jetzt),
   };

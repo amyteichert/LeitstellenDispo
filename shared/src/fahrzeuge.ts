@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Zentraler Fahrzeugkatalog: Typen, Fähigkeiten, Besatzung, Geschwindigkeit und Preis.
  * Alle anderen Stellen (Kaufen, Alarmierung, Einsatzbedarf, Fahrzeiten) lesen nur von hier.
  */
@@ -26,6 +26,16 @@ export const FAEHIGKEIT_LABELS: Record<Faehigkeit, string> = {
   notarzt: 'Notarztversorgung',
 };
 
+/** Qualifikationen des Personals – nur die, die ein Fahrzeug zwingend braucht. */
+export type Qualifikation = 'notfallsanitaeter' | 'notarzt' | 'maschinist_dlk' | 'gruppenfuehrer';
+
+export const QUALIFIKATION_LABELS: Record<Qualifikation, string> = {
+  notfallsanitaeter: 'Notfallsanitäter',
+  notarzt: 'Notarzt',
+  maschinist_dlk: 'Maschinist Drehleiter',
+  gruppenfuehrer: 'Gruppenführer',
+};
+
 export interface FahrzeugTyp {
   /** Typbezeichnung, z. B. "RTW" oder "HLF 20" */
   typ: string;
@@ -40,29 +50,31 @@ export interface FahrzeugTyp {
   /** Sollbesatzung (Personen) */
   besatzung: number;
   faehigkeiten: Faehigkeit[];
+  /** Mindestens eine Person der Besatzung braucht diese Qualifikation */
+  pflichtQualifikation?: Qualifikation;
 }
 
 /** Alle Fahrzeugtypen, die im Spiel gekauft bzw. als Startfahrzeug gewählt werden können. */
 export const FAHRZEUG_TYPEN: FahrzeugTyp[] = [
   {
     typ: 'RTW', bezeichnung: 'Rettungswagen', kategorie: 'RTW', organisation: 'Rettungsdienst', wachenArt: 'Rettungswache',
-    preis: 4000, geschwindigkeitKmh: 60, besatzung: 2, faehigkeiten: ['patientenversorgung', 'patiententransport'],
+    preis: 4000, geschwindigkeitKmh: 60, besatzung: 2, faehigkeiten: ['patientenversorgung', 'patiententransport'], pflichtQualifikation: 'notfallsanitaeter',
   },
   {
     typ: 'NEF', bezeichnung: 'Notarzteinsatzfahrzeug', kategorie: 'NEF', organisation: 'Rettungsdienst', wachenArt: 'Rettungswache',
-    preis: 3500, geschwindigkeitKmh: 70, besatzung: 2, faehigkeiten: ['notarzt', 'patientenversorgung'],
+    preis: 3500, geschwindigkeitKmh: 70, besatzung: 2, faehigkeiten: ['notarzt', 'patientenversorgung'], pflichtQualifikation: 'notarzt',
   },
   {
     typ: 'LF 10', bezeichnung: 'Löschgruppenfahrzeug 10', kategorie: 'Löschfahrzeug', organisation: 'Feuerwehr', wachenArt: 'Feuerwache',
-    preis: 5000, geschwindigkeitKmh: 52, besatzung: 9, faehigkeiten: ['brandbekaempfung', 'technische_hilfe'],
+    preis: 5000, geschwindigkeitKmh: 52, besatzung: 9, faehigkeiten: ['brandbekaempfung', 'technische_hilfe'], pflichtQualifikation: 'gruppenfuehrer',
   },
   {
     typ: 'LF 20', bezeichnung: 'Löschgruppenfahrzeug 20', kategorie: 'Löschfahrzeug', organisation: 'Feuerwehr', wachenArt: 'Feuerwache',
-    preis: 6500, geschwindigkeitKmh: 50, besatzung: 9, faehigkeiten: ['brandbekaempfung', 'technische_hilfe'],
+    preis: 6500, geschwindigkeitKmh: 50, besatzung: 9, faehigkeiten: ['brandbekaempfung', 'technische_hilfe'], pflichtQualifikation: 'gruppenfuehrer',
   },
   {
     typ: 'HLF 20', bezeichnung: 'Hilfeleistungslöschgruppenfahrzeug 20', kategorie: 'Löschfahrzeug', organisation: 'Feuerwehr', wachenArt: 'Feuerwache',
-    preis: 8000, geschwindigkeitKmh: 50, besatzung: 9, faehigkeiten: ['brandbekaempfung', 'technische_hilfe'],
+    preis: 8000, geschwindigkeitKmh: 50, besatzung: 9, faehigkeiten: ['brandbekaempfung', 'technische_hilfe'], pflichtQualifikation: 'gruppenfuehrer',
   },
   {
     typ: 'TLF 2000', bezeichnung: 'Tanklöschfahrzeug 2000', kategorie: 'Löschfahrzeug', organisation: 'Feuerwehr', wachenArt: 'Feuerwache',
@@ -78,7 +90,7 @@ export const FAHRZEUG_TYPEN: FahrzeugTyp[] = [
   },
   {
     typ: 'DLK 23/12', bezeichnung: 'Drehleiter mit Korb', kategorie: 'Drehleiter', organisation: 'Feuerwehr', wachenArt: 'Feuerwache',
-    preis: 9000, geschwindigkeitKmh: 48, besatzung: 3, faehigkeiten: ['hoehenrettung', 'brandbekaempfung'],
+    preis: 9000, geschwindigkeitKmh: 48, besatzung: 3, faehigkeiten: ['hoehenrettung', 'brandbekaempfung'], pflichtQualifikation: 'maschinist_dlk',
   },
 ];
 
@@ -104,7 +116,8 @@ export function getFahrzeugGeschwindigkeit(typ?: string): number {
 }
 
 /** Ist das Fahrzeug ausreichend besetzt? Ältere Spielstände ohne Angabe gelten als voll besetzt. */
-export function istAusreichendBesetzt(vehicle: Pick<Vehicle, 'type' | 'besatzung'>): boolean {
+export function istAusreichendBesetzt(vehicle: Pick<Vehicle, 'type' | 'besatzung' | 'fehlendeQualifikation'>): boolean {
+  if (vehicle.fehlendeQualifikation) return false;
   if (vehicle.besatzung === undefined) return true;
   return vehicle.besatzung >= (getFahrzeugTyp(vehicle.type)?.besatzung ?? 1);
 }

@@ -11,6 +11,8 @@ import {
 } from './daten.js';
 import { STANDARD_KRANKENHAEUSER, ergaenzeKrankenhaeuser, type Krankenhaus } from './krankenhaeuser.js';
 import { erzeugePatienten } from './patienten.js';
+import { RUF_CONFIG } from './bewertung.js';
+import { erzeugeBesatzungFuer, synchronisiereBesatzung, type Mitarbeiter } from './personal.js';
 import type { FinanceTransaction, MapLocation, Vehicle } from './typen.js';
 
 /** Wird erhöht, wenn sich der Aufbau des Spielstands ändert (ältere Versionen werden migriert). */
@@ -27,6 +29,10 @@ export interface Spielstand {
   incidents: SpielEinsatz[];
   completedIncidentHistory: AbgeschlossenerSpielEinsatz[];
   krankenhaeuser: Krankenhaus[];
+  /** Ruf der Leitstelle (0–100) – fehlt bei älteren Spielständen */
+  ruf?: number;
+  /** Personal aller Wachen – fehlt bei älteren Spielständen (wird dann für alle Fahrzeuge erzeugt) */
+  personal?: Mitarbeiter[];
 }
 
 export const START_WACHEN: MapLocation[] = [
@@ -55,7 +61,7 @@ export const START_WACHEN: MapLocation[] = [
 ];
 
 /** Startzustand für ein neues Spiel: zwei Rettungswachen mit einem RTW, Krankenhäuser und Startguthaben. */
-export const createNeuesSpiel = (jetzt: Date = new Date()): Spielstand => ({
+export const createNeuesSpiel = (jetzt: Date = new Date()): Spielstand => ergaenzePersonal({
   version: SPIELSTAND_VERSION,
   gespeichertAm: jetzt.toISOString(),
   balance: START_GUTHABEN,
@@ -69,7 +75,16 @@ export const createNeuesSpiel = (jetzt: Date = new Date()): Spielstand => ({
   incidents: [],
   completedIncidentHistory: [],
   krankenhaeuser: STANDARD_KRANKENHAEUSER,
+  ruf: RUF_CONFIG.start,
 });
+
+/** Spielstände ohne Personal: Jedes Fahrzeug bekommt eine volle Besatzung (inkl. Pflicht-Qualifikation). */
+function ergaenzePersonal(spielstand: Spielstand): Spielstand {
+  const personal = Array.isArray(spielstand.personal)
+    ? spielstand.personal
+    : spielstand.vehicles.flatMap((vehicle) => erzeugeBesatzungFuer(vehicle));
+  return { ...spielstand, personal, vehicles: synchronisiereBesatzung(spielstand.vehicles, personal) };
+}
 
 /** Krankenhäuser für alle Wachen ergänzen (z. B. nach dem Laden eines alten Spielstands). */
 export const ergaenzeKrankenhaeuserFuerWachen = (krankenhaeuser: Krankenhaus[], locations: MapLocation[]): Krankenhaus[] =>
@@ -122,10 +137,12 @@ export function migriereSpielstand(roh: unknown): Spielstand | null {
   const spielstand = roh as Spielstand;
   if (!Array.isArray(spielstand.locations) || !Array.isArray(spielstand.vehicles) || !Array.isArray(spielstand.incidents)) return null;
 
-  if (spielstand.version === 2) return migriereV2(spielstand);
+  const ruf = typeof spielstand.ruf === 'number' ? spielstand.ruf : RUF_CONFIG.start;
+  if (spielstand.version === 2) return ergaenzePersonal({ ...migriereV2(spielstand), ruf });
   if (spielstand.version !== SPIELSTAND_VERSION) return null;
-  return {
+  return ergaenzePersonal({
     ...spielstand,
     krankenhaeuser: Array.isArray(spielstand.krankenhaeuser) ? spielstand.krankenhaeuser : STANDARD_KRANKENHAEUSER,
-  };
+    ruf,
+  });
 }

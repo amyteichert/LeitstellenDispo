@@ -10,3 +10,7 @@ export * from './einsatzErzeugung.js';
 export * from './alarmierung.js';
 export * from './spielTick.js';
 export * from './spielstand.js';
+export * from './bewertung.js';
+export * from './wachen.js';
+export * from './personal.js';
+export * from './ausbildung.js';

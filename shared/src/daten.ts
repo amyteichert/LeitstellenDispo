@@ -126,10 +126,39 @@ export interface SpielEinsatz extends Einsatz {
   erstesEintreffenAt?: number;
   /** Ausgewürfelt: Das erste Fahrzeug fordert bei Eintreffen weitere Kräfte nach */
   nachforderungGeplant?: boolean;
+  /** Ausgewürfelt: Die Lage vor Ort ist kleiner als gemeldet, ein Teil der Kräfte kann abrücken */
+  entwarnungGeplant?: boolean;
+  /** Meldung ist unklar – der Bedarf ist nur eine Empfehlung und kann sich vor Ort ändern */
+  meldungUnklar?: boolean;
+  /** Anfahrtszeit des schnellsten freien passenden Fahrzeugs bei der Erstalarmierung */
+  besteAnfahrtSekunden?: number;
+  /** Bedarf laut Erstmeldung (Empfehlung bei der Alarmierung) */
+  empfehlung?: FahrzeugBedarf[];
+  /** Leistungsbewertung – wird beim Abschluss gesetzt */
+  bewertung?: EinsatzBewertung;
+}
+
+/** Bewertung eines abgeschlossenen Einsatzes: Grundgeld gibt es immer, der Bonus hängt von Leistung und Ruf ab. */
+export interface EinsatzBewertung {
+  /** 0–100 = Fahrzeugwahl + Hilfsfrist */
+  punkte: number;
+  /** 0–50: Wurde das nächste freie Fahrzeug geschickt? */
+  wahlPunkte: number;
+  /** 0–50: Wie schnell war das erste Fahrzeug da? */
+  fristPunkte: number;
+  /** Zeit von der ersten Alarmierung bis zum Eintreffen des ersten Fahrzeugs */
+  anfahrtSekunden: number;
+  /** So schnell wäre das beste freie Fahrzeug gewesen (fehlt bei älteren Einsätzen) */
+  besteAnfahrtSekunden?: number;
+  grundgeld: number;
+  bonus: number;
+  /** Ruf vor diesem Einsatz */
+  rufVorher: number;
+  rufAenderung: number;
 }
 
 /** Art einer Lagemeldung – wichtige Meldungen lösen einen Hinweis aus */
-export type MeldungsArt = 'eskalation' | 'nachforderung' | 'lage' | 'patient' | 'abschluss';
+export type MeldungsArt = 'eskalation' | 'nachforderung' | 'entwarnung' | 'lage' | 'patient' | 'abschluss';
 
 export interface EinsatzMeldung {
   zeit: number;
@@ -170,6 +199,17 @@ export interface EinsatzVorlage {
   nachforderung?: EinsatzNachforderung;
   /** Möglicher Übergang in einen größeren Einsatz während der Bearbeitung */
   eskalation?: EinsatzEskalation;
+  /** Mögliche Entwarnung beim Eintreffen: weniger Kräfte nötig als gemeldet */
+  entwarnung?: EinsatzEntwarnung;
+  /** Meldebild ist von Natur aus unklar (auch ohne Nachforderung/Entwarnung als Hinweis anzeigen) */
+  unklar?: boolean;
+}
+
+export interface EinsatzEntwarnung {
+  wahrscheinlichkeit: number;
+  /** Diese Kräfte werden nicht gebraucht und rücken ab */
+  abzug: FahrzeugBedarf[];
+  meldung: string;
 }
 
 export interface EinsatzEskalation {
@@ -261,6 +301,11 @@ export const EINSATZ_VORLAGEN: Record<WachenArt, EinsatzVorlage[]> = {
       durationSeconds: 15,
       patienten: { anzahl: 1, zustand: 'schwer', transportWahrscheinlichkeit: 1 },
       lage: 'Patient mit Druck auf der Brust, Verdacht auf Herzinfarkt.',
+      entwarnung: {
+        wahrscheinlichkeit: 0.25,
+        abzug: [NEF()],
+        meldung: 'Beschwerden rückläufig, kein Hinweis auf einen Infarkt – NEF kann abrücken.',
+      },
       eskalation: {
         zielVorlageId: 'reanimation',
         wahrscheinlichkeit: 0.2,
@@ -305,6 +350,11 @@ export const EINSATZ_VORLAGEN: Record<WachenArt, EinsatzVorlage[]> = {
       durationSeconds: 14,
       patienten: { anzahl: 1, zustand: 'schwer', transportWahrscheinlichkeit: 1 },
       lage: 'Person nicht ansprechbar, Atmung vorhanden.',
+      entwarnung: {
+        wahrscheinlichkeit: 0.3,
+        abzug: [NEF()],
+        meldung: 'Person ist wieder wach und orientiert – NEF kann abrücken.',
+      },
     },
     {
       id: 'reanimation',
@@ -391,6 +441,7 @@ export const EINSATZ_VORLAGEN: Record<WachenArt, EinsatzVorlage[]> = {
       reward: 290,
       durationSeconds: 14,
       lage: 'Leichter Brandgeruch im Treppenhaus, Erkundung läuft.',
+      unklar: true,
       eskalation: {
         zielVorlageId: 'zimmerbrand',
         wahrscheinlichkeit: 0.35,
@@ -437,6 +488,11 @@ export const EINSATZ_VORLAGEN: Record<WachenArt, EinsatzVorlage[]> = {
       reward: 480,
       durationSeconds: 18,
       lage: 'Garage in Vollbrand, Riegelstellung zum Wohnhaus.',
+      entwarnung: {
+        wahrscheinlichkeit: 0.25,
+        abzug: [LF()],
+        meldung: 'Nur Mülltonnen vor der Garage in Brand – ein Löschfahrzeug kann abrücken.',
+      },
     },
     {
       id: 'kellerbrand',
@@ -447,6 +503,11 @@ export const EINSATZ_VORLAGEN: Record<WachenArt, EinsatzVorlage[]> = {
       reward: 520,
       durationSeconds: 20,
       lage: 'Starke Verrauchung im Keller, Trupp unter Atemschutz geht vor.',
+      entwarnung: {
+        wahrscheinlichkeit: 0.25,
+        abzug: [LF()],
+        meldung: 'Nur verschmortes Kabel im Kellerraum, kaum Rauch – ein Löschfahrzeug kann abrücken.',
+      },
       eskalation: {
         zielVorlageId: 'zimmerbrand',
         wahrscheinlichkeit: 0.2,
@@ -462,6 +523,11 @@ export const EINSATZ_VORLAGEN: Record<WachenArt, EinsatzVorlage[]> = {
       reward: 650,
       durationSeconds: 24,
       lage: 'Rauch aus Fenster im 2. OG, Menschenrettung über Drehleiter wird vorbereitet.',
+      entwarnung: {
+        wahrscheinlichkeit: 0.2,
+        abzug: [DLK()],
+        meldung: 'Bewohner haben die Wohnung selbst verlassen – Drehleiter kann abrücken.',
+      },
       eskalation: {
         zielVorlageId: 'gebaeudebrand',
         wahrscheinlichkeit: 0.15,
@@ -477,6 +543,11 @@ export const EINSATZ_VORLAGEN: Record<WachenArt, EinsatzVorlage[]> = {
       reward: 950,
       durationSeconds: 32,
       lage: 'Mehrfamilienhaus, Flammen aus mehreren Fenstern, Bewohner an den Fenstern.',
+      entwarnung: {
+        wahrscheinlichkeit: 0.2,
+        abzug: [LF()],
+        meldung: 'Brand auf eine Wohnung begrenzt – ein Löschfahrzeug kann abrücken.',
+      },
     },
     {
       id: 'oelspur',
@@ -526,6 +597,7 @@ export const EINSATZ_VORLAGEN: Record<WachenArt, EinsatzVorlage[]> = {
       durationSeconds: 12,
       patienten: { anzahl: 1, zustand: 'mittel', transportWahrscheinlichkeit: 0.6 },
       lage: 'Hilferufe aus der Wohnung, Tür wird geöffnet.',
+      unklar: true,
     },
     {
       id: 'vu-eingeklemmt',
@@ -570,6 +642,34 @@ export function planeNachforderung(vorlage: EinsatzVorlage, zufall: () => number
   return Boolean(vorlage.nachforderung) && zufall() < (vorlage.nachforderung?.wahrscheinlichkeit ?? 0);
 }
 
+/** Würfelt aus, ob sich die Lage vor Ort als kleiner herausstellt. Nie zusammen mit einer Nachforderung. */
+export function planeEntwarnung(vorlage: EinsatzVorlage, nachforderungGeplant: boolean, zufall: () => number = Math.random): boolean {
+  return !nachforderungGeplant && Boolean(vorlage.entwarnung) && zufall() < (vorlage.entwarnung?.wahrscheinlichkeit ?? 0);
+}
+
+/** Was beim ersten Eintreffen passieren kann: Nachforderung, Entwarnung oder keins von beiden. */
+export function planeLageBeimEintreffen(vorlage: EinsatzVorlage, nochNichtEingetroffen = true) {
+  const nachforderungGeplant = nochNichtEingetroffen && planeNachforderung(vorlage);
+  return {
+    nachforderungGeplant,
+    entwarnungGeplant: nochNichtEingetroffen && planeEntwarnung(vorlage, nachforderungGeplant),
+  };
+}
+
+/** Kann sich der Bedarf dieses Einsatzes vor Ort noch ändern? Dann wird er als „Empfehlung“ angezeigt. */
+export const istMeldungUnklar = (vorlage: EinsatzVorlage) =>
+  Boolean(vorlage.unklar || vorlage.nachforderung || vorlage.entwarnung);
+
+/** Zieht Bedarf ab (z. B. bei einer Entwarnung); Einträge mit 0 fallen weg. */
+export function reduziereBedarf(bedarf: FahrzeugBedarf[], abzug: FahrzeugBedarf[]): FahrzeugBedarf[] {
+  return bedarf
+    .map((eintrag) => {
+      const weniger = abzug.filter((a) => a.category === eintrag.category).reduce((summe, a) => summe + a.amount, 0);
+      return { ...eintrag, amount: eintrag.amount - weniger };
+    })
+    .filter((eintrag) => eintrag.amount > 0);
+}
+
 /** Patienten nach einer Eskalation: Zustand verschlechtert sich, Transport wird nötig, ggf. kommen Patienten dazu. */
 function passePatientenAn(einsatz: SpielEinsatz, ziel: EinsatzVorlage): Patient[] | undefined {
   const bisher = einsatz.patienten ?? [];
@@ -605,8 +705,10 @@ export function eskaliereEinsatz(einsatz: SpielEinsatz, ziel: EinsatzVorlage, me
     processingEndsAt: undefined,
     eskalationBei: planeEskalation(ziel),
     eskalationOhneAlarmAt: planeEskalationOhneAlarm(ziel, jetzt),
-    // Eine Nachforderung gibt es nur beim ersten Eintreffen – danach nicht mehr
-    nachforderungGeplant: einsatz.erstesEintreffenAt === undefined ? planeNachforderung(ziel) : false,
+    // Nachforderung/Entwarnung gibt es nur beim ersten Eintreffen – danach nicht mehr
+    ...planeLageBeimEintreffen(ziel, einsatz.erstesEintreffenAt === undefined),
+    empfehlung: ziel.requiredVehicles,
+    meldungUnklar: istMeldungUnklar(ziel),
     patienten: passePatientenAn(einsatz, ziel),
     neueMeldung: true,
     meldungen: fuegeMeldungenHinzu(einsatz.meldungen, [{ zeit: jetzt, text: meldung, art: 'eskalation' }]),

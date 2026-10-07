@@ -42,6 +42,8 @@ export interface TestEinsatzOptionen {
   transport?: boolean;
   /** Fordert das erste Fahrzeug nach? (Standard: nein) */
   nachforderung?: boolean;
+  /** Stellt sich die Lage vor Ort als kleiner heraus? (Standard: nein) */
+  entwarnung?: boolean;
 }
 
 /** Einsatz aus einer Vorlage, ca. 1 km von der Wache entfernt; Eskalationen und Zufall standardmäßig aus. */
@@ -64,6 +66,7 @@ export const einsatz = (
     eskalationBei,
     eskalationOhneAlarmAt,
     nachforderungGeplant: optionen.nachforderung ?? false,
+    entwarnungGeplant: optionen.entwarnung ?? false,
     patienten: e.patienten?.map((patient) => ({ ...patient, transportErforderlich: optionen.transport ?? false })),
   };
 };

@@ -5,6 +5,7 @@ import { berechneSpielTick } from './spielTick.js';
 import { SPIELSTAND_VERSION, createNeuesSpiel, migriereSpielstand, type Spielstand } from './spielstand.js';
 import { T0, einsatz, fahrzeug, krankenhaus, wache } from './testHilfen.js';
 import { haversineKm } from './geo.js';
+import { erzeugeBesatzungFuer, synchronisiereBesatzung } from './personal.js';
 
 describe('Krankenhäuser', () => {
   it('findet das nächste aufnahmebereite Krankenhaus', () => {
@@ -50,10 +51,12 @@ describe('Spielstand speichern und laden', () => {
     }
     expect(zustand.incidents[0].status).toBe('transport');
 
+    const personal = zustand.vehicles.flatMap((vehicle) => erzeugeBesatzungFuer(vehicle));
     const spielstand: Spielstand = {
       ...createNeuesSpiel(new Date(T0)),
       locations: zustand.locations,
-      vehicles: zustand.vehicles,
+      vehicles: synchronisiereBesatzung(zustand.vehicles, personal),
+      personal,
       incidents: zustand.incidents,
       krankenhaeuser: kh,
     };

@@ -1,5 +1,6 @@
 /** Typen für den Spielzustand – gemeinsam für Client und (später) Server. */
 import type { Adresse } from './adressen.js';
+import type { Qualifikation } from './fahrzeuge.js';
 
 export type LocationType = 'station' | 'incident';
 
@@ -22,7 +23,24 @@ export type MapLocation = {
   stationKind?: StationKind; // optional: for type === 'station' specifies whether it's a Rettungswache or Feuerwache
   /** Strukturierte Adresse (z. B. aus der Adresssuche) – bestimmt Ort/PLZ der Einsätze in der Umgebung */
   adresse?: Adresse;
+  /** Ausbaustufen der Wache, z. B. { stellplatz: 2 } – fehlt = nicht ausgebaut */
+  ausbau?: Record<string, number>;
+  /** Räume des Ausbildungsbereichs – leer/fehlt = kein Ausbildungsbereich */
+  ausbildungsRaeume?: AusbildungsRaum[];
 };
+
+export interface AusbildungsRaum {
+  id: string;
+  /** Anzahl Raum-Upgrades (je +2 Plätze) */
+  upgrades: number;
+  /** Laufender Lehrgang (höchstens einer pro Raum) */
+  lehrgang?: {
+    qualifikation: Qualifikation;
+    teilnehmerIds: string[];
+    startAt: number;
+    endeAt: number;
+  };
+}
 
 export type FinanceTransaction = {
   id: string;
@@ -60,6 +78,8 @@ export type Vehicle = {
   status?: FahrzeugStatus;
   /** Vorhandene Besatzung (Personen). Nicht gesetzt = voll besetzt (ältere Spielstände) */
   besatzung?: number;
+  /** Gesetzt, wenn der Besatzung die Pflicht-Qualifikation fehlt (z. B. kein Notarzt auf dem NEF) – wird aus dem Personal berechnet */
+  fehlendeQualifikation?: Qualifikation;
   /** Gesetzt, solange das Fahrzeug zurück zur Wache fährt (vom Einsatzort oder Krankenhaus) */
   rueckfahrt?: {
     von: Koordinaten;

@@ -4,6 +4,7 @@ import { MapContainer, Marker, Polyline, Popup, TileLayer, useMap, useMapEvents 
 import L, { type LeafletMouseEvent } from 'leaflet';
 import {
   APP_VERSION,
+  getRufLabel,
   adresseAusOsm,
   formatAdresse,
   formatEinsatzTitel,
@@ -27,6 +28,7 @@ import FahrzeugeView from './views/FahrzeugeView';
 import WachenView from './views/WachenView';
 import EinsaetzeView from './views/EinsaetzeView';
 import { KarteEinsatzLeiste, KarteEinsatzPanel } from './views/KarteEinsatzOverlay';
+import RufFenster from './views/RufFenster';
 import FinanzenView from './views/FinanzenView';
 import EinstellungenView from './views/EinstellungenView';
 
@@ -136,6 +138,7 @@ function App() {
   const [selectedIncidentId, setSelectedIncidentId] = useState<string | null>(null);
   // Einsatz, dessen Kurzinfo gerade als schwebendes Fenster auf der Karte angezeigt wird
   const [mapIncidentId, setMapIncidentId] = useState<string | null>(null);
+  const [rufFensterOffen, setRufFensterOffen] = useState(false);
 
   const spiel = useSpiel({
     onSpielstandAngewendet: (spielstand) => {
@@ -328,11 +331,6 @@ function App() {
     }
   };
 
-  const buyVehicle = (stationId: string, typ: string) => {
-    const fehler = spiel.buyVehicle(stationId, typ);
-    if (fehler) alert(fehler);
-  };
-
   const triggerTestIncident = () => {
     const ergebnis = spiel.erzeugeTestEinsatz();
     if ('fehler' in ergebnis) {
@@ -383,6 +381,15 @@ function App() {
           {/* Will render current view and open a small dropdown when clicked. */}
           { /* Version chip kept for visibility */ }
           <span className="chip">V{APP_VERSION}</span>
+          <span className="chip" title="Guthaben">💶 {balance.toLocaleString('de-DE')} €</span>
+          <button
+            type="button"
+            className="chip ruf-chip"
+            title="Ruf der Leitstelle – antippen für deine Bewertungen und Fehler"
+            onClick={() => setRufFensterOffen(true)}
+          >
+            ⭐ Ruf {spiel.ruf} · {getRufLabel(spiel.ruf)}
+          </button>
 
           <div className="view-dropdown">
             {/* Trigger button */}
@@ -413,6 +420,19 @@ function App() {
           </div>
         </div>
       </header>
+
+      {rufFensterOffen && (
+        <RufFenster
+          ruf={spiel.ruf}
+          completedIncidentHistory={completedIncidentHistory}
+          onClose={() => setRufFensterOffen(false)}
+          onEinsatzOeffnen={(einsatzId) => {
+            setRufFensterOffen(false);
+            setSelectedIncidentId(einsatzId);
+            setCurrentView('Einsätze');
+          }}
+        />
+      )}
 
       <main className={`dashboard ${currentView === 'Karte' ? '' : 'dashboard--full'}`}>
         {currentView === 'Karte' && (
@@ -721,7 +741,18 @@ function App() {
         ) : (
           <section className="panel--secondary" style={{ padding: 16 }}>
             {currentView === 'Wachen' && (
-              <WachenView locations={locations} selectedId={selectedId} setSelectedId={setSelectedId} vehicles={vehicles} buyVehicle={buyVehicle} />
+              <WachenView
+                locations={locations}
+                selectedId={selectedId}
+                setSelectedId={setSelectedId}
+                vehicles={vehicles}
+                personal={spiel.personal}
+                balance={balance}
+                nowMs={nowMs}
+                buyVehicle={spiel.buyVehicle}
+                erweitereStellplaetze={spiel.erweitereStellplaetze}
+                personalAktionen={spiel}
+              />
             )}
 
             {currentView === 'Fahrzeuge' && (
