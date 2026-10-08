@@ -1,32 +1,48 @@
 import { useState } from 'react';
+import type { Konto, UserRole } from '@leitstellendispo/shared';
+import { STARTANSICHTEN, ladeStartansicht, speichereStartansicht, type Ansicht } from '../startansicht';
+
+const ROLLEN_LABELS: Record<UserRole, string> = {
+  owner: 'Owner',
+  co_owner: 'Co-Owner',
+  admin: 'Admin',
+  player: 'Spieler',
+};
 
 export default function EinstellungenView({
-  defaultView,
   onNeuesSpiel,
   tonAn,
   setTonAn,
+  konto,
+  onAbmelden,
 }: {
-  defaultView?: string;
   onNeuesSpiel: () => void;
   tonAn: boolean;
   setTonAn: (an: boolean) => void;
+  konto: Konto;
+  onAbmelden: () => Promise<void>;
 }) {
-  const [local, setLocal] = useState(defaultView ?? 'Karte');
+  const [startansicht, setStartansicht] = useState<Ansicht>(ladeStartansicht);
+  const [meldetAb, setMeldetAb] = useState(false);
 
   return (
     <div>
       <h2>Einstellungen</h2>
       <div style={{ padding: 8, background: 'var(--color-surface)', borderRadius: 8 }}>
-        <label style={{ display: 'block', marginBottom: 8 }}>
-          Standardansicht beim Start
+        <h3 style={{ marginBottom: 6 }}>Ansicht beim Start</h3>
+        <label className="field" style={{ maxWidth: 260 }}>
+          <select
+            value={startansicht}
+            onChange={(e) => {
+              const ansicht = e.target.value as Ansicht;
+              setStartansicht(ansicht);
+              speichereStartansicht(ansicht);
+            }}
+          >
+            {STARTANSICHTEN.map((ansicht) => <option key={ansicht}>{ansicht}</option>)}
+          </select>
         </label>
-        <select value={local} onChange={(e) => setLocal(e.target.value)}>
-          <option>Karte</option>
-          <option>Wachen</option>
-          <option>Fahrzeuge</option>
-          <option>Einsätze</option>
-        </select>
-        <p style={{ fontSize: 12, color: 'var(--color-text-muted)', marginTop: 8 }}>Hinweis: Diese Einstellung ist derzeit nur UI-seitig vorbereitet.</p>
+        <p style={{ fontSize: 12, color: 'var(--color-text-muted)', marginTop: 8 }}>Wird auf diesem Gerät gemerkt.</p>
       </div>
 
       <div style={{ padding: 8, background: 'var(--color-surface)', borderRadius: 8, marginTop: 12 }}>
@@ -38,9 +54,27 @@ export default function EinstellungenView({
       </div>
 
       <div style={{ padding: 8, background: 'var(--color-surface)', borderRadius: 8, marginTop: 12 }}>
+        <h3 style={{ marginBottom: 6 }}>Konto</h3>
+        <p style={{ marginBottom: 8 }}>
+          Angemeldet als <strong>{konto.name}</strong> ({ROLLEN_LABELS[konto.rolle]})
+        </p>
+        <button
+          className="btn btn--secondary"
+          type="button"
+          disabled={meldetAb}
+          onClick={() => {
+            setMeldetAb(true);
+            void onAbmelden();
+          }}
+        >
+          {meldetAb ? 'Speichere und melde ab …' : 'Abmelden'}
+        </button>
+      </div>
+
+      <div style={{ padding: 8, background: 'var(--color-surface)', borderRadius: 8, marginTop: 12 }}>
         <h3 style={{ marginBottom: 6 }}>Spielstand</h3>
         <p style={{ fontSize: 12, color: 'var(--color-text-muted)', marginBottom: 8 }}>
-          Dein Spiel wird automatisch gespeichert. Ein neues Spiel löscht den aktuellen Spielstand.
+          Dein Spiel wird automatisch in deinem Konto gespeichert – so kannst du auf jedem Gerät weiterspielen. Ein neues Spiel löscht den aktuellen Spielstand.
         </p>
         <button className="btn btn--danger" type="button" onClick={onNeuesSpiel}>Neues Spiel starten</button>
       </div>

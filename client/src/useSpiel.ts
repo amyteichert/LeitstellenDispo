@@ -105,6 +105,8 @@ export function useSpiel(optionen: UseSpielOptionen = {}) {
   const [nowMs, setNowMs] = useState(Date.now());
   // Erst nach dem Laden wird gespeichert und werden Einsätze erzeugt (sonst würde ein leerer Stand den gespeicherten überschreiben)
   const [spielstandGeladen, setSpielstandGeladen] = useState(false);
+  // Laden fehlgeschlagen (z. B. Server weg): Dann wird auch nichts gespeichert, damit der echte Stand erhalten bleibt
+  const [ladeFehler, setLadeFehler] = useState<string | null>(null);
 
   const addTransaction = (kind: FinanceTransaction['kind'], label: string, amount: number) => {
     setTransactions((cur) => [{
@@ -210,11 +212,18 @@ export function useSpiel(optionen: UseSpielOptionen = {}) {
   // Spielstand beim Start laden
   useEffect(() => {
     let abgebrochen = false;
-    spielstandSpeicher.laden().then((spielstand) => {
-      if (abgebrochen) return;
-      if (spielstand) spielstandAnwenden(spielstand);
-      setSpielstandGeladen(true);
-    });
+    spielstandSpeicher.laden().then(
+      (spielstand) => {
+        if (abgebrochen) return;
+        if (spielstand) spielstandAnwenden(spielstand);
+        setSpielstandGeladen(true);
+      },
+      (error: unknown) => {
+        if (abgebrochen) return;
+        console.error(error);
+        setLadeFehler('Dein Spielstand konnte nicht geladen werden. Bitte prüfe, ob der Server läuft, und lade die Seite neu.');
+      },
+    );
     return () => {
       abgebrochen = true;
     };
@@ -579,6 +588,7 @@ export function useSpiel(optionen: UseSpielOptionen = {}) {
 
   return {
     spielstandGeladen,
+    ladeFehler,
     locations,
     vehicles,
     balance,

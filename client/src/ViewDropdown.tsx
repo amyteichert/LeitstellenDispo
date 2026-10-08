@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { ANSICHTEN } from './startansicht';
 
 type Props = {
   anchorRef: React.RefObject<HTMLElement | null>;
@@ -9,7 +10,7 @@ type Props = {
   onSelect: (view: string) => void;
 };
 
-const VIEWS = ['Karte', 'Wachen', 'Fahrzeuge', 'Einsätze', 'Funk', 'Finanzen', 'Einstellungen'];
+const VIEWS = ANSICHTEN;
 
 export default function ViewDropdown({ anchorRef, isOpen, onClose, currentView, onSelect }: Props) {
   const [pos, setPos] = useState<{ top: number; left: number; width: number } | null>(null);

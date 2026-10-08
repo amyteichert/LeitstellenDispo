@@ -86,6 +86,11 @@ export interface Einsatz {
   address?: string;
 }
 
+/** Geldbetrag im deutschen Format, z. B. „20.000 €“ */
+export function formatEuro(betrag: number): string {
+  return `${betrag.toLocaleString('de-DE')} €`;
+}
+
 export function formatEinsatzTitel(einsatz: Pick<Einsatz, 'stichwort' | 'meldebild'>): string {
   return `${einsatz.stichwort} – ${einsatz.meldebild}`;
 }

@@ -1,31 +1,53 @@
+import { formatEuro } from '@leitstellendispo/shared';
 import type { FinanceTransaction, MapLocation, Vehicle } from '../types';
+
+function Kachel({ titel, wert, hinweis }: { titel: string; wert: string; hinweis?: string }) {
+  return (
+    <div className="finanz-kachel">
+      <span>{titel}</span>
+      <strong>{wert}</strong>
+      {hinweis && <small>{hinweis}</small>}
+    </div>
+  );
+}
 
 export default function FinanzenView({ balance, locations, vehicles, transactions }: { balance: number; locations: MapLocation[]; vehicles: Vehicle[]; transactions: FinanceTransaction[] }) {
   const stationAssets = locations.filter(l => l.type === 'station');
   const totalStationValue = stationAssets.reduce((s, it) => s + (it.price ?? 0), 0);
   const totalVehicleValue = vehicles.reduce((s, v) => s + (v.price ?? 0), 0);
+  const einnahmen = transactions.filter((tx) => tx.kind === 'Einnahme').reduce((s, tx) => s + tx.amount, 0);
+  const ausgaben = transactions.filter((tx) => tx.kind === 'Ausgabe').reduce((s, tx) => s + tx.amount, 0);
 
   return (
     <div>
       <h2>Finanzen</h2>
-      <p>Guthaben: <strong>{balance} €</strong></p>
 
-      <h3>Vermögensübersicht</h3>
-      <ul>
-        <li>Wachen gesamt: {stationAssets.length} — Wert: {totalStationValue} €</li>
-        <li>Fahrzeuge gesamt: {vehicles.length} — Wert: {totalVehicleValue} €</li>
-      </ul>
+      <div className="finanz-kacheln">
+        <Kachel titel="Guthaben" wert={formatEuro(balance)} />
+        <Kachel titel="Einnahmen gesamt" wert={formatEuro(einnahmen)} />
+        <Kachel titel="Ausgaben gesamt" wert={formatEuro(ausgaben)} />
+        <Kachel titel={`Wachen (${stationAssets.length})`} wert={formatEuro(totalStationValue)} hinweis="Kaufwert" />
+        <Kachel titel={`Fahrzeuge (${vehicles.length})`} wert={formatEuro(totalVehicleValue)} hinweis="Kaufwert" />
+      </div>
 
-      <h3>Transaktionsverlauf</h3>
-      <ul style={{ listStyle: 'none', padding: 0, display: 'grid', gap: 8 }}>
-        {transactions.map((tx) => (
-          <li key={tx.id} style={{ background: 'var(--color-surface)', padding: 10, borderRadius: 8, boxShadow: 'var(--shadow-card)' }}>
-            <div><strong>{tx.kind}</strong> — {tx.label}</div>
-            <div style={{ fontSize: 12, color: 'var(--color-text-muted)' }}>{new Date(tx.createdAt).toLocaleString('de-DE')} · {tx.amount} €</div>
-          </li>
-        ))}
-        {transactions.length === 0 && <li>Keine Transaktionen.</li>}
-      </ul>
+      <h3 style={{ margin: '16px 0 8px' }}>Buchungen</h3>
+      {transactions.length === 0 ? (
+        <div className="leerzustand">Noch keine Buchungen.</div>
+      ) : (
+        <ul className="finanz-buchungen">
+          {transactions.map((tx) => (
+            <li key={tx.id}>
+              <div>
+                <strong>{tx.label}</strong>
+                <small>{new Date(tx.createdAt).toLocaleString('de-DE')}</small>
+              </div>
+              <span className={tx.kind === 'Einnahme' ? 'betrag--plus' : 'betrag--minus'}>
+                {tx.kind === 'Einnahme' ? '+' : '−'} {formatEuro(tx.amount)}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }

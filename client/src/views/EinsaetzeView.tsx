@@ -80,7 +80,8 @@ export default function EinsaetzeView({
   setSelectedIncidentId: (id: string | null) => void;
   alarmIncidentVehicles: (incidentId: string, selectedVehicleIds: string[]) => void;
   markiereMeldungGelesen: (incidentId: string) => void;
-  triggerTestIncident: () => void;
+  /** Nur für Team-Rollen gesetzt – ohne wird der Test-Knopf nicht angezeigt */
+  triggerTestIncident?: () => void;
   nowMs: number;
   stats: { total: number; rettungsdienst: number; feuerwehr: number; earned: number };
 }) {
@@ -178,9 +179,11 @@ export default function EinsaetzeView({
   return (
     <div>
       <h2>Einsätze</h2>
-      <div style={{ marginBottom: 12 }}>
-        <button className="btn btn--primary" type="button" onClick={triggerTestIncident}>Test-Einsatz erzeugen</button>
-      </div>
+      {triggerTestIncident && (
+        <div style={{ marginBottom: 12 }}>
+          <button className="btn btn--secondary" type="button" onClick={triggerTestIncident}>🧪 Test-Einsatz erzeugen</button>
+        </div>
+      )}
 
       <div style={{ marginBottom: 16, display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: 8 }}>
         <div style={{ background: 'var(--color-surface)', padding: 10, borderRadius: 8, border: '1px solid var(--color-border)' }}>

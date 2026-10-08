@@ -29,6 +29,7 @@ import {
   type AbgeschlossenerLehrgang,
   type Bewerber,
   type Mitarbeiter,
+  formatEuro,
 } from '@leitstellendispo/shared';
 import type { MapLocation, Vehicle } from '../types';
 import PersonalReiter from './PersonalReiter';
@@ -43,7 +44,7 @@ const GEPLANTE_AUSBAUTEN = [
   { name: 'Tankstelle', text: 'Fahrzeuge tanken günstiger und schneller an der eigenen Wache.' },
 ];
 
-const euro = (betrag: number) => `${betrag.toLocaleString('de-DE')} €`;
+const euro = formatEuro;
 
 export interface PersonalAktionen extends AusbildungAktionen {
   ausbildungsAbschluesse: AbgeschlossenerLehrgang[];

@@ -14,10 +14,11 @@ import {
   type AusbildungsRaum,
   type Mitarbeiter,
   type Qualifikation,
+  formatEuro,
 } from '@leitstellendispo/shared';
 import type { MapLocation, Vehicle } from '../types';
 
-const euro = (betrag: number) => `${betrag.toLocaleString('de-DE')} €`;
+const euro = formatEuro;
 
 /** z. B. „2 T 4 Std“ oder „35 Min“ */
 export const formatDauer = (ms: number) => {

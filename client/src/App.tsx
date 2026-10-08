@@ -12,9 +12,11 @@ import {
   getFahrzeugPosition,
   getFahrzeugTyp,
   getFahrzeugTypenFuerWache,
+  istTeamRolle,
   istEskaliert,
   type Adresse,
   type FahrzeugFahrt,
+  type Konto,
   type SpielEinsatz,
 } from '@leitstellendispo/shared';
 import 'leaflet/dist/leaflet.css';
@@ -24,6 +26,7 @@ import ViewDropdown from './ViewDropdown';
 
 import type { LocationType } from './types';
 import { useSpiel } from './useSpiel';
+import { ladeStartansicht, type Ansicht } from './startansicht';
 import { spieleFunkPiep, useEinsatzHinweise } from './useEinsatzHinweise';
 import FunkView from './views/FunkView';
 import FahrzeugeView from './views/FahrzeugeView';
@@ -33,6 +36,7 @@ import { KarteEinsatzLeiste, KarteEinsatzPanel } from './views/KarteEinsatzOverl
 import RufFenster from './views/RufFenster';
 import FinanzenView from './views/FinanzenView';
 import EinstellungenView from './views/EinstellungenView';
+import ErsteSchritte from './ErsteSchritte';
 
 const createMarkerIcon = (color: string) =>
   L.divIcon({
@@ -133,9 +137,9 @@ function MapStyleToggle({
     container,
   );
 }
-function App() {
-  // Navigation / view state (default: Karte)
-  const [currentView, setCurrentView] = useState<'Karte'|'Wachen'|'Fahrzeuge'|'Einsätze'|'Funk'|'Finanzen'|'Einstellungen'>('Karte');
+function App({ konto, onAbmelden }: { konto: Konto; onAbmelden: () => Promise<void> }) {
+  // Navigation: startet mit der in den Einstellungen gewählten Ansicht (Standard: Karte)
+  const [currentView, setCurrentView] = useState<Ansicht>(ladeStartansicht);
   const [selectedId, setSelectedId] = useState<string>('rettungswache-zentrum');
   const [selectedIncidentId, setSelectedIncidentId] = useState<string | null>(null);
   // Einsatz, dessen Kurzinfo gerade als schwebendes Fenster auf der Karte angezeigt wird
@@ -376,6 +380,10 @@ function App() {
           ))}
         </div>
       )}
+      {spiel.ladeFehler && <div className="lade-fehler" role="alert">{spiel.ladeFehler}</div>}
+      {spiel.spielstandGeladen && (
+        <ErsteSchritte kontoId={konto.id} stand={{ incidents, completedIncidentHistory, vehicles, locations }} />
+      )}
       <header className="topbar">
         {/* banner image fills the header */}
         <img className="topbar__banner" src="/brand-banner.png" alt="LeitstellenDispo Banner" />
@@ -390,7 +398,7 @@ function App() {
           {/* Single dropdown trigger showing the currently active main view */}
           {/* Will render current view and open a small dropdown when clicked. */}
           { /* Version chip kept for visibility */ }
-          <span className="chip">V{APP_VERSION}</span>
+          <span className="chip chip--version">V{APP_VERSION}</span>
           <span className="chip" title="Guthaben">💶 {balance.toLocaleString('de-DE')} €</span>
           {offeneSprechwuensche.length > 0 && (
             <button
@@ -408,7 +416,7 @@ function App() {
             title="Ruf der Leitstelle – antippen für deine Bewertungen und Fehler"
             onClick={() => setRufFensterOffen(true)}
           >
-            ⭐ Ruf {spiel.ruf} · {getRufLabel(spiel.ruf)}
+            ⭐ Ruf {spiel.ruf}<span className="nur-breit"> · {getRufLabel(spiel.ruf)}</span>
           </button>
 
           <div className="view-dropdown">
@@ -791,7 +799,7 @@ function App() {
                 setSelectedIncidentId={setSelectedIncidentId}
                 alarmIncidentVehicles={alarmIncidentVehicles}
                 markiereMeldungGelesen={markiereMeldungGelesen}
-                triggerTestIncident={triggerTestIncident}
+                triggerTestIncident={istTeamRolle(konto.rolle) ? triggerTestIncident : undefined}
                 nowMs={nowMs}
                 stats={completedIncidentStats}
                 funk={spiel.funk}
@@ -815,7 +823,7 @@ function App() {
             )}
 
             {currentView === 'Einstellungen' && (
-              <EinstellungenView defaultView={currentView} onNeuesSpiel={neuesSpiel} tonAn={tonAn} setTonAn={setTonAn} />
+              <EinstellungenView onNeuesSpiel={neuesSpiel} tonAn={tonAn} setTonAn={setTonAn} konto={konto} onAbmelden={onAbmelden} />
             )}
           </section>
         )}

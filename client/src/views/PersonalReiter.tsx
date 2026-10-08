@@ -12,10 +12,11 @@ import {
   type Bewerber,
   type Mitarbeiter,
   type Qualifikation,
+  formatEuro,
 } from '@leitstellendispo/shared';
 import type { MapLocation, Vehicle } from '../types';
 
-const euro = (betrag: number) => `${betrag.toLocaleString('de-DE')} €`;
+const euro = formatEuro;
 
 const QualiChips = ({ qualifikationen }: { qualifikationen: Qualifikation[] }) => (
   qualifikationen.length === 0
