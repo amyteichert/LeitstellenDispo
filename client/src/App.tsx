@@ -13,6 +13,7 @@ import {
   getFahrzeugTyp,
   getFahrzeugTypenFuerWache,
   istTeamRolle,
+  WACHEN_PREISE,
   WETTER_LABELS,
   type Wetter,
   istEskaliert,
@@ -26,7 +27,6 @@ import './App.css';
 
 import ViewDropdown from './ViewDropdown';
 
-import type { LocationType } from './types';
 import { useSpiel } from './useSpiel';
 import { useWetter } from './useWetter';
 import { ladeStartansicht, sichtbareAnsichten, type Ansicht } from './startansicht';
@@ -97,6 +97,15 @@ const createVehicleMarkerIcon = (label: string, art: FahrzeugFahrt['art'], organ
     iconAnchor: [0, 0],
   });
 
+/** Kleine Karte folgt der gesuchten Position */
+function KarteFolgt({ coords }: { coords: [number, number] | null }) {
+  const map = useMap();
+  useEffect(() => {
+    if (coords) map.setView(coords, Math.max(map.getZoom(), 13));
+  }, [coords, map]);
+  return null;
+}
+
 function MapClickHandler({
   onMapClick,
 }: {
@@ -155,6 +164,8 @@ function App({ konto, onAbmelden }: { konto: Konto; onAbmelden: () => Promise<vo
   // Einsatz, dessen Kurzinfo gerade als schwebendes Fenster auf der Karte angezeigt wird
   const [mapIncidentId, setMapIncidentId] = useState<string | null>(null);
   const [rufFensterOffen, setRufFensterOffen] = useState(false);
+  const [wacheKaufenOffen, setWacheKaufenOffen] = useState(false);
+  const [kaufMeldung, setKaufMeldung] = useState<string | null>(null);
 
   // Wetter wird nach useSpiel ermittelt (braucht die Wachen) und beim nächsten Rendern übergeben
   const wetterRef = useRef<Wetter>('klar');
@@ -204,7 +215,6 @@ function App({ konto, onAbmelden }: { konto: Konto; onAbmelden: () => Promise<vo
   };
 
   const [draftName, setDraftName] = useState('Neue Rettungswache');
-  const [draftType, setDraftType] = useState<LocationType>('station');
 
   // New states for address search and preview behavior
   const [address, setAddress] = useState('');
@@ -320,6 +330,12 @@ function App({ konto, onAbmelden }: { konto: Konto; onAbmelden: () => Promise<vo
       return;
     }
 
+    const kosten = (WACHEN_PREISE[draftStationKind] ?? 0) + (getFahrzeugTyp(draftStartVehicleType)?.preis ?? 0);
+    const name = draftName.trim() || draftStationKind;
+    if (!window.confirm(`„${name}“ (${draftStationKind} mit ${draftStartVehicleType}) für ${kosten.toLocaleString('de-DE')} € kaufen?
+
+Dein Guthaben: ${balance.toLocaleString('de-DE')} €`)) return;
+
     const ergebnis = spiel.erstelleWache({
       name: draftName,
       stationKind: draftStationKind,
@@ -335,6 +351,9 @@ function App({ konto, onAbmelden }: { konto: Konto; onAbmelden: () => Promise<vo
     }
 
     setSelectedId(ergebnis.id);
+    setWacheKaufenOffen(false);
+    setKaufMeldung(`✅ „${name}“ gekauft – ${kosten.toLocaleString('de-DE')} € bezahlt. Startfahrzeug und Besatzung sind bereit.`);
+    setTimeout(() => setKaufMeldung(null), 6000);
     setDraftStartVehicleCallsign('');
     // clear temp preview and address/choices
     setTempCoords(null);
@@ -343,6 +362,116 @@ function App({ konto, onAbmelden }: { konto: Konto; onAbmelden: () => Promise<vo
     setGeocodeResults([]);
     setSelectedGeocodeIndex(null);
   };
+
+  const wachenPreis = WACHEN_PREISE[draftStationKind] ?? 0;
+  const startFahrzeugPreis = getFahrzeugTyp(draftStartVehicleType)?.preis ?? 0;
+  // Dasselbe Formular steht in der Standort-Leiste und im Fenster „Wache kaufen“ (Ansicht Wachen)
+  const wachenFormular = (
+    <div className="location-form">
+      <div data-tour="wache-bauen">
+      <label className="field">
+        <span>Name</span>
+        <input
+          type="text"
+          value={draftName}
+          onChange={(event) => setDraftName(event.target.value)}
+          placeholder="z. B. Rettungswache Nord"
+        />
+      </label>
+
+      <label className="field">
+        <span>Wachentyp</span>
+        <select value={draftStationKind} onChange={(event) => setDraftStationKind(event.target.value as any)}>
+          <option value="Rettungswache">Rettungswache</option>
+          <option value="Feuerwache">Feuerwache</option>
+        </select>
+      </label>
+      </div>
+
+      <label className="field field--address" data-tour="wache-adresse">
+        <span>Adresse</span>
+        <input
+          type="text"
+          value={address}
+          onChange={(event) => setAddress(event.target.value)}
+          placeholder="Musterstraße 12, 14467 Potsdam"
+        />
+
+        <div style={{ marginTop: 8 }}>
+          <button className="btn btn--primary" type="button" onClick={() => geocodeAddress(address)} disabled={geocodeLoading}>
+            {geocodeLoading ? 'Suche...' : 'Adresse suchen'}
+          </button>
+        </div>
+
+        {geocodeError && <div className="field-error">{geocodeError}</div>}
+
+        {geocodeResults.length > 0 && (
+          <div className="geocode-results">
+            <small style={{ display: 'block', color: 'rgba(255,255,255,0.7)', marginBottom: 6 }}>Gefundene Adressen — Auswahl zur Prüfung:</small>
+            <ul>
+              {geocodeResults.map((r, idx) => (
+                <li key={r.place_id}>
+                  <button
+                    type="button"
+                    className={`view-menu-item ${selectedGeocodeIndex === idx ? 'active' : ''}`}
+                    onClick={() => {
+                                                              const coords: [number, number] = [parseFloat(r.lat), parseFloat(r.lon)];
+                                                              // Übernommenes Ergebnis im Adressfeld anzeigen
+                                                              setAddress(r.display_name);
+                                                              // Preview-Marker und Auswahl setzen
+                                                              setTempCoords(coords);
+                                                              setTempAdresse(adresseAusOsm(r.address));
+                                                              setSelectedGeocodeIndex(idx);
+                                                              // Liste der Suchergebnisse schließen
+                                                              setGeocodeResults([]);
+                                                              setGeocodeError(null);
+                                                              // Karte zur Position zentrieren
+                                                              try {
+                                                                mapRef.current?.setView(coords, mapRef.current.getZoom?.() ?? 13);
+                                                              } catch (e) { }
+                                                            }}
+                                                      >
+                                                            {r.display_name}
+                                                      </button>
+                                                    </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+      </label>
+
+      <p className="map-hint">Adresse eingeben → Adresse suchen → Karte zeigt Position (Vorschau). Klicke auf die Karte, um Vorschau zu verschieben.</p>
+
+      {/* Startfahrzeug Auswahl (genau EIN Fahrzeug) */}
+      <label className="field">
+        <span>Startfahrzeug</span>
+        <select value={draftStartVehicleType} onChange={(e) => setDraftStartVehicleType(e.target.value)}>
+          {getFahrzeugTypenFuerWache(draftStationKind).map((fahrzeugTyp) => (
+            <option key={fahrzeugTyp.typ} value={fahrzeugTyp.typ}>{fahrzeugTyp.typ}</option>
+          ))}
+        </select>
+      </label>
+
+      <label className="field">
+        <span>Funkrufname (z. B. "Wache-1")</span>
+        <input type="text" value={draftStartVehicleCallsign} onChange={(e) => setDraftStartVehicleCallsign(e.target.value)} placeholder="z. B. RTW-1" />
+      </label>
+
+      <p className="map-hint">Anschließend auf „Standort erstellen“ klicken — Wache und das ausgewählte Startfahrzeug werden gemeinsam erstellt.</p>
+
+      <p className="wache-kosten">
+        Kosten: <strong>{(wachenPreis + startFahrzeugPreis).toLocaleString('de-DE')} €</strong>
+        {' '}({draftStationKind} {wachenPreis.toLocaleString('de-DE')} € + {draftStartVehicleType} {startFahrzeugPreis.toLocaleString('de-DE')} €)
+        {balance < wachenPreis + startFahrzeugPreis && <span className="field-error"> – nicht genug Guthaben</span>}
+      </p>
+
+      <div style={{ marginTop: 8 }}>
+        <button className="btn btn--primary" type="button" data-tour="wache-erstellen" onClick={createLocationFromTemp} disabled={!tempCoords}>
+          Standort erstellen
+        </button>
+      </div>
+    </div>
+  );
 
   const deleteLocation = (id: string) => {
     const stationVehicles = vehicles.filter((vehicle) => vehicle.stationId === id);
@@ -508,6 +637,7 @@ function App({ konto, onAbmelden }: { konto: Konto; onAbmelden: () => Promise<vo
       )}
 
       <main className={`dashboard ${currentView === 'Karte' ? '' : 'dashboard--full'}`}>
+        {kaufMeldung && createPortal(<div className="aktion-rueckmeldung kauf-meldung" role="status">{kaufMeldung}</div>, document.body)}
         {currentView === 'Karte' && (
           <aside className={`sidebar ${sidebarOpen ? '' : 'sidebar--collapsed'}`}>
             <div className="panel-header">
@@ -523,111 +653,7 @@ function App({ konto, onAbmelden }: { konto: Konto; onAbmelden: () => Promise<vo
               </button>
             </div>
 
-            <div className="location-form">
-              <div data-tour="wache-bauen">
-              <label className="field">
-                <span>Name</span>
-                <input
-                  type="text"
-                  value={draftName}
-                  onChange={(event) => setDraftName(event.target.value)}
-                  placeholder="z. B. Rettungswache Nord"
-                />
-              </label>
-
-              <label className="field">
-                <span>Typ</span>
-                <select value={draftType} onChange={(event) => setDraftType(event.target.value as LocationType)}>
-                  <option value="station">Standort (station)</option>
-                </select>
-              </label>
-
-              <label className="field">
-                <span>Wachentyp</span>
-                <select value={draftStationKind} onChange={(event) => setDraftStationKind(event.target.value as any)}>
-                  <option value="Rettungswache">Rettungswache</option>
-                  <option value="Feuerwache">Feuerwache</option>
-                </select>
-              </label>
-              </div>
-
-              <label className="field field--address" data-tour="wache-adresse">
-                <span>Adresse</span>
-                <input
-                  type="text"
-                  value={address}
-                  onChange={(event) => setAddress(event.target.value)}
-                  placeholder="Musterstraße 12, 14467 Potsdam"
-                />
-
-                <div style={{ marginTop: 8 }}>
-                  <button className="btn btn--primary" type="button" onClick={() => geocodeAddress(address)} disabled={geocodeLoading}>
-                    {geocodeLoading ? 'Suche...' : 'Adresse suchen'}
-                  </button>
-                </div>
-
-                {geocodeError && <div className="field-error">{geocodeError}</div>}
-
-                {geocodeResults.length > 0 && (
-                  <div className="geocode-results">
-                    <small style={{ display: 'block', color: 'rgba(255,255,255,0.7)', marginBottom: 6 }}>Gefundene Adressen — Auswahl zur Prüfung:</small>
-                    <ul>
-                      {geocodeResults.map((r, idx) => (
-                        <li key={r.place_id}>
-                          <button
-                            type="button"
-                            className={`view-menu-item ${selectedGeocodeIndex === idx ? 'active' : ''}`}
-                            onClick={() => {
-                                                                      const coords: [number, number] = [parseFloat(r.lat), parseFloat(r.lon)];
-                                                                      // Übernommenes Ergebnis im Adressfeld anzeigen
-                                                                      setAddress(r.display_name);
-                                                                      // Preview-Marker und Auswahl setzen
-                                                                      setTempCoords(coords);
-                                                                      setTempAdresse(adresseAusOsm(r.address));
-                                                                      setSelectedGeocodeIndex(idx);
-                                                                      // Liste der Suchergebnisse schließen
-                                                                      setGeocodeResults([]);
-                                                                      setGeocodeError(null);
-                                                                      // Karte zur Position zentrieren
-                                                                      try {
-                                                                        mapRef.current?.setView(coords, mapRef.current.getZoom?.() ?? 13);
-                                                                      } catch (e) { }
-                                                                    }}
-                                                              >
-                                                                    {r.display_name}
-                                                              </button>
-                                                            </li>
-                                    ))}
-                                  </ul>
-                                </div>
-                              )}
-              </label>
-
-              <p className="map-hint">Adresse eingeben → Adresse suchen → Karte zeigt Position (Vorschau). Klicke auf die Karte, um Vorschau zu verschieben.</p>
-
-              {/* Startfahrzeug Auswahl (genau EIN Fahrzeug) */}
-              <label className="field">
-                <span>Startfahrzeug</span>
-                <select value={draftStartVehicleType} onChange={(e) => setDraftStartVehicleType(e.target.value)}>
-                  {getFahrzeugTypenFuerWache(draftStationKind).map((fahrzeugTyp) => (
-                    <option key={fahrzeugTyp.typ} value={fahrzeugTyp.typ}>{fahrzeugTyp.typ}</option>
-                  ))}
-                </select>
-              </label>
-
-              <label className="field">
-                <span>Funkrufname (z. B. "Wache-1")</span>
-                <input type="text" value={draftStartVehicleCallsign} onChange={(e) => setDraftStartVehicleCallsign(e.target.value)} placeholder="z. B. RTW-1" />
-              </label>
-
-              <p className="map-hint">Anschließend auf „Standort erstellen“ klicken — Wache und das ausgewählte Startfahrzeug werden gemeinsam erstellt.</p>
-
-              <div style={{ marginTop: 8 }}>
-                <button className="btn btn--primary" type="button" data-tour="wache-erstellen" onClick={createLocationFromTemp} disabled={!tempCoords}>
-                  Standort erstellen
-                </button>
-              </div>
-            </div>
+            {wachenFormular}
 
             <div className="location-list">
               {locations.map((location) => (
@@ -829,7 +855,41 @@ function App({ konto, onAbmelden }: { konto: Konto; onAbmelden: () => Promise<vo
                 buyVehicle={spiel.buyVehicle}
                 erweitereStellplaetze={spiel.erweitereStellplaetze}
                 personalAktionen={spiel}
+                onWacheKaufen={() => setWacheKaufenOffen(true)}
               />
+            )}
+
+            {wacheKaufenOffen && createPortal(
+              <div className="ruf-fenster__hintergrund" onClick={() => setWacheKaufenOffen(false)}>
+                <div className="ruf-fenster wache-kaufen" role="dialog" aria-modal="true" aria-label="Wache kaufen" onClick={(event) => event.stopPropagation()}>
+                  <div className="ruf-fenster__kopf">
+                    <h3>🏗️ Neue Wache kaufen</h3>
+                    <button type="button" className="btn" onClick={() => setWacheKaufenOffen(false)} aria-label="Schließen">✕</button>
+                  </div>
+                  <MapContainer
+                    center={tempCoords ?? locations.find((location) => location.type === 'station')?.coords ?? [51.16, 10.45]}
+                    zoom={tempCoords || locations.length > 0 ? 13 : 6}
+                    scrollWheelZoom
+                    className="wache-kaufen__karte"
+                  >
+                    <TileLayer
+                      attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>-Mitwirkende'
+                      url="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
+                      className="map-tiles--dunkel"
+                      maxZoom={19}
+                    />
+                    <MapClickHandler onMapClick={handleMapClick} />
+                    <KarteFolgt coords={tempCoords} />
+                    {locations.filter((location) => location.type === 'station').map((location) => (
+                      <Marker key={location.id} position={location.coords} icon={createMarkerIcon('#d92d2d')} />
+                    ))}
+                    {tempCoords && <Marker position={tempCoords} icon={createMarkerIcon('#2563eb')} />}
+                  </MapContainer>
+                  <p className="map-hint">Tippe auf die kleine Karte oder suche eine Adresse – der blaue Punkt ist deine neue Wache.</p>
+                  {wachenFormular}
+                </div>
+              </div>,
+              document.body,
             )}
 
             {currentView === 'Fahrzeuge' && (

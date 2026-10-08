@@ -2363,3 +2363,35 @@
   color: var(--color-text);
   opacity: 1;
 }
+
+/* Fenster „Wache kaufen“ */
+.wachen-kopf {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.wache-kaufen .location-form {
+  margin-top: 8px;
+}
+.wache-kaufen__karte {
+  height: 260px;
+  border-radius: 10px;
+  border: 1px solid var(--color-border);
+  margin-top: 8px;
+}
+.wache-kosten {
+  margin: 8px 0 0;
+  font-size: 14px;
+}
+.kauf-meldung {
+  position: fixed;
+  left: 50%;
+  bottom: 24px;
+  transform: translateX(-50%);
+  z-index: 3000;
+  max-width: calc(100% - 32px);
+  background: #12261c;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
+}

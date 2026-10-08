@@ -68,6 +68,7 @@ export default function WachenView({
   buyVehicle,
   erweitereStellplaetze,
   personalAktionen,
+  onWacheKaufen,
 }: {
   locations: MapLocation[];
   selectedId: string;
@@ -79,6 +80,7 @@ export default function WachenView({
   buyVehicle: (stationId: string, typ: string) => string | null;
   erweitereStellplaetze: (stationId: string) => string | null;
   personalAktionen: PersonalAktionen;
+  onWacheKaufen: () => void;
 }) {
   const stations = locations.filter((l) => l.type === 'station');
   const [verwaltenId, setVerwaltenId] = useState<string | null>(null);
@@ -102,11 +104,14 @@ export default function WachenView({
 
   return (
     <div>
-      <h2>Wachen</h2>
+      <div className="wachen-kopf">
+        <h2>Wachen</h2>
+        <button type="button" className="btn btn--primary" data-tour="wache-kaufen" onClick={onWacheKaufen}>＋ Wache kaufen</button>
+      </div>
       {stations.length === 0 && (
         <div className="leerzustand">
           <strong>Noch keine Wache</strong>
-          Baue deine erste Wache auf der Karte.
+          Tippe auf „＋ Wache kaufen“ und such dir einen Standort aus.
         </div>
       )}
       <ul className="wachen-liste">

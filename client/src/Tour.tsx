@@ -61,7 +61,7 @@ export const TOUR_SCHRITTE: TourSchritt[] = [
   { ansicht: 'Funk', ziel: '[data-tour="funk"]', titel: 'Funk', text: 'Statusmeldungen deiner Fahrzeuge. Meldet sich ein Fahrzeug mit Status 5 (Sprechwunsch), gib ihm eine Sprechaufforderung – dann erfährst du, was es braucht.' },
   { ansicht: 'Karte', ziel: '.map-view', titel: 'Die Karte', text: 'Hier siehst du Wachen, Einsätze und Fahrzeuge in Echtzeit. Tippe einen Einsatz an, um direkt von der Karte zu alarmieren.' },
   { ansicht: 'Finanzen', ziel: '[data-tour="finanzen"]', titel: 'Finanzen', text: 'Jeder Einsatz bringt eine Grundvergütung plus Bonus je nach Ruf. Hier siehst du alle Einnahmen und Ausgaben.' },
-  { ansicht: 'Karte', standorteOeffnen: true, ziel: '[data-tour="wache-bauen"]', titel: 'Weitere Wachen kaufen', text: 'Wird dein Gebiet zu groß oder die Anfahrt zu lang? Hier kaufst du jederzeit weitere Wachen – genauso wie die erste.' },
+  { ansicht: 'Wachen', ziel: '[data-tour="wache-kaufen"]', titel: 'Weitere Wachen kaufen', text: 'Wird dein Gebiet zu groß oder die Anfahrt zu lang? Unter „Wachen“ öffnet „＋ Wache kaufen“ ein Fenster mit kleiner Karte. Vor dem Kauf siehst du den Preis und musst ihn bestätigen.' },
   { titel: 'Bereit für deine Schicht! ✅', text: 'Das war die Tour. Viel Erfolg in der Leitstelle! Du findest sie jederzeit unter Einstellungen → „Tour starten“.' },
 ];
 
