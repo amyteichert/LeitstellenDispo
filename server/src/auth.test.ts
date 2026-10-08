@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import type { Datenbank } from './datenbank.js';
-import { cookieAus, starteTestServer, type TestServer } from './testServer.js';
+import { cookieAus, testmail, starteTestServer, type TestServer } from './testServer.js';
 
 let server: TestServer;
 let db: Datenbank;
@@ -17,16 +17,16 @@ const ich = (cookie?: string) => server.anfrage('GET', '/auth/ich', { cookie });
 
 describe('Registrieren', () => {
   it('macht das erste Konto zum Owner, alle weiteren zu Spielern', async () => {
-    const erstes = await post('/registrieren', { name: 'Disponent', passwort: 'geheim123' });
+    const erstes = await post('/registrieren', { name: 'Disponent', email: testmail('Disponent'), passwort: 'geheim123' });
     expect(erstes.status).toBe(201);
     expect((await erstes.json()).konto).toMatchObject({ name: 'Disponent', rolle: 'owner' });
 
-    const zweites = await post('/registrieren', { name: 'Gast', passwort: 'geheim123' });
+    const zweites = await post('/registrieren', { name: 'Gast', email: testmail('Gast'), passwort: 'geheim123' });
     expect((await zweites.json()).konto).toMatchObject({ name: 'Gast', rolle: 'player' });
   });
 
   it('meldet direkt an und setzt ein httpOnly-Cookie', async () => {
-    const res = await post('/registrieren', { name: 'Disponent', passwort: 'geheim123' });
+    const res = await post('/registrieren', { name: 'Disponent', email: testmail('Disponent'), passwort: 'geheim123' });
     expect(res.headers.get('set-cookie')).toMatch(/ld_sitzung=.+HttpOnly/i);
     const antwort = await ich(cookieAus(res));
     expect(antwort.status).toBe(200);
@@ -34,19 +34,19 @@ describe('Registrieren', () => {
   });
 
   it('lehnt doppelte Namen ohne Rücksicht auf Groß-/Kleinschreibung ab', async () => {
-    await post('/registrieren', { name: 'Disponent', passwort: 'geheim123' });
-    const res = await post('/registrieren', { name: 'disponent', passwort: 'anderes123' });
+    await post('/registrieren', { name: 'Disponent', email: testmail('Disponent'), passwort: 'geheim123' });
+    const res = await post('/registrieren', { name: 'disponent', email: testmail('disponent'), passwort: 'anderes123' });
     expect(res.status).toBe(409);
   });
 
   it('prüft Name und Passwort', async () => {
-    expect((await post('/registrieren', { name: 'A', passwort: 'geheim123' })).status).toBe(400);
-    expect((await post('/registrieren', { name: 'Disponent', passwort: 'kurz' })).status).toBe(400);
+    expect((await post('/registrieren', { name: 'A', email: testmail('A'), passwort: 'geheim123' })).status).toBe(400);
+    expect((await post('/registrieren', { name: 'Disponent', email: testmail('Disponent'), passwort: 'kurz' })).status).toBe(400);
     expect((await post('/registrieren', {})).status).toBe(400);
   });
 
   it('speichert das Passwort nur als bcrypt-Hash', async () => {
-    await post('/registrieren', { name: 'Disponent', passwort: 'geheim123' });
+    await post('/registrieren', { name: 'Disponent', email: testmail('Disponent'), passwort: 'geheim123' });
     const zeile = db.prepare('SELECT passwort_hash FROM benutzer').get() as { passwort_hash: string };
     expect(zeile.passwort_hash).not.toContain('geheim123');
     expect(zeile.passwort_hash).toMatch(/^\$2[aby]\$/);
@@ -54,15 +54,15 @@ describe('Registrieren', () => {
 
   it('bremst nach 5 Registrierungen pro Stunde', async () => {
     for (let i = 0; i < 5; i++) {
-      expect((await post('/registrieren', { name: `Spieler${i}`, passwort: 'geheim123' })).status).toBe(201);
+      expect((await post('/registrieren', { name: `Spieler${i}`, email: testmail(`Spieler${i}`), passwort: 'geheim123' })).status).toBe(201);
     }
-    expect((await post('/registrieren', { name: 'Spieler9', passwort: 'geheim123' })).status).toBe(429);
+    expect((await post('/registrieren', { name: 'Spieler9', email: testmail('Spieler9'), passwort: 'geheim123' })).status).toBe(429);
   });
 });
 
 describe('Anmelden und Abmelden', () => {
   beforeEach(async () => {
-    await post('/registrieren', { name: 'Disponent', passwort: 'geheim123' });
+    await post('/registrieren', { name: 'Disponent', email: testmail('Disponent'), passwort: 'geheim123' });
   });
 
   it('meldet mit richtigen Daten an (Name ohne Groß-/Kleinschreibung)', async () => {

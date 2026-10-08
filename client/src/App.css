@@ -2238,3 +2238,105 @@
   background: var(--color-primary);
   color: #fff;
 }
+
+/* Geführte Tour: alles außer dem hervorgehobenen Element ist gesperrt */
+.tour {
+  position: fixed;
+  inset: 0;
+  z-index: 6000;
+  pointer-events: none;
+}
+.tour__sperre {
+  position: fixed;
+  background: rgba(0, 0, 0, 0.62);
+  pointer-events: auto;
+}
+.tour__rahmen {
+  position: fixed;
+  border: 2px solid var(--color-primary);
+  border-radius: 10px;
+  box-shadow: 0 0 0 4px rgba(196, 30, 58, 0.35);
+  transition: top 0.2s, left 0.2s, width 0.2s, height 0.2s;
+}
+.tour__rahmen--tippen {
+  pointer-events: none; /* Klicks gehen ans Element darunter */
+  animation: tour-puls 1.4s ease-in-out infinite;
+}
+.tour__rahmen--info {
+  pointer-events: auto; /* Element nur zeigen, nicht bedienen */
+}
+@keyframes tour-puls {
+  50% { box-shadow: 0 0 0 9px rgba(196, 30, 58, 0.15); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .tour__rahmen { transition: none; }
+  .tour__rahmen--tippen { animation: none; }
+}
+.tour__box {
+  position: fixed;
+  width: min(320px, calc(100vw - 24px));
+  padding: 14px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border-strong);
+  border-radius: 12px;
+  color: var(--color-text);
+  pointer-events: auto;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+}
+.tour__box small {
+  color: var(--color-text-muted);
+}
+.tour__box h3 {
+  margin: 4px 0 6px;
+}
+.tour__box p {
+  margin: 0 0 12px;
+  line-height: 1.45;
+}
+.tour__knoepfe {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.tour__tipp {
+  color: var(--color-primary-text);
+  font-size: 0.9rem;
+}
+
+/* Einstellungen: Konto-Formulare */
+.einstellungen-block {
+  margin: 12px 0;
+}
+.einstellungen-block h3 {
+  margin: 0 0 6px;
+  font-size: 1rem;
+}
+.einstellungen-formular {
+  display: grid;
+  gap: 8px;
+  max-width: 360px;
+}
+.einstellungen-formular .field span {
+  display: block;
+  font-size: 12px;
+  color: var(--color-text-muted);
+  margin-bottom: 2px;
+}
+
+/* Anmeldung: Text-Links wie „Passwort vergessen?“ */
+.anmeldung__link {
+  background: none;
+  border: none;
+  padding: 4px 0;
+  color: var(--color-text-muted);
+  font: inherit;
+  font-size: 0.9rem;
+  text-decoration: underline;
+  cursor: pointer;
+  justify-self: center;
+}
+.anmeldung__link:hover {
+  color: var(--color-text);
+}

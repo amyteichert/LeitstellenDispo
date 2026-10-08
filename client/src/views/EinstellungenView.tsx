@@ -2,6 +2,7 @@ import { useState } from 'react';
 import type { Konto, UserRole } from '@leitstellendispo/shared';
 import { STARTANSICHTEN, ladeStartansicht, speichereStartansicht, type Ansicht } from '../startansicht';
 import { RechtlicheLinks } from '../Rechtliches';
+import KontoEinstellungen from './KontoEinstellungen';
 
 const ROLLEN_LABELS: Record<UserRole, string> = {
   owner: 'Owner',
@@ -16,7 +17,14 @@ export default function EinstellungenView({
   setTonAn,
   konto,
   onAbmelden,
+  email,
+  onEmailGeaendert,
+  onTourStarten,
 }: {
+  email: string | null;
+  onEmailGeaendert: (email: string) => void;
+  /** Startet die geführte Tour erneut */
+  onTourStarten: () => void;
   onNeuesSpiel: () => void;
   tonAn: boolean;
   setTonAn: (an: boolean) => void;
@@ -47,6 +55,12 @@ export default function EinstellungenView({
       </div>
 
       <div style={{ padding: 8, background: 'var(--color-surface)', borderRadius: 8, marginTop: 12 }}>
+        <h3 style={{ marginBottom: 6 }}>Tour durchs Spiel</h3>
+        <p style={{ fontSize: 12, color: 'var(--color-text-muted)', marginBottom: 8 }}>Zeigt dir Schritt für Schritt die wichtigsten Bereiche – jederzeit wiederholbar.</p>
+        <button className="btn btn--secondary" type="button" onClick={onTourStarten}>Tour starten</button>
+      </div>
+
+      <div style={{ padding: 8, background: 'var(--color-surface)', borderRadius: 8, marginTop: 12 }}>
         <h3 style={{ marginBottom: 6 }}>Alarmton</h3>
         <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <input type="checkbox" checked={tonAn} onChange={(e) => setTonAn(e.target.checked)} />
@@ -59,6 +73,7 @@ export default function EinstellungenView({
         <p style={{ marginBottom: 8 }}>
           Angemeldet als <strong>{konto.name}</strong> ({ROLLEN_LABELS[konto.rolle]})
         </p>
+        <KontoEinstellungen email={email} onEmailGeaendert={onEmailGeaendert} />
         <button
           className="btn btn--secondary"
           type="button"

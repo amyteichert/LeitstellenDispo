@@ -1,13 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { createNeuesSpiel } from '@leitstellendispo/shared';
-import { cookieAus, starteTestServer, type TestServer } from './testServer.js';
+import { cookieAus, testmail, starteTestServer, type TestServer } from './testServer.js';
 
 let server: TestServer;
 let spieler: string;
 
 beforeEach(async () => {
   server = await starteTestServer();
-  spieler = cookieAus(await server.anfrage('POST', '/auth/registrieren', { body: { name: 'Disponent', passwort: 'geheim123' } }));
+  spieler = cookieAus(await server.anfrage('POST', '/auth/registrieren', { body: { name: 'Disponent', email: testmail('Disponent'), passwort: 'geheim123' } }));
 });
 
 afterEach(() => server.beenden());
@@ -33,7 +33,7 @@ describe('Spielstand pro Konto', () => {
   });
 
   it('trennt die Spielstände verschiedener Konten', async () => {
-    const gast = cookieAus(await server.anfrage('POST', '/auth/registrieren', { body: { name: 'Gast', passwort: 'geheim123' } }));
+    const gast = cookieAus(await server.anfrage('POST', '/auth/registrieren', { body: { name: 'Gast', email: testmail('Gast'), passwort: 'geheim123' } }));
     await speichern({ ...createNeuesSpiel(), balance: 4711 }, spieler);
     expect((await (await laden(gast)).json()).spielstand).toBeNull();
   });

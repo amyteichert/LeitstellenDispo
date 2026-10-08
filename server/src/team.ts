@@ -11,7 +11,7 @@ import {
   type UserRole,
 } from '@leitstellendispo/shared';
 import type { Datenbank } from './datenbank.js';
-import { ladeKonto, nurAngemeldet } from './auth.js';
+import { ladeKonto, nurAngemeldet, passwortLink, spielBasisUrl, type AuthOptionen } from './auth.js';
 import type { KontenDienst } from './konten.js';
 
 interface TeamKontoZeile {
@@ -21,6 +21,7 @@ interface TeamKontoZeile {
   gesperrt: number;
   erstellt: string;
   dev_markiert: number;
+  email: string | null;
   zuletzt: string | null;
 }
 
@@ -29,6 +30,7 @@ const zuTeamKonto = (z: TeamKontoZeile): TeamKonto => ({
   name: z.name,
   rolle: z.rolle,
   erstellt: z.erstellt,
+  email: z.email,
   gesperrt: Boolean(z.gesperrt),
   devMarkiert: Boolean(z.dev_markiert),
   zuletztGespielt: z.zuletzt,
@@ -44,14 +46,14 @@ export function nurTeam(_req: Request, res: Response, next: NextFunction) {
 }
 
 const KONTO_SPALTEN = `
-  b.id, b.name, b.rolle, b.gesperrt, b.erstellt, b.dev_markiert, s.aktualisiert AS zuletzt
+  b.id, b.name, b.rolle, b.gesperrt, b.erstellt, b.dev_markiert, b.email, s.aktualisiert AS zuletzt
   FROM benutzer b LEFT JOIN spielstaende s ON s.benutzer_id = b.id`;
 
-export function erstelleTeamRouter(db: Datenbank, konten: KontenDienst): Router {
+export function erstelleTeamRouter(db: Datenbank, konten: KontenDienst, optionen: AuthOptionen = {}): Router {
   const router = Router();
   const sql = {
     konto: db.prepare(`SELECT ${KONTO_SPALTEN} WHERE b.id = ?`),
-    suche: db.prepare(`SELECT ${KONTO_SPALTEN} WHERE b.name LIKE ? ESCAPE '\\' ORDER BY b.id LIMIT 200`),
+    suche: db.prepare(`SELECT ${KONTO_SPALTEN} WHERE b.name LIKE ? ESCAPE '\\' OR b.email LIKE ? ESCAPE '\\' ORDER BY b.id LIMIT 200`),
     uebersicht: db.prepare(`
       SELECT
         COUNT(*) AS konten,
@@ -110,7 +112,7 @@ export function erstelleTeamRouter(db: Datenbank, konten: KontenDienst): Router 
   router.get('/konten', (req, res) => {
     const suche = typeof req.query.suche === 'string' ? req.query.suche.trim().slice(0, 50) : '';
     const muster = `%${suche.replace(/[\\%_]/g, (zeichen) => `\\${zeichen}`)}%`;
-    res.json({ konten: (sql.suche.all(muster) as TeamKontoZeile[]).map(zuTeamKonto) });
+    res.json({ konten: (sql.suche.all(muster, muster) as TeamKontoZeile[]).map(zuTeamKonto) });
   });
 
   router.get('/konten/:id/spielstand', (req, res) => {
@@ -140,6 +142,14 @@ export function erstelleTeamRouter(db: Datenbank, konten: KontenDienst): Router 
     }
     sql.rolle.run(rolle, zeile.id);
     res.json({ konto: zuTeamKonto(sql.konto.get(zeile.id) as TeamKontoZeile) });
+  });
+
+  // Link zum Zurücksetzen des Passworts erzeugen und selbst weitergeben (solange es keinen Mailversand gibt)
+  router.post('/konten/:id/passwort-link', (req, res) => {
+    const ziel = zielKonto(req, res);
+    if (!ziel) return;
+    const { token, laeuftAb } = konten.erstellePasswortToken(ziel.id);
+    res.json({ link: passwortLink(spielBasisUrl(req, optionen.spielUrl), token), laeuftAb });
   });
 
   router.delete('/konten/:id/spielstand', (req, res) => {

@@ -34,7 +34,31 @@ async function sende(pfad: string, body?: unknown): Promise<Konto> {
 }
 
 export const anmelden = (name: string, passwort: string) => sende('/anmelden', { name, passwort });
-export const registrieren = (name: string, passwort: string) => sende('/registrieren', { name, passwort });
+export const registrieren = (name: string, email: string, passwort: string) => sende('/registrieren', { name, email, passwort });
+
+/** Anfrage an /api/auth, die kein Konto zurückgibt */
+async function auth<T>(pfad: string, body?: unknown, methode = 'POST'): Promise<T> {
+  let res: Response;
+  try {
+    res = await fetch(`/api/auth${pfad}`, {
+      method: methode,
+      headers: body === undefined ? undefined : { 'Content-Type': 'application/json' },
+      body: body === undefined ? undefined : JSON.stringify(body),
+    });
+  } catch {
+    throw new KontoFehler(SERVER_NICHT_ERREICHBAR);
+  }
+  const daten = res.status === 204 ? null : await res.json().catch(() => null);
+  if (!res.ok) throw new KontoFehler(fehlerText(res, daten));
+  return daten as T;
+}
+
+/** Welche Konto-Funktionen der Server gerade anbietet */
+export const holeFunktionen = () => auth<{ passwortVergessen: boolean }>('/funktionen', undefined, 'GET').catch(() => ({ passwortVergessen: false }));
+export const aendereEmail = (email: string, passwort: string) => auth<{ konto: Konto }>('/email', { email, passwort }).then((d) => d.konto);
+export const aenderePasswort = (altesPasswort: string, neuesPasswort: string) => auth<null>('/passwort', { altesPasswort, neuesPasswort });
+export const passwortVergessen = (email: string) => auth<{ hinweis: string }>('/passwort-vergessen', { email }).then((d) => d.hinweis);
+export const passwortZuruecksetzen = (token: string, passwort: string) => auth<{ name: string }>('/passwort-zuruecksetzen', { token, passwort }).then((d) => d.name);
 
 /** Angemeldetes Konto laut Server – `null`, wenn keine gültige Sitzung besteht. Wirft, wenn der Server nicht erreichbar ist. */
 export async function holeKonto(): Promise<Konto | null> {
@@ -83,4 +107,5 @@ export const teamApi = {
   spielstandZuruecksetzen: (id: number) => team<null>('DELETE', `/konten/${id}/spielstand`),
   loeschen: (id: number) => team<null>('DELETE', `/konten/${id}`),
   devMarkierung: () => team<null>('POST', '/dev-markierung'),
+  passwortLink: (id: number) => team<{ link: string; laeuftAb: number }>('POST', `/konten/${id}/passwort-link`),
 };

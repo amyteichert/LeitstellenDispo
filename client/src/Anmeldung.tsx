@@ -8,10 +8,11 @@ import {
   LEHRGAENGE,
   formatBedarfsListe,
   pruefeBenutzername,
+  pruefeEmail,
   pruefePasswort,
   type Konto,
 } from '@leitstellendispo/shared';
-import { KontoFehler, SITZUNG_ABGELAUFEN, abmelden, anmelden, holeKonto, registrieren } from './konto';
+import { KontoFehler, SITZUNG_ABGELAUFEN, abmelden, anmelden, holeFunktionen, holeKonto, passwortVergessen, registrieren } from './konto';
 import { serverSpeicher, uebernimmBrowserSpielstand } from './spielstand';
 import { RechtlicheLinks } from './Rechtliches';
 import './App.css';
@@ -185,8 +186,9 @@ function EinsatzTicker() {
 }
 
 function AnmeldeFormular({ hinweis, onErfolg }: { hinweis?: string; onErfolg: (konto: Konto) => Promise<void> }) {
-  const [modus, setModus] = useState<'anmelden' | 'registrieren'>('anmelden');
+  const [modus, setModus] = useState<'anmelden' | 'registrieren' | 'vergessen'>('anmelden');
   const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
   const [passwort, setPasswort] = useState('');
   const [passwortWiederholt, setPasswortWiederholt] = useState('');
   const [fehler, setFehler] = useState<string | null>(null);
@@ -195,24 +197,26 @@ function AnmeldeFormular({ hinweis, onErfolg }: { hinweis?: string; onErfolg: (k
   const id = useId();
   const istRegistrierung = modus === 'registrieren';
 
-  const wechsleModus = () => {
-    setModus(istRegistrierung ? 'anmelden' : 'registrieren');
+  const wechsleModus = (neu: 'anmelden' | 'registrieren' = istRegistrierung ? 'anmelden' : 'registrieren') => {
+    setModus(neu);
     setFehler(null);
     setPasswortWiederholt('');
   };
+
+  if (modus === 'vergessen') return <PasswortVergessen email={email} setEmail={setEmail} onZurueck={() => wechsleModus('anmelden')} />;
 
   const absenden = async (e: FormEvent) => {
     e.preventDefault();
     if (istRegistrierung) {
       // Dieselben Regeln wie auf dem Server – so gibt es die Rückmeldung sofort
-      const eingabeFehler = pruefeBenutzername(name) ?? pruefePasswort(passwort)
+      const eingabeFehler = pruefeEmail(email) ?? pruefeBenutzername(name) ?? pruefePasswort(passwort)
         ?? (passwort !== passwortWiederholt ? 'Die Passwörter stimmen nicht überein.' : null);
       if (eingabeFehler) return setFehler(eingabeFehler);
     }
     setSendet(true);
     setFehler(null);
     try {
-      const konto = await (istRegistrierung ? registrieren : anmelden)(name.trim(), passwort);
+      const konto = istRegistrierung ? await registrieren(name.trim(), email.trim(), passwort) : await anmelden(name.trim(), passwort);
       await onErfolg(konto);
     } catch (error) {
       setFehler(error instanceof KontoFehler ? error.message : 'Unerwarteter Fehler. Bitte erneut versuchen.');
@@ -221,6 +225,7 @@ function AnmeldeFormular({ hinweis, onErfolg }: { hinweis?: string; onErfolg: (k
   };
 
   const regeln = [
+    { ok: pruefeEmail(email) === null, text: 'Gültige E-Mail-Adresse (zum Zurücksetzen des Passworts)' },
     { ok: pruefeBenutzername(name) === null, text: `Name: ${KONTO_REGELN.nameMinLaenge}–${KONTO_REGELN.nameMaxLaenge} Zeichen, Buchstaben, Ziffern, _ . -` },
     { ok: pruefePasswort(passwort) === null, text: `Passwort: mindestens ${KONTO_REGELN.passwortMinLaenge} Zeichen` },
     { ok: passwort.length > 0 && passwort === passwortWiederholt, text: 'Passwörter stimmen überein' },
@@ -236,7 +241,7 @@ function AnmeldeFormular({ hinweis, onErfolg }: { hinweis?: string; onErfolg: (k
             role="tab"
             aria-selected={modus === m}
             className={modus === m ? 'aktiv' : undefined}
-            onClick={() => modus !== m && wechsleModus()}
+            onClick={() => modus !== m && wechsleModus(m)}
             disabled={sendet}
           >
             {m === 'anmelden' ? 'Anmelden' : 'Registrieren'}
@@ -252,6 +257,27 @@ function AnmeldeFormular({ hinweis, onErfolg }: { hinweis?: string; onErfolg: (k
       </div>
       {hinweis && !fehler && <p className="anmeldung__hinweis">{hinweis}</p>}
 
+      {istRegistrierung && (
+        <div className="anmeldung__feld">
+          <label htmlFor={`${id}-email`}>E-Mail-Adresse</label>
+          <div className="anmeldung__eingabe">
+            <span aria-hidden>✉️</span>
+            <input
+              id={`${id}-email`}
+              type="email"
+              value={email}
+              onChange={(e) => { setEmail(e.target.value); setFehler(null); }}
+              autoComplete="email"
+              autoCapitalize="none"
+              spellCheck={false}
+              maxLength={KONTO_REGELN.emailMaxLaenge}
+              placeholder="name@beispiel.de"
+              required
+              autoFocus
+            />
+          </div>
+        </div>
+      )}
       <div className="anmeldung__feld">
         <label htmlFor={`${id}-name`}>Benutzername</label>
         <div className="anmeldung__eingabe">
@@ -266,7 +292,7 @@ function AnmeldeFormular({ hinweis, onErfolg }: { hinweis?: string; onErfolg: (k
             maxLength={KONTO_REGELN.nameMaxLaenge}
             placeholder="z. B. Disponent_112"
             required
-            autoFocus
+            autoFocus={!istRegistrierung}
           />
         </div>
       </div>
@@ -324,6 +350,81 @@ function AnmeldeFormular({ hinweis, onErfolg }: { hinweis?: string; onErfolg: (k
       <button type="submit" className="btn btn--primary anmeldung__absenden" disabled={sendet}>
         {sendet ? <><span className="anmeldung__spinner" aria-hidden /> Bitte warten …</> : istRegistrierung ? 'Konto erstellen →' : 'Zum Dienst anmelden →'}
       </button>
+      {!istRegistrierung && (
+        <button type="button" className="anmeldung__link" onClick={() => setModus('vergessen')} disabled={sendet}>
+          Passwort vergessen?
+        </button>
+      )}
+    </form>
+  );
+}
+
+/** „Passwort vergessen“: Link per E-Mail – solange der Server keinen Mailversand hat, nur ein Hinweis. */
+function PasswortVergessen({ email, setEmail, onZurueck }: { email: string; setEmail: (e: string) => void; onZurueck: () => void }) {
+  const [verfuegbar, setVerfuegbar] = useState<boolean | null>(null);
+  const [fehler, setFehler] = useState<string | null>(null);
+  const [erledigt, setErledigt] = useState<string | null>(null);
+  const [sendet, setSendet] = useState(false);
+  const id = useId();
+
+  useEffect(() => {
+    void holeFunktionen().then((f) => setVerfuegbar(f.passwortVergessen));
+  }, []);
+
+  const absenden = async (e: FormEvent) => {
+    e.preventDefault();
+    const eingabeFehler = pruefeEmail(email);
+    if (eingabeFehler) return setFehler(eingabeFehler);
+    setSendet(true);
+    setFehler(null);
+    try {
+      setErledigt(await passwortVergessen(email.trim()));
+    } catch (error) {
+      setFehler(error instanceof KontoFehler ? error.message : 'Unerwarteter Fehler. Bitte erneut versuchen.');
+    } finally {
+      setSendet(false);
+    }
+  };
+
+  return (
+    <form className="anmeldung__formular" onSubmit={absenden} noValidate>
+      <div>
+        <h2>Passwort vergessen?</h2>
+        <p className="anmeldung__info">Gib die E-Mail-Adresse deines Kontos ein – du bekommst einen Link, mit dem du ein neues Passwort festlegst.</p>
+      </div>
+
+      {verfuegbar === false ? (
+        <p className="anmeldung__hinweis">
+          Das Zurücksetzen per E-Mail kommt bald. Bis dahin hilft dir das Team weiter – melde dich im Discord.
+        </p>
+      ) : erledigt ? (
+        <p className="anmeldung__hinweis" role="status">✓ {erledigt} Schau auch im Spam-Ordner nach.</p>
+      ) : (
+        <>
+          <div className="anmeldung__feld">
+            <label htmlFor={`${id}-email`}>E-Mail-Adresse</label>
+            <div className="anmeldung__eingabe">
+              <span aria-hidden>✉️</span>
+              <input
+                id={`${id}-email`}
+                type="email"
+                value={email}
+                onChange={(e) => { setEmail(e.target.value); setFehler(null); }}
+                autoComplete="email"
+                autoCapitalize="none"
+                spellCheck={false}
+                required
+                autoFocus
+              />
+            </div>
+          </div>
+          {fehler && <p className="anmeldung__fehler" role="alert">{fehler}</p>}
+          <button type="submit" className="btn btn--primary anmeldung__absenden" disabled={sendet || verfuegbar === null}>
+            {sendet ? <><span className="anmeldung__spinner" aria-hidden /> Bitte warten …</> : 'Link anfordern →'}
+          </button>
+        </>
+      )}
+      <button type="button" className="anmeldung__link" onClick={onZurueck}>← Zurück zur Anmeldung</button>
     </form>
   );
 }

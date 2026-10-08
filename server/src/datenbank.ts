@@ -43,6 +43,17 @@ const MIGRATIONEN: string[] = [
   `
   ALTER TABLE benutzer ADD COLUMN dev_markiert INTEGER NOT NULL DEFAULT 0;
   `,
+  // 3: E-Mail-Adresse (Pflicht für neue Konten, ältere tragen sie nach) und Tokens zum Zurücksetzen des Passworts
+  `
+  ALTER TABLE benutzer ADD COLUMN email TEXT;
+  CREATE UNIQUE INDEX benutzer_email ON benutzer(email) WHERE email IS NOT NULL;
+
+  CREATE TABLE passwort_tokens (
+    token_hash  TEXT    PRIMARY KEY,
+    benutzer_id INTEGER NOT NULL REFERENCES benutzer(id) ON DELETE CASCADE,
+    laeuft_ab   INTEGER NOT NULL
+  );
+  `,
 ];
 
 /** Öffnet (bzw. erstellt) die Datenbank und bringt das Schema auf den neuesten Stand. */

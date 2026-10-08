@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { createNeuesSpiel } from '@leitstellendispo/shared';
-import { cookieAus, starteTestServer, type TestServer } from './testServer.js';
+import { cookieAus, testmail, starteTestServer, type TestServer } from './testServer.js';
 
 let server: TestServer;
 /** Cookies: erstes Konto = Owner, dann ein Admin und zwei Spieler */
@@ -8,7 +8,7 @@ let owner: string, admin: string, spieler: string, spieler2: string;
 let ids: Record<string, number>;
 
 const registriere = async (name: string) =>
-  cookieAus(await server.anfrage('POST', '/auth/registrieren', { body: { name, passwort: 'geheim123' } }));
+  cookieAus(await server.anfrage('POST', '/auth/registrieren', { body: { name, email: testmail(name), passwort: 'geheim123' } }));
 
 beforeEach(async () => {
   server = await starteTestServer();

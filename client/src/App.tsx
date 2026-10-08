@@ -28,6 +28,7 @@ import type { LocationType } from './types';
 import { useSpiel } from './useSpiel';
 import { ladeStartansicht, sichtbareAnsichten, type Ansicht } from './startansicht';
 import TeamView from './views/TeamView';
+import Tour, { tourGesehen } from './Tour';
 import { teamApi } from './konto';
 import { spieleFunkPiep, useEinsatzHinweise } from './useEinsatzHinweise';
 import FunkView from './views/FunkView';
@@ -142,6 +143,10 @@ function MapStyleToggle({
 function App({ konto, onAbmelden }: { konto: Konto; onAbmelden: () => Promise<void> }) {
   // Navigation: startet mit der in den Einstellungen gewählten Ansicht (Standard: Karte)
   const [currentView, setCurrentView] = useState<Ansicht>(ladeStartansicht);
+  // Geführte Tour: beim ersten Spielstart automatisch, später über die Einstellungen
+  const [tourOffen, setTourOffen] = useState(() => !tourGesehen(konto.id));
+  // E-Mail kann in den Einstellungen nachgetragen werden – ohne Neuladen aktuell halten
+  const [email, setEmail] = useState<string | null>(konto.email ?? null);
   const [selectedId, setSelectedId] = useState<string>('rettungswache-zentrum');
   const [selectedIncidentId, setSelectedIncidentId] = useState<string | null>(null);
   // Einsatz, dessen Kurzinfo gerade als schwebendes Fenster auf der Karte angezeigt wird
@@ -393,6 +398,15 @@ function App({ konto, onAbmelden }: { konto: Konto; onAbmelden: () => Promise<vo
       {spiel.spielstandGeladen && (
         <ErsteSchritte kontoId={konto.id} stand={{ incidents, completedIncidentHistory, vehicles, locations }} />
       )}
+      {spiel.spielstandGeladen && tourOffen && (
+        <Tour kontoId={konto.id} onAnsicht={setCurrentView} onEnde={() => setTourOffen(false)} />
+      )}
+      {!email && currentView !== 'Einstellungen' && (
+        <div className="lade-fehler" role="status">
+          ✉️ Für dein Konto ist noch keine E-Mail-Adresse hinterlegt – ohne sie kannst du ein vergessenes Passwort nicht zurücksetzen.{' '}
+          <button type="button" className="btn" onClick={() => setCurrentView('Einstellungen')}>Jetzt nachtragen</button>
+        </div>
+      )}
       <header className="topbar">
         {/* banner image fills the header */}
         <img className="topbar__banner" src="/brand-banner.png" alt="LeitstellenDispo Banner" />
@@ -422,6 +436,7 @@ function App({ konto, onAbmelden }: { konto: Konto; onAbmelden: () => Promise<vo
           <button
             type="button"
             className="chip ruf-chip"
+            data-tour="ruf"
             title="Ruf der Leitstelle – antippen für deine Bewertungen und Fehler"
             onClick={() => setRufFensterOffen(true)}
           >
@@ -436,6 +451,7 @@ function App({ konto, onAbmelden }: { konto: Konto; onAbmelden: () => Promise<vo
               }}
               type="button"
               className="chip chip--accent view-trigger"
+              data-tour="menue"
               onClick={() => setDropdownOpen((s) => !s)}
               aria-haspopup="true"
               aria-expanded={dropdownOpen}
@@ -849,7 +865,16 @@ function App({ konto, onAbmelden }: { konto: Konto; onAbmelden: () => Promise<vo
             )}
 
             {currentView === 'Einstellungen' && (
-              <EinstellungenView onNeuesSpiel={neuesSpiel} tonAn={tonAn} setTonAn={setTonAn} konto={konto} onAbmelden={onAbmelden} />
+              <EinstellungenView
+                onNeuesSpiel={neuesSpiel}
+                tonAn={tonAn}
+                setTonAn={setTonAn}
+                konto={konto}
+                onAbmelden={onAbmelden}
+                email={email}
+                onEmailGeaendert={setEmail}
+                onTourStarten={() => setTourOffen(true)}
+              />
             )}
           </section>
         )}

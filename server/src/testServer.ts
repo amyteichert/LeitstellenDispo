@@ -3,6 +3,7 @@ import type { AddressInfo } from 'node:net';
 import type { Server } from 'node:http';
 import { erstelleApp } from './app.js';
 import { oeffneDatenbank, type Datenbank } from './datenbank.js';
+import type { AuthOptionen } from './auth.js';
 
 export interface TestServer {
   db: Datenbank;
@@ -10,9 +11,9 @@ export interface TestServer {
   beenden(): Promise<void>;
 }
 
-export async function starteTestServer(): Promise<TestServer> {
+export async function starteTestServer(optionen: AuthOptionen = {}): Promise<TestServer> {
   const db = oeffneDatenbank(':memory:');
-  const server: Server = erstelleApp(db, { bcryptRunden: 4 }).listen(0);
+  const server: Server = erstelleApp(db, { bcryptRunden: 4, ...optionen }).listen(0);
   await new Promise<void>((fertig) => server.once('listening', fertig));
   const basis = `http://127.0.0.1:${(server.address() as AddressInfo).port}/api`;
 
@@ -36,3 +37,6 @@ export async function starteTestServer(): Promise<TestServer> {
 export function cookieAus(res: Response): string {
   return (res.headers.get('set-cookie') ?? '').split(';')[0];
 }
+
+/** Eindeutige Test-E-Mail zu einem Benutzernamen */
+export const testmail = (name: string) => `${name.toLowerCase()}@test.de`;

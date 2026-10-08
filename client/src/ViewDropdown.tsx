@@ -67,6 +67,7 @@ export default function ViewDropdown({ anchorRef, isOpen, onClose, currentView, 
           <li key={v} style={{ marginBottom: 6 }}>
             <button
               type="button"
+              data-tour={`menu-${v}`}
               className={`view-menu-item ${currentView === v ? 'active' : ''}`}
               onClick={() => {
                 onSelect(v);

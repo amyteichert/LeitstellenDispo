@@ -27,7 +27,7 @@ export default function FunkView({
   const liste = useMemo(() => funk.filter(PASST[filter]).slice(0, 150), [funk, filter]);
 
   return (
-    <div>
+    <div data-tour="funk">
       <h2>📻 Funk</h2>
 
       {offen.length > 0 && (

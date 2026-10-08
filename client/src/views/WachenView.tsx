@@ -110,7 +110,7 @@ export default function WachenView({
         </div>
       )}
       <ul className="wachen-liste">
-        {stations.map((s) => {
+        {stations.map((s, index) => {
           const belegt = getBelegteStellplaetze(s.id, vehicles);
           const plaetze = getStellplaetze(s);
           return (
@@ -120,7 +120,7 @@ export default function WachenView({
                 <small>{s.adresse ? formatAdresse(s.adresse) : s.details}</small>
                 <small>{s.stationKind ?? 'Rettungswache'} · Stellplätze {belegt}/{plaetze}</small>
               </button>
-              <button type="button" className="btn btn--primary" onClick={() => setVerwaltenId(s.id)}>
+              <button type="button" className="btn btn--primary" data-tour={index === 0 ? "wache-verwalten" : undefined} onClick={() => setVerwaltenId(s.id)}>
                 Verwalten
               </button>
             </li>
@@ -201,7 +201,7 @@ function WacheVerwalten({
         </div>
       </div>
 
-      <div className="verwalten-reiter" role="tablist">
+      <div className="verwalten-reiter" role="tablist" data-tour="wache-reiter">
         {REITER.map((name) => (
           <button
             key={name}

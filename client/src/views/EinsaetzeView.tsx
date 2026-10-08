@@ -204,7 +204,7 @@ export default function EinsaetzeView({
         </div>
       </div>
 
-      <div className="einsatz-layout">
+      <div className="einsatz-layout" data-tour="einsatz-liste">
         <div>
           <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
             <button type="button" className={`btn ${activeTab === 'Aktive' ? 'btn--primary' : ''}`} onClick={() => setActiveTab('Aktive')}>

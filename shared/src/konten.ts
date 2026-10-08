@@ -7,6 +7,7 @@ export const KONTO_REGELN = {
   passwortMinLaenge: 8,
   /** bcrypt verarbeitet höchstens 72 Bytes – alles danach würde stillschweigend ignoriert */
   passwortMaxBytes: 72,
+  emailMaxLaenge: 254,
 } as const;
 
 /** Öffentliche Sicht auf ein Konto (ohne Passwort-Hash) */
@@ -16,6 +17,8 @@ export interface Konto {
   rolle: UserRole;
   /** ISO-Zeitpunkt der Registrierung */
   erstellt: string;
+  /** Nur im eigenen Konto und im Team-Bereich – fehlt bei Konten von vor der E-Mail-Pflicht (null) */
+  email?: string | null;
 }
 
 const ERLAUBTE_NAMENSZEICHEN = /^[A-Za-z0-9ÄÖÜäöüß_.-]+$/;
@@ -29,6 +32,19 @@ export function pruefeBenutzername(name: unknown): string | null {
   }
   if (!ERLAUBTE_NAMENSZEICHEN.test(n)) {
     return 'Der Benutzername darf nur Buchstaben, Ziffern sowie _ . - enthalten.';
+  }
+  return null;
+}
+
+/** E-Mail-Adressen werden klein und ohne Leerzeichen gespeichert (eindeutig, unabhängig von der Schreibweise). */
+export const normalisiereEmail = (email: string) => email.trim().toLowerCase();
+
+/** Prüft eine E-Mail-Adresse (bewusst einfach: genau ein @, Punkt in der Domain, keine Leerzeichen). */
+export function pruefeEmail(email: unknown): string | null {
+  if (typeof email !== 'string' || email.trim().length === 0) return 'Bitte eine E-Mail-Adresse angeben.';
+  const e = normalisiereEmail(email);
+  if (e.length > KONTO_REGELN.emailMaxLaenge || !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(e)) {
+    return 'Bitte eine gültige E-Mail-Adresse angeben.';
   }
   return null;
 }

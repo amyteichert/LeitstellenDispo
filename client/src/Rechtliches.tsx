@@ -106,10 +106,21 @@ function Datenschutz() {
 
       <h2>4. Benutzerkonto und Spielstand</h2>
       <p>
-        Für ein Konto speichern wir den gewählten Benutzernamen, das Passwort ausschließlich als sicheren Hash (bcrypt), die Rolle,
-        das Erstellungsdatum und deinen Spielstand. Rechtsgrundlage ist die Bereitstellung des Spiels, das du nutzen möchtest
-        (Art. 6 Abs. 1 lit. b DSGVO). Eine E-Mail-Adresse oder ein Klarname wird nicht abgefragt.
+        Für ein Konto speichern wir deine E-Mail-Adresse, den gewählten Benutzernamen, das Passwort ausschließlich als sicheren
+        Hash (bcrypt), die Rolle, das Erstellungsdatum und deinen Spielstand. Rechtsgrundlage ist die Bereitstellung des Spiels,
+        das du nutzen möchtest (Art. 6 Abs. 1 lit. b DSGVO). Ein Klarname wird nicht abgefragt.
         Die Daten werden gespeichert, bis du dein Konto löschen lässt (Anfrage an die oben genannte E-Mail-Adresse).
+      </p>
+      <p>
+        Die E-Mail-Adresse nutzen wir nur, damit du ein vergessenes Passwort zurücksetzen kannst, und für wichtige Hinweise zu
+        deinem Konto – nicht für Werbung oder Newsletter. Fordert man einen Link zum Zurücksetzen an, wird ein nur einmal
+        verwendbarer Code (gespeichert als Hash, 1 Stunde gültig) erzeugt und an die hinterlegte Adresse geschickt.
+        {/* TODO: Sobald der Mailversand eingerichtet ist, hier den Versanddienst (Anbieter, Sitz, Auftragsverarbeitung) nennen. */}
+      </p>
+      <p>
+        Das Team (Inhaberin und von ihr benannte Administratoren) kann zur Betreuung des Spiels Benutzername, E-Mail-Adresse,
+        Rolle sowie eine Zusammenfassung deines Spielstands einsehen, Konten bei Missbrauch sperren und Links zum Zurücksetzen
+        des Passworts erzeugen.
       </p>
       <p>
         Zum Schutz vor Passwort-Ausprobieren wird die IP-Adresse bei fehlgeschlagenen Anmeldungen und Registrierungen kurzzeitig

@@ -152,6 +152,7 @@ function KontoZeile({ konto, ich, offen, umschalten, melde, ersetze, entferne }:
   entferne: () => void;
 }) {
   const [stand, setStand] = useState<SpielstandZusammenfassung | null | undefined>(undefined);
+  const [passwortLink, setPasswortLink] = useState<string | null>(null);
   const verwaltbar = darfKontoVerwalten(ich, konto);
   const rollenVergabe = ich.rolle === 'owner' && ich.id !== konto.id;
 
@@ -176,7 +177,9 @@ function KontoZeile({ konto, ich, offen, umschalten, melde, ersetze, entferne }:
         <span className="quali-chip">{ROLLEN_LABELS[konto.rolle]}</span>
         {konto.gesperrt && <span className="quali-chip team-chip--warnung">Gesperrt</span>}
         {konto.devMarkiert && <span className="quali-chip quali-chip--keine" title="Hat Dev-Werkzeuge benutzt – zählt nicht für die Bestenliste">Dev</span>}
-        <small>seit {datum(konto.erstellt)} · zuletzt gespielt {datum(konto.zuletztGespielt)}</small>
+        <small>
+          {konto.email ?? 'keine E-Mail'} · seit {datum(konto.erstellt)} · zuletzt gespielt {datum(konto.zuletztGespielt)}
+        </small>
       </button>
 
       {offen && (
@@ -196,6 +199,13 @@ function KontoZeile({ konto, ich, offen, umschalten, melde, ersetze, entferne }:
               <div><dt>Abgeschlossen (letzte 100)</dt><dd>{stand.abgeschlosseneEinsaetze}</dd></div>
               <div><dt>Gespeichert</dt><dd>{datum(stand.gespeichertAm)}</dd></div>
             </dl>
+          )}
+
+          {passwortLink && (
+            <label className="field">
+              <span style={{ fontSize: 12, color: 'var(--color-text-muted)' }}>Passwort-Link für {konto.name} (nur an diese Person weitergeben):</span>
+              <input readOnly value={passwortLink} onFocus={(e) => e.target.select()} />
+            </label>
           )}
 
           <div className="team-konto__aktionen">
@@ -223,6 +233,18 @@ function KontoZeile({ konto, ich, offen, umschalten, melde, ersetze, entferne }:
                   onClick={() => void aktion(async () => ersetze(await teamApi.sperren(konto.id, !konto.gesperrt)), konto.gesperrt ? `${konto.name} ist entsperrt.` : `${konto.name} ist gesperrt und abgemeldet.`)}
                 >
                   {konto.gesperrt ? 'Entsperren' : 'Sperren'}
+                </button>
+                <button
+                  type="button"
+                  className="btn"
+                  title="Link, mit dem die Person ein neues Passwort festlegt (1 Stunde gültig) – z. B. im Discord weitergeben"
+                  onClick={() => void aktion(async () => {
+                    const { link } = await teamApi.passwortLink(konto.id);
+                    setPasswortLink(link);
+                    await navigator.clipboard?.writeText(link).catch(() => undefined);
+                  }, 'Link erzeugt (1 Stunde gültig) und – falls möglich – in die Zwischenablage kopiert.')}
+                >
+                  Passwort-Link erzeugen
                 </button>
                 <button
                   type="button"

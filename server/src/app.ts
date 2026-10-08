@@ -3,7 +3,7 @@ import cors from 'cors';
 import express, { type NextFunction, type Request, type Response } from 'express';
 import { FAHRZEUG_TYPEN, STANDARD_KRANKENHAEUSER, getAppInfo } from '@leitstellendispo/shared';
 import type { Einsatz } from '@leitstellendispo/shared';
-import { erstelleAuthRouter } from './auth.js';
+import { erstelleAuthRouter, type AuthOptionen } from './auth.js';
 import type { Datenbank } from './datenbank.js';
 import { erstelleKontenDienst } from './konten.js';
 import { erstelleSpielstandRouter } from './spielstand.js';
@@ -17,7 +17,7 @@ const beispielEinsaetze: Einsatz[] = [
 ];
 
 /** Baut die Express-App. Getrennt vom Serverstart, damit Tests sie mit einer eigenen Datenbank nutzen können. */
-export function erstelleApp(db: Datenbank, optionen: { bcryptRunden?: number } = {}) {
+export function erstelleApp(db: Datenbank, optionen: { bcryptRunden?: number } & AuthOptionen = {}) {
   const app = express();
   const konten = erstelleKontenDienst(db, optionen);
 
@@ -31,8 +31,8 @@ export function erstelleApp(db: Datenbank, optionen: { bcryptRunden?: number } =
   app.use('/api/spielstand', erstelleSpielstandRouter(db, konten));
   app.use(express.json());
 
-  app.use('/api/auth', erstelleAuthRouter(konten));
-  app.use('/api/team', erstelleTeamRouter(db, konten));
+  app.use('/api/auth', erstelleAuthRouter(konten, optionen));
+  app.use('/api/team', erstelleTeamRouter(db, konten, optionen));
 
   app.get('/api/health', (_req, res) => {
     res.json({ status: 'ok' });
