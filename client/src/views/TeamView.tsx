@@ -317,6 +317,7 @@ function DevWerkzeuge({ dev, melde }: { dev: DevAktionen; melde: Melde }) {
               </button>
             ))}
           </div>
+          <GeldEingabe onBuchen={(betrag) => void mitMarkierung(() => dev.geld(betrag), `✓ ${betrag > 0 ? '+' : ''}${euro(betrag)}.`)} />
         </article>
         <article className="ausbau-karte">
           <span className="ausbau-karte__kategorie">Ruf</span>
@@ -337,5 +338,27 @@ function DevWerkzeuge({ dev, melde }: { dev: DevAktionen; melde: Melde }) {
         </article>
       </div>
     </>
+  );
+}
+
+/** Freier Betrag: „+“ bucht dazu, „−“ zieht ab */
+function GeldEingabe({ onBuchen }: { onBuchen: (betrag: number) => void }) {
+  const [eingabe, setEingabe] = useState('');
+  const betrag = Math.round(Number(eingabe.replace(/[.s€]/g, '').replace(',', '.')));
+  const gueltig = Number.isFinite(betrag) && betrag > 0;
+  return (
+    <div style={{ display: 'flex', gap: 6, marginTop: 8, flexWrap: 'wrap' }}>
+      <input
+        type="text"
+        inputMode="numeric"
+        value={eingabe}
+        onChange={(event) => setEingabe(event.target.value)}
+        placeholder="Betrag, z. B. 1.000.000"
+        aria-label="Eigener Betrag"
+        style={{ flex: '1 1 140px', minWidth: 0 }}
+      />
+      <button type="button" className="btn" disabled={!gueltig} onClick={() => onBuchen(betrag)}>＋</button>
+      <button type="button" className="btn" disabled={!gueltig} onClick={() => onBuchen(-betrag)}>−</button>
+    </div>
   );
 }
