@@ -23,7 +23,7 @@ import {
   ordneFahrzeugeBedarfZu,
 } from './fahrzeuge.js';
 import { getFahrzeitSekunden, getPositionAufAnfahrt, getStationCoords } from './geo.js';
-import { findeZielKrankenhaus, type Krankenhaus } from './krankenhaeuser.js';
+import { EIGENES_KRANKENHAUS, FACHRICHTUNGEN, findeZielKrankenhaus, getFachrichtungen, nimmPatientAuf, type Krankenhaus } from './krankenhaeuser.js';
 import { GAME_CONFIG } from './konfig.js';
 import { getTransportStatus, istPatientAbgeschlossen, type Patient } from './patienten.js';
 import type { FahrzeugStatus, Koordinaten, MapLocation, Vehicle } from './typen.js';
@@ -44,6 +44,8 @@ export interface SpielTickErgebnis {
   abgeschlossen: AbgeschlossenerSpielEinsatz[];
   /** Einsätze, die nie alarmiert wurden und nach langer Zeit verschwunden sind */
   verfallen: SpielEinsatz[];
+  /** Nur gesetzt, wenn sich etwas geändert hat (z. B. Bettenbelegung eigener Häuser) */
+  krankenhaeuser?: Krankenhaus[];
   geaendert: boolean;
 }
 
@@ -59,6 +61,7 @@ interface TickKontext {
   vehicles: Vehicle[];
   locations: MapLocation[];
   krankenhaeuser: Krankenhaus[];
+  krankenhaeuserGeaendert?: boolean;
   fahrzeugTypen: Array<string | undefined>;
   freigaben: Freigabe[];
   abgeschlossen: SpielEinsatz[];
@@ -264,12 +267,13 @@ const beendeBearbeitung = (einsatz: SpielEinsatz, ctx: TickKontext): SpielEinsat
   const transportFahrzeuge = getAktiveZuteilungen(einsatz)
     .filter((a) => a.arrivalAt <= ende && hatFaehigkeit(typVon(ctx, a.vehicleId), 'patiententransport'))
     .map((a) => a.vehicleId);
-  const krankenhaus = findeZielKrankenhaus(einsatz.coords, ctx.krankenhaeuser);
   const neueMeldungen: EinsatzMeldung[] = [];
+  let patientenImEigenenHaus = 0;
 
   const patienten = (einsatz.patienten ?? []).map((patient): Patient => {
     if (istPatientAbgeschlossen(patient)) return patient;
     const fahrzeugId = patient.transportErforderlich ? transportFahrzeuge.shift() : undefined;
+    const krankenhaus = fahrzeugId ? findeZielKrankenhaus(einsatz.coords, ctx.krankenhaeuser, patient.fachrichtung, ende) : null;
     if (!patient.transportErforderlich || !fahrzeugId || !krankenhaus) {
       neueMeldungen.push(meldung(ende, patient.transportErforderlich
         ? 'Kein Transportmittel bzw. Krankenhaus verfügbar – Patient vor Ort an den Hausarzt übergeben.'
@@ -278,7 +282,14 @@ const beendeBearbeitung = (einsatz: SpielEinsatz, ctx: TickKontext): SpielEinsat
     }
     const fahrzeit = getFahrzeitSekunden(einsatz.coords, krankenhaus.coords, getFahrzeugGeschwindigkeit(typVon(ctx, fahrzeugId)));
     const ankunftAt = ende + fahrzeit * 1000;
-    neueMeldungen.push(meldung(ende, `${funkname(ctx, fahrzeugId)}: Transport in ${krankenhaus.name}.`, 'patient'));
+    const ohneFach = patient.fachrichtung && !getFachrichtungen(krankenhaus).includes(patient.fachrichtung);
+    neueMeldungen.push(meldung(ende, `${funkname(ctx, fahrzeugId)}: Transport in ${krankenhaus.name}${krankenhaus.eigen ? ' (eigenes Haus)' : ''}.`
+      + (ohneFach ? ` Keine ${FACHRICHTUNGEN[patient.fachrichtung!].label} in der Nähe – ein eigenes Krankenhaus könnte helfen.` : ''), 'patient'));
+    if (krankenhaus.eigen) {
+      patientenImEigenenHaus++;
+      ctx.krankenhaeuser = ctx.krankenhaeuser.map((kh) => (kh.id === krankenhaus.id ? nimmPatientAuf(kh, ende) : kh));
+      ctx.krankenhaeuserGeaendert = true;
+    }
     return {
       ...patient,
       status: 'transport',
@@ -298,7 +309,7 @@ const beendeBearbeitung = (einsatz: SpielEinsatz, ctx: TickKontext): SpielEinsat
   let ergebnis: SpielEinsatz = {
     ...einsatz,
     patienten: einsatz.patienten ? patienten : undefined,
-    reward: einsatz.reward + anzahlTransporte * GAME_CONFIG.transportVerguetung,
+    reward: einsatz.reward + anzahlTransporte * GAME_CONFIG.transportVerguetung + patientenImEigenenHaus * EIGENES_KRANKENHAUS.verguetungJePatient,
     meldungen: fuegeMeldungenHinzu(einsatz.meldungen, neueMeldungen),
   };
   ctx.geaendert = true;
@@ -474,6 +485,7 @@ export const berechneSpielTick = (zustand: SpielTickZustand, jetzt: number): Spi
     incidents: nextIncidents.filter((incident) => incident.status !== 'abgeschlossen' && !ctx.verfallen.includes(incident)),
     abgeschlossen,
     verfallen: ctx.verfallen,
+    ...(ctx.krankenhaeuserGeaendert ? { krankenhaeuser: ctx.krankenhaeuser } : {}),
     geaendert: true,
   };
 };

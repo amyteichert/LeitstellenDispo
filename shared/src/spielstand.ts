@@ -9,7 +9,7 @@ import {
   type AbgeschlossenerSpielEinsatz,
   type SpielEinsatz,
 } from './daten.js';
-import { STANDARD_KRANKENHAEUSER, ergaenzeKrankenhaeuser, type Krankenhaus } from './krankenhaeuser.js';
+import { STANDARD_KRANKENHAEUSER, type Krankenhaus } from './krankenhaeuser.js';
 import { erzeugePatienten } from './patienten.js';
 import { RUF_CONFIG } from './bewertung.js';
 import { erzeugeBesatzungFuer, synchronisiereBesatzung, type Mitarbeiter } from './personal.js';
@@ -88,11 +88,6 @@ function ergaenzePersonal(spielstand: Spielstand): Spielstand {
   return { ...spielstand, personal, vehicles: synchronisiereBesatzung(spielstand.vehicles, personal) };
 }
 
-/** Krankenhäuser für alle Wachen ergänzen (z. B. nach dem Laden eines alten Spielstands). */
-export const ergaenzeKrankenhaeuserFuerWachen = (krankenhaeuser: Krankenhaus[], locations: MapLocation[]): Krankenhaus[] =>
-  locations
-    .filter((location) => location.type === 'station')
-    .reduce((liste, station) => ergaenzeKrankenhaeuser(liste, station), krankenhaeuser);
 
 /** Version 2 → 3: Adressen, Patienten und Krankenhäuser nachrüsten. */
 const migriereV2 = (alt: Omit<Spielstand, 'krankenhaeuser'>): Spielstand => {
@@ -126,9 +121,12 @@ const migriereV2 = (alt: Omit<Spielstand, 'krankenhaeuser'>): Spielstand => {
     version: SPIELSTAND_VERSION,
     locations,
     incidents,
-    krankenhaeuser: ergaenzeKrankenhaeuserFuerWachen(STANDARD_KRANKENHAEUSER, locations),
+    krankenhaeuser: STANDARD_KRANKENHAEUSER,
   };
 };
+
+/** Früher automatisch angelegte „Klinikum <Ort>“ gibt es nicht mehr – nur echte und eigene Krankenhäuser */
+const ohneErfundene = (krankenhaeuser: Krankenhaus[]) => krankenhaeuser.filter((krankenhaus) => !krankenhaus.generiert);
 
 /**
  * Prüft und migriert einen geladenen Spielstand.
@@ -141,11 +139,11 @@ export function migriereSpielstand(roh: unknown): Spielstand | null {
 
   const ruf = typeof spielstand.ruf === 'number' ? spielstand.ruf : RUF_CONFIG.start;
   if (spielstand.version === 2) return ergaenzePersonal(entferneStartwachen({ ...migriereV2(spielstand), ruf }));
-  if (spielstand.version === 3) return ergaenzePersonal(entferneStartwachen({ ...spielstand, version: SPIELSTAND_VERSION, ruf, krankenhaeuser: Array.isArray(spielstand.krankenhaeuser) ? spielstand.krankenhaeuser : STANDARD_KRANKENHAEUSER }));
+  if (spielstand.version === 3) return ergaenzePersonal(entferneStartwachen({ ...spielstand, version: SPIELSTAND_VERSION, ruf, krankenhaeuser: ohneErfundene(Array.isArray(spielstand.krankenhaeuser) ? spielstand.krankenhaeuser : STANDARD_KRANKENHAEUSER) }));
   if (spielstand.version !== SPIELSTAND_VERSION) return null;
   return ergaenzePersonal({
     ...spielstand,
-    krankenhaeuser: Array.isArray(spielstand.krankenhaeuser) ? spielstand.krankenhaeuser : STANDARD_KRANKENHAEUSER,
+    krankenhaeuser: ohneErfundene(Array.isArray(spielstand.krankenhaeuser) ? spielstand.krankenhaeuser : STANDARD_KRANKENHAEUSER),
     ruf,
   });
 }

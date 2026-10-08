@@ -4,6 +4,7 @@
  * Ein Einsatz kann mehrere Patienten haben.
  */
 import type { Koordinaten } from './typen.js';
+import type { Fachrichtung } from './krankenhaeuser.js';
 
 export type PatientenZustand = 'leicht' | 'mittel' | 'schwer' | 'kritisch';
 
@@ -51,6 +52,8 @@ export interface Patient {
   id: string;
   zustand: PatientenZustand;
   transportErforderlich: boolean;
+  /** Braucht eine bestimmte Fachrichtung (z. B. Herzkatheter) */
+  fachrichtung?: Fachrichtung;
   status: PatientenStatus;
   transport?: PatientenTransport;
 }
@@ -61,6 +64,7 @@ export interface PatientenVorgabe {
   zustand: PatientenZustand;
   /** Wahrscheinlichkeit (0–1), dass ein Patient ins Krankenhaus muss */
   transportWahrscheinlichkeit: number;
+  fachrichtung?: Fachrichtung;
 }
 
 export function erzeugePatienten(
@@ -74,6 +78,7 @@ export function erzeugePatienten(
     id: `${einsatzId}-p${startIndex + index + 1}`,
     zustand: vorgabe.zustand,
     transportErforderlich: zufall() < vorgabe.transportWahrscheinlichkeit,
+    ...(vorgabe.fachrichtung ? { fachrichtung: vorgabe.fachrichtung } : {}),
     status: 'wartet' as const,
   }));
 }

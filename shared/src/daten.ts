@@ -259,7 +259,7 @@ export const EINSATZ_VORLAGEN: Record<WachenArt, EinsatzVorlage[]> = {
       requiredVehicles: [RTW()],
       reward: 240,
       durationSeconds: 11,
-      patienten: { anzahl: 1, zustand: 'mittel', transportWahrscheinlichkeit: 0.7 },
+      patienten: { anzahl: 1, zustand: 'mittel', transportWahrscheinlichkeit: 0.7, fachrichtung: 'innere' },
       lage: 'Patient blass und kaltschweißig, wird untersucht.',
       eskalation: {
         zielVorlageId: 'reanimation',
@@ -275,7 +275,7 @@ export const EINSATZ_VORLAGEN: Record<WachenArt, EinsatzVorlage[]> = {
       requiredVehicles: [RTW()],
       reward: 220,
       durationSeconds: 10,
-      patienten: { anzahl: 1, zustand: 'leicht', transportWahrscheinlichkeit: 0.6 },
+      patienten: { anzahl: 1, zustand: 'leicht', transportWahrscheinlichkeit: 0.6, fachrichtung: 'unfallchirurgie' },
       lage: 'Ältere Person liegt am Boden, ansprechbar.',
       eskalation: {
         zielVorlageId: 'bewusstlose-person',
@@ -291,7 +291,7 @@ export const EINSATZ_VORLAGEN: Record<WachenArt, EinsatzVorlage[]> = {
       requiredVehicles: [RTW()],
       reward: 260,
       durationSeconds: 12,
-      patienten: { anzahl: 1, zustand: 'mittel', transportWahrscheinlichkeit: 0.85 },
+      patienten: { anzahl: 1, zustand: 'mittel', transportWahrscheinlichkeit: 0.85, fachrichtung: 'innere' },
       lage: 'Patient sitzt am Fenster, deutliche Atemnot.',
       nachforderung: NEF_NACHFORDERUNG(0.2, 'Sauerstoffsättigung fällt weiter, Patient erschöpft – Notarzt erforderlich.'),
       eskalation: {
@@ -308,7 +308,7 @@ export const EINSATZ_VORLAGEN: Record<WachenArt, EinsatzVorlage[]> = {
       requiredVehicles: [RTW(), NEF()],
       reward: 380,
       durationSeconds: 15,
-      patienten: { anzahl: 1, zustand: 'schwer', transportWahrscheinlichkeit: 1 },
+      patienten: { anzahl: 1, zustand: 'schwer', transportWahrscheinlichkeit: 1, fachrichtung: 'kardiologie' },
       lage: 'Patient mit Druck auf der Brust, Verdacht auf Herzinfarkt.',
       entwarnung: {
         wahrscheinlichkeit: 0.25,
@@ -329,7 +329,7 @@ export const EINSATZ_VORLAGEN: Record<WachenArt, EinsatzVorlage[]> = {
       requiredVehicles: [RTW()],
       reward: 230,
       durationSeconds: 9,
-      patienten: { anzahl: 1, zustand: 'leicht', transportWahrscheinlichkeit: 0.5 },
+      patienten: { anzahl: 1, zustand: 'leicht', transportWahrscheinlichkeit: 0.5, fachrichtung: 'unfallchirurgie' },
       lage: 'Blutende Schnittwunde an der Hand, Druckverband angelegt.',
     },
     {
@@ -340,7 +340,7 @@ export const EINSATZ_VORLAGEN: Record<WachenArt, EinsatzVorlage[]> = {
       requiredVehicles: [RTW()],
       reward: 220,
       durationSeconds: 10,
-      patienten: { anzahl: 1, zustand: 'leicht', transportWahrscheinlichkeit: 0.65 },
+      patienten: { anzahl: 1, zustand: 'leicht', transportWahrscheinlichkeit: 0.65, fachrichtung: 'unfallchirurgie' },
       lage: 'Person nach Sturz auf der Treppe, Schmerzen im Bein.',
       nachforderung: NEF_NACHFORDERUNG(0.15, 'Kopfverletzung, Patient zunehmend eingetrübt – Notarzt erforderlich.'),
       eskalation: {
@@ -357,7 +357,7 @@ export const EINSATZ_VORLAGEN: Record<WachenArt, EinsatzVorlage[]> = {
       requiredVehicles: [RTW(), NEF()],
       reward: 360,
       durationSeconds: 14,
-      patienten: { anzahl: 1, zustand: 'schwer', transportWahrscheinlichkeit: 1 },
+      patienten: { anzahl: 1, zustand: 'schwer', transportWahrscheinlichkeit: 1, fachrichtung: 'neurologie' },
       lage: 'Person nicht ansprechbar, Atmung vorhanden.',
       entwarnung: {
         wahrscheinlichkeit: 0.3,
@@ -373,7 +373,7 @@ export const EINSATZ_VORLAGEN: Record<WachenArt, EinsatzVorlage[]> = {
       requiredVehicles: [RTW(), NEF()],
       reward: 450,
       durationSeconds: 18,
-      patienten: { anzahl: 1, zustand: 'kritisch', transportWahrscheinlichkeit: 1 },
+      patienten: { anzahl: 1, zustand: 'kritisch', transportWahrscheinlichkeit: 1, fachrichtung: 'kardiologie' },
       lage: 'Laienreanimation läuft, Übernahme durch den Rettungsdienst.',
     },
     {
@@ -385,7 +385,7 @@ export const EINSATZ_VORLAGEN: Record<WachenArt, EinsatzVorlage[]> = {
       reward: 520,
       durationSeconds: 16,
       ortsArt: 'kreuzung',
-      patienten: { anzahl: 2, zustand: 'mittel', transportWahrscheinlichkeit: 0.9 },
+      patienten: { anzahl: 2, zustand: 'mittel', transportWahrscheinlichkeit: 0.9, fachrichtung: 'unfallchirurgie' },
       lage: 'Zwei PKW kollidiert, zwei Verletzte außerhalb der Fahrzeuge.',
       nachforderung: NEF_NACHFORDERUNG(0.25, 'Ein Patient mit Verdacht auf innere Blutung – Notarzt erforderlich.'),
     },
@@ -625,7 +625,7 @@ export const EINSATZ_VORLAGEN: Record<WachenArt, EinsatzVorlage[]> = {
       requiredVehicles: [TH(), RTW()],
       reward: 330,
       durationSeconds: 12,
-      patienten: { anzahl: 1, zustand: 'mittel', transportWahrscheinlichkeit: 0.6 },
+      patienten: { anzahl: 1, zustand: 'mittel', transportWahrscheinlichkeit: 0.6, fachrichtung: 'innere' },
       lage: 'Hilferufe aus der Wohnung, Tür wird geöffnet.',
       unklar: true,
     },
@@ -638,7 +638,7 @@ export const EINSATZ_VORLAGEN: Record<WachenArt, EinsatzVorlage[]> = {
       reward: 700,
       durationSeconds: 26,
       ortsArt: 'kreuzung',
-      patienten: { anzahl: 1, zustand: 'schwer', transportWahrscheinlichkeit: 1 },
+      patienten: { anzahl: 1, zustand: 'schwer', transportWahrscheinlichkeit: 1, fachrichtung: 'unfallchirurgie' },
       lage: 'PKW gegen Baum, Fahrer eingeklemmt, technische Rettung wird vorbereitet.',
       nachforderung: NEF_NACHFORDERUNG(0.5, 'Eingeklemmter Fahrer mit schweren Verletzungen – Notarzt erforderlich.'),
     },

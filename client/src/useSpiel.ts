@@ -48,7 +48,6 @@ import {
   alarmiereFahrzeuge,
   berechneSpielTick,
   createNeuesSpiel,
-  ergaenzeKrankenhaeuser,
   erzeugeZufallsEinsatz,
   deutscheZeit,
   einsatzIntervallMs,
@@ -389,7 +388,6 @@ export function useSpiel(optionen: UseSpielOptionen = {}) {
     };
     setLocations((current) => [...current, neueWache]);
     // Patienten brauchen ein Krankenhaus in erreichbarer Nähe
-    setKrankenhaeuser((current) => ergaenzeKrankenhaeuser(current, neueWache));
     setBalance((cur) => cur - totalCost);
     addTransaction('Ausgabe', `${wache.stationKind} mit ${wache.startFahrzeugTyp} erstellt`, totalCost);
 

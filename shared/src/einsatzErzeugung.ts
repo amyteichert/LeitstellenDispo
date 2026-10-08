@@ -136,9 +136,13 @@ export const erzeugeZufallsEinsatz = (
   const stations = locations.filter((location) => location.type === 'station');
   if (stations.length === 0) return { fehler: 'keine-wache' };
 
-  const stationKind = stations[Math.floor(Math.random() * stations.length)].stationKind;
-  const templates = getAvailableIncidentTemplates(stationKind, vehicles);
-  if (templates.length === 0) return { fehler: 'keine-machbare-vorlage' };
+  // Jede vorhandene Wachenart kommt gleich oft dran – unabhängig davon, wie viele Wachen es je Art gibt.
+  // Arten ohne machbaren Einsatz (z. B. Feuerwache ohne passendes Fahrzeug) werden übersprungen.
+  const arten = [...new Set(stations.map((station) => station.stationKind ?? 'Rettungswache'))]
+    .map((art) => ({ art, vorlagen: getAvailableIncidentTemplates(art, vehicles) }))
+    .filter((eintrag) => eintrag.vorlagen.length > 0);
+  if (arten.length === 0) return { fehler: 'keine-machbare-vorlage' };
+  const templates = arten[Math.floor(Math.random() * arten.length)].vorlagen;
 
   const template = kontext ? waehleGewichtet(templates, kontext) : templates[Math.floor(Math.random() * templates.length)];
   const station = getBestIncidentStation(stations, template, vehicles);

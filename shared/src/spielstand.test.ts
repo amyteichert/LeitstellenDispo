@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { alarmiereFahrzeuge } from './alarmierung.js';
-import { ergaenzeKrankenhaeuser, findeZielKrankenhaus, STANDARD_KRANKENHAEUSER } from './krankenhaeuser.js';
+import { findeZielKrankenhaus, STANDARD_KRANKENHAEUSER } from './krankenhaeuser.js';
 import { berechneSpielTick } from './spielTick.js';
 import { SPIELSTAND_VERSION, createNeuesSpiel, migriereSpielstand, type Spielstand } from './spielstand.js';
 import { T0, einsatz, fahrzeug, krankenhaus, wache } from './testHilfen.js';
@@ -15,18 +15,13 @@ describe('Krankenhäuser', () => {
     expect(findeZielKrankenhaus([48.775, 9.1771], [nah])).toBeNull();
   });
 
-  it('legt für eine abgelegene Wache ein Klinikum im Ort an – sonst nicht', () => {
-    const stuttgart = wache();
-    expect(ergaenzeKrankenhaeuser(STANDARD_KRANKENHAEUSER, stuttgart)).toBe(STANDARD_KRANKENHAEUSER);
+  it('fährt nicht ins Nirgendwo: ohne Krankenhaus im Umkreis kein Transportziel', () => {
+    expect(findeZielKrankenhaus([52.41, 12.53], STANDARD_KRANKENHAEUSER)).toBeNull();
+  });
 
-    const brandenburg = { ...wache('rw-bb'), coords: [52.41, 12.53] as [number, number], adresse: { strasse: 'X', plz: '14770', ort: 'Brandenburg an der Havel' } };
-    const ergaenzt = ergaenzeKrankenhaeuser(STANDARD_KRANKENHAEUSER, brandenburg);
-    expect(ergaenzt).toHaveLength(STANDARD_KRANKENHAEUSER.length + 1);
-    const neu = ergaenzt.at(-1)!;
-    expect(neu.name).toBe('Klinikum Brandenburg an der Havel');
-    expect(neu.adresse.plz).toBe('14770');
-    expect(neu.aufnahme).toBe(true);
-    expect(haversineKm(neu.coords, brandenburg.coords)).toBeLessThan(3.1);
+  it('entfernt früher erfundene Kliniken beim Laden', () => {
+    const roh = { ...createNeuesSpiel(), krankenhaeuser: [...STANDARD_KRANKENHAEUSER, { ...STANDARD_KRANKENHAEUSER[0], id: 'kh-x', generiert: true }] };
+    expect(migriereSpielstand(JSON.parse(JSON.stringify(roh)))!.krankenhaeuser).toHaveLength(STANDARD_KRANKENHAEUSER.length);
   });
 });
 
