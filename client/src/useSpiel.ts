@@ -49,6 +49,14 @@ import {
   berechneSpielTick,
   createNeuesSpiel,
   erzeugeZufallsEinsatz,
+  EIGENES_KRANKENHAUS,
+  FACHRICHTUNGEN,
+  getBetten,
+  getFachrichtungen,
+  pruefeBettenAusbau,
+  pruefeFachrichtung,
+  pruefeKrankenhausBau,
+  type Fachrichtung,
   deutscheZeit,
   einsatzIntervallMs,
   entstehtEinsatz,
@@ -297,6 +305,7 @@ export function useSpiel(optionen: UseSpielOptionen = {}) {
 
     setVehicles(ergebnis.vehicles);
     setIncidents(ergebnis.incidents);
+    if (ergebnis.krankenhaeuser) setKrankenhaeuser(ergebnis.krankenhaeuser);
 
     if (ergebnis.abgeschlossen.length > 0) {
       // Grundgeld gibt es immer, dazu ein Leistungsbonus abhängig von Anfahrt und Ruf
@@ -363,6 +372,51 @@ export function useSpiel(optionen: UseSpielOptionen = {}) {
   };
 
   /** Baut eine neue Wache mit Startfahrzeug. Gibt die neue Wachen-ID oder eine Fehlermeldung zurück. */
+  /** Eigenes Krankenhaus bauen (Voraussetzungen: Wachen, Ruf, Geld) */
+  const baueKrankenhaus = (name: string, coords: [number, number], adresse?: Adresse): string | null => {
+    const wachen = locations.filter((location) => location.type === 'station').length;
+    const grund = pruefeKrankenhausBau(wachen, ruf, balance);
+    if (grund) return grund;
+    const ort = adresse ?? { strasse: 'Klinikstraße', plz: '', ort: name };
+    setKrankenhaeuser((current) => [...current, {
+      id: `kh-eigen-${Date.now()}`,
+      name: name.trim() || 'Eigenes Krankenhaus',
+      adresse: ort,
+      coords,
+      aufnahme: true,
+      eigen: true,
+      fachbereiche: ['innere'],
+      kapazitaet: EIGENES_KRANKENHAUS.startBetten,
+      aufnahmen: [],
+    }]);
+    setBalance((cur) => cur - EIGENES_KRANKENHAUS.preis);
+    addTransaction('Ausgabe', `Krankenhaus gebaut: ${name}`, EIGENES_KRANKENHAUS.preis);
+    return null;
+  };
+
+  const schalteFachrichtungFrei = (krankenhausId: string, fachrichtung: Fachrichtung): string | null => {
+    const krankenhaus = krankenhaeuser.find((kh) => kh.id === krankenhausId && kh.eigen);
+    if (!krankenhaus) return 'Krankenhaus nicht gefunden.';
+    const grund = pruefeFachrichtung(krankenhaus, fachrichtung, ruf, balance);
+    if (grund) return grund;
+    const preis = FACHRICHTUNGEN[fachrichtung].preis;
+    setKrankenhaeuser((current) => current.map((kh) => (kh.id === krankenhausId ? { ...kh, fachbereiche: [...getFachrichtungen(kh), fachrichtung] } : kh)));
+    setBalance((cur) => cur - preis);
+    addTransaction('Ausgabe', `${krankenhaus.name}: ${FACHRICHTUNGEN[fachrichtung].label}`, preis);
+    return null;
+  };
+
+  const baueBettenAus = (krankenhausId: string): string | null => {
+    const krankenhaus = krankenhaeuser.find((kh) => kh.id === krankenhausId && kh.eigen);
+    if (!krankenhaus) return 'Krankenhaus nicht gefunden.';
+    const grund = pruefeBettenAusbau(krankenhaus, balance);
+    if (grund) return grund;
+    setKrankenhaeuser((current) => current.map((kh) => (kh.id === krankenhausId ? { ...kh, kapazitaet: getBetten(kh) + EIGENES_KRANKENHAUS.bettenJeAusbau } : kh)));
+    setBalance((cur) => cur - EIGENES_KRANKENHAUS.bettenAusbauPreis);
+    addTransaction('Ausgabe', `${krankenhaus.name}: +${EIGENES_KRANKENHAUS.bettenJeAusbau} Betten`, EIGENES_KRANKENHAUS.bettenAusbauPreis);
+    return null;
+  };
+
   const erstelleWache = (wache: NeueWache): { id: string } | { fehler: string } => {
     const stationPrice = WACHEN_PREISE[wache.stationKind] ?? 0;
     const vehiclePrice = getFahrzeugTyp(wache.startFahrzeugTyp)?.preis ?? 0;
@@ -633,6 +687,9 @@ export function useSpiel(optionen: UseSpielOptionen = {}) {
     completedIncidentHistory,
     completedIncidentStats,
     krankenhaeuser,
+    baueKrankenhaus,
+    schalteFachrichtungFrei,
+    baueBettenAus,
     ruf,
     nowMs,
     addVehicle,

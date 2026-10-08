@@ -37,6 +37,7 @@ import { spieleFunkPiep, useEinsatzHinweise } from './useEinsatzHinweise';
 import FunkView from './views/FunkView';
 import FahrzeugeView from './views/FahrzeugeView';
 import WachenView from './views/WachenView';
+import KrankenhaeuserView from './views/KrankenhaeuserView';
 import EinsaetzeView from './views/EinsaetzeView';
 import { KarteEinsatzLeiste, KarteEinsatzPanel } from './views/KarteEinsatzOverlay';
 import RufFenster from './views/RufFenster';
@@ -890,6 +891,17 @@ Dein Guthaben: ${balance.toLocaleString('de-DE')} €`)) return;
                 </div>
               </div>,
               document.body,
+            )}
+
+            {currentView === 'Krankenhäuser' && (
+              <KrankenhaeuserView
+                krankenhaeuser={spiel.krankenhaeuser}
+                wachen={locations.filter((location) => location.type === 'station')}
+                ruf={spiel.ruf}
+                balance={balance}
+                nowMs={nowMs}
+                aktionen={spiel}
+              />
             )}
 
             {currentView === 'Fahrzeuge' && (
