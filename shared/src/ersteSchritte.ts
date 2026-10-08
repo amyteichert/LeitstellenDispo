@@ -3,7 +3,6 @@
  * Reine Funktion – es wird nichts zusätzlich gespeichert.
  */
 import type { AbgeschlossenerSpielEinsatz, SpielEinsatz } from './daten.js';
-import { START_WACHEN } from './spielstand.js';
 import type { MapLocation, Vehicle } from './typen.js';
 
 export interface ErsterSchritt {
@@ -20,7 +19,7 @@ export interface ErsteSchritteStand {
   locations: Pick<MapLocation, 'type'>[];
 }
 
-/** Ein neues Spiel startet mit einem Fahrzeug */
+/** Die erste Wache bringt ein Startfahrzeug mit – „weiteres Fahrzeug“ heißt also mehr als eins */
 const START_FAHRZEUGE = 1;
 
 export function ermittleErsteSchritte(stand: ErsteSchritteStand): ErsterSchritt[] {
@@ -28,6 +27,12 @@ export function ermittleErsteSchritte(stand: ErsteSchritteStand): ErsterSchritt[
   const wachen = stand.locations.filter((location) => location.type === 'station').length;
 
   return [
+    {
+      id: 'wache',
+      titel: 'Erste Wache bauen',
+      anleitung: 'Links bei „Standorte“ eine Adresse suchen oder in die Karte tippen, Wachenart und Startfahrzeug wählen, dann „Standort erstellen“.',
+      erledigt: wachen > 0,
+    },
     {
       id: 'alarmieren',
       titel: 'Ersten Einsatz alarmieren',
@@ -45,12 +50,6 @@ export function ermittleErsteSchritte(stand: ErsteSchritteStand): ErsterSchritt[
       titel: 'Weiteres Fahrzeug kaufen',
       anleitung: 'Unter „Wachen“ › „Verwalten“ › „Fahrzeuge“. Jedes Fahrzeug braucht einen freien Stellplatz und Personal.',
       erledigt: stand.vehicles.length > START_FAHRZEUGE,
-    },
-    {
-      id: 'wache',
-      titel: 'Neue Wache bauen',
-      anleitung: 'Links bei „Standorte“ eine Adresse suchen oder in die Karte tippen, dann „Standort erstellen“.',
-      erledigt: wachen > START_WACHEN.length,
     },
   ];
 }

@@ -41,7 +41,6 @@ export function erstelleKontenDienst(db: Datenbank, optionen: { bcryptRunden?: n
   const platzhalterHash = bcrypt.hashSync('platzhalter-passwort', runden);
 
   const sql = {
-    anzahlBenutzer: db.prepare('SELECT COUNT(*) AS anzahl FROM benutzer'),
     benutzerNachId: db.prepare('SELECT * FROM benutzer WHERE id = ?'),
     benutzerNachName: db.prepare('SELECT * FROM benutzer WHERE name = ?'),
     benutzerNachEmail: db.prepare('SELECT * FROM benutzer WHERE email = ?'),
@@ -69,13 +68,12 @@ export function erstelleKontenDienst(db: Datenbank, optionen: { bcryptRunden?: n
     return Boolean(zeile && zeile.id !== ausserId);
   };
 
-  // Anzahl prüfen und Anlegen in einer Transaktion: Nur das allererste Konto wird Owner.
+  // Name/E-Mail prüfen und Anlegen in einer Transaktion. Jedes neue Konto ist Spieler –
+  // Owner wird man nur über die Kommandozeile (rolleSetzen.js), nie automatisch.
   const registriereTransaktion = db.transaction((name: string, email: string, hash: string): RegistrierErgebnis => {
     if (sql.benutzerNachName.get(name)) return { ok: false, grund: 'name_vergeben' };
     if (emailVergeben(email)) return { ok: false, grund: 'email_vergeben' };
-    const { anzahl } = sql.anzahlBenutzer.get() as { anzahl: number };
-    const rolle: UserRole = anzahl === 0 ? 'owner' : 'player';
-    return { ok: true, konto: zuKonto(sql.benutzerAnlegen.get(name, email, hash, rolle) as BenutzerZeile) };
+    return { ok: true, konto: zuKonto(sql.benutzerAnlegen.get(name, email, hash, 'player') as BenutzerZeile) };
   });
 
   const pruefePasswortVon = async (id: number, passwort: string) => {

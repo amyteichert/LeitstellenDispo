@@ -100,6 +100,7 @@ describe('Passwort vergessen', () => {
   it('Team kann einen Link erzeugen und weitergeben (Rangordnung gilt)', async () => {
     server = await starteTestServer({ spielUrl: 'https://spiel.example' });
     const owner = await registriere('Amy');
+    setzeRolle(server.db, 'Amy', 'owner');
     const spieler = await registriere('Disponent');
     const id = (server.db.prepare("SELECT id FROM benutzer WHERE name = 'Disponent'").get() as { id: number }).id;
 
@@ -114,7 +115,8 @@ describe('Passwort vergessen', () => {
 describe('Rolle per Kommandozeile setzen', () => {
   it('macht ein Konto zum Owner und stuft andere Owner zu Spielern herab', async () => {
     server = await starteTestServer();
-    await registriere('Testkonto'); // erstes Konto → automatisch Owner
+    await registriere('Testkonto');
+    setzeRolle(server.db, 'Testkonto', 'owner'); // z. B. ein früher automatisch vergebener Owner
     await registriere('Amy.Projektleitung');
     const ergebnis = setzeRolle(server.db, 'amy.projektleitung', 'owner');
     expect(ergebnis).toEqual({ name: 'Amy.Projektleitung', rolle: 'owner', herabgestuft: ['Testkonto'] });

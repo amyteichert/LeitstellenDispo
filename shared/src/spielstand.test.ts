@@ -31,12 +31,14 @@ describe('Krankenhäuser', () => {
 });
 
 describe('Spielstand speichern und laden', () => {
-  it('startet ein neues Spiel mit Wachen-Adressen, Krankenhäusern und besetztem RTW', () => {
+  it('startet ein neues Spiel ohne Wache und Fahrzeug, aber mit Krankenhäusern und Startguthaben', () => {
     const spiel = createNeuesSpiel();
     expect(spiel.version).toBe(SPIELSTAND_VERSION);
     expect(spiel.krankenhaeuser.length).toBeGreaterThan(0);
-    expect(spiel.locations.every((l) => l.adresse?.ort === 'Stuttgart')).toBe(true);
-    expect(spiel.vehicles[0]).toMatchObject({ type: 'RTW', besatzung: 2 });
+    expect(spiel.locations).toEqual([]);
+    expect(spiel.vehicles).toEqual([]);
+    expect(spiel.personal).toEqual([]);
+    expect(spiel.balance).toBeGreaterThan(0);
   });
 
   it('übersteht JSON-Speichern und -Laden mit laufendem Transport unverändert', () => {

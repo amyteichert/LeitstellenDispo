@@ -71,10 +71,9 @@ export const createNeuesSpiel = (jetzt: Date = new Date()): Spielstand => ergaen
   transactions: [
     { id: 'initial-balance', kind: 'Einnahme', label: 'Startguthaben', amount: START_GUTHABEN, createdAt: jetzt.toISOString() },
   ],
-  locations: START_WACHEN,
-  vehicles: [
-    { id: 'fahrzeug-1', name: 'RTW 1', type: 'RTW', stationId: 'rettungswache-zentrum', price: 0, callsign: 'RTW-1', status: 'Einsatzbereit', besatzung: 2 },
-  ],
+  // Man startet ohne Wache: Die erste Wache (mit Startfahrzeug und Besatzung) baut man selbst
+  locations: [],
+  vehicles: [],
   incidents: [],
   completedIncidentHistory: [],
   krankenhaeuser: STANDARD_KRANKENHAEUSER,

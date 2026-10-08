@@ -17,6 +17,7 @@ beforeEach(async () => {
   spieler = await registriere('Disponent');
   spieler2 = await registriere('Gast');
   ids = Object.fromEntries((server.db.prepare('SELECT id, name FROM benutzer').all() as Array<{ id: number; name: string }>).map((z) => [z.name, z.id]));
+  server.db.prepare("UPDATE benutzer SET rolle = 'owner' WHERE name = 'Amy'").run();
   server.db.prepare("UPDATE benutzer SET rolle = 'admin' WHERE name = 'Helfer'").run();
 });
 
@@ -78,7 +79,7 @@ describe('Kontenverwaltung', () => {
   it('Spielstand einsehen (Zusammenfassung) und zurücksetzen', async () => {
     await server.anfrage('PUT', '/spielstand', { body: { ...createNeuesSpiel(), balance: 4711 }, cookie: spieler });
     const ansicht = await json(await server.anfrage('GET', `/team/konten/${ids.Disponent}/spielstand`, { cookie: admin }));
-    expect(ansicht.daten.zusammenfassung).toMatchObject({ guthaben: 4711, ruf: 50, wachen: 2, fahrzeuge: 1, personal: 2 });
+    expect(ansicht.daten.zusammenfassung).toMatchObject({ guthaben: 4711, ruf: 50, wachen: 0, fahrzeuge: 0, personal: 0 });
 
     expect((await server.anfrage('DELETE', `/team/konten/${ids.Disponent}/spielstand`, { cookie: admin })).status).toBe(204);
     expect((await json(await server.anfrage('GET', '/spielstand', { cookie: spieler }))).daten.spielstand).toBeNull();

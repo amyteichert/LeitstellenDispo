@@ -16,10 +16,10 @@ const post = (pfad: string, body?: unknown, cookie?: string) => server.anfrage('
 const ich = (cookie?: string) => server.anfrage('GET', '/auth/ich', { cookie });
 
 describe('Registrieren', () => {
-  it('macht das erste Konto zum Owner, alle weiteren zu Spielern', async () => {
+  it('macht jedes neue Konto zum Spieler – Owner wird man nie automatisch', async () => {
     const erstes = await post('/registrieren', { name: 'Disponent', email: testmail('Disponent'), passwort: 'geheim123' });
     expect(erstes.status).toBe(201);
-    expect((await erstes.json()).konto).toMatchObject({ name: 'Disponent', rolle: 'owner' });
+    expect((await erstes.json()).konto).toMatchObject({ name: 'Disponent', rolle: 'player' });
 
     const zweites = await post('/registrieren', { name: 'Gast', email: testmail('Gast'), passwort: 'geheim123' });
     expect((await zweites.json()).konto).toMatchObject({ name: 'Gast', rolle: 'player' });
@@ -68,7 +68,7 @@ describe('Anmelden und Abmelden', () => {
   it('meldet mit richtigen Daten an (Name ohne Groß-/Kleinschreibung)', async () => {
     const res = await post('/anmelden', { name: 'disponent', passwort: 'geheim123' });
     expect(res.status).toBe(200);
-    expect((await res.json()).konto).toMatchObject({ name: 'Disponent', rolle: 'owner' });
+    expect((await res.json()).konto).toMatchObject({ name: 'Disponent', rolle: 'player' });
     expect((await ich(cookieAus(res))).status).toBe(200);
   });
 

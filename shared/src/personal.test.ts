@@ -91,16 +91,16 @@ describe('Einstellen und Limit', () => {
 });
 
 describe('Spielstand mit Personal', () => {
-  it('neues Spiel: Start-RTW ist voll besetzt mit Notfallsanitäter', () => {
-    const spiel = createNeuesSpiel();
-    expect(spiel.personal).toHaveLength(2);
-    expect(spiel.personal?.some((p) => p.qualifikationen.includes('notfallsanitaeter'))).toBe(true);
-    expect(istAusreichendBesetzt(spiel.vehicles[0])).toBe(true);
+  it('Startfahrzeug einer Wache wird voll besetzt, inkl. Notfallsanitäter', () => {
+    const besatzung = erzeugeBesatzungFuer(fahrzeug('rtw', 'RTW'));
+    expect(besatzung).toHaveLength(2);
+    expect(besatzung.some((p) => p.qualifikationen.includes('notfallsanitaeter'))).toBe(true);
+    expect(istAusreichendBesetzt(synchronisiereBesatzung([fahrzeug('rtw', 'RTW')], besatzung)[0])).toBe(true);
   });
 
   it('alter Spielstand ohne Personal: alle Fahrzeuge werden voll besetzt', () => {
     const { personal: _p, ...alt } = createNeuesSpiel();
-    const altMitLf = { ...alt, vehicles: [...alt.vehicles, fahrzeug('lf', 'LF 10', 'rettungswache-zentrum')] };
+    const altMitLf = { ...alt, vehicles: [fahrzeug('rtw', 'RTW', 'rettungswache-zentrum'), fahrzeug('lf', 'LF 10', 'rettungswache-zentrum')] };
     const geladen = migriereSpielstand(altMitLf)!;
     expect(geladen.personal).toHaveLength(2 + 9);
     expect(geladen.vehicles.every(istAusreichendBesetzt)).toBe(true);
