@@ -204,6 +204,12 @@ export default function EinsaetzeView({
         </div>
       </div>
 
+      {!locations.some((location) => location.type === 'station') && (
+        <div className="leerzustand">
+          <strong>Noch keine Wache – noch keine Notrufe</strong>
+          Baue zuerst auf der Karte deine erste Wache. Danach gehen die Notrufe aus der Umgebung bei dir ein.
+        </div>
+      )}
       <div className="einsatz-layout" data-tour="einsatz-liste">
         <div>
           <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>

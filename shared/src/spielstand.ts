@@ -17,7 +17,7 @@ import type { FunkSpruch } from './funk.js';
 import type { FinanceTransaction, MapLocation, Vehicle } from './typen.js';
 
 /** Wird erhöht, wenn sich der Aufbau des Spielstands ändert (ältere Versionen werden migriert). */
-export const SPIELSTAND_VERSION = 3;
+export const SPIELSTAND_VERSION = 4;
 
 /** Alles, was zum Fortsetzen eines Spiels gespeichert werden muss. */
 export interface Spielstand {
@@ -140,11 +140,30 @@ export function migriereSpielstand(roh: unknown): Spielstand | null {
   if (!Array.isArray(spielstand.locations) || !Array.isArray(spielstand.vehicles) || !Array.isArray(spielstand.incidents)) return null;
 
   const ruf = typeof spielstand.ruf === 'number' ? spielstand.ruf : RUF_CONFIG.start;
-  if (spielstand.version === 2) return ergaenzePersonal({ ...migriereV2(spielstand), ruf });
+  if (spielstand.version === 2) return ergaenzePersonal(entferneStartwachen({ ...migriereV2(spielstand), ruf }));
+  if (spielstand.version === 3) return ergaenzePersonal(entferneStartwachen({ ...spielstand, version: SPIELSTAND_VERSION, ruf, krankenhaeuser: Array.isArray(spielstand.krankenhaeuser) ? spielstand.krankenhaeuser : STANDARD_KRANKENHAEUSER }));
   if (spielstand.version !== SPIELSTAND_VERSION) return null;
   return ergaenzePersonal({
     ...spielstand,
     krankenhaeuser: Array.isArray(spielstand.krankenhaeuser) ? spielstand.krankenhaeuser : STANDARD_KRANKENHAEUSER,
     ruf,
   });
+}
+
+/**
+ * Version 3 → 4: Die früher geschenkten Start-Wachen (Stuttgart) samt Fahrzeugen, Personal und ihren Einsätzen entfernen.
+ * Seit Version 4 baut jeder seine erste Wache selbst.
+ */
+export function entferneStartwachen(spielstand: Spielstand): Spielstand {
+  const ids = new Set(START_WACHEN.map((wache) => wache.id));
+  if (!spielstand.locations.some((location) => ids.has(location.id))) return spielstand;
+  const fahrzeugIds = new Set(spielstand.vehicles.filter((v) => v.stationId && ids.has(v.stationId)).map((v) => v.id));
+  return {
+    ...spielstand,
+    locations: spielstand.locations.filter((location) => !ids.has(location.id)),
+    vehicles: spielstand.vehicles.filter((v) => !fahrzeugIds.has(v.id)),
+    personal: spielstand.personal?.filter((p) => !ids.has(p.wacheId)),
+    incidents: spielstand.incidents
+      .filter((e) => !ids.has(e.generatedByStationId) && !e.alarmedVehicles.some((a) => fahrzeugIds.has(a.vehicleId))),
+  };
 }

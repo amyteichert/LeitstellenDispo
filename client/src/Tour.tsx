@@ -53,10 +53,15 @@ export const TOUR_SCHRITTE: TourSchritt[] = [
   { ziel: '[data-tour="menue"]', titel: 'Das Menü', text: 'Hier wechselst du zwischen den Bereichen. Tippe es an.', tippen: true },
   { ziel: '[data-tour="menu-Wachen"]', titel: 'Deine Wachen', text: 'Tippe auf „Wachen“.', tippen: true, zurueckWennWeg: true },
   { ansicht: 'Wachen', nurMitWache: true, ziel: '[data-tour="wache-verwalten"]', titel: 'Wache verwalten', text: 'Jede Wache hat ihre eigene Verwaltung. Tippe auf „Verwalten“.', tippen: true },
-  { nurMitWache: true, ziel: '[data-tour="wache-reiter"]', titel: 'Alles rund um die Wache', text: 'Fahrzeuge kaufen, Personal einstellen und zuweisen, Lehrgänge starten und die Wache ausbauen. Tipp: Neue Fahrzeuge brauchen erst Personal, bevor sie ausrücken können.' },
+  { nurMitWache: true, ziel: '[data-tour="wache-reiter"]', titel: 'Alles rund um die Wache', text: 'In diesen Reitern verwaltest du die Wache: Fahrzeuge, Personal, Ausbildung und Ausbau.' },
+  { nurMitWache: true, ziel: '[data-tour="reiter-Fahrzeuge"]', titel: 'Fahrzeuge kaufen', text: 'Tippe auf „Fahrzeuge“ – hier kaufst du neue Fahrzeuge, solange Stellplätze frei sind.', tippen: true },
+  { nurMitWache: true, ziel: '[data-tour="reiter-Personal"]', titel: 'Personal', text: 'Ein neues Fahrzeug fährt erst mit Besatzung los. Tippe auf „Personal“: Hier stellst du Leute ein und teilst sie Fahrzeugen zu.', tippen: true },
+  { nurMitWache: true, ziel: '[data-tour="reiter-Ausbau"]', titel: 'Ausbau & Ausbildung', text: 'Unter „Ausbildung“ qualifizierst du dein Personal (z. B. zum Notfallsanitäter), unter „Ausbau“ bekommst du mehr Stellplätze und Ruheräume.' },
   { ansicht: 'Einsätze', ziel: '[data-tour="einsatz-liste"]', titel: 'Einsätze', text: 'Hier kommen die Notrufe rein. Wähle einen Einsatz, schau dir die empfohlenen Kräfte an und alarmiere die nächsten freien Fahrzeuge – die Anfahrtszeit zählt!' },
   { ansicht: 'Funk', ziel: '[data-tour="funk"]', titel: 'Funk', text: 'Statusmeldungen deiner Fahrzeuge. Meldet sich ein Fahrzeug mit Status 5 (Sprechwunsch), gib ihm eine Sprechaufforderung – dann erfährst du, was es braucht.' },
   { ansicht: 'Karte', ziel: '.map-view', titel: 'Die Karte', text: 'Hier siehst du Wachen, Einsätze und Fahrzeuge in Echtzeit. Tippe einen Einsatz an, um direkt von der Karte zu alarmieren.' },
+  { ansicht: 'Finanzen', ziel: '[data-tour="finanzen"]', titel: 'Finanzen', text: 'Jeder Einsatz bringt eine Grundvergütung plus Bonus je nach Ruf. Hier siehst du alle Einnahmen und Ausgaben.' },
+  { ansicht: 'Karte', standorteOeffnen: true, ziel: '[data-tour="wache-bauen"]', titel: 'Weitere Wachen kaufen', text: 'Wird dein Gebiet zu groß oder die Anfahrt zu lang? Hier kaufst du jederzeit weitere Wachen – genauso wie die erste.' },
   { titel: 'Bereit für deine Schicht! ✅', text: 'Das war die Tour. Viel Erfolg in der Leitstelle! Du findest sie jederzeit unter Einstellungen → „Tour starten“.' },
 ];
 

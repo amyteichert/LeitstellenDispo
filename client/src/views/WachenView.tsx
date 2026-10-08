@@ -207,6 +207,7 @@ function WacheVerwalten({
             key={name}
             type="button"
             role="tab"
+            data-tour={`reiter-${name}`}
             aria-selected={reiter === name}
             className={`btn ${reiter === name ? 'btn--primary' : ''}`}
             onClick={() => setReiter(name)}

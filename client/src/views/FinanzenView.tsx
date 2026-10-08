@@ -20,7 +20,7 @@ export default function FinanzenView({ balance, locations, vehicles, transaction
 
   return (
     <div>
-      <h2>Finanzen</h2>
+      <h2 data-tour="finanzen">Finanzen</h2>
 
       <div className="finanz-kacheln">
         <Kachel titel="Guthaben" wert={formatEuro(balance)} />

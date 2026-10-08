@@ -70,7 +70,7 @@ describe('Spielstand speichern und laden', () => {
     expect(spaeter.abgeschlossen).toHaveLength(1);
   });
 
-  it('rüstet einen Spielstand der Version 2 nach (Adresse, Patienten, Krankenhäuser)', () => {
+  it('rüstet einen Spielstand der Version 2 nach und entfernt die alte Start-Wache', () => {
     const alterEinsatz = {
       ...einsatz('sturz'),
       address: 'Sturz in der Nähe von Rettungswache Zentrum',
@@ -91,12 +91,10 @@ describe('Spielstand speichern und laden', () => {
     const geladen = migriereSpielstand(JSON.parse(JSON.stringify(v2)))!;
     expect(geladen.version).toBe(SPIELSTAND_VERSION);
     expect(geladen.balance).toBe(1234);
-    expect(geladen.locations[0].adresse?.ort).toBe('Stuttgart');
+    // Die geschenkte Start-Wache entfällt seit Version 4 – samt ihrer Fahrzeuge und Einsätze
+    expect(geladen.locations).toEqual([]);
+    expect(geladen.vehicles).toEqual([]);
     expect(geladen.krankenhaeuser.length).toBeGreaterThanOrEqual(STANDARD_KRANKENHAEUSER.length);
-    const e = geladen.incidents[0];
-    expect(e.address).toMatch(/, 70173 Stuttgart$/);
-    expect(e.adresse?.ort).toBe('Stuttgart');
-    expect(e.patienten).toHaveLength(1);
   });
 
   it('verwirft unbrauchbare oder unbekannte Spielstände', () => {
@@ -104,5 +102,26 @@ describe('Spielstand speichern und laden', () => {
     expect(migriereSpielstand('kaputt')).toBeNull();
     expect(migriereSpielstand({ version: 1, locations: [], vehicles: [], incidents: [] })).toBeNull();
     expect(migriereSpielstand({ version: SPIELSTAND_VERSION })).toBeNull();
+  });
+});
+
+describe('Version 4: alte Start-Wachen verschwinden', () => {
+  it('entfernt Zentrum/Süd samt Fahrzeugen, Personal und Einsätzen, behält eigene Wachen und Geld', () => {
+    const eigene = wache('meine-wache');
+    const v3 = {
+      ...createNeuesSpiel(new Date(T0)),
+      version: 3,
+      balance: 777,
+      locations: [wache('rettungswache-zentrum'), wache('rettungswache-sued'), eigene],
+      vehicles: [fahrzeug('alt', 'RTW', 'rettungswache-zentrum'), fahrzeug('neu', 'RTW', 'meine-wache')],
+      personal: undefined,
+      incidents: [einsatz('sturz')],
+    };
+    const geladen = migriereSpielstand(JSON.parse(JSON.stringify(v3)))!;
+    expect(geladen.version).toBe(SPIELSTAND_VERSION);
+    expect(geladen.locations.map((l) => l.id)).toEqual(['meine-wache']);
+    expect(geladen.vehicles.map((v) => v.id)).toEqual(['neu']);
+    expect(geladen.personal!.every((p) => p.wacheId === 'meine-wache')).toBe(true);
+    expect(geladen.balance).toBe(777);
   });
 });

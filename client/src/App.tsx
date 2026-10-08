@@ -147,7 +147,7 @@ function App({ konto, onAbmelden }: { konto: Konto; onAbmelden: () => Promise<vo
   const [tourOffen, setTourOffen] = useState(() => !tourGesehen(konto.id));
   // E-Mail kann in den Einstellungen nachgetragen werden – ohne Neuladen aktuell halten
   const [email, setEmail] = useState<string | null>(konto.email ?? null);
-  const [selectedId, setSelectedId] = useState<string>('rettungswache-zentrum');
+  const [selectedId, setSelectedId] = useState<string>('');
   const [selectedIncidentId, setSelectedIncidentId] = useState<string | null>(null);
   // Einsatz, dessen Kurzinfo gerade als schwebendes Fenster auf der Karte angezeigt wird
   const [mapIncidentId, setMapIncidentId] = useState<string | null>(null);
