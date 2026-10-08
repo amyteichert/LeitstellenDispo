@@ -1,18 +1,18 @@
 :root {
-  /* LeitstellenDispo Design – dunkles Weinrot */
+  /* LeitstellenDispo Design – Blaulicht-Blau und Lila */
   color-scheme: dark;
-  --color-primary: #c41e3a;
-  --color-primary-dark: #9a1830;
-  --color-primary-light: rgba(196, 30, 58, 0.14);
-  --color-primary-text: #f08a9b; /* Rot-Akzent für Text auf dunklem Grund */
-  --color-bg: #150a0d;
-  --color-surface: #211015;
-  --color-surface-raised: #2b151c;
-  --color-input: #1a0c10;
-  --color-text: #f3e8ea;
-  --color-text-muted: #b09aa0;
-  --color-border: #3a1d25;
-  --color-border-strong: #4d2631;
+  --color-primary: #6366f1;
+  --color-primary-dark: #4f46e5;
+  --color-primary-light: rgba(99, 102, 241, 0.14);
+  --color-primary-text: #a5b4fc; /* Akzent für Text auf dunklem Grund */
+  --color-bg: #0b0d16;
+  --color-surface: #131626;
+  --color-surface-raised: #1a1e33;
+  --color-input: #0f1220;
+  --color-text: #e8eaf6;
+  --color-text-muted: #9aa0b8;
+  --color-border: #262b45;
+  --color-border-strong: #343a5c;
   --color-success: #16a34a;
   --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.3);
   --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.35);
