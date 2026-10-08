@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import type { Konto, UserRole } from '@leitstellendispo/shared';
 import { STARTANSICHTEN, ladeStartansicht, speichereStartansicht, type Ansicht } from '../startansicht';
+import { RechtlicheLinks } from '../Rechtliches';
 
 const ROLLEN_LABELS: Record<UserRole, string> = {
   owner: 'Owner',
@@ -78,6 +79,8 @@ export default function EinstellungenView({
         </p>
         <button className="btn btn--danger" type="button" onClick={onNeuesSpiel}>Neues Spiel starten</button>
       </div>
+
+      <RechtlicheLinks />
     </div>
   );
 }

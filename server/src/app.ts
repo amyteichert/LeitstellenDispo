@@ -20,6 +20,10 @@ export function erstelleApp(db: Datenbank, optionen: { bcryptRunden?: number } =
   const app = express();
   const konten = erstelleKontenDienst(db, optionen);
 
+  // Hinter nginx (Cloudflare → nginx → Node): echte Client-IP aus X-Forwarded-For übernehmen,
+  // sonst gilt die Fehlversuch-Bremse für alle Spieler gemeinsam. Nur dem lokalen Proxy vertrauen.
+  app.set('trust proxy', 'loopback');
+
   app.use(cors());
   app.use(cookieParser());
   // Vor dem allgemeinen JSON-Parser einhängen: braucht ein größeres Limit für den Spielstand

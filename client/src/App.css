@@ -2145,3 +2145,45 @@
 .erste-schritte__liste small { font-size: 0.78rem; color: var(--color-text-muted); line-height: 1.4; }
 
 .erste-schritte__fertig { font-size: 0.85rem; }
+
+/* Impressum & Datenschutz */
+.rechtliches {
+  min-height: 100vh;
+  padding: 24px 16px;
+  background: var(--color-bg);
+  color: var(--color-text);
+}
+.rechtliches__karte {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 20px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+}
+.rechtliches__karte h1 {
+  margin: 16px 0 8px;
+}
+.rechtliches__karte h2 {
+  margin: 20px 0 6px;
+  font-size: 1.05rem;
+}
+.rechtliches__karte p {
+  margin: 0 0 10px;
+}
+.rechtliches__stand {
+  color: var(--color-text-muted);
+  font-size: 0.85rem;
+}
+.rechtliche-links {
+  margin-top: 16px;
+  font-size: 0.85rem;
+}
+.rechtliche-links a {
+  color: var(--color-text-muted);
+}
+.rechtliche-links a:hover {
+  color: var(--color-text);
+}

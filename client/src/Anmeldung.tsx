@@ -13,6 +13,7 @@ import {
 } from '@leitstellendispo/shared';
 import { KontoFehler, SITZUNG_ABGELAUFEN, abmelden, anmelden, holeKonto, registrieren } from './konto';
 import { serverSpeicher, uebernimmBrowserSpielstand } from './spielstand';
+import { RechtlicheLinks } from './Rechtliches';
 import './App.css';
 
 type Zustand =
@@ -104,7 +105,10 @@ export default function Anmeldung({ children }: { children: (konto: Konto, onAbm
         </aside>
       </div>
 
-      <footer className="anmeldung__fuss">LeitstellenDispo · V{APP_VERSION} · Läuft im Browser – am PC, Tablet und Handy</footer>
+      <footer className="anmeldung__fuss">
+        LeitstellenDispo · V{APP_VERSION} · Läuft im Browser – am PC, Tablet und Handy
+        <RechtlicheLinks />
+      </footer>
     </div>
   );
 }
