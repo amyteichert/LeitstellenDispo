@@ -857,7 +857,7 @@
   gap: 0.5rem;
   padding: 0.38rem 0.9rem;
   border-radius: 999px;
-  background: linear-gradient(180deg, #1d4ed8, #7a0f20);
+  background: #2563eb;
   color: #fff;
   font-size: 0.95rem;
   border: 1px solid rgba(255,255,255,0.08);
@@ -896,7 +896,7 @@
   margin-top: 6px;
   min-width: 180px; /* Wunsch: ca. 180–220 px */
   max-width: 220px;
-  background: linear-gradient(180deg,#2b0a0a,#1b0505);
+  background: var(--color-surface-raised);
   color: #fff;
   border-radius: 8px;
   box-shadow: 0 12px 36px rgba(0,0,0,0.36);
@@ -1002,12 +1002,12 @@
 .btn--danger {
   background: linear-gradient(180deg,#ff6b6b,#d92d2d);
   color: #fff;
-  box-shadow: 0 8px 20px rgba(217,45,45,0.14);
+  box-shadow: none;
 }
 
 .btn--danger:hover:not(:disabled) {
   transform: translateY(-1px);
-  box-shadow: 0 12px 28px rgba(217,45,45,0.18);
+  box-shadow: none;
 }
 
 /* Make existing delete-button match the new system */
@@ -1043,7 +1043,7 @@
   overflow: auto;
   padding: 8px;
   border-radius: 8px;
-  background: linear-gradient(180deg,#2b0a0a,#1b0505);
+  background: var(--color-surface-raised);
   box-shadow: 0 12px 36px rgba(0,0,0,0.28);
 }
 
@@ -1118,7 +1118,7 @@
 
 .status-badge--offen { color: #fbbf24; background: rgba(245, 158, 11, 0.14); border-color: rgba(245, 158, 11, 0.35); }
 .status-badge--alarmiert { color: #93c5fd; background: rgba(59, 130, 246, 0.14); border-color: rgba(59, 130, 246, 0.35); }
-.status-badge--in_bearbeitung { color: #fca5b5; background: rgba(37, 99, 235, 0.18); border-color: rgba(37, 99, 235, 0.45); }
+.status-badge--in_bearbeitung { color: #fca5b5; background: rgba(239, 68, 68, 0.18); border-color: rgba(239, 68, 68, 0.45); }
 .status-badge--transport { color: #c4b5fd; background: rgba(139, 92, 246, 0.16); border-color: rgba(139, 92, 246, 0.4); }
 .status-badge--abgeschlossen { color: #b9c0c8; background: rgba(128, 138, 151, 0.16); border-color: rgba(128, 138, 151, 0.3); }
 
@@ -1203,14 +1203,14 @@
 .bedarf-liste { display: flex; flex-wrap: wrap; gap: 6px; list-style: none; padding: 0; }
 .bedarf-chip { padding: 4px 10px; border-radius: 8px; font-size: 0.85rem; font-weight: 600; border: 1px solid; }
 .bedarf-chip--erfuellt { color: #86efac; background: rgba(34, 197, 94, 0.12); border-color: rgba(34, 197, 94, 0.35); }
-.bedarf-chip--fehlt { color: #fca5b5; background: rgba(37, 99, 235, 0.14); border-color: rgba(37, 99, 235, 0.4); }
+.bedarf-chip--fehlt { color: #fca5b5; background: rgba(239, 68, 68, 0.14); border-color: rgba(239, 68, 68, 0.4); }
 /* Alarmiert, aber noch auf Anfahrt */
 .bedarf-chip--unterwegs { color: #93c5fd; background: rgba(59, 130, 246, 0.12); border-color: rgba(59, 130, 246, 0.35); }
 .bedarf-chip small { font-weight: 500; opacity: 0.85; }
 
 /* Versorgungslage: deutlich, wenn Kräfte fehlen */
 .versorgung-hinweis { padding: 8px 12px; border-radius: 8px; font-size: 0.88rem; border: 1px solid; }
-.versorgung-hinweis--fehlt { color: #ffd4da; background: rgba(37, 99, 235, 0.22); border-color: rgba(37, 99, 235, 0.6); }
+.versorgung-hinweis--fehlt { color: #ffd4da; background: rgba(239, 68, 68, 0.22); border-color: rgba(239, 68, 68, 0.6); }
 .versorgung-hinweis--unterwegs { color: #cfe0ff; background: rgba(59, 130, 246, 0.14); border-color: rgba(59, 130, 246, 0.4); }
 .versorgung-hinweis--ok { color: #b8f0cf; background: rgba(67, 181, 129, 0.12); border-color: rgba(67, 181, 129, 0.38); }
 
@@ -1665,9 +1665,9 @@
   aspect-ratio: 1;
   border-radius: 50%;
   background:
-    radial-gradient(circle, transparent 0 24%, rgba(240, 138, 155, 0.12) 24.2% 24.5%, transparent 24.7% 49%,
-      rgba(240, 138, 155, 0.10) 49.2% 49.5%, transparent 49.7% 74%, rgba(240, 138, 155, 0.08) 74.2% 74.5%, transparent 74.7%);
-  border: 1px solid rgba(240, 138, 155, 0.12);
+    radial-gradient(circle, transparent 0 24%, rgba(147, 197, 253, 0.12) 24.2% 24.5%, transparent 24.7% 49%,
+      rgba(147, 197, 253, 0.10) 49.2% 49.5%, transparent 49.7% 74%, rgba(147, 197, 253, 0.08) 74.2% 74.5%, transparent 74.7%);
+  border: 1px solid rgba(147, 197, 253, 0.12);
 }
 
 .buehne__sweep {
@@ -1739,7 +1739,7 @@
   position: absolute;
   inset: auto 0 0 0;
   height: 35%;
-  background: linear-gradient(transparent, rgba(14, 7, 9, 0.85));
+  background: linear-gradient(transparent, rgba(11, 13, 22, 0.85));
 }
 .anmeldung__kopf h1 {
   margin-top: 12px;
