@@ -13,6 +13,8 @@ import {
   getFahrzeugTyp,
   getFahrzeugTypenFuerWache,
   istTeamRolle,
+  WETTER_LABELS,
+  type Wetter,
   istEskaliert,
   type Adresse,
   type FahrzeugFahrt,
@@ -26,6 +28,7 @@ import ViewDropdown from './ViewDropdown';
 
 import type { LocationType } from './types';
 import { useSpiel } from './useSpiel';
+import { useWetter } from './useWetter';
 import { ladeStartansicht, sichtbareAnsichten, type Ansicht } from './startansicht';
 import TeamView from './views/TeamView';
 import Tour, { tourGesehen } from './Tour';
@@ -153,7 +156,10 @@ function App({ konto, onAbmelden }: { konto: Konto; onAbmelden: () => Promise<vo
   const [mapIncidentId, setMapIncidentId] = useState<string | null>(null);
   const [rufFensterOffen, setRufFensterOffen] = useState(false);
 
+  // Wetter wird nach useSpiel ermittelt (braucht die Wachen) und beim nächsten Rendern übergeben
+  const wetterRef = useRef<Wetter>('klar');
   const spiel = useSpiel({
+    wetter: wetterRef.current,
     onSpielstandAngewendet: (spielstand) => {
       setSelectedId(spielstand.locations[0]?.id ?? '');
       setSelectedIncidentId(null);
@@ -167,6 +173,8 @@ function App({ konto, onAbmelden }: { konto: Konto; onAbmelden: () => Promise<vo
       setMapIncidentId((current) => (current && einsatzIds.includes(current) ? null : current));
     },
   });
+  const wetter = useWetter(spiel.locations.find((location) => location.type === 'station')?.coords);
+  wetterRef.current = wetter;
   const {
     locations,
     vehicles,
@@ -438,6 +446,11 @@ function App({ konto, onAbmelden }: { konto: Konto; onAbmelden: () => Promise<vo
             >
               📻 S5 × {offeneSprechwuensche.length}
             </button>
+          )}
+          {spiel.locations.some((location) => location.type === 'station') && wetter !== 'klar' && (
+            <span className="chip" title="Echtes Wetter an deiner ersten Wache – beeinflusst, welche Einsätze kommen">
+              {WETTER_LABELS[wetter].split(' ')[0]}<span className="nur-breit"> {WETTER_LABELS[wetter].split(' ').slice(1).join(' ')}</span>
+            </span>
           )}
           <button
             type="button"

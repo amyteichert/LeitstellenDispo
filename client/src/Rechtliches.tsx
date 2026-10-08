@@ -144,6 +144,12 @@ function Datenschutz() {
         Diese Anbieter erhalten dabei deine IP-Adresse. Rechtsgrundlage ist unser berechtigtes Interesse an einer funktionierenden
         Kartendarstellung (Art. 6 Abs. 1 lit. f DSGVO). Für das Vereinigte Königreich besteht ein Angemessenheitsbeschluss der EU.
       </p>
+      <p>
+        Für das Spielwetter ruft dein Browser etwa alle 30 Minuten das aktuelle Wetter am Ort deiner ersten Wache beim Dienst
+        Open-Meteo ab (Open-Meteo.com, Zürich, Schweiz). Übermittelt werden die auf etwa 10 km gerundeten Koordinaten der Wache
+        sowie deine IP-Adresse. Rechtsgrundlage ist unser berechtigtes Interesse an einem realistischen Spielablauf
+        (Art. 6 Abs. 1 lit. f DSGVO). Für die Schweiz besteht ein Angemessenheitsbeschluss der EU.
+      </p>
 
       <h2>7. Schriftarten (Google Fonts)</h2>
       <p>

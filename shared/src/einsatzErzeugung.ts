@@ -11,6 +11,7 @@ import {
 } from './daten.js';
 import { fahrzeugErfuelltBedarf } from './fahrzeuge.js';
 import { INCIDENT_SPAWN_CONFIG } from './konfig.js';
+import { waehleGewichtet, type AufkommenKontext } from './aufkommen.js';
 import { clamp } from './geo.js';
 import { erzeugePatienten } from './patienten.js';
 import type { Koordinaten, MapLocation, StationKind, Vehicle } from './typen.js';
@@ -129,6 +130,8 @@ export const erzeugeZufallsEinsatz = (
   locations: MapLocation[],
   vehicles: Vehicle[],
   jetzt: number = Date.now(),
+  /** Uhrzeit, Wochentag, Wetter: bestimmen, welche Einsätze häufiger sind */
+  kontext?: AufkommenKontext,
 ): EinsatzErzeugungErgebnis => {
   const stations = locations.filter((location) => location.type === 'station');
   if (stations.length === 0) return { fehler: 'keine-wache' };
@@ -137,7 +140,7 @@ export const erzeugeZufallsEinsatz = (
   const templates = getAvailableIncidentTemplates(stationKind, vehicles);
   if (templates.length === 0) return { fehler: 'keine-machbare-vorlage' };
 
-  const template = templates[Math.floor(Math.random() * templates.length)];
+  const template = kontext ? waehleGewichtet(templates, kontext) : templates[Math.floor(Math.random() * templates.length)];
   const station = getBestIncidentStation(stations, template, vehicles);
   const ort = erzeugeEinsatzort(station, stations.length, template);
   return { einsatz: createSpielEinsatz(template, station, ort, jetzt) };

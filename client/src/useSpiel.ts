@@ -50,6 +50,12 @@ import {
   createNeuesSpiel,
   ergaenzeKrankenhaeuser,
   erzeugeZufallsEinsatz,
+  deutscheZeit,
+  einsatzIntervallMs,
+  entstehtEinsatz,
+  maxOffeneEinsaetze,
+  type AufkommenKontext,
+  type Wetter,
   formatEinsatzTitel,
   getFahrzeugTyp,
   type AbgeschlossenerSpielEinsatz,
@@ -77,6 +83,8 @@ interface UseSpielOptionen {
   onSpielstandAngewendet?: (spielstand: Spielstand) => void;
   /** Wird aufgerufen, wenn Einsätze abgeschlossen wurden */
   onEinsaetzeAbgeschlossen?: (einsatzIds: string[]) => void;
+  /** Aktuelles Wetter am Ort der ersten Wache (beeinflusst das Einsatzaufkommen) */
+  wetter?: Wetter;
   /** Wird aufgerufen, wenn nie alarmierte Einsätze nach langer Zeit verschwunden sind */
   onEinsaetzeVerfallen?: (einsatzIds: string[]) => void;
 }
@@ -258,23 +266,30 @@ export function useSpiel(optionen: UseSpielOptionen = {}) {
   }, []);
 
   // Neue Einsätze in regelmäßigen Abständen
+  // Neue Einsätze: Häufigkeit und Art nach deutscher Uhrzeit, Wochentag, Wachenzahl und Wetter.
+  // Eigener Sekundentakt mit Refs – sonst würde jede Fahrzeugbewegung den Takt neu starten.
+  const erzeugungRef = useRef({ locations, vehicles, wetter: 'klar' as Wetter });
+  erzeugungRef.current = { locations, vehicles, wetter: optionen.wetter ?? 'klar' };
   useEffect(() => {
     if (!spielstandGeladen) return;
-    if (!locations.some((location) => location.type === 'station')) return;
-    if (incidents.filter((incident) => incident.status !== 'abgeschlossen').length >= GAME_CONFIG.maxOpenIncidents) return;
-
+    let zuletzt = Date.now();
     const interval = setInterval(() => {
+      const jetzt = Date.now();
+      const vergangen = jetzt - zuletzt;
+      zuletzt = jetzt;
+      const { locations: orte, vehicles: fahrzeuge, wetter } = erzeugungRef.current;
+      const wachen = orte.filter((location) => location.type === 'station').length;
+      if (wachen === 0) return;
+      const kontext: AufkommenKontext = { ...deutscheZeit(jetzt), wachen, wetter };
+      if (!entstehtEinsatz(Math.min(vergangen, 5000), einsatzIntervallMs(kontext))) return;
       setIncidents((current) => {
-        if (current.filter((incident) => incident.status !== 'abgeschlossen').length >= GAME_CONFIG.maxOpenIncidents) {
-          return current;
-        }
-        const ergebnis = erzeugeZufallsEinsatz(locations, vehicles);
+        if (current.filter((incident) => incident.status !== 'abgeschlossen').length >= maxOffeneEinsaetze(wachen)) return current;
+        const ergebnis = erzeugeZufallsEinsatz(orte, fahrzeuge, jetzt, kontext);
         return 'einsatz' in ergebnis ? [ergebnis.einsatz, ...current] : current;
       });
-    }, GAME_CONFIG.incidentGenerationMs);
-
+    }, 1000);
     return () => clearInterval(interval);
-  }, [spielstandGeladen, locations, incidents, vehicles]);
+  }, [spielstandGeladen]);
 
   // Spiel-Tick: Ankunft, Lagemeldungen, Bearbeitung, Eskalation, Transport, Abschluss, Rückfahrt
   useEffect(() => {
