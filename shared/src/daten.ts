@@ -145,8 +145,12 @@ export interface SpielEinsatz extends Einsatz {
 
 /** Bewertung eines abgeschlossenen Einsatzes: Grundgeld gibt es immer, der Bonus hängt von Leistung und Ruf ab. */
 export interface EinsatzBewertung {
-  /** 0–100 = Fahrzeugwahl + Hilfsfrist */
+  /** 0–100 = Fahrzeugwahl + Hilfsfrist − Abzug für unnötig viele Kräfte */
   punkte: number;
+  /** So viele Fahrzeuge mehr als nötig (über eine erlaubte Reserve hinaus) – fehlt bei älteren Einsätzen */
+  ueberzaehlig?: number;
+  /** Punktabzug dafür */
+  ueberAbzug?: number;
   /** 0–50: Wurde das nächste freie Fahrzeug geschickt? */
   wahlPunkte: number;
   /** 0–50: Wie schnell war das erste Fahrzeug da? */

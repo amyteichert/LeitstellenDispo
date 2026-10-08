@@ -4,6 +4,7 @@
  * Bewertet wird nur, was ab der Alarmierung passiert: Wer einen Einsatz liegen lässt, wird nicht bestraft.
  */
 import type { AbgeschlossenerSpielEinsatz, EinsatzBewertung } from './daten.js';
+import type { FahrzeugBedarf } from './fahrzeuge.js';
 
 export const RUF_CONFIG = {
   start: 50,
@@ -68,13 +69,32 @@ export function getRufAenderung(punkte: number): number {
   return -2;
 }
 
+/** Eine Reserve ist erlaubt, jedes weitere unnötige Fahrzeug kostet Punkte (höchstens 30) */
+export const UEBERALARMIERUNG = { reserve: 1, abzugJeFahrzeug: 10, maxAbzug: 30 } as const;
+
+const summeBedarf = (bedarf: FahrzeugBedarf[] | undefined) => (bedarf ?? []).reduce((summe, b) => summe + b.amount, 0);
+
+/**
+ * Wie viele Fahrzeuge zu viel geschickt wurden. Maßstab ist das Größere aus Empfehlung und tatsächlichem Bedarf;
+ * bei einer Entwarnung vor Ort gibt es keinen Abzug (die Meldung klang ja schlimmer).
+ */
+export function getUeberzaehlig(einsatz: Pick<AbgeschlossenerSpielEinsatz, 'alarmedVehicles' | 'requiredVehicles' | 'empfehlung' | 'entwarnungGeplant'>): number {
+  if (einsatz.entwarnungGeplant) return 0;
+  const noetig = Math.max(summeBedarf(einsatz.requiredVehicles), summeBedarf(einsatz.empfehlung));
+  return Math.max(0, einsatz.alarmedVehicles.length - noetig - UEBERALARMIERUNG.reserve);
+}
+
 export function bewerteEinsatz(einsatz: AbgeschlossenerSpielEinsatz, ruf: number): EinsatzBewertung {
   const anfahrtSekunden = getEinsatzAnfahrtSekunden(einsatz);
   const wahlPunkte = getWahlPunkte(anfahrtSekunden, einsatz.besteAnfahrtSekunden);
   const fristPunkte = getFristPunkte(anfahrtSekunden);
-  const punkte = wahlPunkte + fristPunkte;
+  const ueberzaehlig = getUeberzaehlig(einsatz);
+  const ueberAbzug = Math.min(UEBERALARMIERUNG.maxAbzug, ueberzaehlig * UEBERALARMIERUNG.abzugJeFahrzeug);
+  const punkte = Math.max(0, wahlPunkte + fristPunkte - ueberAbzug);
   return {
     punkte,
+    ueberzaehlig,
+    ueberAbzug,
     wahlPunkte,
     fristPunkte,
     anfahrtSekunden,
@@ -117,6 +137,13 @@ export function getBewertungsHinweise(bewertung: EinsatzBewertung): BewertungsHi
     });
   } else {
     hinweise.push({ art: 'gut', text: `Hilfsfrist eingehalten (${formatSekunden(anfahrtSekunden)}).` });
+  }
+
+  if (bewertung.ueberzaehlig) {
+    hinweise.push({
+      art: 'fehler',
+      text: `Unnötig viele Kräfte: ${bewertung.ueberzaehlig} Fahrzeug${bewertung.ueberzaehlig > 1 ? 'e' : ''} mehr als nötig (eine Reserve ist in Ordnung) – −${bewertung.ueberAbzug} Punkte. Die fehlen dir woanders.`,
+    });
   }
   return hinweise;
 }

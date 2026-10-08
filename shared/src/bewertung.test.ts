@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { alarmiereFahrzeuge, getVerfuegbareFahrzeugeFuerEinsatz } from './alarmierung.js';
-import { getBewertungsHinweise, getFristPunkte, getRufLabel, getWahlPunkte, rechneEinsaetzeAb, RUF_CONFIG } from './bewertung.js';
+import { bewerteEinsatz, getBewertungsHinweise, getFristPunkte, getRufLabel, getUeberzaehlig, getWahlPunkte, rechneEinsaetzeAb, RUF_CONFIG } from './bewertung.js';
 import type { AbgeschlossenerSpielEinsatz } from './daten.js';
 import { migriereSpielstand, createNeuesSpiel } from './spielstand.js';
 import { berechneSpielTick } from './spielTick.js';
@@ -168,5 +168,32 @@ describe('Unklare Meldung und Entwarnung', () => {
     const ankunft = Math.min(...start.incidents[0].alarmedVehicles.map((a) => a.arrivalAt));
     const lage = berechneSpielTick({ ...start, locations }, ankunft).incidents[0];
     expect(lage.requiredVehicles.map((b) => b.category)).toEqual(['RTW', 'NEF']);
+  });
+});
+
+describe('Zu viele Kräfte', () => {
+  const mitFahrzeugen = (anzahl: number, extra: Partial<AbgeschlossenerSpielEinsatz> = {}): AbgeschlossenerSpielEinsatz => {
+    const basis = abgeschlossen(60);
+    const [erstes] = basis.alarmedVehicles;
+    return {
+      ...basis,
+      requiredVehicles: [{ id: 'req-rtw', category: 'RTW', amount: 1 }],
+      empfehlung: [{ id: 'req-rtw', category: 'RTW', amount: 1 }],
+      alarmedVehicles: Array.from({ length: anzahl }, (_, i) => ({ ...erstes, vehicleId: `f${i}` })),
+      ...extra,
+    };
+  };
+
+  it('eine Reserve ist frei, danach 10 Punkte je Fahrzeug, höchstens 30', () => {
+    expect(getUeberzaehlig(mitFahrzeugen(2))).toBe(0);
+    expect(getUeberzaehlig(mitFahrzeugen(4))).toBe(2);
+    expect(bewerteEinsatz(mitFahrzeugen(1), 50).punkte - bewerteEinsatz(mitFahrzeugen(4), 50).punkte).toBe(20);
+    expect(bewerteEinsatz(mitFahrzeugen(10), 50).ueberAbzug).toBe(30);
+  });
+
+  it('kein Abzug bei Entwarnung vor Ort; Hinweis in der Fehlerübersicht', () => {
+    expect(getUeberzaehlig(mitFahrzeugen(5, { entwarnungGeplant: true }))).toBe(0);
+    const hinweise = getBewertungsHinweise(bewerteEinsatz(mitFahrzeugen(4), 50));
+    expect(hinweise.some((h) => h.art === 'fehler' && h.text.includes('Unnötig viele Kräfte'))).toBe(true);
   });
 });
