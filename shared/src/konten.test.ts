@@ -3,7 +3,7 @@ import { istTeamRolle, pruefeBenutzername, pruefePasswort } from './konten.js';
 
 describe('pruefeBenutzername', () => {
   it('akzeptiert normale Namen inkl. Umlaute', () => {
-    expect(pruefeBenutzername('Amy')).toBeNull();
+    expect(pruefeBenutzername('Disponent')).toBeNull();
     expect(pruefeBenutzername('Leitstelle_Süd-1.2')).toBeNull();
   });
 
@@ -14,7 +14,7 @@ describe('pruefeBenutzername', () => {
   });
 
   it('lehnt Leerzeichen und Sonderzeichen ab', () => {
-    expect(pruefeBenutzername('Amy T')).not.toBeNull();
+    expect(pruefeBenutzername('Dispo T')).not.toBeNull();
     expect(pruefeBenutzername('<script>')).not.toBeNull();
   });
 });

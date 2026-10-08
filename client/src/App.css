@@ -1628,63 +1628,389 @@
   color: #f59e0b;
 }
 
-/* Anmeldung / Registrierung (vor dem Spiel) */
+/* ===== Anmeldung / Registrierung (vor dem Spiel) ===== */
+/* Aufbau: ganzer Bildschirm als Lagekarte, Anmeldung in der Mitte, links/rechts Werbung fürs Spiel */
 .anmeldung {
+  position: relative;
+  min-height: 100vh;
+  overflow: hidden;
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  justify-items: center;
+  gap: 28px;
+  padding: 0 0 24px;
+  background:
+    radial-gradient(900px 520px at 50% 30%, rgba(196, 30, 58, 0.26), transparent 65%),
+    radial-gradient(700px 500px at 0% 100%, rgba(196, 30, 58, 0.14), transparent 60%),
+    radial-gradient(700px 500px at 100% 100%, rgba(96, 165, 250, 0.06), transparent 60%),
+    repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.035) 0 1px, transparent 1px 56px),
+    repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.035) 0 1px, transparent 1px 56px),
+    #0e0709;
+}
+
+.anmeldung > :not(.anmeldung__hintergrund) { position: relative; z-index: 1; }
+
+.anmeldung__hintergrund {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+}
+
+.buehne__radar {
+  position: relative;
+  width: min(1000px, 130vw);
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle, transparent 0 24%, rgba(240, 138, 155, 0.12) 24.2% 24.5%, transparent 24.7% 49%,
+      rgba(240, 138, 155, 0.10) 49.2% 49.5%, transparent 49.7% 74%, rgba(240, 138, 155, 0.08) 74.2% 74.5%, transparent 74.7%);
+  border: 1px solid rgba(240, 138, 155, 0.12);
+}
+
+.buehne__sweep {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: conic-gradient(from 0deg, rgba(196, 30, 58, 0.28), transparent 18%);
+  animation: radar-drehen 7s linear infinite;
+}
+
+.buehne__punkt {
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  margin: -6px 0 0 -6px;
+  border-radius: 50%;
+  background: currentColor;
+  animation: einsatz-puls 3.2s ease-out infinite;
+}
+.buehne__punkt--rot { color: #ef4444; }
+.buehne__punkt--orange { color: #f59e0b; }
+.buehne__punkt--blau { color: #60a5fa; }
+
+@keyframes radar-drehen { to { transform: rotate(360deg); } }
+@keyframes einsatz-puls {
+  0% { box-shadow: 0 0 0 0 currentColor; }
+  70% { box-shadow: 0 0 0 18px transparent; }
+  100% { box-shadow: 0 0 0 0 transparent; }
+}
+
+.buehne__online {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #22c55e;
+  animation: online-blinken 2s ease-in-out infinite;
+}
+@keyframes online-blinken { 50% { opacity: 0.35; } }
+
+/* Kopf: Banner über die ganze Breite, darunter die Überschrift */
+.anmeldung__kopf {
+  width: 100%;
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+  text-align: center;
+}
+.anmeldung__banner {
+  position: relative;
+  width: 100%;
+  /* Höhe wächst mit der Bildschirmbreite: Handy ~130px, Laptop ~230px, großer PC max. 320px */
+  height: clamp(130px, 16vw, 320px);
+  overflow: hidden;
+  border-bottom: 1px solid rgba(196, 30, 58, 0.45);
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+}
+.anmeldung__banner img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center 45%;
+  display: block;
+}
+
+/* Weicher Übergang vom Banner in den Hintergrund */
+.anmeldung__banner::after {
+  content: '';
+  position: absolute;
+  inset: auto 0 0 0;
+  height: 35%;
+  background: linear-gradient(transparent, rgba(14, 7, 9, 0.85));
+}
+.anmeldung__kopf h1 {
+  margin-top: 12px;
+  padding: 0 16px;
+  font-size: clamp(1.6rem, 3.2vw, 2.8rem);
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+  text-shadow: 0 4px 24px rgba(0, 0, 0, 0.6);
+}
+.anmeldung__kopf p { color: var(--color-text-muted); padding: 0 16px; }
+
+/* Mitte: Werbung | Anmeldung | Werbung */
+.anmeldung__mitte {
+  width: 100%;
+  max-width: 1320px;
+  padding: 0 24px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 430px) minmax(0, 1fr);
+  gap: clamp(24px, 4vw, 56px);
   align-items: center;
-  justify-content: center;
-  padding: 16px;
 }
 
 .anmeldung__karte {
   width: 100%;
-  max-width: 400px;
+  padding: 28px;
+  background: linear-gradient(180deg, rgba(43, 21, 28, 0.94), rgba(33, 16, 21, 0.94));
+  border: 1px solid var(--color-border-strong);
+  border-radius: 20px;
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(196, 30, 58, 0.2), 0 0 60px rgba(196, 30, 58, 0.15);
+  backdrop-filter: blur(6px);
+}
+
+.anmeldung__seite {
   display: grid;
-  gap: 0.9rem;
-  padding: 1.5rem;
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: 14px;
-  box-shadow: var(--shadow-card);
+  gap: 14px;
+  align-content: center;
+}
+.anmeldung__seite h3 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.75rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
 }
 
-.anmeldung__banner {
-  width: 100%;
-  height: auto;
-  border-radius: 10px;
+/* Werbung links/rechts: locker, ohne Kästen */
+.anmeldung__merkmale,
+.anmeldung__ticker {
+  list-style: none;
+  display: grid;
 }
 
-.anmeldung__untertitel {
-  text-align: center;
+.anmeldung__merkmale { gap: 18px; }
+.anmeldung__merkmale li {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+}
+.anmeldung__merkmale li > span {
+  flex-shrink: 0;
+  font-size: 1.6rem;
+  line-height: 1;
+  filter: drop-shadow(0 0 12px rgba(196, 30, 58, 0.6));
+}
+.anmeldung__merkmale li div { display: grid; gap: 3px; }
+.anmeldung__merkmale strong { font-size: 1.02rem; }
+.anmeldung__merkmale small,
+.anmeldung__ticker small { font-size: 0.82rem; color: var(--color-text-muted); line-height: 1.45; }
+
+.anmeldung__ticker li {
+  display: grid;
+  gap: 2px;
+  padding: 10px 0 10px 16px;
+  position: relative;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  animation: ticker-rein 0.45s ease-out;
+}
+/* Farbpunkt statt Kasten: Rot = Feuerwehr, Orange = Rettungsdienst */
+.anmeldung__ticker li::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 16px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #ef4444;
+  box-shadow: 0 0 10px currentColor;
+  color: #ef4444;
+}
+.anmeldung__ticker li.rd::before { background: #f59e0b; color: #f59e0b; }
+.anmeldung__ticker li:nth-child(3) { opacity: 0.7; }
+.anmeldung__ticker li:nth-child(4) { opacity: 0.4; border-bottom: 0; }
+@keyframes ticker-rein {
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: none; }
+}
+
+.anmeldung__fakten {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 18px;
   font-size: 0.85rem;
   color: var(--color-text-muted);
 }
+.anmeldung__fakten strong { font-size: 1.35rem; color: var(--color-primary-text); }
+
+.anmeldung__fuss { font-size: 0.75rem; color: var(--color-text-muted); opacity: 0.75; text-align: center; }
 
 .anmeldung__formular {
   display: grid;
-  gap: 0.8rem;
+  gap: 16px;
+}
+.anmeldung__formular h2 { font-size: 1.5rem; margin-bottom: 4px; }
+
+.anmeldung__reiter {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  padding: 4px;
+  border-radius: 12px;
+  background: var(--color-input);
+  border: 1px solid var(--color-border);
+}
+.anmeldung__reiter button {
+  padding: 9px 12px;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--color-text-muted);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.anmeldung__reiter button.aktiv {
+  background: linear-gradient(180deg, #c41e3a, #9a1830);
+  color: #fff;
+  box-shadow: 0 4px 14px rgba(196, 30, 58, 0.3);
 }
 
-.anmeldung__info {
+.anmeldung__feld { display: grid; gap: 6px; }
+.anmeldung__feld > label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.anmeldung__eingabe {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 12px;
+  background: var(--color-input);
+  border: 1px solid var(--color-border-strong);
+  border-radius: 12px;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.anmeldung__eingabe:focus-within {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(196, 30, 58, 0.25);
+}
+.anmeldung__eingabe > span { opacity: 0.7; }
+.anmeldung__eingabe input {
+  flex: 1;
+  min-width: 0;
+  padding: 12px 0;
+  border: 0;
+  outline: none;
+  background: transparent;
+  color: var(--color-text);
+  font: inherit;
+}
+.anmeldung__eingabe input::placeholder { color: var(--color-text-muted); opacity: 0.6; }
+
+.anmeldung__auge {
+  border: 0;
+  background: none;
+  cursor: pointer;
+  font-size: 1rem;
+  padding: 6px;
+  opacity: 0.75;
+}
+.anmeldung__auge:hover { opacity: 1; }
+
+.anmeldung__regeln {
+  list-style: none;
+  display: grid;
+  gap: 4px;
   font-size: 0.8rem;
   color: var(--color-text-muted);
+}
+.anmeldung__regeln li { display: flex; gap: 8px; }
+.anmeldung__regeln li.ok { color: #4ade80; }
+
+.anmeldung__info { font-size: 0.9rem; color: var(--color-text-muted); }
+
+.anmeldung__hinweis {
+  font-size: 0.85rem;
+  padding: 0.55rem 0.75rem;
+  border-radius: 10px;
+  background: rgba(96, 165, 250, 0.12);
+  border: 1px solid rgba(96, 165, 250, 0.35);
 }
 
 .anmeldung__fehler {
   font-size: 0.85rem;
   color: var(--color-primary-text);
   background: var(--color-primary-light);
-  border-radius: 8px;
-  padding: 0.5rem 0.7rem;
+  border: 1px solid rgba(196, 30, 58, 0.4);
+  border-radius: 10px;
+  padding: 0.55rem 0.75rem;
 }
 
 .anmeldung__absenden {
   justify-content: center;
-  min-height: 44px;
+  min-height: 48px;
+  font-weight: 700;
+  font-size: 1rem;
 }
 
-.anmeldung__wechsel {
+.anmeldung__verbinde {
+  display: flex;
+  align-items: center;
   justify-content: center;
+  gap: 10px;
   color: var(--color-text-muted);
+  padding: 24px 0;
+}
+
+.anmeldung__spinner {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  animation: radar-drehen 0.8s linear infinite;
+}
+
+
+/* Kleine Laptops: Seiten etwas schmaler, Abstände kleiner */
+@media (max-width: 1200px) {
+  .anmeldung__mitte { grid-template-columns: minmax(0, 1fr) minmax(0, 400px) minmax(0, 1fr); padding: 0 20px; }
+  .anmeldung__merkmale small { display: none; } /* nur die Überschriften – sonst wird es zu eng */
+}
+
+/* Tablet hochkant und Handy: alles in einer Spalte, Anmeldung zuerst */
+@media (max-width: 900px) {
+  .anmeldung__mitte {
+    grid-template-columns: minmax(0, 1fr);
+    max-width: 520px;
+    gap: 32px;
+  }
+  .anmeldung__karte { grid-row: 1; }
+  .anmeldung__merkmale small { display: block; }
+}
+
+@media (max-width: 640px) {
+  .anmeldung { gap: 20px; padding-bottom: 20px; }
+  .anmeldung__mitte { padding: 0 16px; }
+  .anmeldung__karte { padding: 20px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .buehne__sweep,
+  .buehne__punkt,
+  .buehne__online,
+  .anmeldung__ticker li,
+  .anmeldung__spinner { animation: none; }
 }
 
 .lade-fehler {
