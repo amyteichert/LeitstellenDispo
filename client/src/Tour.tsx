@@ -173,7 +173,18 @@ export default function Tour({ kontoId, onAnsicht, onEnde }: { kontoId: number; 
               : 'Einen Moment …'}
         </p>
         <div className="tour__knoepfe">
-          <button type="button" className="btn" onClick={beenden}>{letzter ? 'Schließen' : 'Tour beenden'}</button>
+          {letzter ? (
+            <button type="button" className="btn" onClick={beenden}>Schließen</button>
+          ) : (
+            // Klein und mit Rückfrage, damit man nicht versehentlich draufkommt
+            <button
+              type="button"
+              className="tour__beenden"
+              onClick={() => window.confirm('Tour wirklich beenden? Du kannst sie später in den Einstellungen neu starten.') && beenden()}
+            >
+              Tour beenden
+            </button>
+          )}
           {wartetAufZiel ? (
             fehlt && <button type="button" className="btn btn--primary" onClick={weiter}>Überspringen</button>
           ) : schritt.tippen ? (
