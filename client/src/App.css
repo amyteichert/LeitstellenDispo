@@ -3,7 +3,7 @@
   display: flex;
   flex-direction: column;
   background:
-    radial-gradient(1200px 600px at 85% -10%, rgba(99, 102, 241, 0.12), transparent 60%),
+    radial-gradient(1200px 600px at 85% -10%, rgba(37, 99, 235, 0.06), transparent 60%),
     var(--color-bg);
 }
 
@@ -146,7 +146,7 @@
   align-items: center;
   justify-content: center;
   border-radius: 12px;
-  background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+  background: #2563eb;
   color: #fff;
   font-weight: 700;
   letter-spacing: 0.04em;
@@ -182,14 +182,14 @@
   align-items: center;
   padding: 0.38rem 0.7rem;
   border-radius: 999px;
-  background: #6366f1;
+  background: #2563eb;
   color: #fff;
   font-size: 0.75rem;
   border: 1px solid rgba(255,255,255,0.12);
 }
 
 .chip--accent {
-  background: #4f46e5; /* slightly darker accent */
+  background: #1d4ed8; /* slightly darker accent */
   color: #fff;
   border-color: rgba(255,255,255,0.12);
 }
@@ -348,8 +348,8 @@
 }
 
 .location-item--active {
-  border-color: #6366f1;
-  box-shadow: 0 0 0 1px rgba(99, 102, 241, 0.12);
+  border-color: #2563eb;
+  box-shadow: 0 0 0 1px rgba(37, 99, 235, 0.12);
 }
 
 .delete-button {
@@ -857,7 +857,7 @@
   gap: 0.5rem;
   padding: 0.38rem 0.9rem;
   border-radius: 999px;
-  background: linear-gradient(180deg, #4f46e5, #7a0f20);
+  background: linear-gradient(180deg, #1d4ed8, #7a0f20);
   color: #fff;
   font-size: 0.95rem;
   border: 1px solid rgba(255,255,255,0.08);
@@ -872,7 +872,7 @@
 
 .view-trigger:focus {
   outline: none;
-  box-shadow: 0 0 0 3px rgba(99, 102, 241,0.12);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235,0.12);
 }
 
 .view-trigger .chev {
@@ -933,9 +933,9 @@
 }
 
 .view-menu-item.active {
-  background: linear-gradient(90deg, rgba(99, 102, 241,0.16), rgba(99, 102, 241,0.08));
+  background: linear-gradient(90deg, rgba(37, 99, 235,0.16), rgba(37, 99, 235,0.08));
   color: #fff;
-  box-shadow: inset 0 0 0 1px rgba(99, 102, 241,0.08);
+  box-shadow: inset 0 0 0 1px rgba(37, 99, 235,0.08);
 }
 
 /* Variante für helle Hintergründe (z. B. Einsatzliste) */
@@ -971,14 +971,14 @@
 }
 
 .btn--primary {
-  background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+  background: #2563eb;
   color: #fff;
-  box-shadow: 0 8px 20px rgba(99, 102, 241,0.18);
+  box-shadow: none;
 }
 
 .btn--primary:hover:not(:disabled) {
   transform: translateY(-2px);
-  box-shadow: 0 12px 30px rgba(99, 102, 241,0.22);
+  box-shadow: 0 12px 30px rgba(37, 99, 235,0.22);
 }
 
 .btn--secondary {
@@ -1118,7 +1118,7 @@
 
 .status-badge--offen { color: #fbbf24; background: rgba(245, 158, 11, 0.14); border-color: rgba(245, 158, 11, 0.35); }
 .status-badge--alarmiert { color: #93c5fd; background: rgba(59, 130, 246, 0.14); border-color: rgba(59, 130, 246, 0.35); }
-.status-badge--in_bearbeitung { color: #fca5b5; background: rgba(99, 102, 241, 0.18); border-color: rgba(99, 102, 241, 0.45); }
+.status-badge--in_bearbeitung { color: #fca5b5; background: rgba(37, 99, 235, 0.18); border-color: rgba(37, 99, 235, 0.45); }
 .status-badge--transport { color: #c4b5fd; background: rgba(139, 92, 246, 0.16); border-color: rgba(139, 92, 246, 0.4); }
 .status-badge--abgeschlossen { color: #b9c0c8; background: rgba(128, 138, 151, 0.16); border-color: rgba(128, 138, 151, 0.3); }
 
@@ -1203,14 +1203,14 @@
 .bedarf-liste { display: flex; flex-wrap: wrap; gap: 6px; list-style: none; padding: 0; }
 .bedarf-chip { padding: 4px 10px; border-radius: 8px; font-size: 0.85rem; font-weight: 600; border: 1px solid; }
 .bedarf-chip--erfuellt { color: #86efac; background: rgba(34, 197, 94, 0.12); border-color: rgba(34, 197, 94, 0.35); }
-.bedarf-chip--fehlt { color: #fca5b5; background: rgba(99, 102, 241, 0.14); border-color: rgba(99, 102, 241, 0.4); }
+.bedarf-chip--fehlt { color: #fca5b5; background: rgba(37, 99, 235, 0.14); border-color: rgba(37, 99, 235, 0.4); }
 /* Alarmiert, aber noch auf Anfahrt */
 .bedarf-chip--unterwegs { color: #93c5fd; background: rgba(59, 130, 246, 0.12); border-color: rgba(59, 130, 246, 0.35); }
 .bedarf-chip small { font-weight: 500; opacity: 0.85; }
 
 /* Versorgungslage: deutlich, wenn Kräfte fehlen */
 .versorgung-hinweis { padding: 8px 12px; border-radius: 8px; font-size: 0.88rem; border: 1px solid; }
-.versorgung-hinweis--fehlt { color: #ffd4da; background: rgba(99, 102, 241, 0.22); border-color: rgba(99, 102, 241, 0.6); }
+.versorgung-hinweis--fehlt { color: #ffd4da; background: rgba(37, 99, 235, 0.22); border-color: rgba(37, 99, 235, 0.6); }
 .versorgung-hinweis--unterwegs { color: #cfe0ff; background: rgba(59, 130, 246, 0.14); border-color: rgba(59, 130, 246, 0.4); }
 .versorgung-hinweis--ok { color: #b8f0cf; background: rgba(67, 181, 129, 0.12); border-color: rgba(67, 181, 129, 0.38); }
 
@@ -1232,7 +1232,7 @@
   margin: 0;
   padding: 10px 12px;
   border-left-width: 5px;
-  background: rgba(99, 102, 241, 0.2);
+  background: rgba(37, 99, 235, 0.2);
 }
 
 .einsatz-details .einsatz-meldungen h4 { color: #ffd4da; font-size: 0.85rem; }
@@ -1641,8 +1641,8 @@
   gap: 28px;
   padding: 0 0 24px;
   background:
-    radial-gradient(900px 520px at 50% 30%, rgba(99, 102, 241, 0.26), transparent 65%),
-    radial-gradient(700px 500px at 0% 100%, rgba(99, 102, 241, 0.14), transparent 60%),
+    radial-gradient(900px 520px at 50% 30%, rgba(37, 99, 235, 0.26), transparent 65%),
+    radial-gradient(700px 500px at 0% 100%, rgba(37, 99, 235, 0.14), transparent 60%),
     radial-gradient(700px 500px at 100% 100%, rgba(96, 165, 250, 0.06), transparent 60%),
     repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.035) 0 1px, transparent 1px 56px),
     repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.035) 0 1px, transparent 1px 56px),
@@ -1674,7 +1674,7 @@
   position: absolute;
   inset: 0;
   border-radius: 50%;
-  background: conic-gradient(from 0deg, rgba(99, 102, 241, 0.28), transparent 18%);
+  background: conic-gradient(from 0deg, rgba(37, 99, 235, 0.28), transparent 18%);
   animation: radar-drehen 7s linear infinite;
 }
 
@@ -1722,7 +1722,7 @@
   /* Höhe wächst mit der Bildschirmbreite: Handy ~130px, Laptop ~230px, großer PC max. 320px */
   height: clamp(130px, 16vw, 320px);
   overflow: hidden;
-  border-bottom: 1px solid rgba(99, 102, 241, 0.45);
+  border-bottom: 1px solid rgba(37, 99, 235, 0.45);
   box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
 }
 .anmeldung__banner img {
@@ -1768,7 +1768,7 @@
   background: linear-gradient(180deg, rgba(26, 30, 51, 0.94), rgba(19, 22, 38, 0.94));
   border: 1px solid var(--color-border-strong);
   border-radius: 20px;
-  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(99, 102, 241, 0.2), 0 0 60px rgba(99, 102, 241, 0.15);
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(37, 99, 235, 0.2), 0 0 60px rgba(37, 99, 235, 0.15);
   backdrop-filter: blur(6px);
 }
 
@@ -1804,7 +1804,7 @@
   flex-shrink: 0;
   font-size: 1.6rem;
   line-height: 1;
-  filter: drop-shadow(0 0 12px rgba(99, 102, 241, 0.6));
+  filter: drop-shadow(0 0 12px rgba(37, 99, 235, 0.6));
 }
 .anmeldung__merkmale li div { display: grid; gap: 3px; }
 .anmeldung__merkmale strong { font-size: 1.02rem; }
@@ -1877,9 +1877,9 @@
   transition: background 0.15s ease, color 0.15s ease;
 }
 .anmeldung__reiter button.aktiv {
-  background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+  background: #2563eb;
   color: #fff;
-  box-shadow: 0 4px 14px rgba(99, 102, 241, 0.3);
+  box-shadow: 0 4px 14px rgba(37, 99, 235, 0.3);
 }
 
 .anmeldung__feld { display: grid; gap: 6px; }
@@ -1903,7 +1903,7 @@
 }
 .anmeldung__eingabe:focus-within {
   border-color: var(--color-primary);
-  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.25);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.25);
 }
 .anmeldung__eingabe > span { opacity: 0.7; }
 .anmeldung__eingabe input {
@@ -1952,7 +1952,7 @@
   font-size: 0.85rem;
   color: var(--color-primary-text);
   background: var(--color-primary-light);
-  border: 1px solid rgba(99, 102, 241, 0.4);
+  border: 1px solid rgba(37, 99, 235, 0.4);
   border-radius: 10px;
   padding: 0.55rem 0.75rem;
 }
@@ -2256,7 +2256,7 @@
   position: fixed;
   border: 2px solid var(--color-primary);
   border-radius: 10px;
-  box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.35);
+  box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.35);
   transition: top 0.2s, left 0.2s, width 0.2s, height 0.2s;
 }
 .tour__rahmen--tippen {
@@ -2267,7 +2267,7 @@
   pointer-events: auto; /* Element nur zeigen, nicht bedienen */
 }
 @keyframes tour-puls {
-  50% { box-shadow: 0 0 0 9px rgba(99, 102, 241, 0.15); }
+  50% { box-shadow: 0 0 0 9px rgba(37, 99, 235, 0.15); }
 }
 @media (prefers-reduced-motion: reduce) {
   .tour__rahmen { transition: none; }
@@ -2398,11 +2398,11 @@
 }
 
 .btn--primary:hover:not(:disabled) {
-  background: linear-gradient(135deg, #60a5fa, #a78bfa);
+  background: #3b82f6;
 }
 
 /* Banner ist rot gestaltet – Farbton auf Blaulicht-Blau/Lila drehen (Weiß bleibt Weiß) */
 .topbar__banner,
 .anmeldung__banner img {
-  filter: hue-rotate(240deg) saturate(1.15);
+  filter: hue-rotate(215deg) saturate(0.85);
 }
