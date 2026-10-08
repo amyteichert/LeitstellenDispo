@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { Ansicht } from './startansicht';
 
@@ -58,6 +58,8 @@ export default function Tour({ kontoId, onAnsicht, onEnde }: { kontoId: number; 
   const [rechteck, setRechteck] = useState<Rechteck | null>(null);
   /** Ziel ist auch nach einigen Sekunden nicht da – dann Überspringen anbieten */
   const [fehlt, setFehlt] = useState(false);
+  /** Wurde das Ziel des aktuellen Tipp-Schritts schon angetippt? */
+  const angetippt = useRef(false);
   const schritt = TOUR_SCHRITTE[index];
   const letzter = index === TOUR_SCHRITTE.length - 1;
 
@@ -77,6 +79,7 @@ export default function Tour({ kontoId, onAnsicht, onEnde }: { kontoId: number; 
   useLayoutEffect(() => {
     setRechteck(null);
     setFehlt(false);
+    angetippt.current = false;
     if (!schritt.ziel) return;
     const start = performance.now();
     let gescrollt = false;
@@ -86,7 +89,8 @@ export default function Tour({ kontoId, onAnsicht, onEnde }: { kontoId: number; 
         setRechteck(null);
         const gewartet = performance.now() - start;
         // Nur beim Menüpunkt: Menü zugeklappt → zurück zu „Menü antippen“
-        if (schritt.zurueckWennWeg && gewartet > 800) setIndex((i) => Math.max(0, i - 1));
+        // (nicht, wenn das Element gerade angetippt wurde – dann verschwindet es ja absichtlich)
+        if (schritt.zurueckWennWeg && gewartet > 800 && !angetippt.current) setIndex((i) => (i === index ? Math.max(0, i - 1) : i));
         // Sonst nie im Kreis laufen: nach 3 Sekunden „Überspringen“ anbieten
         else if (gewartet > 3000) setFehlt(true);
         return;
@@ -114,7 +118,9 @@ export default function Tour({ kontoId, onAnsicht, onEnde }: { kontoId: number; 
       const ziel = document.querySelector(schritt.ziel!);
       if (!erledigt && ziel && event.target instanceof Node && ziel.contains(event.target)) {
         erledigt = true;
-        setTimeout(() => setIndex((i) => (i === index ? i + 1 : i)), 150);
+        angetippt.current = true;
+        // Sofort weiter: Das Element ist während dieses Klicks noch da, seine eigene Aktion läuft trotzdem
+        setIndex((i) => (i === index ? i + 1 : i));
       }
     };
     document.addEventListener('click', beiKlick, true);
