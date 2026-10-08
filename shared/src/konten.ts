@@ -49,3 +49,78 @@ export function pruefePasswort(passwort: unknown): string | null {
 export function istTeamRolle(rolle: UserRole): boolean {
   return rolle === 'owner' || rolle === 'co_owner' || rolle === 'admin';
 }
+
+// ---------------------------------------------------------------------------
+// Team-Bereich: Rangordnung und Verwaltung
+// ---------------------------------------------------------------------------
+
+export const ROLLEN_LABELS: Record<UserRole, string> = {
+  owner: 'Owner',
+  co_owner: 'Co-Owner',
+  admin: 'Admin',
+  player: 'Spieler',
+};
+
+/** Rang einer Rolle – man darf nur Konten mit niedrigerem Rang verwalten. */
+export const ROLLEN_RANG: Record<UserRole, number> = { owner: 3, co_owner: 2, admin: 1, player: 0 };
+
+/** Rollen, die der Owner vergeben kann (Owner selbst bleibt einmalig). */
+export const VERGEBBARE_ROLLEN: UserRole[] = ['player', 'admin', 'co_owner'];
+
+/** Darf `handelnd` das Konto `ziel` sperren, löschen oder zurücksetzen? Nie sich selbst, nur niedrigere Ränge. */
+export function darfKontoVerwalten(handelnd: Pick<Konto, 'id' | 'rolle'>, ziel: Pick<Konto, 'id' | 'rolle'>): boolean {
+  return handelnd.id !== ziel.id && istTeamRolle(handelnd.rolle) && ROLLEN_RANG[handelnd.rolle] > ROLLEN_RANG[ziel.rolle];
+}
+
+/** Rollen vergibt nur der Owner – nicht an sich selbst und nie die Owner-Rolle. */
+export function darfRolleVergeben(handelnd: Pick<Konto, 'id' | 'rolle'>, ziel: Pick<Konto, 'id'>, neueRolle: UserRole): boolean {
+  return handelnd.rolle === 'owner' && handelnd.id !== ziel.id && VERGEBBARE_ROLLEN.includes(neueRolle);
+}
+
+/** Konto, wie es der Team-Bereich sieht */
+export interface TeamKonto extends Konto {
+  gesperrt: boolean;
+  /** Hat Dev-Werkzeuge benutzt – zählt nicht für die Bestenliste */
+  devMarkiert: boolean;
+  /** Zuletzt gespeicherter Spielstand (ISO) – `null`, wenn noch nie gespielt */
+  zuletztGespielt: string | null;
+}
+
+export interface TeamUebersicht {
+  konten: number;
+  team: number;
+  gesperrt: number;
+  neuLetzte7Tage: number;
+  aktivHeute: number;
+  aktivLetzte7Tage: number;
+  mitSpielstand: number;
+}
+
+export interface SpielstandZusammenfassung {
+  guthaben: number;
+  ruf: number | null;
+  wachen: number;
+  fahrzeuge: number;
+  personal: number;
+  laufendeEinsaetze: number;
+  abgeschlosseneEinsaetze: number;
+  gespeichertAm: string | null;
+}
+
+/** Kurzfassung eines gespeicherten Spielstands – robust gegen alte oder unvollständige Stände. */
+export function fasseSpielstandZusammen(roh: unknown): SpielstandZusammenfassung | null {
+  if (!roh || typeof roh !== 'object') return null;
+  const s = roh as Record<string, unknown>;
+  const anzahl = (wert: unknown) => (Array.isArray(wert) ? wert.length : 0);
+  const locations = Array.isArray(s.locations) ? (s.locations as Array<{ type?: string }>) : [];
+  return {
+    guthaben: typeof s.balance === 'number' ? s.balance : 0,
+    ruf: typeof s.ruf === 'number' ? s.ruf : null,
+    wachen: locations.filter((l) => l?.type === 'station').length,
+    fahrzeuge: anzahl(s.vehicles),
+    personal: anzahl(s.personal),
+    laufendeEinsaetze: anzahl(s.incidents),
+    abgeschlosseneEinsaetze: anzahl(s.completedIncidentHistory),
+    gespeichertAm: typeof s.gespeichertAm === 'string' ? s.gespeichertAm : null,
+  };
+}

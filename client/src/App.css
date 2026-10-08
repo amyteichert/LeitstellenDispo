@@ -2187,3 +2187,54 @@
 .rechtliche-links a:hover {
   color: var(--color-text);
 }
+
+/* Team-Bereich */
+.team-konten {
+  list-style: none;
+  margin: 12px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+}
+.team-konto {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+}
+.team-konto--gesperrt {
+  border-color: var(--color-primary);
+  opacity: 0.8;
+}
+.team-konto__kopf {
+  width: 100%;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 12px;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+.team-konto__kopf small {
+  flex-basis: 100%;
+  color: var(--color-text-muted);
+}
+.team-konto__details {
+  padding: 0 12px 12px;
+  display: grid;
+  gap: 10px;
+}
+.team-konto__aktionen {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+.team-chip--warnung {
+  background: var(--color-primary);
+  color: #fff;
+}

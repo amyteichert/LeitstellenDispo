@@ -1,4 +1,4 @@
-import type { Konto } from '@leitstellendispo/shared';
+import type { Konto, SpielstandZusammenfassung, TeamKonto, TeamUebersicht, UserRole } from '@leitstellendispo/shared';
 
 /** Wird ausgelöst, wenn der Server eine Anfrage mit 401 ablehnt (Sitzung abgelaufen oder Konto gesperrt). */
 export const SITZUNG_ABGELAUFEN = 'leitstellendispo:sitzung-abgelaufen';
@@ -52,3 +52,35 @@ export async function holeKonto(): Promise<Konto | null> {
 export async function abmelden(): Promise<void> {
   await fetch('/api/auth/abmelden', { method: 'POST' }).catch(() => undefined);
 }
+
+// ---------------------------------------------------------------------------
+// Team-Bereich (Server prüft jede Aktion – die Oberfläche blendet nur aus)
+// ---------------------------------------------------------------------------
+
+async function team<T>(methode: string, pfad: string, body?: unknown): Promise<T> {
+  let res: Response;
+  try {
+    res = await fetch(`/api/team${pfad}`, {
+      method: methode,
+      headers: body === undefined ? undefined : { 'Content-Type': 'application/json' },
+      body: body === undefined ? undefined : JSON.stringify(body),
+    });
+  } catch {
+    throw new KontoFehler(SERVER_NICHT_ERREICHBAR);
+  }
+  if (res.status === 401) meldeSitzungAbgelaufen();
+  const daten = res.status === 204 ? null : await res.json().catch(() => null);
+  if (!res.ok) throw new KontoFehler(fehlerText(res, daten));
+  return daten as T;
+}
+
+export const teamApi = {
+  uebersicht: () => team<{ uebersicht: TeamUebersicht }>('GET', '/uebersicht').then((d) => d.uebersicht),
+  konten: (suche = '') => team<{ konten: TeamKonto[] }>('GET', `/konten?suche=${encodeURIComponent(suche)}`).then((d) => d.konten),
+  spielstand: (id: number) => team<{ zusammenfassung: SpielstandZusammenfassung | null }>('GET', `/konten/${id}/spielstand`).then((d) => d.zusammenfassung),
+  sperren: (id: number, gesperrt: boolean) => team<{ konto: TeamKonto }>('POST', `/konten/${id}/sperren`, { gesperrt }).then((d) => d.konto),
+  rolle: (id: number, rolle: UserRole) => team<{ konto: TeamKonto }>('POST', `/konten/${id}/rolle`, { rolle }).then((d) => d.konto),
+  spielstandZuruecksetzen: (id: number) => team<null>('DELETE', `/konten/${id}/spielstand`),
+  loeschen: (id: number) => team<null>('DELETE', `/konten/${id}`),
+  devMarkierung: () => team<null>('POST', '/dev-markierung'),
+};

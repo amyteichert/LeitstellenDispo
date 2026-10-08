@@ -586,6 +586,26 @@ export function useSpiel(optionen: UseSpielOptionen = {}) {
     spielstandAnwenden(createNeuesSpiel());
   };
 
+  // ---- Dev-Werkzeuge (nur Team, nur eigenes Konto – der Aufrufer setzt vorher die Dev-Markierung) ----
+
+  const devGeld = (betrag: number) => {
+    setBalance((cur) => cur + betrag);
+    addTransaction(betrag >= 0 ? 'Einnahme' : 'Ausgabe', 'Dev-Werkzeug: Guthaben angepasst', Math.abs(betrag));
+  };
+
+  const devRufSetzen = (wert: number) => setRuf(Math.min(RUF_CONFIG.max, Math.max(RUF_CONFIG.min, Math.round(wert))));
+
+  /** Alle laufenden Lehrgänge enden sofort (der nächste Spiel-Tick vergibt die Qualifikationen). */
+  const devLehrgaengeBeenden = () => {
+    const jetzt = Date.now();
+    setLocations((current) => current.map((location) => (location.ausbildungsRaeume?.some((raum) => raum.lehrgang)
+      ? {
+        ...location,
+        ausbildungsRaeume: location.ausbildungsRaeume.map((raum) => (raum.lehrgang ? { ...raum, lehrgang: { ...raum.lehrgang, endeAt: jetzt } } : raum)),
+      }
+      : location)));
+  };
+
   return {
     spielstandGeladen,
     ladeFehler,
@@ -619,6 +639,9 @@ export function useSpiel(optionen: UseSpielOptionen = {}) {
     funk,
     gibSprechaufforderung,
     erzeugeTestEinsatz,
+    devGeld,
+    devRufSetzen,
+    devLehrgaengeBeenden,
     alarmieren,
     markiereMeldungGelesen,
     neuesSpiel,

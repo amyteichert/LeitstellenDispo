@@ -26,7 +26,9 @@ import ViewDropdown from './ViewDropdown';
 
 import type { LocationType } from './types';
 import { useSpiel } from './useSpiel';
-import { ladeStartansicht, type Ansicht } from './startansicht';
+import { ladeStartansicht, sichtbareAnsichten, type Ansicht } from './startansicht';
+import TeamView from './views/TeamView';
+import { teamApi } from './konto';
 import { spieleFunkPiep, useEinsatzHinweise } from './useEinsatzHinweise';
 import FunkView from './views/FunkView';
 import FahrzeugeView from './views/FahrzeugeView';
@@ -345,7 +347,14 @@ function App({ konto, onAbmelden }: { konto: Konto; onAbmelden: () => Promise<vo
     }
   };
 
-  const triggerTestIncident = () => {
+  const triggerTestIncident = async () => {
+    // Dev-Werkzeug: erst markieren (zählt dann nicht für die Bestenliste)
+    try {
+      await teamApi.devMarkierung();
+    } catch (e) {
+      alert(e instanceof Error ? e.message : 'Dev-Markierung fehlgeschlagen.');
+      return;
+    }
     const ergebnis = spiel.erzeugeTestEinsatz();
     if ('fehler' in ergebnis) {
       alert(ergebnis.fehler);
@@ -440,6 +449,7 @@ function App({ konto, onAbmelden }: { konto: Konto; onAbmelden: () => Promise<vo
               isOpen={dropdownOpen}
               onClose={() => setDropdownOpen(false)}
               currentView={currentView}
+              ansichten={sichtbareAnsichten(istTeamRolle(konto.rolle))}
               onSelect={(v) => {
                 selectView(v as any);
               }}
@@ -804,6 +814,22 @@ function App({ konto, onAbmelden }: { konto: Konto; onAbmelden: () => Promise<vo
                 stats={completedIncidentStats}
                 funk={spiel.funk}
                 onSprechaufforderung={spiel.gibSprechaufforderung}
+              />
+            )}
+
+            {currentView === 'Team' && istTeamRolle(konto.rolle) && (
+              <TeamView
+                konto={konto}
+                dev={{
+                  testEinsatz: () => {
+                    const ergebnis = spiel.erzeugeTestEinsatz();
+                    return 'fehler' in ergebnis ? ergebnis.fehler : null;
+                  },
+                  geld: spiel.devGeld,
+                  rufSetzen: spiel.devRufSetzen,
+                  lehrgaengeBeenden: spiel.devLehrgaengeBeenden,
+                  ruf: spiel.ruf,
+                }}
               />
             )}
 

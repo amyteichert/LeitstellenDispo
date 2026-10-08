@@ -8,11 +8,11 @@ type Props = {
   onClose: () => void;
   currentView: string;
   onSelect: (view: string) => void;
+  /** Sichtbare Menüpunkte (Standard: alle) */
+  ansichten?: readonly string[];
 };
 
-const VIEWS = ANSICHTEN;
-
-export default function ViewDropdown({ anchorRef, isOpen, onClose, currentView, onSelect }: Props) {
+export default function ViewDropdown({ anchorRef, isOpen, onClose, currentView, onSelect, ansichten = ANSICHTEN }: Props) {
   const [pos, setPos] = useState<{ top: number; left: number; width: number } | null>(null);
   const menuRef = useRef<HTMLDivElement | null>(null);
 
@@ -63,7 +63,7 @@ export default function ViewDropdown({ anchorRef, isOpen, onClose, currentView, 
       role="menu"
     >
       <ul style={{ listStyle: 'none', padding: 8, margin: 0 }}>
-        {VIEWS.map((v) => (
+        {ansichten.map((v) => (
           <li key={v} style={{ marginBottom: 6 }}>
             <button
               type="button"

@@ -39,6 +39,10 @@ const MIGRATIONEN: string[] = [
     aktualisiert TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
   );
   `,
+  // 2: Markierung für Konten, die Dev-Werkzeuge benutzt haben (zählen nicht für die Bestenliste)
+  `
+  ALTER TABLE benutzer ADD COLUMN dev_markiert INTEGER NOT NULL DEFAULT 0;
+  `,
 ];
 
 /** Öffnet (bzw. erstellt) die Datenbank und bringt das Schema auf den neuesten Stand. */

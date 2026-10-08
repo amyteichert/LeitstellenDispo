@@ -7,6 +7,7 @@ import { erstelleAuthRouter } from './auth.js';
 import type { Datenbank } from './datenbank.js';
 import { erstelleKontenDienst } from './konten.js';
 import { erstelleSpielstandRouter } from './spielstand.js';
+import { erstelleTeamRouter } from './team.js';
 
 // Feste Beispieldaten für den ersten Durchstich – wird später durch echte Einsatzlogik ersetzt.
 const beispielEinsaetze: Einsatz[] = [
@@ -31,6 +32,7 @@ export function erstelleApp(db: Datenbank, optionen: { bcryptRunden?: number } =
   app.use(express.json());
 
   app.use('/api/auth', erstelleAuthRouter(konten));
+  app.use('/api/team', erstelleTeamRouter(db, konten));
 
   app.get('/api/health', (_req, res) => {
     res.json({ status: 'ok' });
