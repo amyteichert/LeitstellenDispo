@@ -1,6 +1,6 @@
 // Endpunkte für Registrieren, Anmelden, Abmelden und „Wer bin ich“ sowie Middleware für geschützte Routen
 import { Router, type CookieOptions, type NextFunction, type Request, type Response } from 'express';
-import { pruefeBenutzername, pruefeEmail, pruefePasswort, type Konto } from '@leitstellendispo/shared';
+import { pruefeBenutzername, pruefeEmail, pruefeNameGegenEmail, pruefePasswort, type Konto } from '@leitstellendispo/shared';
 import { erstelleFehlversuchBremse } from './fehlversuchBremse.js';
 import { SITZUNG_DAUER_MS, type KontenDienst } from './konten.js';
 import { KEIN_MAILVERSAND, type Mailversand } from './mail.js';
@@ -77,7 +77,7 @@ export function erstelleAuthRouter(konten: KontenDienst, optionen: AuthOptionen 
       if (warten > 0) return zuVieleVersuche(res, warten);
 
       const { name, email, passwort } = req.body ?? {};
-      const fehler = pruefeEmail(email) ?? pruefeBenutzername(name) ?? pruefePasswort(passwort);
+      const fehler = pruefeEmail(email) ?? pruefeBenutzername(name) ?? pruefeNameGegenEmail(name, email) ?? pruefePasswort(passwort);
       if (fehler) return void res.status(400).json({ fehler });
 
       registrierBremse.merkeFehlversuch(ip); // zählt jede Registrierung, nicht nur fehlgeschlagene

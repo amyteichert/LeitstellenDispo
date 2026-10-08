@@ -49,6 +49,19 @@ export function pruefeEmail(email: unknown): string | null {
   return null;
 }
 
+/**
+ * Der Benutzername ist öffentlich – er darf nicht die E-Mail-Adresse verraten.
+ * (Ein „@“ ist im Namen ohnehin nicht erlaubt; hier geht es um den Teil vor dem @.)
+ */
+export function pruefeNameGegenEmail(name: unknown, email: unknown): string | null {
+  if (typeof name !== 'string' || typeof email !== 'string') return null;
+  const lokalteil = normalisiereEmail(email).split('@')[0];
+  if (lokalteil.length >= KONTO_REGELN.nameMinLaenge && name.trim().toLowerCase() === lokalteil) {
+    return 'Dein Benutzername ist öffentlich sichtbar – bitte nicht den Teil deiner E-Mail-Adresse vor dem @ verwenden.';
+  }
+  return null;
+}
+
 /** Prüft ein Passwort. Gibt eine Fehlermeldung zurück oder `null`, wenn es gültig ist. */
 export function pruefePasswort(passwort: unknown): string | null {
   if (typeof passwort !== 'string' || passwort.length === 0) return 'Bitte ein Passwort angeben.';

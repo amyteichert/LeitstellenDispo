@@ -39,4 +39,4 @@ export function cookieAus(res: Response): string {
 }
 
 /** Eindeutige Test-E-Mail zu einem Benutzernamen */
-export const testmail = (name: string) => `${name.toLowerCase()}@test.de`;
+export const testmail = (name: string) => `${name.toLowerCase()}.konto@test.de`;

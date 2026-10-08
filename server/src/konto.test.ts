@@ -23,11 +23,11 @@ describe('E-Mail bei der Registrierung', () => {
     expect((await post('/registrieren', { name: 'Disponent', passwort: 'geheim123' })).status).toBe(400);
     expect((await post('/registrieren', { name: 'Disponent', email: 'kaputt', passwort: 'geheim123' })).status).toBe(400);
 
-    const res = await post('/registrieren', { name: 'Disponent', email: ' Disponent@Test.DE ', passwort: 'geheim123' });
+    const res = await post('/registrieren', { name: 'Disponent', email: ' Leitstelle.Disponent@Test.DE ', passwort: 'geheim123' });
     expect(res.status).toBe(201);
-    expect((await res.json()).konto.email).toBe('disponent@test.de');
+    expect((await res.json()).konto.email).toBe('leitstelle.disponent@test.de');
 
-    const doppelt = await post('/registrieren', { name: 'Anderer', email: 'DISPONENT@test.de', passwort: 'geheim123' });
+    const doppelt = await post('/registrieren', { name: 'Anderer', email: 'LEITSTELLE.disponent@test.DE', passwort: 'geheim123' });
     expect(doppelt.status).toBe(409);
     expect((await doppelt.json()).fehler).toMatch(/E-Mail/);
   });
@@ -73,10 +73,10 @@ describe('Passwort vergessen', () => {
 
     // Unbekannte Adresse: gleiche Antwort, aber keine Mail
     const unbekannt = await post('/passwort-vergessen', { email: 'niemand@test.de' });
-    const bekannt = await post('/passwort-vergessen', { email: 'DISPONENT@test.de' });
+    const bekannt = await post('/passwort-vergessen', { email: testmail('Disponent').toUpperCase() });
     expect(await unbekannt.json()).toEqual(await bekannt.json());
     expect(mails).toHaveLength(1);
-    expect(mails[0].an).toBe('disponent@test.de');
+    expect(mails[0].an).toBe(testmail('Disponent'));
     expect(mails[0].text).toContain('https://spiel.example/passwort-zuruecksetzen?token=');
 
     const token = linkToken(mails[0].text);
@@ -121,5 +121,15 @@ describe('Rolle per Kommandozeile setzen', () => {
     const rollen = server.db.prepare('SELECT name, rolle FROM benutzer ORDER BY id').all();
     expect(rollen).toEqual([{ name: 'Testkonto', rolle: 'player' }, { name: 'Amy.Projektleitung', rolle: 'owner' }]);
     expect(() => setzeRolle(server.db, 'Niemand', 'owner')).toThrow(/Kein Konto/);
+  });
+});
+
+describe('Öffentlicher Benutzername', () => {
+  it('darf nicht der Teil der E-Mail vor dem @ sein', async () => {
+    server = await starteTestServer();
+    const res = await post('/registrieren', { name: 'Amy.Teichert', email: 'amy.teichert@test.de', passwort: 'geheim123' });
+    expect(res.status).toBe(400);
+    expect((await res.json()).fehler).toMatch(/öffentlich/);
+    expect((await post('/registrieren', { name: 'Amy.Projektleitung', email: 'amy.teichert@test.de', passwort: 'geheim123' })).status).toBe(201);
   });
 });

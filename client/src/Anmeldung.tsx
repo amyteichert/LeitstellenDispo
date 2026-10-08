@@ -9,6 +9,7 @@ import {
   formatBedarfsListe,
   pruefeBenutzername,
   pruefeEmail,
+  pruefeNameGegenEmail,
   pruefePasswort,
   type Konto,
 } from '@leitstellendispo/shared';
@@ -209,7 +210,7 @@ function AnmeldeFormular({ hinweis, onErfolg }: { hinweis?: string; onErfolg: (k
     e.preventDefault();
     if (istRegistrierung) {
       // Dieselben Regeln wie auf dem Server – so gibt es die Rückmeldung sofort
-      const eingabeFehler = pruefeEmail(email) ?? pruefeBenutzername(name) ?? pruefePasswort(passwort)
+      const eingabeFehler = pruefeEmail(email) ?? pruefeBenutzername(name) ?? pruefeNameGegenEmail(name, email) ?? pruefePasswort(passwort)
         ?? (passwort !== passwortWiederholt ? 'Die Passwörter stimmen nicht überein.' : null);
       if (eingabeFehler) return setFehler(eingabeFehler);
     }
@@ -293,8 +294,15 @@ function AnmeldeFormular({ hinweis, onErfolg }: { hinweis?: string; onErfolg: (k
             placeholder="z. B. Disponent_112"
             required
             autoFocus={!istRegistrierung}
+            aria-describedby={istRegistrierung ? `${id}-name-hinweis` : undefined}
           />
         </div>
+        {istRegistrierung && (
+          <small id={`${id}-name-hinweis`} className="anmeldung__feldhinweis">
+            ⚠️ <strong>Dein Benutzername ist öffentlich sichtbar</strong> (z. B. in der Bestenliste). Bitte nicht deine
+            E-Mail-Adresse oder deinen vollen Namen verwenden.
+          </small>
+        )}
       </div>
       <div className="anmeldung__feld">
         <label htmlFor={`${id}-passwort`}>Passwort</label>

@@ -15,14 +15,16 @@ interface TourSchritt {
   tippen?: boolean;
   /** Vor dem Schritt in diese Ansicht wechseln */
   ansicht?: Ansicht;
+  /** Verschwindet das Ziel (z. B. Menü zugeklappt), einen Schritt zurück */
+  zurueckWennWeg?: boolean;
 }
 
 export const TOUR_SCHRITTE: TourSchritt[] = [
   { titel: 'Willkommen in deiner Leitstelle! 🚨', text: 'In ein paar Schritten zeige ich dir, wie alles funktioniert. Du kannst die Tour jederzeit beenden und später in den Einstellungen wiederholen.' },
   { ziel: '[data-tour="ruf"]', titel: 'Dein Ruf', text: 'Schnelle, richtige Alarmierungen verbessern deinen Ruf – und je besser er ist, desto höher der Leistungsbonus. Später kannst du hier antippen und sehen, was gut lief und was nicht.' },
   { ziel: '[data-tour="menue"]', titel: 'Das Menü', text: 'Hier wechselst du zwischen den Bereichen. Tippe es an.', tippen: true },
-  { ziel: '[data-tour="menu-Wachen"]', titel: 'Deine Wachen', text: 'Tippe auf „Wachen“.', tippen: true },
-  { ziel: '[data-tour="wache-verwalten"]', titel: 'Wache verwalten', text: 'Jede Wache hat ihre eigene Verwaltung. Tippe auf „Verwalten“.', tippen: true },
+  { ziel: '[data-tour="menu-Wachen"]', titel: 'Deine Wachen', text: 'Tippe auf „Wachen“.', tippen: true, zurueckWennWeg: true },
+  { ansicht: 'Wachen', ziel: '[data-tour="wache-verwalten"]', titel: 'Wache verwalten', text: 'Jede Wache hat ihre eigene Verwaltung. Tippe auf „Verwalten“.', tippen: true },
   { ziel: '[data-tour="wache-reiter"]', titel: 'Alles rund um die Wache', text: 'Fahrzeuge kaufen, Personal einstellen und zuweisen, Lehrgänge starten und die Wache ausbauen. Tipp: Neue Fahrzeuge brauchen erst Personal, bevor sie ausrücken können.' },
   { ansicht: 'Einsätze', ziel: '[data-tour="einsatz-liste"]', titel: 'Einsätze', text: 'Hier kommen die Notrufe rein. Wähle einen Einsatz, schau dir die empfohlenen Kräfte an und alarmiere die nächsten freien Fahrzeuge – die Anfahrtszeit zählt!' },
   { ansicht: 'Funk', ziel: '[data-tour="funk"]', titel: 'Funk', text: 'Statusmeldungen deiner Fahrzeuge. Meldet sich ein Fahrzeug mit Status 5 (Sprechwunsch), gib ihm eine Sprechaufforderung – dann erfährst du, was es braucht.' },
@@ -54,6 +56,8 @@ const RAND = 6;
 export default function Tour({ kontoId, onAnsicht, onEnde }: { kontoId: number; onAnsicht: (ansicht: Ansicht) => void; onEnde: () => void }) {
   const [index, setIndex] = useState(0);
   const [rechteck, setRechteck] = useState<Rechteck | null>(null);
+  /** Ziel ist auch nach einigen Sekunden nicht da – dann Überspringen anbieten */
+  const [fehlt, setFehlt] = useState(false);
   const schritt = TOUR_SCHRITTE[index];
   const letzter = index === TOUR_SCHRITTE.length - 1;
 
@@ -69,39 +73,49 @@ export default function Tour({ kontoId, onAnsicht, onEnde }: { kontoId: number; 
   }, [index]);
 
   // Zielelement suchen und seine Position verfolgen (es kann erst nach einem Ansichtswechsel erscheinen)
+  // Position wird alle 100 ms geprüft (nicht bei jedem Bild – das hat die Seite ausgebremst)
   useLayoutEffect(() => {
     setRechteck(null);
+    setFehlt(false);
     if (!schritt.ziel) return;
-    let aktiv = true;
-    let element: Element | null = null;
     const start = performance.now();
+    let gescrollt = false;
     const messen = () => {
-      if (!aktiv) return;
-      element = document.querySelector(schritt.ziel!);
-      // Ziel taucht nicht auf (z. B. Menü wieder zugeklappt): einen Schritt zurück statt hängenzubleiben
-      if (!element && index > 0 && TOUR_SCHRITTE[index - 1].tippen && performance.now() - start > 1500) {
-        setIndex(index - 1);
+      const element = document.querySelector(schritt.ziel!);
+      if (!element) {
+        setRechteck(null);
+        const gewartet = performance.now() - start;
+        // Nur beim Menüpunkt: Menü zugeklappt → zurück zu „Menü antippen“
+        if (schritt.zurueckWennWeg && gewartet > 800) setIndex((i) => Math.max(0, i - 1));
+        // Sonst nie im Kreis laufen: nach 3 Sekunden „Überspringen“ anbieten
+        else if (gewartet > 3000) setFehlt(true);
         return;
       }
-      if (element) {
-        const r = element.getBoundingClientRect();
-        setRechteck((alt) => (alt && alt.top === r.top && alt.left === r.left && alt.width === r.width && alt.height === r.height
-          ? alt
-          : { top: r.top, left: r.left, width: r.width, height: r.height }));
-        if (index > 0) element.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+      setFehlt(false);
+      if (!gescrollt) {
+        element.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+        gescrollt = true;
       }
-      requestAnimationFrame(messen);
+      const r = element.getBoundingClientRect();
+      setRechteck((alt) => (alt && alt.top === r.top && alt.left === r.left && alt.width === r.width && alt.height === r.height
+        ? alt
+        : { top: r.top, left: r.left, width: r.width, height: r.height }));
     };
     messen();
-    return () => { aktiv = false; };
+    const intervall = setInterval(messen, 100);
+    return () => clearInterval(intervall);
   }, [index]);
 
-  // Bei Tipp-Schritten: weiter, sobald das hervorgehobene Element angetippt wurde
+  // Bei Tipp-Schritten: weiter, sobald das hervorgehobene Element angetippt wurde (nur einmal pro Schritt)
   useEffect(() => {
     if (!schritt.tippen || !schritt.ziel) return;
+    let erledigt = false;
     const beiKlick = (event: MouseEvent) => {
       const ziel = document.querySelector(schritt.ziel!);
-      if (ziel && event.target instanceof Node && ziel.contains(event.target)) setTimeout(weiter, 150);
+      if (!erledigt && ziel && event.target instanceof Node && ziel.contains(event.target)) {
+        erledigt = true;
+        setTimeout(() => setIndex((i) => (i === index ? i + 1 : i)), 150);
+      }
     };
     document.addEventListener('click', beiKlick, true);
     return () => document.removeEventListener('click', beiKlick, true);
@@ -151,10 +165,18 @@ export default function Tour({ kontoId, onAnsicht, onEnde }: { kontoId: number; 
       <div className="tour__box" style={boxStil}>
         <small>Schritt {index + 1} von {TOUR_SCHRITTE.length}</small>
         <h3>{schritt.titel}</h3>
-        <p>{wartetAufZiel ? 'Einen Moment …' : schritt.text}</p>
+        <p>
+          {!wartetAufZiel
+            ? schritt.text
+            : fehlt
+              ? 'Dieser Bereich ist gerade nicht zu sehen – du kannst den Schritt überspringen.'
+              : 'Einen Moment …'}
+        </p>
         <div className="tour__knoepfe">
           <button type="button" className="btn" onClick={beenden}>{letzter ? 'Schließen' : 'Tour beenden'}</button>
-          {schritt.tippen && !wartetAufZiel ? (
+          {wartetAufZiel ? (
+            fehlt && <button type="button" className="btn btn--primary" onClick={weiter}>Überspringen</button>
+          ) : schritt.tippen ? (
             <span className="tour__tipp">👆 Tippe auf das Hervorgehobene</span>
           ) : (
             <button type="button" className="btn btn--primary" onClick={weiter} autoFocus>{letzter ? 'Los geht’s!' : 'Weiter'}</button>
