@@ -3,14 +3,15 @@ import type { ReactNode } from 'react';
 /**
  * Impressum und Datenschutzerklärung – ohne Anmeldung erreichbar unter /impressum und /datenschutz.
  *
- * ⚠ PLATZHALTER: Die Angaben zur Betreiberin sind noch nicht eingetragen. Vor dem öffentlichen Betrieb ausfüllen
+ * ⚠ PLATZHALTER: Die Straße der Betreiberin fehlt noch (wie im Impressum der Website). Vor dem öffentlichen Betrieb ausfüllen
  * und die Texte rechtlich prüfen lassen (keine Rechtsberatung).
  */
 const BETREIBER = {
-  name: '[VOR- UND NACHNAME DER BETREIBERIN]',
-  strasse: '[STRASSE UND HAUSNUMMER]',
-  ort: '[PLZ ORT]',
-  email: '[E-MAIL-ADRESSE]',
+  name: 'Amy Teichert',
+  // TODO: Straße und Hausnummer eintragen (leer = wird nicht angezeigt)
+  strasse: '',
+  ort: '14770 Brandenburg an der Havel',
+  email: 'kontakt@leitstellendispo.de',
 };
 
 /** Hosting / Auftragsverarbeitung (Server von UPVYRA, Standort Deutschland, Auslieferung über Cloudflare) */
@@ -54,7 +55,7 @@ function Impressum() {
       <h2>Angaben gemäß § 5 DDG</h2>
       <p>
         {BETREIBER.name}<br />
-        {BETREIBER.strasse}<br />
+        {BETREIBER.strasse && <>{BETREIBER.strasse}<br /></>}
         {BETREIBER.ort}
       </p>
       <h2>Kontakt</h2>
@@ -79,7 +80,7 @@ function Datenschutz() {
     <Seite titel="Datenschutzerklärung">
       <h2>1. Verantwortliche</h2>
       <p>
-        {BETREIBER.name}, {BETREIBER.strasse}, {BETREIBER.ort}<br />
+        {[BETREIBER.name, BETREIBER.strasse, BETREIBER.ort].filter(Boolean).join(', ')}<br />
         E-Mail: {BETREIBER.email}
       </p>
 
