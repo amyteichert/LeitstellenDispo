@@ -78,8 +78,8 @@ const summeBedarf = (bedarf: FahrzeugBedarf[] | undefined) => (bedarf ?? []).red
  * Wie viele Fahrzeuge zu viel geschickt wurden. Maßstab ist das Größere aus Empfehlung und tatsächlichem Bedarf;
  * bei einer Entwarnung vor Ort gibt es keinen Abzug (die Meldung klang ja schlimmer).
  */
-export function getUeberzaehlig(einsatz: Pick<AbgeschlossenerSpielEinsatz, 'alarmedVehicles' | 'requiredVehicles' | 'empfehlung' | 'entwarnungGeplant'>): number {
-  if (einsatz.entwarnungGeplant) return 0;
+export function getUeberzaehlig(einsatz: Pick<AbgeschlossenerSpielEinsatz, 'alarmedVehicles' | 'requiredVehicles' | 'empfehlung' | 'meldungen'>): number {
+  if (einsatz.meldungen?.some((m) => m.art === 'entwarnung')) return 0;
   const noetig = Math.max(summeBedarf(einsatz.requiredVehicles), summeBedarf(einsatz.empfehlung));
   return Math.max(0, einsatz.alarmedVehicles.length - noetig - UEBERALARMIERUNG.reserve);
 }

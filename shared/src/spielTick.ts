@@ -80,6 +80,9 @@ const typVon = (ctx: TickKontext, vehicleId: string) => ctx.vehicles.find((item)
 
 const meldung = (zeit: number, text: string, art: EinsatzMeldung['art']): EinsatzMeldung => ({ zeit, text, art });
 
+/** Ab dieser Anfahrtszeit kann sich die Lage bis zum Eintreffen verschlimmern (nur Einsätze mit Eskalationsstufe) */
+export const SPAETES_EINTREFFEN = { abSekunden: 480, wahrscheinlichkeit: 0.5 } as const;
+
 /** Eskalationsziel, falls der Spieler es mit seinen Fahrzeugen überhaupt schaffen kann. */
 const findeMachbaresEskalationsziel = (einsatz: SpielEinsatz, ctx: TickKontext) => {
   const eskalation = findeEinsatzVorlage(einsatz.vorlageId)?.eskalation;
@@ -185,6 +188,17 @@ const pruefeErstesEintreffen = (einsatz: SpielEinsatz, ctx: TickKontext): SpielE
       meldung(zeit, `${quelle} vor Ort: ${vorlage?.lage ?? STANDARD_LAGE[einsatz.organization]}`, 'lage'),
     ]),
   };
+
+  // Zu spät: Bis die ersten Kräfte da sind, hat sich die Lage oft verschlimmert
+  const alarmiertAt = Math.min(...einsatz.alarmedVehicles.map((a) => a.arrivalAt - a.etaSeconds * 1000));
+  if (vorlage?.eskalation && ergebnis.eskalationBei === undefined
+    && (zeit - alarmiertAt) / 1000 > SPAETES_EINTREFFEN.abSekunden && Math.random() < SPAETES_EINTREFFEN.wahrscheinlichkeit) {
+    ergebnis = {
+      ...ergebnis,
+      eskalationBei: 0.15,
+      meldungen: fuegeMeldungenHinzu(ergebnis.meldungen, [meldung(zeit, `${quelle}: Lage hat sich bis zu unserem Eintreffen deutlich verschlimmert!`, 'lage')]),
+    };
+  }
 
   const nachforderung = vorlage?.nachforderung;
   if (ergebnis.nachforderungGeplant && nachforderung

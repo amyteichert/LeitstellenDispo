@@ -458,6 +458,27 @@ export const EINSATZ_VORLAGEN: Record<WachenArt, EinsatzVorlage[]> = {
       },
     },
     {
+      id: 'bma-ausgeloest',
+      stichwort: 'B BMA',
+      meldebild: 'Brandmeldeanlage ausgelöst',
+      organization: 'Feuerwehr',
+      requiredVehicles: [LF(2)],
+      reward: 260,
+      durationSeconds: 12,
+      lage: 'Brandmeldeanlage ausgelöst, Erkundung im Gebäude läuft.',
+      unklar: true,
+      entwarnung: {
+        wahrscheinlichkeit: 0.75,
+        abzug: [LF()],
+        meldung: 'Fehlalarm – Melder durch Wasserdampf ausgelöst, ein Fahrzeug kann einrücken.',
+      },
+      eskalation: {
+        zielVorlageId: 'zimmerbrand',
+        wahrscheinlichkeit: 0.1,
+        meldung: 'Kein Fehlalarm: Brand im 2. OG bestätigt!',
+      },
+    },
+    {
       id: 'muelleimerbrand',
       stichwort: 'B 1',
       meldebild: 'Mülleimerbrand',

@@ -192,7 +192,7 @@ describe('Zu viele Kräfte', () => {
   });
 
   it('kein Abzug bei Entwarnung vor Ort; Hinweis in der Fehlerübersicht', () => {
-    expect(getUeberzaehlig(mitFahrzeugen(5, { entwarnungGeplant: true }))).toBe(0);
+    expect(getUeberzaehlig(mitFahrzeugen(5, { meldungen: [{ zeit: T0, text: 'Entwarnung', art: 'entwarnung' }] }))).toBe(0);
     const hinweise = getBewertungsHinweise(bewerteEinsatz(mitFahrzeugen(4), 50));
     expect(hinweise.some((h) => h.art === 'fehler' && h.text.includes('Unnötig viele Kräfte'))).toBe(true);
   });
