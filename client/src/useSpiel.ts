@@ -582,8 +582,11 @@ export function useSpiel(optionen: UseSpielOptionen = {}) {
   };
 
   const neuesSpiel = () => {
-    spielstandSpeicher.loeschen();
-    spielstandAnwenden(createNeuesSpiel());
+    // Den Spielstand sofort durch den neuen ersetzen – nicht löschen: Ein Konto ohne Spielstand würde beim
+    // nächsten Laden einen alten Browser-Spielstand übernehmen (dann wären die alten Wachen wieder da).
+    const neu = createNeuesSpiel();
+    spielstandAnwenden(neu);
+    void spielstandSpeicher.speichern(neu).then(() => spielstandSpeicher.sofortSpeichern?.());
   };
 
   // ---- Dev-Werkzeuge (nur Team, nur eigenes Konto – der Aufrufer setzt vorher die Dev-Markierung) ----

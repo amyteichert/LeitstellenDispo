@@ -399,7 +399,13 @@ function App({ konto, onAbmelden }: { konto: Konto; onAbmelden: () => Promise<vo
         <ErsteSchritte kontoId={konto.id} stand={{ incidents, completedIncidentHistory, vehicles, locations }} />
       )}
       {spiel.spielstandGeladen && tourOffen && (
-        <Tour kontoId={konto.id} onAnsicht={setCurrentView} onEnde={() => setTourOffen(false)} />
+        <Tour
+          kontoId={konto.id}
+          hatWache={locations.some((location) => location.type === 'station')}
+          onAnsicht={setCurrentView}
+          onStandorteOeffnen={() => setSidebarOpen(true)}
+          onEnde={() => setTourOffen(false)}
+        />
       )}
       {!email && currentView !== 'Einstellungen' && (
         <div className="lade-fehler" role="status">
@@ -505,6 +511,7 @@ function App({ konto, onAbmelden }: { konto: Konto; onAbmelden: () => Promise<vo
             </div>
 
             <div className="location-form">
+              <div data-tour="wache-bauen">
               <label className="field">
                 <span>Name</span>
                 <input
@@ -529,8 +536,9 @@ function App({ konto, onAbmelden }: { konto: Konto; onAbmelden: () => Promise<vo
                   <option value="Feuerwache">Feuerwache</option>
                 </select>
               </label>
+              </div>
 
-              <label className="field field--address">
+              <label className="field field--address" data-tour="wache-adresse">
                 <span>Adresse</span>
                 <input
                   type="text"
@@ -602,7 +610,7 @@ function App({ konto, onAbmelden }: { konto: Konto; onAbmelden: () => Promise<vo
               <p className="map-hint">Anschließend auf „Standort erstellen“ klicken — Wache und das ausgewählte Startfahrzeug werden gemeinsam erstellt.</p>
 
               <div style={{ marginTop: 8 }}>
-                <button className="btn btn--primary" type="button" onClick={createLocationFromTemp} disabled={!tempCoords}>
+                <button className="btn btn--primary" type="button" data-tour="wache-erstellen" onClick={createLocationFromTemp} disabled={!tempCoords}>
                   Standort erstellen
                 </button>
               </div>

@@ -13,6 +13,8 @@ export interface SpielstandSpeicher {
   laden(): Promise<Spielstand | null>;
   speichern(spielstand: Spielstand): Promise<void>;
   loeschen(): Promise<void>;
+  /** Ausstehende Änderungen sofort schicken (falls der Speicher drosselt) */
+  sofortSpeichern?(): Promise<void>;
 }
 
 const LOCAL_STORAGE_KEY = 'leitstellendispo.spielstand';
@@ -131,9 +133,23 @@ export const serverSpeicher = erstelleServerSpeicher();
 /** Aktuell verwendeter Speicher: das Konto auf dem Server */
 export const spielstandSpeicher: SpielstandSpeicher = serverSpeicher;
 
+/** Hierhin wird die alte Browser-Kopie nach der Prüfung verschoben – nicht gelöscht, aber nie wieder übernommen */
+const ALT_KEY = 'leitstellendispo.spielstand.alt';
+
+function legeBrowserKopieBeiseite() {
+  try {
+    const roh = localStorage.getItem(LOCAL_STORAGE_KEY);
+    if (roh !== null) localStorage.setItem(ALT_KEY, roh);
+    localStorage.removeItem(LOCAL_STORAGE_KEY);
+  } catch {
+    // Ohne Browser-Speicher gibt es auch nichts zu übernehmen
+  }
+}
+
 /**
- * Übernimmt einen Spielstand aus der Zeit vor den Benutzerkonten (localStorage) ins Konto,
- * sofern das Konto noch keinen eigenen hat. Erst nach erfolgreichem Hochladen wird die Browser-Kopie entfernt.
+ * Übernimmt einen Spielstand aus der Zeit vor den Benutzerkonten (localStorage) einmalig ins Konto,
+ * sofern das Konto noch keinen eigenen hat. Danach – oder wenn das Konto schon einen hat – wird die Browser-Kopie
+ * beiseitegelegt, damit sie nie später (z. B. nach „Neues Spiel“) wieder auftaucht.
  */
 export async function uebernimmBrowserSpielstand(): Promise<void> {
   const lokal = await localStorageSpeicher.laden();
@@ -142,14 +158,17 @@ export async function uebernimmBrowserSpielstand(): Promise<void> {
     const res = await fetch('/api/spielstand');
     if (!res.ok) return;
     const { spielstand } = (await res.json()) as { spielstand: unknown };
-    if (spielstand) return; // Konto hat schon einen Spielstand – Browser-Kopie unangetastet lassen
+    if (spielstand) {
+      legeBrowserKopieBeiseite(); // Konto hat schon einen Spielstand – alte Kopie nie mehr übernehmen
+      return;
+    }
 
     const hochgeladen = await fetch('/api/spielstand', {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(lokal),
     });
-    if (hochgeladen.ok) await localStorageSpeicher.loeschen();
+    if (hochgeladen.ok) legeBrowserKopieBeiseite();
   } catch (error) {
     console.error('Browser-Spielstand konnte nicht ins Konto übernommen werden:', error);
   }

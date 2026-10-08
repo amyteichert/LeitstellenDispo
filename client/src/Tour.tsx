@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { WACHEN_PREISE } from '@leitstellendispo/shared';
 import type { Ansicht } from './startansicht';
 
 /**
@@ -17,15 +18,42 @@ interface TourSchritt {
   ansicht?: Ansicht;
   /** Verschwindet das Ziel (z. B. Menü zugeklappt), einen Schritt zurück */
   zurueckWennWeg?: boolean;
+  /** Nur zeigen, wenn es schon eine Wache gibt */
+  nurMitWache?: boolean;
+  /** Vorher die Standort-Leiste aufklappen (auf dem Handy eingeklappt) */
+  standorteOeffnen?: boolean;
 }
+
+const euro = (betrag: number) => `${betrag.toLocaleString('de-DE')} €`;
 
 export const TOUR_SCHRITTE: TourSchritt[] = [
   { titel: 'Willkommen in deiner Leitstelle! 🚨', text: 'In ein paar Schritten zeige ich dir, wie alles funktioniert. Du kannst die Tour jederzeit beenden und später in den Einstellungen wiederholen.' },
   { ziel: '[data-tour="ruf"]', titel: 'Dein Ruf', text: 'Schnelle, richtige Alarmierungen verbessern deinen Ruf – und je besser er ist, desto höher der Leistungsbonus. Später kannst du hier antippen und sehen, was gut lief und was nicht.' },
+  {
+    ansicht: 'Karte',
+    standorteOeffnen: true,
+    ziel: '[data-tour="wache-bauen"]',
+    titel: 'Baue deine erste Wache',
+    text: `Hier entstehen deine Wachen. Gib ihr einen Namen und wähle die Art: Rettungswache (${euro(WACHEN_PREISE.Rettungswache)}) oder Feuerwache (${euro(WACHEN_PREISE.Feuerwache)}). Dazu kommt ein Startfahrzeug – samt Besatzung.`,
+  },
+  {
+    ansicht: 'Karte',
+    standorteOeffnen: true,
+    ziel: '[data-tour="wache-adresse"]',
+    titel: 'Wo soll sie stehen?',
+    text: 'Gib eine Adresse ein und tippe auf „Adresse suchen“ – oder tippe einfach auf die Karte. Die Vorschau kannst du mit einem weiteren Tipp auf die Karte verschieben.',
+  },
+  {
+    ansicht: 'Karte',
+    standorteOeffnen: true,
+    ziel: '[data-tour="wache-erstellen"]',
+    titel: 'Wache eröffnen',
+    text: 'Mit „Standort erstellen“ ist deine Wache fertig – mit Startfahrzeug und Besatzung. Danach kommen die ersten Notrufe aus der Umgebung. Probier es gleich nach der Tour aus!',
+  },
   { ziel: '[data-tour="menue"]', titel: 'Das Menü', text: 'Hier wechselst du zwischen den Bereichen. Tippe es an.', tippen: true },
   { ziel: '[data-tour="menu-Wachen"]', titel: 'Deine Wachen', text: 'Tippe auf „Wachen“.', tippen: true, zurueckWennWeg: true },
-  { ansicht: 'Wachen', ziel: '[data-tour="wache-verwalten"]', titel: 'Wache verwalten', text: 'Jede Wache hat ihre eigene Verwaltung. Tippe auf „Verwalten“.', tippen: true },
-  { ziel: '[data-tour="wache-reiter"]', titel: 'Alles rund um die Wache', text: 'Fahrzeuge kaufen, Personal einstellen und zuweisen, Lehrgänge starten und die Wache ausbauen. Tipp: Neue Fahrzeuge brauchen erst Personal, bevor sie ausrücken können.' },
+  { ansicht: 'Wachen', nurMitWache: true, ziel: '[data-tour="wache-verwalten"]', titel: 'Wache verwalten', text: 'Jede Wache hat ihre eigene Verwaltung. Tippe auf „Verwalten“.', tippen: true },
+  { nurMitWache: true, ziel: '[data-tour="wache-reiter"]', titel: 'Alles rund um die Wache', text: 'Fahrzeuge kaufen, Personal einstellen und zuweisen, Lehrgänge starten und die Wache ausbauen. Tipp: Neue Fahrzeuge brauchen erst Personal, bevor sie ausrücken können.' },
   { ansicht: 'Einsätze', ziel: '[data-tour="einsatz-liste"]', titel: 'Einsätze', text: 'Hier kommen die Notrufe rein. Wähle einen Einsatz, schau dir die empfohlenen Kräfte an und alarmiere die nächsten freien Fahrzeuge – die Anfahrtszeit zählt!' },
   { ansicht: 'Funk', ziel: '[data-tour="funk"]', titel: 'Funk', text: 'Statusmeldungen deiner Fahrzeuge. Meldet sich ein Fahrzeug mit Status 5 (Sprechwunsch), gib ihm eine Sprechaufforderung – dann erfährst du, was es braucht.' },
   { ansicht: 'Karte', ziel: '.map-view', titel: 'Die Karte', text: 'Hier siehst du Wachen, Einsätze und Fahrzeuge in Echtzeit. Tippe einen Einsatz an, um direkt von der Karte zu alarmieren.' },
@@ -53,15 +81,24 @@ function merkeTourGesehen(kontoId: number) {
 type Rechteck = { top: number; left: number; width: number; height: number };
 const RAND = 6;
 
-export default function Tour({ kontoId, onAnsicht, onEnde }: { kontoId: number; onAnsicht: (ansicht: Ansicht) => void; onEnde: () => void }) {
+export default function Tour({ kontoId, hatWache, onAnsicht, onStandorteOeffnen, onEnde }: {
+  kontoId: number;
+  /** Ohne Wache entfallen die Schritte zur Wachenverwaltung */
+  hatWache: boolean;
+  onAnsicht: (ansicht: Ansicht) => void;
+  onStandorteOeffnen: () => void;
+  onEnde: () => void;
+}) {
+  // Beim Start festlegen, damit sich die Schrittzahl während der Tour nicht ändert
+  const [schritte] = useState(() => TOUR_SCHRITTE.filter((s) => hatWache || !s.nurMitWache));
   const [index, setIndex] = useState(0);
   const [rechteck, setRechteck] = useState<Rechteck | null>(null);
   /** Ziel ist auch nach einigen Sekunden nicht da – dann Überspringen anbieten */
   const [fehlt, setFehlt] = useState(false);
   /** Wurde das Ziel des aktuellen Tipp-Schritts schon angetippt? */
   const angetippt = useRef(false);
-  const schritt = TOUR_SCHRITTE[index];
-  const letzter = index === TOUR_SCHRITTE.length - 1;
+  const schritt = schritte[index];
+  const letzter = index === schritte.length - 1;
 
   const beenden = () => {
     merkeTourGesehen(kontoId);
@@ -72,6 +109,7 @@ export default function Tour({ kontoId, onAnsicht, onEnde }: { kontoId: number; 
   // Ansicht wechseln, wenn der Schritt es verlangt
   useEffect(() => {
     if (schritt.ansicht) onAnsicht(schritt.ansicht);
+    if (schritt.standorteOeffnen) onStandorteOeffnen();
   }, [index]);
 
   // Zielelement suchen und seine Position verfolgen (es kann erst nach einem Ansichtswechsel erscheinen)
@@ -169,7 +207,7 @@ export default function Tour({ kontoId, onAnsicht, onEnde }: { kontoId: number; 
       )}
 
       <div className="tour__box" style={boxStil}>
-        <small>Schritt {index + 1} von {TOUR_SCHRITTE.length}</small>
+        <small>Schritt {index + 1} von {schritte.length}</small>
         <h3>{schritt.titel}</h3>
         <p>
           {!wartetAufZiel
