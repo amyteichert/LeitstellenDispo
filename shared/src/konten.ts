@@ -125,6 +125,51 @@ export interface TeamUebersicht {
   mitSpielstand: number;
 }
 
+/** Eintrag im Aktivitäts-Protokoll des Teams (wer hat wann was an welchem Konto gemacht) */
+export interface TeamProtokollEintrag {
+  id: number;
+  zeit: string;
+  vonName: string;
+  aktion: string;
+  zielName: string | null;
+  details: string | null;
+}
+
+/** Interne Team-Notiz zu einem Konto – sieht nur das Team */
+export interface KontoNotiz {
+  id: number;
+  zeit: string;
+  vonName: string;
+  text: string;
+}
+
+export type AnkuendigungsArt = 'info' | 'wartung' | 'wichtig';
+
+/** Hinweis des Teams, der allen Spielern oben im Spiel angezeigt wird */
+export interface Ankuendigung {
+  text: string;
+  art: AnkuendigungsArt;
+  vonName: string;
+  zeit: string;
+}
+
+export const ANKUENDIGUNG_MAX_LAENGE = 300;
+export const NOTIZ_MAX_LAENGE = 1000;
+
+/**
+ * Vom Team angelegte Korrektur eines Spielstands (z. B. nach einem Bug).
+ * Das Spiel des Spielers holt sie ab und bucht sie ein – so überschreibt ein laufendes Spiel sie nicht.
+ */
+export interface SpielstandKorrektur {
+  id: number;
+  /** Wird aufs Guthaben addiert (darf negativ sein) */
+  guthabenAenderung: number;
+  /** Neuer Ruf (0–100) – fehlt = Ruf bleibt */
+  rufNeu: number | null;
+  grund: string;
+  zeit: string;
+}
+
 export interface SpielstandZusammenfassung {
   guthaben: number;
   ruf: number | null;

@@ -4,6 +4,8 @@ import {
   BEDARFS_KLASSEN,
   FAHRZEUG_TYPEN,
   ergaenzeBedarf,
+  getFunkKurzname,
+  getNaechsterFunkrufname,
   fahrzeugErfuelltBedarf,
   getFehlendenBedarf,
   istAusreichendBesetzt,
@@ -82,5 +84,21 @@ describe('Besatzung', () => {
     expect(istAusreichendBesetzt({ type: 'RTW', besatzung: 2 })).toBe(true);
     expect(istAusreichendBesetzt({ type: 'RTW', besatzung: 1 })).toBe(false);
     expect(istAusreichendBesetzt({ type: 'HLF 20', besatzung: 6 })).toBe(false);
+  });
+});
+
+describe('Funkrufnamen', () => {
+  it('zählt je Wache und Typ, füllt Lücken und kürzt Typen sinnvoll', () => {
+    expect(getFunkKurzname('LF 20')).toBe('LF20');
+    expect(getFunkKurzname('DLK 23/12')).toBe('DLK');
+    const fahrzeuge = [
+      { stationId: 'a', callsign: 'RTW-1' },
+      { stationId: 'a', callsign: 'RTW-3' },
+      { stationId: 'b', callsign: 'RTW-1' },
+    ];
+    expect(getNaechsterFunkrufname('RTW', 'a', fahrzeuge)).toBe('RTW-2');
+    expect(getNaechsterFunkrufname('RTW', 'b', fahrzeuge)).toBe('RTW-2');
+    expect(getNaechsterFunkrufname('RTW', 'neu', fahrzeuge)).toBe('RTW-1');
+    expect(getNaechsterFunkrufname('HLF 20', 'a', fahrzeuge)).toBe('HLF20-1');
   });
 });

@@ -24,10 +24,10 @@ import {
 } from './fahrzeuge.js';
 import { getFahrzeitSekunden, getPositionAufAnfahrt, getStationCoords } from './geo.js';
 import {
-  EIGENES_KRANKENHAUS,
   FACHRICHTUNGEN,
   findeZielKrankenhaus,
   getFachrichtungen,
+  getVerguetungJePatient,
   hatEigenesKrankenhaus,
   nimmPatientAuf,
   nimmtAuf,
@@ -136,9 +136,19 @@ const schliesseAb = (einsatz: SpielEinsatz, zeit: number, ctx: TickKontext): Spi
   return ergebnis;
 };
 
+/** Abgegebener Einsatz: alle Fahrzeuge rücken ab (auch von der Anfahrt), der Einsatz fällt ohne Vergütung weg. */
+const gibAnNachbarleitstelleAb = (incident: SpielEinsatz, ctx: TickKontext): SpielEinsatz => {
+  const zeit = Math.min(ctx.jetzt, incident.abgegebenAt ?? ctx.jetzt);
+  let einsatz = incident;
+  for (const assignment of getAktiveZuteilungen(einsatz)) einsatz = gibFrei(einsatz, assignment.vehicleId, zeit, ctx);
+  ctx.verfallen.push(einsatz);
+  ctx.geaendert = true;
+  return einsatz;
+};
+
 /** Einsätze, um die sich (noch) niemand kümmert: Verfall nach langer Zeit oder Eskalation. */
 const pruefeUnbearbeitet = (einsatz: SpielEinsatz, ctx: TickKontext): SpielEinsatz => {
-  if (ctx.jetzt - einsatz.createdAt >= GAME_CONFIG.einsatzVerfallNachMs) {
+  if (ctx.jetzt >= (einsatz.verfallAt ?? einsatz.createdAt + GAME_CONFIG.einsatzVerfallNachMs)) {
     ctx.verfallen.push(einsatz);
     ctx.geaendert = true;
     return einsatz;
@@ -270,7 +280,7 @@ const pruefeBearbeitungsbeginn = (einsatz: SpielEinsatz, ctx: TickKontext): Spie
 /** Verlegungen fahren in das vorgesehene Haus (solange es aufnimmt), sonst ins passende nächste Haus. */
 const findeTransportziel = (einsatz: SpielEinsatz, patient: Patient, ctx: TickKontext, jetzt: number): Krankenhaus | null => {
   const verlegungsZiel = einsatz.verlegung
-    ? ctx.krankenhaeuser.find((kh) => kh.id === einsatz.verlegung!.nachKrankenhausId && nimmtAuf(kh, jetzt))
+    ? ctx.krankenhaeuser.find((kh) => kh.id === einsatz.verlegung!.nachKrankenhausId && nimmtAuf(kh, jetzt, einsatz.verlegung!.fachrichtung))
     : undefined;
   // Ist das Ziel voll: nie zurück ins abgebende Haus
   const kandidaten = einsatz.verlegung
@@ -303,7 +313,8 @@ const beendeBearbeitung = (einsatz: SpielEinsatz, ctx: TickKontext): SpielEinsat
     .filter((a) => a.arrivalAt <= ende && hatFaehigkeit(typVon(ctx, a.vehicleId), 'patiententransport'))
     .map((a) => a.vehicleId);
   const neueMeldungen: EinsatzMeldung[] = [];
-  let patientenImEigenenHaus = 0;
+  // Vergütung der eigenen Häuser – hängt vom Ruf des Hauses bei der Aufnahme ab
+  let verguetungEigeneHaeuser = 0;
   // Patiententransporte gibt es erst, wenn der Spieler ein eigenes Krankenhaus gebaut hat
   const transporteMoeglich = hatEigenesKrankenhaus(ctx.krankenhaeuser);
 
@@ -328,8 +339,8 @@ const beendeBearbeitung = (einsatz: SpielEinsatz, ctx: TickKontext): SpielEinsat
     neueMeldungen.push(meldung(ende, `${funkname(ctx, fahrzeugId)}: Transport in ${krankenhaus.name}${krankenhaus.eigen ? ' (eigenes Haus)' : ''}.`
       + (ohneFach ? ` Keine ${FACHRICHTUNGEN[patient.fachrichtung!].label} in der Nähe – ein eigenes Krankenhaus könnte helfen.` : ''), 'patient'));
     if (krankenhaus.eigen) {
-      patientenImEigenenHaus++;
-      ctx.krankenhaeuser = ctx.krankenhaeuser.map((kh) => (kh.id === krankenhaus.id ? nimmPatientAuf(kh, ende) : kh));
+      verguetungEigeneHaeuser += getVerguetungJePatient(krankenhaus);
+      ctx.krankenhaeuser = ctx.krankenhaeuser.map((kh) => (kh.id === krankenhaus.id ? nimmPatientAuf(kh, ende, patient.fachrichtung) : kh));
       ctx.krankenhaeuserGeaendert = true;
     }
     return {
@@ -351,7 +362,7 @@ const beendeBearbeitung = (einsatz: SpielEinsatz, ctx: TickKontext): SpielEinsat
   let ergebnis: SpielEinsatz = {
     ...einsatz,
     patienten: einsatz.patienten ? patienten : undefined,
-    reward: einsatz.reward + anzahlTransporte * GAME_CONFIG.transportVerguetung + patientenImEigenenHaus * EIGENES_KRANKENHAUS.verguetungJePatient,
+    reward: einsatz.reward + anzahlTransporte * GAME_CONFIG.transportVerguetung + verguetungEigeneHaeuser,
     meldungen: fuegeMeldungenHinzu(einsatz.meldungen, neueMeldungen),
   };
   ctx.geaendert = true;
@@ -399,6 +410,9 @@ const pruefeTransporte = (einsatz: SpielEinsatz, ctx: TickKontext): SpielEinsatz
 const aktualisiereEinsatz = (incident: SpielEinsatz, ctx: TickKontext): SpielEinsatz => {
   if (incident.status === 'abgeschlossen') return incident;
 
+  if (incident.abgegebenAt !== undefined && (incident.status === 'offen' || incident.status === 'alarmiert')) {
+    return gibAnNachbarleitstelleAb(incident, ctx);
+  }
   if (incident.status === 'offen' && incident.alarmedVehicles.length === 0) return pruefeUnbearbeitet(incident, ctx);
 
   let einsatz = incident;

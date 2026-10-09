@@ -101,3 +101,52 @@ describe('Dev-Markierung', () => {
     expect(daten.konten[0].devMarkiert).toBe(true);
   });
 });
+
+describe('Team-Werkzeuge: Protokoll, Notizen, Ankündigung, Korrekturen', () => {
+  it('protokolliert Team-Aktionen mit Handelndem und Ziel', async () => {
+    await server.anfrage('POST', `/team/konten/${ids.Disponent}/sperren`, { body: { gesperrt: true }, cookie: admin });
+    const { daten } = await json(await server.anfrage('GET', '/team/protokoll', { cookie: owner }));
+    expect(daten.eintraege[0]).toMatchObject({ vonName: 'Helfer', aktion: 'Konto gesperrt', zielName: 'Disponent' });
+    expect((await server.anfrage('GET', '/team/protokoll', { cookie: spieler2 })).status).toBe(403);
+  });
+
+  it('Notizen: nur das Team sieht und schreibt sie', async () => {
+    const neu = await json(await server.anfrage('POST', `/team/konten/${ids.Gast}/notizen`, { body: { text: 'Verwarnt wegen Spam' }, cookie: admin }));
+    expect(neu.status).toBe(201);
+    expect(neu.daten.notizen[0]).toMatchObject({ vonName: 'Helfer', text: 'Verwarnt wegen Spam' });
+    expect((await server.anfrage('POST', `/team/konten/${ids.Gast}/notizen`, { body: { text: '  ' }, cookie: admin })).status).toBe(400);
+    expect((await server.anfrage('GET', `/team/konten/${ids.Gast}/notizen`, { cookie: spieler })).status).toBe(403);
+    expect((await server.anfrage('DELETE', `/team/notizen/${neu.daten.notizen[0].id}`, { cookie: owner })).status).toBe(204);
+  });
+
+  it('Ankündigung: Team setzt sie, alle lesen sie, Entfernen löscht sie', async () => {
+    expect((await json(await server.anfrage('GET', '/ankuendigung'))).daten.ankuendigung).toBeNull();
+    expect((await server.anfrage('PUT', '/team/ankuendigung', { body: { text: 'Heute 20 Uhr Wartung', art: 'wartung' }, cookie: spieler })).status).toBe(403);
+    await server.anfrage('PUT', '/team/ankuendigung', { body: { text: 'Heute 20 Uhr Wartung', art: 'wartung' }, cookie: admin });
+    const gelesen = await json(await server.anfrage('GET', '/ankuendigung', { cookie: spieler }));
+    expect(gelesen.daten.ankuendigung).toMatchObject({ text: 'Heute 20 Uhr Wartung', art: 'wartung', vonName: 'Helfer' });
+    await server.anfrage('DELETE', '/team/ankuendigung', { cookie: owner });
+    expect((await json(await server.anfrage('GET', '/ankuendigung'))).daten.ankuendigung).toBeNull();
+  });
+
+  it('Korrekturen: Team legt an, der Spieler holt sie ab und bestätigt – danach sind sie weg', async () => {
+    const angelegt = await server.anfrage('POST', `/team/konten/${ids.Disponent}/korrekturen`, {
+      body: { guthabenAenderung: 5000, rufNeu: 60, grund: 'Bug beim Fahrzeugkauf' }, cookie: admin,
+    });
+    expect(angelegt.status).toBe(201);
+    // Ohne Grund oder ohne Änderung abgelehnt, Ruf nur 0–100
+    expect((await server.anfrage('POST', `/team/konten/${ids.Disponent}/korrekturen`, { body: { guthabenAenderung: 10 }, cookie: admin })).status).toBe(400);
+    expect((await server.anfrage('POST', `/team/konten/${ids.Disponent}/korrekturen`, { body: { grund: 'x' }, cookie: admin })).status).toBe(400);
+    expect((await server.anfrage('POST', `/team/konten/${ids.Disponent}/korrekturen`, { body: { rufNeu: 150, grund: 'x' }, cookie: admin })).status).toBe(400);
+    // Admin darf keine gleichrangigen/höheren Konten korrigieren
+    expect((await server.anfrage('POST', `/team/konten/${ids.Amy}/korrekturen`, { body: { guthabenAenderung: 1, grund: 'x' }, cookie: admin })).status).toBe(403);
+
+    const offen = await json(await server.anfrage('GET', '/spielstand/korrekturen', { cookie: spieler }));
+    expect(offen.daten.korrekturen).toEqual([expect.objectContaining({ guthabenAenderung: 5000, rufNeu: 60, grund: 'Bug beim Fahrzeugkauf' })]);
+    // Andere Spieler sehen fremde Korrekturen nicht
+    expect((await json(await server.anfrage('GET', '/spielstand/korrekturen', { cookie: spieler2 }))).daten.korrekturen).toEqual([]);
+
+    await server.anfrage('POST', '/spielstand/korrekturen/eingebucht', { body: { ids: [offen.daten.korrekturen[0].id] }, cookie: spieler });
+    expect((await json(await server.anfrage('GET', '/spielstand/korrekturen', { cookie: spieler }))).daten.korrekturen).toEqual([]);
+  });
+});

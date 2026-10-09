@@ -3,7 +3,7 @@
  * Teilnehmer fehlen während des Lehrgangs auf ihrem Fahrzeug. Alles läuft über Zeitstempel –
  * also auch weiter, während das Spiel geschlossen ist.
  */
-import type { Qualifikation } from './fahrzeuge.js';
+import { besitztQualifikation, type Qualifikation } from './fahrzeuge.js';
 import type { Mitarbeiter } from './personal.js';
 import type { AusbildungsRaum, MapLocation, WachenArt } from './typen.js';
 
@@ -21,10 +21,12 @@ export interface Lehrgang {
 }
 
 export const LEHRGAENGE: Lehrgang[] = [
+  { qualifikation: 'rettungssanitaeter', dauerMs: 1 * TAG, kosten: 1000, wachenArt: 'Rettungswache' },
   { qualifikation: 'notfallsanitaeter', dauerMs: 3 * TAG, kosten: 2000, wachenArt: 'Rettungswache' },
   { qualifikation: 'notarzt', dauerMs: 5 * TAG, kosten: 6000, wachenArt: 'Rettungswache', voraussetzung: 'notfallsanitaeter' },
   { qualifikation: 'gruppenfuehrer', dauerMs: 2 * TAG, kosten: 2000, wachenArt: 'Feuerwache' },
   { qualifikation: 'maschinist_dlk', dauerMs: 1 * TAG, kosten: 1500, wachenArt: 'Feuerwache' },
+  { qualifikation: 'technische_hilfe', dauerMs: 1 * TAG, kosten: 1500, wachenArt: 'Feuerwache' },
   { qualifikation: 'zugfuehrer', dauerMs: 3 * TAG, kosten: 3500, wachenArt: 'Feuerwache', voraussetzung: 'gruppenfuehrer' },
 ];
 
@@ -83,8 +85,8 @@ export const istInAusbildung = (person: Pick<Mitarbeiter, 'inAusbildungBis'>) =>
 /** Kann diese Person den Lehrgang besuchen? Gibt den Grund zurück, wenn nicht. */
 export function pruefeTeilnehmer(person: Mitarbeiter, lehrgang: Lehrgang): string | null {
   if (istInAusbildung(person)) return `${person.name} ist bereits in Ausbildung.`;
-  if (person.qualifikationen.includes(lehrgang.qualifikation)) return `${person.name} hat diese Qualifikation schon.`;
-  if (lehrgang.voraussetzung && !person.qualifikationen.includes(lehrgang.voraussetzung)) {
+  if (besitztQualifikation(person.qualifikationen, lehrgang.qualifikation)) return `${person.name} hat diese Qualifikation schon.`;
+  if (lehrgang.voraussetzung && !besitztQualifikation(person.qualifikationen, lehrgang.voraussetzung)) {
     return `${person.name} erfüllt die Voraussetzung nicht.`;
   }
   return null;

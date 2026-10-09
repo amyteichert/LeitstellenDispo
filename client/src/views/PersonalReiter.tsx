@@ -1,11 +1,11 @@
-import { useState } from 'react';
 import {
   QUALIFIKATION_LABELS,
   ZUFRIEDENHEIT_CONFIG,
-  erzeugeBewerber,
-  getBewerberFaktor,
+  BEWERBER_CONFIG,
+  getNeuWuerfelnAb,
   type Kuendigung,
   getFahrzeugTyp,
+  getFehlendeQualifikationen,
   getPersonalLimit,
   istInAusbildung,
   kannUmbesetzen,
@@ -18,11 +18,14 @@ import type { MapLocation, Vehicle } from '../types';
 
 const euro = formatEuro;
 
-const QualiChips = ({ qualifikationen }: { qualifikationen: Qualifikation[] }) => (
+export const QualiChips = ({ qualifikationen }: { qualifikationen: Qualifikation[] }) => (
   qualifikationen.length === 0
     ? <span className="quali-chip quali-chip--keine">Grundausbildung</span>
     : <>{qualifikationen.map((q) => <span key={q} className="quali-chip">{QUALIFIKATION_LABELS[q]}</span>)}</>
 );
+
+const formatZeitpunkt = (zeit: number) =>
+  new Date(zeit).toLocaleString('de-DE', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
 
 /** Reiter „Personal“ einer Wache: Besatzung der Fahrzeuge, Reserve und Bewerber. */
 export default function PersonalReiter({
@@ -34,6 +37,7 @@ export default function PersonalReiter({
   kuendigungen,
   onMeldung,
   stellePersonalEin,
+  wuerfleBewerberNeu,
   entlassePersonal,
   weisePersonalZu,
   besetzeFahrzeugAutomatisch,
@@ -49,13 +53,17 @@ export default function PersonalReiter({
   kuendigungen: Kuendigung[];
   onMeldung: (meldung: { art: 'ok' | 'fehler'; text: string }) => void;
   stellePersonalEin: (wacheId: string, bewerber: Bewerber) => string | null;
+  wuerfleBewerberNeu: (wacheId: string) => string | null;
   entlassePersonal: (personId: string) => string | null;
   weisePersonalZu: (personId: string, fahrzeugId?: string) => string | null;
   besetzeFahrzeugAutomatisch: (fahrzeugId: string) => string | null;
 }) {
-  // Zufriedenes Personal spricht sich herum: mehr qualifizierte Bewerber
-  const neueBewerber = (anzahl?: number) => erzeugeBewerber(wache, anzahl, Math.random, getBewerberFaktor(zufriedenheit));
-  const [bewerber, setBewerber] = useState<Bewerber[]>(() => neueBewerber());
+  // Bewerber sind im Spielstand der Wache gespeichert (neu alle 24 Std., selbst neu würfeln alle 12 Std.)
+  const bewerber = wache.bewerber?.liste ?? [];
+  const jetzt = Date.now();
+  const neuWuerfelnAb = getNeuWuerfelnAb(wache);
+  const darfNeuWuerfeln = jetzt >= neuWuerfelnAb;
+  const naechsteAutomatisch = (wache.bewerber?.erzeugtAm ?? jetzt) + BEWERBER_CONFIG.automatischAlleMs;
   const limit = getPersonalLimit(wache);
   const voll = personal.length >= limit;
   const reserve = personal.filter((person) => !person.fahrzeugId && !istInAusbildung(person));
@@ -66,7 +74,6 @@ export default function PersonalReiter({
   const einstellen = (kandidat: Bewerber) => {
     const fehler = stellePersonalEin(wache.id, kandidat);
     melde(fehler, `✓ ${kandidat.name} eingestellt – jetzt einem Fahrzeug zuweisen.`);
-    if (!fehler) setBewerber((current) => [...current.filter((b) => b.id !== kandidat.id), ...neueBewerber(1)]);
   };
 
   return (
@@ -110,7 +117,8 @@ export default function PersonalReiter({
             const typ = getFahrzeugTyp(fahrzeug.type);
             const soll = typ?.besatzung ?? 0;
             const besatzung = personal.filter((person) => person.fahrzeugId === fahrzeug.id);
-            const einsatzbereit = besatzung.length >= soll && !fahrzeug.fehlendeQualifikation;
+            const fehlend = getFehlendeQualifikationen(fahrzeug.type, besatzung);
+            const einsatzbereit = besatzung.length >= soll && fehlend.length === 0;
             const umbesetzbar = kannUmbesetzen(fahrzeug);
             return (
               <article key={fahrzeug.id} className={`besatzung-karte ${einsatzbereit ? '' : 'besatzung-karte--fehlt'}`}>
@@ -118,17 +126,17 @@ export default function PersonalReiter({
                   <strong>{fahrzeug.callsign ?? fahrzeug.name}</strong>
                   <span>{besatzung.length} / {soll}</span>
                 </div>
-                {typ?.pflichtQualifikation && (
-                  <small className={fahrzeug.fehlendeQualifikation ? 'ruf-minus' : 'ruf-plus'}>
-                    {fahrzeug.fehlendeQualifikation ? '✗' : '✓'} {QUALIFIKATION_LABELS[typ.pflichtQualifikation]}
+                {typ?.pflichtQualifikationen?.map((pflicht) => (
+                  <small key={pflicht} className={fehlend.includes(pflicht) ? 'ruf-minus' : 'ruf-plus'}>
+                    {fehlend.includes(pflicht) ? '✗' : '✓'} {QUALIFIKATION_LABELS[pflicht]}
                   </small>
-                )}
+                ))}
                 {!einsatzbereit && (
                   <small className="ruf-minus">
                     Nicht alarmierbar:{' '}
                     {[
                       besatzung.length < soll && `${soll - besatzung.length} Person(en) fehlen`,
-                      fahrzeug.fehlendeQualifikation && `${QUALIFIKATION_LABELS[fahrzeug.fehlendeQualifikation]} fehlt`,
+                      fehlend.length > 0 && `${fehlend.map((q) => QUALIFIKATION_LABELS[q]).join(', ')} fehlt`,
                     ].filter(Boolean).join(', ')}
                   </small>
                 )}
@@ -149,7 +157,7 @@ export default function PersonalReiter({
                     </li>
                   ))}
                 </ul>
-                {besatzung.length < soll || fahrzeug.fehlendeQualifikation ? (
+                {besatzung.length < soll || fehlend.length > 0 ? (
                   <button
                     type="button"
                     className="btn btn--secondary"
@@ -227,8 +235,24 @@ export default function PersonalReiter({
       <section className="einsatz-abschnitt">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
           <h4 style={{ margin: 0 }}>Bewerber</h4>
-          <button type="button" className="btn" onClick={() => setBewerber(neueBewerber())}>↻ Neue Bewerber</button>
+          <button
+            type="button"
+            className="btn"
+            disabled={!darfNeuWuerfeln}
+            title={darfNeuWuerfeln ? 'Einmal alle 12 Stunden möglich' : undefined}
+            onClick={() => {
+              if (!window.confirm('Neue Bewerber anfordern? Das geht nur einmal alle 12 Stunden – die aktuellen Bewerber sind dann weg.')) return;
+              melde(wuerfleBewerberNeu(wache.id), '✓ Neue Bewerber sind da.');
+            }}
+          >
+            ↻ Neue Bewerber
+          </button>
         </div>
+        <p className="einsatz-eintrag__zeile">
+          Neue Bewerber kommen von selbst am {formatZeitpunkt(naechsteAutomatisch)} Uhr.
+          {!darfNeuWuerfeln && ` Selbst anfordern geht wieder am ${formatZeitpunkt(neuWuerfelnAb)} Uhr.`}
+        </p>
+        {bewerber.length === 0 && <p className="einsatz-eintrag__zeile">Gerade keine Bewerber – warte auf die nächsten.</p>}
         <ul className="besatzung-liste" style={{ marginTop: 8 }}>
           {bewerber.map((kandidat) => (
             <li key={kandidat.id}>

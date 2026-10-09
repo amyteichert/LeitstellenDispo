@@ -1,19 +1,26 @@
 import { useCallback, useEffect, useState } from 'react';
 import {
+  ANKUENDIGUNG_MAX_LAENGE,
+  NOTIZ_MAX_LAENGE,
   ROLLEN_LABELS,
   VERGEBBARE_ROLLEN,
   darfKontoVerwalten,
   darfRolleVergeben,
+  type Ankuendigung,
+  type AnkuendigungsArt,
   type Konto,
+  type KontoNotiz,
+  type SpielstandKorrektur,
   type SpielstandZusammenfassung,
+  type TeamProtokollEintrag,
   type TeamKonto,
   type TeamUebersicht,
   type UserRole,
 } from '@leitstellendispo/shared';
-import { teamApi } from '../konto';
+import { ladeAnkuendigung, teamApi } from '../konto';
 
-type Reiter = 'Übersicht' | 'Konten' | 'Dev-Werkzeuge';
-const REITER: Reiter[] = ['Übersicht', 'Konten', 'Dev-Werkzeuge'];
+type Reiter = 'Übersicht' | 'Konten' | 'Ankündigung' | 'Protokoll' | 'Dev-Werkzeuge';
+const REITER: Reiter[] = ['Übersicht', 'Konten', 'Ankündigung', 'Protokoll', 'Dev-Werkzeuge'];
 
 const datum = (iso: string | null) => (iso
   ? new Date(iso).toLocaleString('de-DE', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' })
@@ -43,8 +50,10 @@ export default function TeamView({ konto, dev }: { konto: Konto; dev: DevAktione
 
   return (
     <div>
-      <h2>🛠 Team</h2>
-      <p className="einsatz-eintrag__zeile">Angemeldet als <strong>{konto.name}</strong> ({ROLLEN_LABELS[konto.rolle]})</p>
+      <div className="wachen-kopf">
+        <h2>🛠 Team</h2>
+        <small className="einsatz-eintrag__zeile">Angemeldet als <strong>{konto.name}</strong> ({ROLLEN_LABELS[konto.rolle]})</small>
+      </div>
 
       <div className="verwalten-reiter" role="tablist">
         {REITER.map((name) => (
@@ -60,6 +69,8 @@ export default function TeamView({ konto, dev }: { konto: Konto; dev: DevAktione
 
       {reiter === 'Übersicht' && <Uebersicht melde={melde} />}
       {reiter === 'Konten' && <Konten ich={konto} melde={melde} />}
+      {reiter === 'Ankündigung' && <AnkuendigungVerwalten melde={melde} />}
+      {reiter === 'Protokoll' && <Protokoll melde={melde} />}
       {reiter === 'Dev-Werkzeuge' && <DevWerkzeuge dev={dev} melde={melde} />}
     </div>
   );
@@ -208,6 +219,9 @@ function KontoZeile({ konto, ich, offen, umschalten, melde, ersetze, entferne }:
             </label>
           )}
 
+          {verwaltbar && <KorrekturFormular konto={konto} melde={melde} />}
+          <Notizen konto={konto} melde={melde} />
+
           <div className="team-konto__aktionen">
             {rollenVergabe && (
               <label className="field" style={{ margin: 0 }}>
@@ -275,6 +289,218 @@ function KontoZeile({ konto, ich, offen, umschalten, melde, ersetze, entferne }:
         </div>
       )}
     </li>
+  );
+}
+
+/** Ankündigung an alle Spieler: erscheint oben im Spiel, bis sie entfernt wird. */
+function AnkuendigungVerwalten({ melde }: { melde: Melde }) {
+  const [aktuell, setAktuell] = useState<Ankuendigung | null | undefined>(undefined);
+  const [text, setText] = useState('');
+  const [art, setArt] = useState<AnkuendigungsArt>('info');
+
+  useEffect(() => {
+    ladeAnkuendigung().then((a) => {
+      setAktuell(a);
+      if (a) {
+        setText(a.text);
+        setArt(a.art);
+      }
+    });
+  }, []);
+
+  const veroeffentlichen = async () => {
+    try {
+      setAktuell(await teamApi.ankuendigungSetzen(text, art));
+      melde('ok', 'Ankündigung ist für alle Spieler sichtbar.');
+    } catch (e) {
+      melde('fehler', fehlerText(e));
+    }
+  };
+
+  const entfernen = async () => {
+    try {
+      await teamApi.ankuendigungEntfernen();
+      setAktuell(null);
+      setText('');
+      melde('ok', 'Ankündigung entfernt.');
+    } catch (e) {
+      melde('fehler', fehlerText(e));
+    }
+  };
+
+  return (
+    <div className="einstellungen-raster">
+      <section className="ausbau-karte">
+        <span className="ausbau-karte__kategorie">📢 Ankündigung an alle</span>
+        <p>Erscheint bei allen Spielern oben im Spiel (z. B. Wartung, neue Version). Jeder kann sie für sich wegklicken.</p>
+        <label className="field">
+          <span>Art</span>
+          <select value={art} onChange={(e) => setArt(e.target.value as AnkuendigungsArt)}>
+            <option value="info">ℹ️ Info</option>
+            <option value="wartung">🛠️ Wartung</option>
+            <option value="wichtig">⚠️ Wichtig</option>
+          </select>
+        </label>
+        <label className="field">
+          <span>Text <small>({text.length}/{ANKUENDIGUNG_MAX_LAENGE})</small></span>
+          <textarea rows={3} maxLength={ANKUENDIGUNG_MAX_LAENGE} value={text} onChange={(e) => setText(e.target.value)} placeholder="z. B. Heute ab 20 Uhr kurze Wartung (ca. 10 Minuten)." />
+        </label>
+        <div className="team-konto__aktionen">
+          <button type="button" className="btn btn--primary" disabled={!text.trim()} onClick={() => void veroeffentlichen()}>
+            {aktuell ? 'Aktualisieren' : 'Veröffentlichen'}
+          </button>
+          {aktuell && <button type="button" className="btn btn--danger" onClick={() => void entfernen()}>Entfernen</button>}
+        </div>
+        {aktuell && <small className="einsatz-eintrag__zeile">Aktiv seit {datum(aktuell.zeit)} · von {aktuell.vonName}</small>}
+        {aktuell === null && <small className="einsatz-eintrag__zeile">Gerade ist keine Ankündigung aktiv.</small>}
+      </section>
+    </div>
+  );
+}
+
+/** Wer hat wann was gemacht – die letzten 200 Team-Aktionen. */
+function Protokoll({ melde }: { melde: Melde }) {
+  const [eintraege, setEintraege] = useState<TeamProtokollEintrag[] | null>(null);
+  const laden = useCallback(() => {
+    teamApi.protokoll().then(setEintraege).catch((e) => melde('fehler', fehlerText(e)));
+  }, []);
+  useEffect(laden, [laden]);
+
+  if (!eintraege) return <p className="einsatz-eintrag__zeile">Lade …</p>;
+  return (
+    <>
+      <button type="button" className="btn" style={{ marginBottom: 8 }} onClick={laden}>↻ Aktualisieren</button>
+      {eintraege.length === 0 ? (
+        <div className="leerzustand">Noch keine Team-Aktionen.</div>
+      ) : (
+        <ul className="team-protokoll">
+          {eintraege.map((e) => (
+            <li key={e.id}>
+              <small>{datum(e.zeit)}</small>
+              <span><strong>{e.vonName}</strong> · {e.aktion}{e.zielName && <> · <strong>{e.zielName}</strong></>}</span>
+              {e.details && <small>{e.details}</small>}
+            </li>
+          ))}
+        </ul>
+      )}
+    </>
+  );
+}
+
+/** Interne Notizen des Teams zu einem Konto */
+function Notizen({ konto, melde }: { konto: TeamKonto; melde: Melde }) {
+  const [notizen, setNotizen] = useState<KontoNotiz[] | null>(null);
+  const [text, setText] = useState('');
+
+  useEffect(() => {
+    teamApi.notizen(konto.id).then(setNotizen).catch((e) => melde('fehler', fehlerText(e)));
+  }, [konto.id]);
+
+  const anlegen = async () => {
+    try {
+      setNotizen(await teamApi.notizAnlegen(konto.id, text));
+      setText('');
+    } catch (e) {
+      melde('fehler', fehlerText(e));
+    }
+  };
+
+  const loeschen = async (notiz: KontoNotiz) => {
+    if (!window.confirm('Notiz löschen?')) return;
+    try {
+      await teamApi.notizLoeschen(notiz.id);
+      setNotizen((liste) => liste?.filter((n) => n.id !== notiz.id) ?? null);
+    } catch (e) {
+      melde('fehler', fehlerText(e));
+    }
+  };
+
+  return (
+    <section className="einsatz-abschnitt">
+      <h4>📝 Team-Notizen</h4>
+      {notizen?.length === 0 && <small className="einsatz-eintrag__zeile">Noch keine Notizen.</small>}
+      <ul className="team-protokoll">
+        {notizen?.map((n) => (
+          <li key={n.id}>
+            <small>{datum(n.zeit)} · {n.vonName}</small>
+            <span>{n.text}</span>
+            <button type="button" className="btn btn--klein" onClick={() => void loeschen(n)} aria-label="Notiz löschen">🗑️</button>
+          </li>
+        ))}
+      </ul>
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        <label className="field" style={{ flex: '1 1 220px', margin: 0 }}>
+          <input value={text} maxLength={NOTIZ_MAX_LAENGE} onChange={(e) => setText(e.target.value)} placeholder="Notiz – nur fürs Team sichtbar" aria-label="Neue Notiz" />
+        </label>
+        <button type="button" className="btn" disabled={!text.trim()} onClick={() => void anlegen()}>Hinzufügen</button>
+      </div>
+    </section>
+  );
+}
+
+/** Guthaben/Ruf eines Spielers korrigieren – das Spiel des Spielers bucht die Korrektur selbst ein. */
+function KorrekturFormular({ konto, melde }: { konto: TeamKonto; melde: Melde }) {
+  const [betrag, setBetrag] = useState('');
+  const [ruf, setRuf] = useState('');
+  const [grund, setGrund] = useState('');
+  const [liste, setListe] = useState<Array<SpielstandKorrektur & { eingebucht: number }>>([]);
+
+  useEffect(() => {
+    teamApi.korrekturen(konto.id).then(setListe).catch(() => undefined);
+  }, [konto.id]);
+
+  const anlegen = async () => {
+    const guthabenAenderung = Number(betrag || 0);
+    const rufNeu = ruf === '' ? null : Number(ruf);
+    const teile = [guthabenAenderung !== 0 && `${guthabenAenderung > 0 ? '+' : ''}${euro(guthabenAenderung)}`, rufNeu !== null && `Ruf ${rufNeu}`].filter(Boolean);
+    if (!window.confirm(`Spielstand von ${konto.name} korrigieren: ${teile.join(', ')}?\n\nGrund: ${grund}`)) return;
+    try {
+      setListe(await teamApi.korrekturAnlegen(konto.id, { guthabenAenderung, rufNeu, grund }));
+      setBetrag('');
+      setRuf('');
+      setGrund('');
+      melde('ok', `Korrektur angelegt – sie wird gebucht, sobald ${konto.name} spielt.`);
+    } catch (e) {
+      melde('fehler', fehlerText(e));
+    }
+  };
+
+  return (
+    <section className="einsatz-abschnitt">
+      <h4>🧾 Spielstand korrigieren</h4>
+      <small className="einsatz-eintrag__zeile">Z. B. nach einem Bug. Wird automatisch eingebucht, sobald die Person (wieder) spielt – erscheint bei ihr unter Finanzen.</small>
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+        <label className="field" style={{ flex: '1 1 140px', margin: 0 }}>
+          <span>Guthaben ± €</span>
+          <input type="number" step={100} value={betrag} onChange={(e) => setBetrag(e.target.value)} placeholder="z. B. 5000 oder -2000" />
+        </label>
+        <label className="field" style={{ flex: '1 1 100px', margin: 0 }}>
+          <span>Ruf setzen</span>
+          <input type="number" min={0} max={100} value={ruf} onChange={(e) => setRuf(e.target.value)} placeholder="0–100" />
+        </label>
+        <label className="field" style={{ flex: '2 1 220px', margin: 0 }}>
+          <span>Grund (Pflicht)</span>
+          <input value={grund} maxLength={200} onChange={(e) => setGrund(e.target.value)} placeholder="z. B. Bug beim Fahrzeugkauf" />
+        </label>
+        <button type="button" className="btn btn--primary" disabled={!grund.trim() || (!Number(betrag) && ruf === '')} onClick={() => void anlegen()}>
+          Korrigieren
+        </button>
+      </div>
+      {liste.length > 0 && (
+        <ul className="team-protokoll">
+          {liste.slice(0, 5).map((k) => (
+            <li key={k.id}>
+              <small>{datum(k.zeit)} · {k.eingebucht ? '✓ eingebucht' : '⏳ wartet auf den Spieler'}</small>
+              <span>
+                {k.guthabenAenderung !== 0 && `${k.guthabenAenderung > 0 ? '+' : ''}${euro(k.guthabenAenderung)}`}
+                {k.guthabenAenderung !== 0 && k.rufNeu !== null && ' · '}
+                {k.rufNeu !== null && `Ruf → ${k.rufNeu}`} – {k.grund}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
   );
 }
 

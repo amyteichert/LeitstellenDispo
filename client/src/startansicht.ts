@@ -1,6 +1,6 @@
 // Ansicht, mit der das Spiel startet – pro Gerät im Browser gemerkt (z. B. Karte am PC, Einsätze am Tablet)
 
-export const ANSICHTEN = ['Karte', 'Wachen', 'Krankenhäuser', 'Fahrzeuge', 'Einsätze', 'Funk', 'Finanzen', 'Einstellungen', 'Team'] as const;
+export const ANSICHTEN = ['Karte', 'Wachen', 'Krankenhäuser', 'Fahrzeuge', 'Einsätze', 'Funk', 'Finanzen', 'Statistik', 'Einstellungen', 'Team'] as const;
 export type Ansicht = (typeof ANSICHTEN)[number];
 
 /** Nur für Team-Rollen sichtbar */

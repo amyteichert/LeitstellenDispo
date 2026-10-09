@@ -38,6 +38,15 @@ import {
   erhoeheStress,
   getZufriedenheitsAusbauPreis,
   mitZufriedenheitsAusbau,
+  FUNKRUFNAME_MAX_LAENGE,
+  getFunkKurzname,
+  getNaechsterFunkrufname,
+  brauchtNeueBewerber,
+  mitNeuenBewerbern,
+  getNeuWuerfelnAb,
+  ohneBewerber,
+  getBewerberFaktor,
+  getZufriedenheit,
   pruefeKuendigungen,
   type Kuendigung,
   type ZufriedenheitsAusbau,
@@ -52,9 +61,14 @@ import {
   hatEigenesKrankenhaus,
   EIGENES_KRANKENHAUS,
   FACHRICHTUNGEN,
-  getBetten,
-  getFachrichtungen,
-  pruefeBettenAusbau,
+  KRANKENHAUS_RUF,
+  mitNeuerPflegekraft,
+  mitFachrichtung,
+  mitNotaufnahmePlatz,
+  pruefeNotaufnahmePlatz,
+  NOTAUFNAHME,
+  mitNotaufnahme,
+  pruefePflegekraft,
   pruefeFachrichtung,
   pruefeKrankenhausBau,
   type Fachrichtung,
@@ -72,6 +86,7 @@ import {
   type SpielEinsatz,
   type StationKind,
 } from '@leitstellendispo/shared';
+import { bestaetigeKorrekturen, ladeKorrekturen } from './konto';
 import type { FinanceTransaction, MapLocation, Vehicle } from './types';
 import { SPIELSTAND_VERSION, spielstandSpeicher, type Spielstand } from './spielstand';
 
@@ -165,6 +180,59 @@ export function useSpiel(optionen: UseSpielOptionen = {}) {
     if (ergebnis.personal !== personal) setPersonal(ergebnis.personal);
     if (ergebnis.kuendigungen.length > 0) setKuendigungen((current) => [...ergebnis.kuendigungen, ...current].slice(0, 20));
   }, [spielstandGeladen, locations, personal, vehicles, nowMs]);
+
+  // Korrekturen des Teams (z. B. nach einem Bug): abholen, einbuchen, bestätigen – beim Laden und jede Minute.
+  // Bereits eingebuchte IDs werden gemerkt, damit nichts doppelt gebucht wird, falls die Bestätigung hängt.
+  const eingebuchteKorrekturen = useRef(new Set<number>());
+  useEffect(() => {
+    if (!spielstandGeladen) return;
+    let abgebrochen = false;
+    const holen = async () => {
+      const korrekturen = (await ladeKorrekturen()).filter((k) => !eingebuchteKorrekturen.current.has(k.id));
+      if (abgebrochen || korrekturen.length === 0) return;
+      for (const korrektur of korrekturen) {
+        eingebuchteKorrekturen.current.add(korrektur.id);
+        if (korrektur.guthabenAenderung !== 0) {
+          setBalance((cur) => cur + korrektur.guthabenAenderung);
+          addTransaction(korrektur.guthabenAenderung > 0 ? 'Einnahme' : 'Ausgabe', `Korrektur durch das Team – ${korrektur.grund}`, Math.abs(korrektur.guthabenAenderung));
+        }
+        if (korrektur.rufNeu !== null) setRuf(korrektur.rufNeu);
+      }
+      await bestaetigeKorrekturen(korrekturen.map((k) => k.id));
+    };
+    void holen();
+    const interval = setInterval(() => void holen(), 60_000);
+    return () => {
+      abgebrochen = true;
+      clearInterval(interval);
+    };
+  }, [spielstandGeladen]);
+
+  // Bewerber: Abgelaufene (oder noch fehlende) Bewerber-Listen der Wachen erneuern (alle 24 Std.)
+  useEffect(() => {
+    if (!spielstandGeladen) return;
+    if (!locations.some((location) => location.type === 'station' && brauchtNeueBewerber(location, nowMs))) return;
+    setLocations((current) => current.map((location) => (
+      location.type === 'station' && brauchtNeueBewerber(location, nowMs)
+        ? mitNeuenBewerbern(location, nowMs, getBewerberFaktor(getZufriedenheit(location, nowMs)))
+        : location
+    )));
+  }, [spielstandGeladen, locations, nowMs]);
+
+  /** Spieler würfelt die Bewerber einer Wache selbst neu – höchstens alle 12 Std. */
+  const wuerfleBewerberNeu = (wacheId: string): string | null => {
+    const wache = locations.find((location) => location.id === wacheId && location.type === 'station');
+    if (!wache) return 'Wache nicht gefunden.';
+    const jetzt = Date.now();
+    const ab = getNeuWuerfelnAb(wache);
+    if (jetzt < ab) {
+      return `Neue Bewerber kannst du erst wieder am ${new Date(ab).toLocaleString('de-DE', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })} Uhr anfordern.`;
+    }
+    setLocations((current) => current.map((location) => (
+      location.id === wacheId ? mitNeuenBewerbern(location, jetzt, getBewerberFaktor(getZufriedenheit(location, jetzt)), true) : location
+    )));
+    return null;
+  };
 
   // ---- Funkverkehr: Statuswechsel und neue Lagemeldungen erkennen ----
   const [funk, setFunk] = useState<FunkSpruch[]>(startSpiel.funk ?? []);
@@ -343,8 +411,15 @@ export function useSpiel(optionen: UseSpielOptionen = {}) {
 
   // ---- Aktionen ----
 
-  /** Funkrufname nach Schema „LF10-2“ (fortlaufend je Fahrzeugtyp) */
-  const naechsterFunkrufname = (typ: string) => `${typ.replace(/\s+/g, '')}-${vehicles.filter((vehicle) => vehicle.type === typ).length + 1}`;
+  /** Benennt ein Fahrzeug um (Funkrufname). Gibt eine Fehlermeldung zurück oder null bei Erfolg. */
+  const benenneFahrzeugUm = (fahrzeugId: string, name: string): string | null => {
+    const neu = name.trim();
+    if (!neu) return 'Der Funkrufname darf nicht leer sein.';
+    if (neu.length > FUNKRUFNAME_MAX_LAENGE) return `Höchstens ${FUNKRUFNAME_MAX_LAENGE} Zeichen.`;
+    if (!vehicles.some((vehicle) => vehicle.id === fahrzeugId)) return 'Fahrzeug nicht gefunden.';
+    setVehicles((current) => current.map((vehicle) => (vehicle.id === fahrzeugId ? { ...vehicle, callsign: neu } : vehicle)));
+    return null;
+  };
 
   /** Kauft ein Fahrzeug für eine Wache. Gibt eine Fehlermeldung zurück oder null bei Erfolg. */
   const buyVehicle = (stationId: string, typ: string): string | null => {
@@ -371,7 +446,7 @@ export function useSpiel(optionen: UseSpielOptionen = {}) {
       type: typ,
       stationId,
       price: fahrzeugTyp.preis,
-      callsign: naechsterFunkrufname(typ),
+      callsign: getNaechsterFunkrufname(typ, stationId, vehicles),
     });
     return null;
   };
@@ -391,7 +466,9 @@ export function useSpiel(optionen: UseSpielOptionen = {}) {
       aufnahme: true,
       eigen: true,
       fachbereiche: ['innere'],
-      kapazitaet: EIGENES_KRANKENHAUS.startBetten,
+      stationen: { innere: EIGENES_KRANKENHAUS.startPflegekraefte },
+      notaufnahmePlaetze: NOTAUFNAHME.startPlaetze,
+      ruf: KRANKENHAUS_RUF.start,
       aufnahmen: [],
     }]);
     setBalance((cur) => cur - EIGENES_KRANKENHAUS.preis);
@@ -405,20 +482,41 @@ export function useSpiel(optionen: UseSpielOptionen = {}) {
     const grund = pruefeFachrichtung(krankenhaus, fachrichtung, ruf, balance);
     if (grund) return grund;
     const preis = FACHRICHTUNGEN[fachrichtung].preis;
-    setKrankenhaeuser((current) => current.map((kh) => (kh.id === krankenhausId ? { ...kh, fachbereiche: [...getFachrichtungen(kh), fachrichtung] } : kh)));
+    setKrankenhaeuser((current) => current.map((kh) => (kh.id === krankenhausId ? mitFachrichtung(kh, fachrichtung) : kh)));
     setBalance((cur) => cur - preis);
     addTransaction('Ausgabe', `${krankenhaus.name}: ${FACHRICHTUNGEN[fachrichtung].label}`, preis);
     return null;
   };
 
-  const baueBettenAus = (krankenhausId: string): string | null => {
+  /** Stellt eine Pflegekraft ein – jede betreut weitere Betten. */
+  const stellePflegekraftEin = (krankenhausId: string, station: Fachrichtung): string | null => {
     const krankenhaus = krankenhaeuser.find((kh) => kh.id === krankenhausId && kh.eigen);
     if (!krankenhaus) return 'Krankenhaus nicht gefunden.';
-    const grund = pruefeBettenAusbau(krankenhaus, balance);
+    const grund = pruefePflegekraft(krankenhaus, station, balance);
     if (grund) return grund;
-    setKrankenhaeuser((current) => current.map((kh) => (kh.id === krankenhausId ? { ...kh, kapazitaet: getBetten(kh) + EIGENES_KRANKENHAUS.bettenJeAusbau } : kh)));
-    setBalance((cur) => cur - EIGENES_KRANKENHAUS.bettenAusbauPreis);
-    addTransaction('Ausgabe', `${krankenhaus.name}: +${EIGENES_KRANKENHAUS.bettenJeAusbau} Betten`, EIGENES_KRANKENHAUS.bettenAusbauPreis);
+    setKrankenhaeuser((current) => current.map((kh) => (kh.id === krankenhausId ? mitNeuerPflegekraft(kh, station) : kh)));
+    setBalance((cur) => cur - EIGENES_KRANKENHAUS.pflegekraftPreis);
+    addTransaction('Ausgabe', `${krankenhaus.name}: Pflegekraft (${FACHRICHTUNGEN[station].label})`, EIGENES_KRANKENHAUS.pflegekraftPreis);
+    return null;
+  };
+
+  /** Ein weiterer Behandlungsplatz in der Notaufnahme. */
+  const erweitereNotaufnahme = (krankenhausId: string): string | null => {
+    const krankenhaus = krankenhaeuser.find((kh) => kh.id === krankenhausId && kh.eigen);
+    if (!krankenhaus) return 'Krankenhaus nicht gefunden.';
+    const grund = pruefeNotaufnahmePlatz(krankenhaus, balance);
+    if (grund) return grund;
+    setKrankenhaeuser((current) => current.map((kh) => (kh.id === krankenhausId ? mitNotaufnahmePlatz(kh) : kh)));
+    setBalance((cur) => cur - NOTAUFNAHME.platzPreis);
+    addTransaction('Ausgabe', `${krankenhaus.name}: Platz in der Notaufnahme`, NOTAUFNAHME.platzPreis);
+    return null;
+  };
+
+  /** Notaufnahme an-/abmelden (Abmelden kostet Ruf des Hauses). */
+  const meldeNotaufnahme = (krankenhausId: string, angemeldet: boolean): string | null => {
+    if (!krankenhaeuser.some((kh) => kh.id === krankenhausId && kh.eigen)) return 'Krankenhaus nicht gefunden.';
+    const jetzt = Date.now();
+    setKrankenhaeuser((current) => current.map((kh) => (kh.id === krankenhausId ? mitNotaufnahme(kh, angemeldet, jetzt) : kh)));
     return null;
   };
 
@@ -456,7 +554,8 @@ export function useSpiel(optionen: UseSpielOptionen = {}) {
         type: wache.startFahrzeugTyp,
         stationId: locationId,
         price: vehiclePrice,
-        callsign: wache.funkrufname.trim() || naechsterFunkrufname(wache.startFahrzeugTyp),
+        // Neue Wache: das Startfahrzeug heißt automatisch z. B. „RTW-1“
+        callsign: wache.funkrufname.trim().slice(0, FUNKRUFNAME_MAX_LAENGE) || `${getFunkKurzname(wache.startFahrzeugTyp)}-1`,
       });
       // Das Startfahrzeug kommt mit voller Besatzung
       setPersonal((current) => [...current, ...erzeugeBesatzungFuer(startFahrzeug)]);
@@ -497,10 +596,12 @@ export function useSpiel(optionen: UseSpielOptionen = {}) {
       return `Kein Platz mehr für Personal (${limit} von ${limit}). Baue unter „Ausbau“ Ruheräume.`;
     }
     if (balance < bewerber.preis) return `Nicht genügend Guthaben. Benötigt: ${bewerber.preis.toLocaleString('de-DE')} €.`;
+    if (!wache.bewerber?.liste.some((b) => b.id === bewerber.id)) return 'Dieser Bewerber ist nicht mehr verfügbar.';
 
     setBalance((cur) => cur - bewerber.preis);
     addTransaction('Ausgabe', `${bewerber.name} für ${wache.name} eingestellt`, bewerber.preis);
     setPersonal((current) => [...current, { id: bewerber.id, name: bewerber.name, qualifikationen: bewerber.qualifikationen, wacheId }]);
+    setLocations((current) => current.map((location) => (location.id === wacheId ? ohneBewerber(location, bewerber.id) : location)));
     return null;
   };
 
@@ -647,6 +748,16 @@ export function useSpiel(optionen: UseSpielOptionen = {}) {
     if (einsatz && alarmierte.length > 0) setFunk((current) => fuegeFunkHinzu(current, [erzeugeAlarmDurchsage(einsatz, alarmierte, jetzt)]));
   };
 
+  /** Gibt einen Einsatz an die Nachbarleitstelle ab – der nächste Tick lässt die Fahrzeuge einrücken und entfernt ihn. */
+  const gibEinsatzAb = (incidentId: string) => {
+    const jetzt = Date.now();
+    setIncidents((current) => current.map((incident) => (
+      incident.id === incidentId && (incident.status === 'offen' || incident.status === 'alarmiert')
+        ? { ...incident, abgegebenAt: jetzt }
+        : incident
+    )));
+  };
+
   const markiereMeldungGelesen = (incidentId: string) => {
     setIncidents((current) => current.map((incident) => (
       incident.id === incidentId ? { ...incident, neueMeldung: false } : incident
@@ -694,17 +805,21 @@ export function useSpiel(optionen: UseSpielOptionen = {}) {
     krankenhaeuser,
     baueKrankenhaus,
     schalteFachrichtungFrei,
-    baueBettenAus,
+    stellePflegekraftEin,
+    erweitereNotaufnahme,
+    meldeNotaufnahme,
     ruf,
     nowMs,
     addVehicle,
     buyVehicle,
+    benenneFahrzeugUm,
     eigenesKrankenhaus,
     erstelleWache,
     erweitereStellplaetze,
     loescheWache,
     personal,
     stellePersonalEin,
+    wuerfleBewerberNeu,
     entlassePersonal,
     weisePersonalZu,
     besetzeFahrzeugAutomatisch,
@@ -722,6 +837,7 @@ export function useSpiel(optionen: UseSpielOptionen = {}) {
     devRufSetzen,
     devLehrgaengeBeenden,
     alarmieren,
+    gibEinsatzAb,
     markiereMeldungGelesen,
     neuesSpiel,
   };

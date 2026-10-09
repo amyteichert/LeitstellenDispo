@@ -9,8 +9,8 @@ import {
   type EinsatzVorlage,
   type SpielEinsatz,
 } from './daten.js';
-import { fahrzeugErfuelltBedarf } from './fahrzeuge.js';
-import { INCIDENT_SPAWN_CONFIG } from './konfig.js';
+import { FAHRZEUG_TYPEN, fahrzeugErfuelltBedarf } from './fahrzeuge.js';
+import { EINSATZDRUCK_CONFIG, INCIDENT_SPAWN_CONFIG } from './konfig.js';
 import { waehleGewichtet, type AufkommenKontext } from './aufkommen.js';
 import { clamp, haversineKm } from './geo.js';
 import { FACHRICHTUNGEN, findeVerlegungen, hatEigenesKrankenhaus, type Krankenhaus } from './krankenhaeuser.js';
@@ -44,6 +44,30 @@ const getIncidentSpawnRadiusKm = (stationCount: number) => {
     return INCIDENT_SPAWN_CONFIG.earlyPhaseMaxRadiusKm + Math.random() * (INCIDENT_SPAWN_CONFIG.midPhaseMaxRadiusKm - INCIDENT_SPAWN_CONFIG.earlyPhaseMaxRadiusKm);
   }
   return INCIDENT_SPAWN_CONFIG.midPhaseMaxRadiusKm + Math.random() * (INCIDENT_SPAWN_CONFIG.latePhaseMaxRadiusKm - INCIDENT_SPAWN_CONFIG.midPhaseMaxRadiusKm);
+};
+
+/** Ließe sich der Bedarf mit Fahrzeugen decken, die an diesen Wachenarten gekauft werden können? */
+export const istVorlageKaufbar = (template: Pick<EinsatzVorlage, 'requiredVehicles'>, wachenArten: StationKind[]) =>
+  template.requiredVehicles.every((bedarf) => FAHRZEUG_TYPEN.some((typ) =>
+    wachenArten.includes(typ.wachenArt) && fahrzeugErfuelltBedarf(typ.typ, bedarf.category)));
+
+/**
+ * Einsatzdruck: Vorlagen dieser Wachenart, die der Spieler mit seinen Fahrzeugen noch NICHT schafft,
+ * für die er aber an seinen Wachen passende Fahrzeuge kaufen könnte.
+ */
+export const getDruckVorlagen = (
+  stationKind: StationKind,
+  vehicles: Vehicle[],
+  wachenArten: StationKind[],
+  krankenhaeuser: Krankenhaus[] = [],
+  jetzt: number = Date.now(),
+): EinsatzVorlage[] => {
+  const machbar = new Set(getAvailableIncidentTemplates(stationKind, vehicles, krankenhaeuser, jetzt).map((v) => v.id));
+  const eigenesKrankenhaus = hatEigenesKrankenhaus(krankenhaeuser);
+  return (EINSATZ_VORLAGEN[stationKind] ?? []).filter((template) => !machbar.has(template.id)
+    && !template.verlegung
+    && (eigenesKrankenhaus || !template.brauchtEigenesKrankenhaus)
+    && istVorlageKaufbar(template, wachenArten));
 };
 
 /** Wache, an der die meisten passenden freien Fahrzeuge stehen (bei Gleichstand zufällig). */
@@ -161,6 +185,26 @@ export const erzeugeVerlegung = (
   };
 };
 
+/** Einsatz, für den dem Spieler noch Fahrzeuge fehlen – verfällt schneller und lässt sich abgeben. */
+export const erzeugeDruckEinsatz = (
+  stations: MapLocation[],
+  vehicles: Vehicle[],
+  jetzt: number = Date.now(),
+  kontext?: AufkommenKontext,
+  krankenhaeuser: Krankenhaus[] = [],
+): SpielEinsatz | null => {
+  const wachenArten = [...new Set(stations.map((station) => station.stationKind ?? 'Rettungswache'))];
+  const arten = wachenArten
+    .map((art) => getDruckVorlagen(art, vehicles, wachenArten, krankenhaeuser, jetzt))
+    .filter((vorlagen) => vorlagen.length > 0);
+  if (arten.length === 0) return null;
+  const vorlagen = arten[Math.floor(Math.random() * arten.length)];
+  const template = kontext ? waehleGewichtet(vorlagen, kontext) : vorlagen[Math.floor(Math.random() * vorlagen.length)];
+  const station = getBestIncidentStation(stations, template, vehicles);
+  const einsatz = createSpielEinsatz(template, station, erzeugeEinsatzort(station, stations.length, template), jetzt);
+  return { ...einsatz, fehlendeKraefte: true, verfallAt: jetzt + EINSATZDRUCK_CONFIG.verfallNachMs };
+};
+
 export type EinsatzErzeugungErgebnis =
   | { einsatz: SpielEinsatz }
   | { fehler: 'keine-wache' | 'keine-machbare-vorlage' };
@@ -185,6 +229,12 @@ export const erzeugeZufallsEinsatz = (
     .filter((eintrag) => eintrag.vorlagen.length > 0);
   if (arten.length === 0) return { fehler: 'keine-machbare-vorlage' };
   const templates = arten[Math.floor(Math.random() * arten.length)].vorlagen;
+
+  // Ab einer gewissen Größe: manchmal ein Einsatz, für den noch Fahrzeuge fehlen
+  if (stations.length >= EINSATZDRUCK_CONFIG.abWachen && Math.random() < EINSATZDRUCK_CONFIG.anteil) {
+    const druck = erzeugeDruckEinsatz(stations, vehicles, jetzt, kontext, krankenhaeuser);
+    if (druck) return { einsatz: druck };
+  }
 
   const template = kontext ? waehleGewichtet(templates, kontext) : templates[Math.floor(Math.random() * templates.length)];
   if (template.verlegung) {

@@ -62,7 +62,6 @@ LeitstellenDispo/
 | GET /api/info   | App-Name, Version, etc.  |
 | GET /api/einsaetze | Beispiel-Einsätze (mit Adresse) |
 | GET /api/fahrzeugtypen | Zentraler Fahrzeugkatalog (Preis, Geschwindigkeit, Besatzung, Fähigkeiten) |
-| GET /api/krankenhaeuser | Krankenhäuser im Startgebiet |
 
 ---
 

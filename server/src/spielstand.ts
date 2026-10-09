@@ -4,6 +4,7 @@ import { migriereSpielstand, type Konto } from '@leitstellendispo/shared';
 import type { Datenbank } from './datenbank.js';
 import { ladeKonto, nurAngemeldet } from './auth.js';
 import type { KontenDienst } from './konten.js';
+import { ladeOffeneKorrekturen } from './team.js';
 
 /** Ein Spielstand mit langer Einsatzhistorie und Funkverkehr kann deutlich über das Express-Standardlimit (100 kB) wachsen */
 export const SPIELSTAND_MAX_GROESSE = '5mb';
@@ -34,6 +35,18 @@ export function erstelleSpielstandRouter(db: Datenbank, konten: KontenDienst): R
       return void res.status(400).json({ fehler: 'Ungültiger Spielstand.' });
     }
     sql.speichern.run(kontoId(res), JSON.stringify(req.body));
+    res.status(204).end();
+  });
+
+  // Vom Team angelegte Korrekturen: Das Spiel holt sie ab, bucht sie ein und bestätigt sie danach
+  router.get('/korrekturen', (_req, res) => {
+    res.json({ korrekturen: ladeOffeneKorrekturen(db, kontoId(res)) });
+  });
+
+  router.post('/korrekturen/eingebucht', (req, res) => {
+    const ids = Array.isArray(req.body?.ids) ? req.body.ids.filter((id: unknown) => Number.isInteger(id)).slice(0, 100) : [];
+    const markieren = db.prepare('UPDATE spielstand_korrekturen SET eingebucht = 1 WHERE id = ? AND benutzer_id = ?');
+    db.transaction(() => ids.forEach((id: number) => markieren.run(id, kontoId(res))))();
     res.status(204).end();
   });
 

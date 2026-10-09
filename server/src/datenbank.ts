@@ -54,6 +54,48 @@ const MIGRATIONEN: string[] = [
     laeuft_ab   INTEGER NOT NULL
   );
   `,
+  // 4: Team-Werkzeuge – Aktivitäts-Protokoll, Notizen zu Konten, Ankündigung an alle, Spielstand-Korrekturen
+  `
+  -- Ziel ohne Fremdschlüssel: Einträge bleiben auch nach dem Löschen eines Kontos erhalten
+  CREATE TABLE team_protokoll (
+    id        INTEGER PRIMARY KEY AUTOINCREMENT,
+    zeit      TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+    von_name  TEXT    NOT NULL,
+    aktion    TEXT    NOT NULL,
+    ziel_name TEXT,
+    details   TEXT
+  );
+
+  CREATE TABLE konto_notizen (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    benutzer_id INTEGER NOT NULL REFERENCES benutzer(id) ON DELETE CASCADE,
+    von_name    TEXT    NOT NULL,
+    text        TEXT    NOT NULL,
+    zeit        TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+  );
+  CREATE INDEX konto_notizen_benutzer ON konto_notizen(benutzer_id);
+
+  -- Höchstens eine aktive Ankündigung
+  CREATE TABLE ankuendigung (
+    id       INTEGER PRIMARY KEY CHECK (id = 1),
+    text     TEXT    NOT NULL,
+    art      TEXT    NOT NULL DEFAULT 'info' CHECK (art IN ('info', 'wartung', 'wichtig')),
+    von_name TEXT    NOT NULL,
+    zeit     TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+  );
+
+  CREATE TABLE spielstand_korrekturen (
+    id                 INTEGER PRIMARY KEY AUTOINCREMENT,
+    benutzer_id        INTEGER NOT NULL REFERENCES benutzer(id) ON DELETE CASCADE,
+    guthaben_aenderung INTEGER NOT NULL DEFAULT 0,
+    ruf_neu            INTEGER,
+    grund              TEXT    NOT NULL,
+    von_name           TEXT    NOT NULL,
+    zeit               TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+    eingebucht         INTEGER NOT NULL DEFAULT 0
+  );
+  CREATE INDEX spielstand_korrekturen_offen ON spielstand_korrekturen(benutzer_id, eingebucht);
+  `,
 ];
 
 /** Öffnet (bzw. erstellt) die Datenbank und bringt das Schema auf den neuesten Stand. */

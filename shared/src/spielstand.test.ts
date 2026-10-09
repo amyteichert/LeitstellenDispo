@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { alarmiereFahrzeuge } from './alarmierung.js';
-import { findeZielKrankenhaus, STANDARD_KRANKENHAEUSER } from './krankenhaeuser.js';
+import { findeZielKrankenhaus } from './krankenhaeuser.js';
 import { berechneSpielTick } from './spielTick.js';
 import { SPIELSTAND_VERSION, createNeuesSpiel, migriereSpielstand, type Spielstand } from './spielstand.js';
-import { T0, eigenesKrankenhausWeitWeg, einsatz, fahrzeug, krankenhaus, wache } from './testHilfen.js';
+import { T0, einsatz, fahrzeug, krankenhaus, wache } from './testHilfen.js';
 import { haversineKm } from './geo.js';
 import { erzeugeBesatzungFuer, synchronisiereBesatzung } from './personal.js';
 
@@ -16,20 +16,21 @@ describe('Krankenhäuser', () => {
   });
 
   it('fährt nicht ins Nirgendwo: ohne Krankenhaus im Umkreis kein Transportziel', () => {
-    expect(findeZielKrankenhaus([52.41, 12.53], STANDARD_KRANKENHAEUSER)).toBeNull();
+    expect(findeZielKrankenhaus([52.41, 12.53], [krankenhaus()])).toBeNull();
   });
 
-  it('entfernt früher erfundene Kliniken beim Laden', () => {
-    const roh = { ...createNeuesSpiel(), krankenhaeuser: [...STANDARD_KRANKENHAEUSER, { ...STANDARD_KRANKENHAEUSER[0], id: 'kh-x', generiert: true }] };
-    expect(migriereSpielstand(JSON.parse(JSON.stringify(roh)))!.krankenhaeuser).toHaveLength(STANDARD_KRANKENHAEUSER.length);
+  it('behält beim Laden nur eigene Krankenhäuser (Stuttgarter Häuser und erfundene Kliniken fallen weg)', () => {
+    const eigenes = { ...krankenhaus('kh-eigen'), eigen: true };
+    const roh = { ...createNeuesSpiel(), krankenhaeuser: [krankenhaus('kh-katharinenhospital'), { ...krankenhaus('kh-x'), generiert: true }, eigenes] };
+    expect(migriereSpielstand(JSON.parse(JSON.stringify(roh)))!.krankenhaeuser.map((kh) => kh.id)).toEqual(['kh-eigen']);
   });
 });
 
 describe('Spielstand speichern und laden', () => {
-  it('startet ein neues Spiel ohne Wache und Fahrzeug, aber mit Krankenhäusern und Startguthaben', () => {
+  it('startet ein neues Spiel ohne Wache, Fahrzeug und Krankenhaus, aber mit Startguthaben', () => {
     const spiel = createNeuesSpiel();
     expect(spiel.version).toBe(SPIELSTAND_VERSION);
-    expect(spiel.krankenhaeuser.length).toBeGreaterThan(0);
+    expect(spiel.krankenhaeuser).toEqual([]);
     expect(spiel.locations).toEqual([]);
     expect(spiel.vehicles).toEqual([]);
     expect(spiel.personal).toEqual([]);
@@ -39,7 +40,7 @@ describe('Spielstand speichern und laden', () => {
   it('übersteht JSON-Speichern und -Laden mit laufendem Transport unverändert', () => {
     const e = einsatz('sturz', undefined, undefined, { transport: true });
     const start = alarmiereFahrzeuge({ incidents: [e], vehicles: [fahrzeug('rtw', 'RTW')], locations: [wache()] }, e.id, ['rtw'], T0);
-    const kh = [krankenhaus(), eigenesKrankenhausWeitWeg()];
+    const kh = [{ ...krankenhaus(), eigen: true, kapazitaet: 10 }];
     const ende = berechneSpielTick({ ...start, locations: [wache()], krankenhaeuser: kh }, start.incidents[0].alarmedVehicles[0].arrivalAt).incidents[0].processingEndsAt!;
     let zustand = { ...start, locations: [wache()], krankenhaeuser: kh };
     for (const zeit of [start.incidents[0].alarmedVehicles[0].arrivalAt, ende]) {
@@ -89,7 +90,7 @@ describe('Spielstand speichern und laden', () => {
     // Die geschenkte Start-Wache entfällt seit Version 4 – samt ihrer Fahrzeuge und Einsätze
     expect(geladen.locations).toEqual([]);
     expect(geladen.vehicles).toEqual([]);
-    expect(geladen.krankenhaeuser.length).toBeGreaterThanOrEqual(STANDARD_KRANKENHAEUSER.length);
+    expect(geladen.krankenhaeuser).toEqual([]);
   });
 
   it('verwirft unbrauchbare oder unbekannte Spielstände', () => {

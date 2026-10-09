@@ -3,7 +3,7 @@
  * Die Besatzung eines Fahrzeugs (`besatzung`, `fehlendeQualifikation`) wird aus dem Personal berechnet,
  * damit Alarmierung und Spiel-Tick nur auf das Fahrzeug schauen müssen.
  */
-import { getFahrzeugTyp, type Qualifikation } from './fahrzeuge.js';
+import { besitztQualifikation, getFahrzeugTyp, getFehlendeQualifikationen, type Qualifikation } from './fahrzeuge.js';
 import type { MapLocation, Vehicle, WachenArt } from './typen.js';
 
 export interface Mitarbeiter {
@@ -26,14 +26,60 @@ export const PERSONAL_CONFIG = {
   /** Personal-Plätze einer neuen Wache */
   limit: { Rettungswache: 6, Feuerwache: 12 } as Record<WachenArt, number>,
   grundpreis: 1500,
-  qualifikationsPreis: { notfallsanitaeter: 1500, notarzt: 4000, maschinist_dlk: 1000, gruppenfuehrer: 1500, zugfuehrer: 3000 } as Record<Qualifikation, number>,
+  qualifikationsPreis: { notfallsanitaeter: 1500, notarzt: 4000, maschinist_dlk: 1000, gruppenfuehrer: 1500, zugfuehrer: 3000, rettungssanitaeter: 500, technische_hilfe: 800 } as Record<Qualifikation, number>,
   /** Wahrscheinlichkeit, dass ein Bewerber diese Qualifikation mitbringt – je Wachenart */
   qualifikationsChance: {
-    Rettungswache: { notfallsanitaeter: 0.45, notarzt: 0.12 },
-    Feuerwache: { gruppenfuehrer: 0.2, maschinist_dlk: 0.2, zugfuehrer: 0.06 },
+    Rettungswache: { rettungssanitaeter: 0.5, notfallsanitaeter: 0.45, notarzt: 0.12 },
+    Feuerwache: { gruppenfuehrer: 0.2, maschinist_dlk: 0.2, zugfuehrer: 0.06, technische_hilfe: 0.35 },
   } as Record<WachenArt, Partial<Record<Qualifikation, number>>>,
   bewerberAnzahl: 4,
 } as const;
+
+const STUNDE = 60 * 60 * 1000;
+
+/** Bewerber einer Wache: kommen von selbst alle 24 Std. neu, selbst neu würfeln ist alle 12 Std. möglich */
+export const BEWERBER_CONFIG = {
+  automatischAlleMs: 24 * STUNDE,
+  neuWuerfelnAlleMs: 12 * STUNDE,
+} as const;
+
+export interface BewerberPool {
+  liste: Bewerber[];
+  /** Wann diese Bewerber kamen – nach 24 Std. kommen neue */
+  erzeugtAm: number;
+  /** Wann der Spieler zuletzt selbst neu gewürfelt hat */
+  neuGewuerfeltAm?: number;
+}
+
+/** Sind die Bewerber der Wache abgelaufen (oder gibt es noch keine)? */
+export const brauchtNeueBewerber = (wache: Pick<MapLocation, 'bewerber'>, jetzt: number) =>
+  !wache.bewerber || jetzt - wache.bewerber.erzeugtAm >= BEWERBER_CONFIG.automatischAlleMs;
+
+/** Neue Bewerber für die Wache; `selbst` = vom Spieler neu gewürfelt (startet die 12-Std.-Sperre). */
+export function mitNeuenBewerbern(
+  wache: MapLocation,
+  jetzt: number,
+  chancenFaktor = 1,
+  selbst = false,
+  zufall: () => number = Math.random,
+): MapLocation {
+  return {
+    ...wache,
+    bewerber: {
+      liste: erzeugeBewerber(wache, PERSONAL_CONFIG.bewerberAnzahl, zufall, chancenFaktor),
+      erzeugtAm: jetzt,
+      neuGewuerfeltAm: selbst ? jetzt : wache.bewerber?.neuGewuerfeltAm,
+    },
+  };
+}
+
+/** Ab wann der Spieler wieder selbst neu würfeln darf */
+export const getNeuWuerfelnAb = (wache: Pick<MapLocation, 'bewerber'>) =>
+  (wache.bewerber?.neuGewuerfeltAm ?? -Infinity) + BEWERBER_CONFIG.neuWuerfelnAlleMs;
+
+/** Eingestellt: Bewerber aus der Liste nehmen (es rückt niemand nach – erst mit den nächsten Bewerbern) */
+export const ohneBewerber = (wache: MapLocation, bewerberId: string): MapLocation =>
+  wache.bewerber ? { ...wache, bewerber: { ...wache.bewerber, liste: wache.bewerber.liste.filter((b) => b.id !== bewerberId) } } : wache;
 
 /** Ausbau „Ruheräume“: mehr Personal-Plätze auf der Wache */
 export const RUHERAUM_CONFIG = {
@@ -102,7 +148,8 @@ export function erzeugeBesatzungFuer(vehicle: Vehicle, zufall: () => number = Ma
     id: `${neueId(zufall)}-${index}`,
     name: zufallsName(zufall),
     wacheId: vehicle.stationId!,
-    qualifikationen: index === 0 && typ.pflichtQualifikation ? [typ.pflichtQualifikation] : [],
+    // Je eine Person pro Pflicht-Qualifikation (z. B. HLF: Gruppenführer und Technische Hilfe)
+    qualifikationen: typ.pflichtQualifikationen?.[index] ? [typ.pflichtQualifikationen[index]] : [],
     fahrzeugId: vehicle.id,
   }));
 }
@@ -119,8 +166,7 @@ export function synchronisiereBesatzung(vehicles: Vehicle[], personal: Mitarbeit
   let geaendert = false;
   const ergebnis = vehicles.map((vehicle) => {
     const besatzung = personal.filter((person) => person.fahrzeugId === vehicle.id);
-    const pflicht = getFahrzeugTyp(vehicle.type)?.pflichtQualifikation;
-    const fehlendeQualifikation = pflicht && !besatzung.some((person) => person.qualifikationen.includes(pflicht)) ? pflicht : undefined;
+    const fehlendeQualifikation = getFehlendeQualifikationen(vehicle.type, besatzung)[0];
     if (vehicle.besatzung === besatzung.length && vehicle.fehlendeQualifikation === fehlendeQualifikation) return vehicle;
     geaendert = true;
     return { ...vehicle, besatzung: besatzung.length, fehlendeQualifikation };
@@ -138,19 +184,26 @@ export function besetzeAutomatisch(vehicle: Vehicle, personal: Mitarbeiter[]): M
   let besatzung = personal.filter((person) => person.fahrzeugId === vehicle.id);
   const reserve = personal.filter((person) => person.wacheId === vehicle.stationId && !person.fahrzeugId && person.inAusbildungBis === undefined);
   const gewaehlt: string[] = [];
-  let abgezogen: string | undefined;
 
-  const pflicht = typ.pflichtQualifikation;
-  if (pflicht && !besatzung.some((person) => person.qualifikationen.includes(pflicht))) {
+  const pflichten = typ.pflichtQualifikationen ?? [];
+  const abgezogen: string[] = [];
+  for (const pflicht of getFehlendeQualifikationen(vehicle.type, besatzung)) {
+    // Schon durch eine eben gewählte Person abgedeckt?
+    if (reserve.some((person) => gewaehlt.includes(person.id) && besitztQualifikation(person.qualifikationen, pflicht))) continue;
     const qualifiziert = reserve
-      .filter((person) => person.qualifikationen.includes(pflicht))
+      .filter((person) => !gewaehlt.includes(person.id) && besitztQualifikation(person.qualifikationen, pflicht))
       .sort((a, b) => a.qualifikationen.length - b.qualifikationen.length)[0];
-    if (qualifiziert) {
-      gewaehlt.push(qualifiziert.id);
-      // Fahrzeug schon voll? Dann tauscht eine Person ohne Pflicht-Qualifikation in die Reserve
-      if (besatzung.length >= typ.besatzung) {
-        abgezogen = besatzung[besatzung.length - 1].id;
-        besatzung = besatzung.slice(0, -1);
+    if (!qualifiziert) continue;
+    gewaehlt.push(qualifiziert.id);
+    // Fahrzeug schon voll? Dann tauscht eine Person ohne Pflicht-Qualifikation in die Reserve
+    if (besatzung.length + gewaehlt.length > typ.besatzung) {
+      const tauschbar = [...besatzung].reverse()
+        .find((person) => !pflichten.some((p) => besitztQualifikation(person.qualifikationen, p)));
+      if (tauschbar) {
+        abgezogen.push(tauschbar.id);
+        besatzung = besatzung.filter((person) => person.id !== tauschbar.id);
+      } else {
+        gewaehlt.pop();
       }
     }
   }
@@ -163,7 +216,7 @@ export function besetzeAutomatisch(vehicle: Vehicle, personal: Mitarbeiter[]): M
 
   return personal.map((person) => {
     if (gewaehlt.includes(person.id)) return { ...person, fahrzeugId: vehicle.id };
-    if (person.id === abgezogen) return { ...person, fahrzeugId: undefined };
+    if (abgezogen.includes(person.id)) return { ...person, fahrzeugId: undefined };
     return person;
   });
 }

@@ -16,6 +16,7 @@ import {
   type SpielEinsatz,
 } from '@leitstellendispo/shared';
 import type { MapLocation, Vehicle } from '../types';
+import EinsatzAbgabe from './EinsatzAbgabe';
 
 /** Leiste oben auf der Karte mit allen laufenden Einsätzen. */
 export function KarteEinsatzLeiste({
@@ -62,6 +63,7 @@ export function KarteEinsatzPanel({
   onClose,
   onOpenInEinsaetze,
   onAlarmieren,
+  onAbgeben,
   funk,
   onSprechaufforderung,
 }: {
@@ -76,6 +78,8 @@ export function KarteEinsatzPanel({
   onOpenInEinsaetze: () => void;
   /** Alarmiert die übergebenen Fahrzeuge direkt von der Karte aus */
   onAlarmieren: (vehicleIds: string[]) => void;
+  /** Einsatz an die Nachbarleitstelle abgeben */
+  onAbgeben: () => void;
 }) {
   const { abdeckung, ausreichendAlarmiert, fehlendAlarmiert } = getEinsatzVersorgung(incident, vehicles, nowMs);
   const vorschlag = erstelleAlarmVorschlag(incident, { incidents, vehicles, locations });
@@ -173,6 +177,7 @@ export function KarteEinsatzPanel({
         <p className="einsatz-eintrag__zeile">Kein freies Fahrzeug für: {formatBedarfsListe(vorschlag.nichtVerfuegbar)}</p>
       )}
       {rueckmeldung && <div className="aktion-rueckmeldung" role="status">{rueckmeldung}</div>}
+      <EinsatzAbgabe incident={incident} vehicles={vehicles} onAbgeben={onAbgeben} />
 
       <h4>Fahrzeuge</h4>
       <ul>

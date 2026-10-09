@@ -18,6 +18,18 @@ export const GAME_CONFIG = {
   transportVerguetung: 120,
 };
 
+/**
+ * Einsatzdruck: Ab einer gewissen Größe kommen auch Einsätze, für die dem Spieler noch Fahrzeuge fehlen
+ * (die er aber an seinen Wachen kaufen könnte). Sie lassen sich an die Nachbarleitstelle abgeben.
+ */
+export const EINSATZDRUCK_CONFIG = {
+  abWachen: 10,
+  /** Anteil der neuen Einsätze, die so ein Einsatz sein dürfen */
+  anteil: 0.2,
+  /** Unbearbeitet übernimmt die Nachbarleitstelle nach dieser Zeit */
+  verfallNachMs: 30 * 60 * 1000,
+} as const;
+
 /** Wie weit neue Einsätze um eine Wache herum entstehen – wächst mit der Anzahl der Wachen. */
 export const INCIDENT_SPAWN_CONFIG = {
   earlyPhaseMaxStationCount: 3,

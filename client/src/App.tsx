@@ -12,6 +12,8 @@ import {
   getFahrzeugPosition,
   getFahrzeugTyp,
   getStartfahrzeugTypen,
+  FUNKRUFNAME_MAX_LAENGE,
+  getFunkKurzname,
   istTeamRolle,
   WACHEN_PREISE,
   WETTER_LABELS,
@@ -33,7 +35,9 @@ import { ladeStartansicht, sichtbareAnsichten, type Ansicht } from './startansic
 import TeamView from './views/TeamView';
 import Tour, { tourGesehen } from './Tour';
 import { teamApi } from './konto';
-import { spieleFunkPiep, useEinsatzHinweise } from './useEinsatzHinweise';
+import { useEinsatzHinweise } from './useEinsatzHinweise';
+import { spieleFunkPiep } from './ton';
+import { getEinstellungen, useEinstellungen } from './einstellungen';
 import FunkView from './views/FunkView';
 import FahrzeugeView from './views/FahrzeugeView';
 import WachenView from './views/WachenView';
@@ -42,6 +46,8 @@ import EinsaetzeView from './views/EinsaetzeView';
 import { KarteEinsatzLeiste, KarteEinsatzPanel } from './views/KarteEinsatzOverlay';
 import RufFenster from './views/RufFenster';
 import FinanzenView from './views/FinanzenView';
+import StatistikView from './views/StatistikView';
+import AnkuendigungsBanner from './AnkuendigungsBanner';
 import EinstellungenView from './views/EinstellungenView';
 import ErsteSchritte from './ErsteSchritte';
 
@@ -104,6 +110,45 @@ function KarteFolgt({ coords }: { coords: [number, number] | null }) {
   useEffect(() => {
     if (coords) map.setView(coords, Math.max(map.getZoom(), 13));
   }, [coords, map]);
+  return null;
+}
+
+const KARTE_KEY = 'leitstellendispo.karte';
+
+/** Zuletzt angezeigter Kartenausschnitt (nur wenn „Karte merken“ an ist) */
+const ladeKartenausschnitt = (): { center: [number, number]; zoom: number } | null => {
+  if (!getEinstellungen().karteMerken) return null;
+  try {
+    const gespeichert = JSON.parse(localStorage.getItem(KARTE_KEY) ?? 'null');
+    return gespeichert && Array.isArray(gespeichert.center) && typeof gespeichert.zoom === 'number' ? gespeichert : null;
+  } catch {
+    return null;
+  }
+};
+
+/**
+ * Merkt sich den Kartenausschnitt. Ohne gemerkten Ausschnitt springt die Karte einmal zur ersten Wache,
+ * sobald der Spielstand geladen ist.
+ */
+function KarteMerken({ ersteWache, hatteAusschnitt }: { ersteWache?: [number, number]; hatteAusschnitt: boolean }) {
+  const map = useMap();
+  const gesprungen = useRef(hatteAusschnitt);
+  useEffect(() => {
+    if (gesprungen.current || !ersteWache) return;
+    gesprungen.current = true;
+    map.setView(ersteWache, Math.max(map.getZoom(), 13));
+  }, [ersteWache, map]);
+  useMapEvents({
+    moveend: () => {
+      if (!getEinstellungen().karteMerken) return;
+      const mitte = map.getCenter();
+      try {
+        localStorage.setItem(KARTE_KEY, JSON.stringify({ center: [mitte.lat, mitte.lng], zoom: map.getZoom() }));
+      } catch {
+        // Nur Komfort
+      }
+    },
+  });
   return null;
 }
 
@@ -200,15 +245,20 @@ function App({ konto, onAbmelden }: { konto: Konto; onAbmelden: () => Promise<vo
     markiereMeldungGelesen,
   } = spiel;
 
-  const { hinweise, schliesseHinweis, tonAn, setTonAn } = useEinsatzHinweise(incidents, spiel.spielstandGeladen);
+  const { hinweise, schliesseHinweis } = useEinsatzHinweise(incidents, spiel.spielstandGeladen);
+  const einstellungen = useEinstellungen();
+  // Kompakte Ansicht: kleinere Grundschrift – alle rem-Abstände schrumpfen mit
+  useEffect(() => {
+    document.documentElement.classList.toggle('kompakt', einstellungen.kompakt);
+  }, [einstellungen.kompakt]);
 
   // Sprechwunsch (Status 5): dezenter Funkpiep, wenn ein neuer dazukommt
   const offeneSprechwuensche = getOffeneSprechwuensche(spiel.funk);
   const anzahlSprechwuensche = useRef(offeneSprechwuensche.length);
   useEffect(() => {
-    if (offeneSprechwuensche.length > anzahlSprechwuensche.current && tonAn) spieleFunkPiep();
+    if (offeneSprechwuensche.length > anzahlSprechwuensche.current) spieleFunkPiep();
     anzahlSprechwuensche.current = offeneSprechwuensche.length;
-  }, [offeneSprechwuensche.length, tonAn]);
+  }, [offeneSprechwuensche.length]);
   const oeffneHinweis = (einsatzId: string, hinweisId: string) => {
     schliesseHinweis(hinweisId);
     setSelectedIncidentId(einsatzId);
@@ -228,6 +278,8 @@ function App({ konto, onAbmelden }: { konto: Konto; onAbmelden: () => Promise<vo
   const [selectedGeocodeIndex, setSelectedGeocodeIndex] = useState<number | null>(null);
   // map reference to allow programmatic centering when selecting geocode results
   const mapRef = useRef<any>(null);
+  // Bei jedem Wechsel zur Karte neu lesen – die Karte wird dann neu aufgebaut
+  const kartenStart = useMemo(ladeKartenausschnitt, [currentView]);
   const [mapStyle, setMapStyle] = useState<'karte' | 'satellit'>('karte');
   // Standorte-Leiste auf dem Handy ein-/ausgeklappt (am PC immer sichtbar)
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -455,8 +507,14 @@ Dein Guthaben: ${balance.toLocaleString('de-DE')} €`)) return;
       </label>
 
       <label className="field">
-        <span>Funkrufname (z. B. "Wache-1")</span>
-        <input type="text" value={draftStartVehicleCallsign} onChange={(e) => setDraftStartVehicleCallsign(e.target.value)} placeholder="z. B. RTW-1" />
+        <span>Funkrufname</span>
+        <input
+          type="text"
+          value={draftStartVehicleCallsign}
+          maxLength={FUNKRUFNAME_MAX_LAENGE}
+          onChange={(e) => setDraftStartVehicleCallsign(e.target.value)}
+          placeholder={draftStartVehicleType ? `${getFunkKurzname(draftStartVehicleType)}-1` : ''}
+        />
       </label>
 
       <p className="map-hint">Anschließend auf „Standort erstellen“ klicken — Wache und das ausgewählte Startfahrzeug werden gemeinsam erstellt.</p>
@@ -534,7 +592,8 @@ Dein Guthaben: ${balance.toLocaleString('de-DE')} €`)) return;
         </div>
       )}
       {spiel.ladeFehler && <div className="lade-fehler" role="alert">{spiel.ladeFehler}</div>}
-      {spiel.spielstandGeladen && (
+      {/* Die Schritte beziehen sich auf die Karte – auf anderen Seiten würde die Box Inhalte verdecken */}
+      {spiel.spielstandGeladen && currentView === 'Karte' && (
         <ErsteSchritte kontoId={konto.id} stand={{ incidents, completedIncidentHistory, vehicles, locations }} />
       )}
       {spiel.spielstandGeladen && tourOffen && (
@@ -624,6 +683,8 @@ Dein Guthaben: ${balance.toLocaleString('de-DE')} €`)) return;
           </div>
         </div>
       </header>
+
+      <AnkuendigungsBanner />
 
       {rufFensterOffen && (
         <RufFenster
@@ -728,6 +789,7 @@ Dein Guthaben: ${balance.toLocaleString('de-DE')} €`)) return;
                   locations={locations}
                   nowMs={nowMs}
                   onAlarmieren={(vehicleIds) => spiel.alarmieren(mapIncident.id, vehicleIds)}
+                  onAbgeben={() => spiel.gibEinsatzAb(mapIncident.id)}
                   funk={spiel.funk}
                   onSprechaufforderung={spiel.gibSprechaufforderung}
                   onClose={() => setMapIncidentId(null)}
@@ -740,7 +802,8 @@ Dein Guthaben: ${balance.toLocaleString('de-DE')} €`)) return;
               ) : null;
             })()}
 
-            <MapContainer center={[48.775, 9.185]} zoom={13} scrollWheelZoom className="map-view" ref={mapRef}>
+            <MapContainer center={kartenStart?.center ?? [48.775, 9.185]} zoom={kartenStart?.zoom ?? 13} scrollWheelZoom className="map-view" ref={mapRef}>
+              <KarteMerken ersteWache={locations.find((location) => location.type === 'station')?.coords} hatteAusschnitt={Boolean(kartenStart)} />
               {mapStyle === 'karte' ? (
                 <TileLayer
                   key="karte"
@@ -856,6 +919,7 @@ Dein Guthaben: ${balance.toLocaleString('de-DE')} €`)) return;
                 nowMs={nowMs}
                 buyVehicle={spiel.buyVehicle}
                 eigenesKrankenhaus={spiel.eigenesKrankenhaus}
+                benenneFahrzeugUm={spiel.benenneFahrzeugUm}
                 erweitereStellplaetze={spiel.erweitereStellplaetze}
                 personalAktionen={spiel}
                 onWacheKaufen={() => setWacheKaufenOffen(true)}
@@ -919,6 +983,7 @@ Dein Guthaben: ${balance.toLocaleString('de-DE')} €`)) return;
                 selectedIncidentId={selectedIncidentId}
                 setSelectedIncidentId={setSelectedIncidentId}
                 alarmIncidentVehicles={alarmIncidentVehicles}
+                gibEinsatzAb={spiel.gibEinsatzAb}
                 markiereMeldungGelesen={markiereMeldungGelesen}
                 triggerTestIncident={istTeamRolle(konto.rolle) ? triggerTestIncident : undefined}
                 nowMs={nowMs}
@@ -959,11 +1024,11 @@ Dein Guthaben: ${balance.toLocaleString('de-DE')} €`)) return;
               <FinanzenView balance={balance} locations={locations} vehicles={vehicles} transactions={transactions} />
             )}
 
+            {currentView === 'Statistik' && <StatistikView verlauf={completedIncidentHistory} ruf={spiel.ruf} />}
+
             {currentView === 'Einstellungen' && (
               <EinstellungenView
                 onNeuesSpiel={neuesSpiel}
-                tonAn={tonAn}
-                setTonAn={setTonAn}
                 konto={konto}
                 onAbmelden={onAbmelden}
                 email={email}

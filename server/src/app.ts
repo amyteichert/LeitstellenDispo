@@ -1,13 +1,13 @@
 import cookieParser from 'cookie-parser';
 import cors from 'cors';
 import express, { type NextFunction, type Request, type Response } from 'express';
-import { FAHRZEUG_TYPEN, STANDARD_KRANKENHAEUSER, getAppInfo } from '@leitstellendispo/shared';
+import { FAHRZEUG_TYPEN, getAppInfo } from '@leitstellendispo/shared';
 import type { Einsatz } from '@leitstellendispo/shared';
 import { erstelleAuthRouter, type AuthOptionen } from './auth.js';
 import type { Datenbank } from './datenbank.js';
 import { erstelleKontenDienst } from './konten.js';
 import { erstelleSpielstandRouter } from './spielstand.js';
-import { erstelleTeamRouter } from './team.js';
+import { erstelleTeamRouter, ladeAnkuendigung } from './team.js';
 
 // Feste Beispieldaten für den ersten Durchstich – wird später durch echte Einsatzlogik ersetzt.
 const beispielEinsaetze: Einsatz[] = [
@@ -34,6 +34,11 @@ export function erstelleApp(db: Datenbank, optionen: { bcryptRunden?: number } &
   app.use('/api/auth', erstelleAuthRouter(konten, optionen));
   app.use('/api/team', erstelleTeamRouter(db, konten, optionen));
 
+  // Ankündigung des Teams – für alle sichtbar (auch auf der Anmeldeseite möglich)
+  app.get('/api/ankuendigung', (_req, res) => {
+    res.json({ ankuendigung: ladeAnkuendigung(db) });
+  });
+
   app.get('/api/health', (_req, res) => {
     res.json({ status: 'ok' });
   });
@@ -49,10 +54,6 @@ export function erstelleApp(db: Datenbank, optionen: { bcryptRunden?: number } &
   // Zentraler Fahrzeugkatalog und Krankenhäuser – dieselben Daten wie im Spiel (aus shared)
   app.get('/api/fahrzeugtypen', (_req, res) => {
     res.json(FAHRZEUG_TYPEN);
-  });
-
-  app.get('/api/krankenhaeuser', (_req, res) => {
-    res.json(STANDARD_KRANKENHAEUSER);
   });
 
   // Unerwartete Fehler als JSON melden, ohne Interna preiszugeben

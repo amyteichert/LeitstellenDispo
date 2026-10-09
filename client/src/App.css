@@ -298,7 +298,8 @@
 }
 
 .field input,
-.field select {
+.field select,
+.field textarea {
   width: 100%;
   border: 1px solid var(--color-border-strong);
   border-radius: 10px;
@@ -307,6 +308,8 @@
   font: inherit;
   color: var(--color-text);
 }
+
+.field textarea { resize: vertical; line-height: 1.4; }
 
 .map-hint {
   font-size: 0.72rem;
@@ -2392,3 +2395,129 @@
 .anmeldung__banner img {
   filter: hue-rotate(215deg) saturate(0.85);
 }
+
+/* Einstellungen: Karten-Raster wie bei Wachen/Ausbau */
+.einstellungen-raster {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 12px;
+  margin: 12px 0;
+}
+.einstellungen-raster .ausbau-karte { gap: 10px; }
+.einstellung-schalter,
+.einstellung-regler {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 40px;
+  cursor: pointer;
+}
+.einstellung-schalter span,
+.einstellung-regler span { display: grid; gap: 2px; }
+.einstellung-schalter small,
+.einstellung-regler small { color: var(--color-text-muted); font-size: 0.8rem; }
+.einstellung-schalter input[type='checkbox'] { width: 20px; height: 20px; flex-shrink: 0; accent-color: var(--color-primary); }
+.einstellung-regler { flex-wrap: wrap; }
+.einstellung-regler input[type='range'] { flex: 1 1 140px; accent-color: var(--color-primary); }
+
+/* Kleiner Symbol-Knopf in Listen (z. B. Fahrzeug umbenennen) */
+.btn--klein {
+  min-height: 28px;
+  padding: 0 8px;
+  margin-left: 6px;
+  font-size: 0.85rem;
+  vertical-align: middle;
+}
+
+/* Statistik: Ruf-Verlauf (eine Linie, dezentes Raster) und Balkenliste */
+.statistik-verlauf { position: relative; height: 180px; margin: 8px 0 4px 32px; }
+.statistik-verlauf svg { display: block; width: 100%; height: 100%; overflow: visible; }
+.statistik-verlauf__raster { stroke: var(--color-border); stroke-width: 1; vector-effect: non-scaling-stroke; }
+.statistik-verlauf__achse { position: absolute; left: -32px; width: 26px; transform: translateY(-50%); text-align: right; color: var(--color-text-muted); font-size: 0.72rem; }
+.statistik-verlauf__linie { fill: none; stroke: var(--color-primary-text); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; vector-effect: non-scaling-stroke; }
+.statistik-verlauf__treffer { fill: transparent; cursor: pointer; }
+.statistik-verlauf__treffer:hover { fill: var(--color-primary-text); fill-opacity: 0.08; }
+.statistik-balken { list-style: none; display: grid; gap: 8px; }
+.statistik-balken li { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(60px, 1fr) 2.5ch; align-items: center; gap: 10px; font-size: 0.9rem; }
+.statistik-balken li > span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.statistik-balken__spur { height: 10px; border-radius: 4px; background: var(--color-surface-raised); overflow: hidden; }
+.statistik-balken__spur span { display: block; height: 100%; border-radius: 4px; background: var(--color-primary); }
+.statistik-balken strong { text-align: right; }
+
+/* Ankündigung des Teams an alle Spieler */
+.ankuendigung {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 8px 16px 0;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--color-border-strong);
+  border-left: 4px solid var(--color-primary);
+  background: var(--color-surface-raised);
+  font-size: 0.9rem;
+}
+.ankuendigung p { flex: 1; margin: 0; }
+.ankuendigung--wartung { border-left-color: #f59e0b; }
+.ankuendigung--wichtig { border-left-color: #ef4444; }
+.ankuendigung__schliessen {
+  min-width: 32px;
+  min-height: 32px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--color-text-muted);
+  font: inherit;
+  cursor: pointer;
+}
+.ankuendigung__schliessen:hover { background: var(--color-surface); color: var(--color-text); }
+
+/* Team: Protokoll- und Notizlisten */
+.team-protokoll { list-style: none; display: grid; gap: 6px; }
+.team-protokoll li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 2px 8px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+}
+.team-protokoll li > * { grid-column: 1; }
+.team-protokoll li > .btn { grid-column: 2; grid-row: 1 / span 2; align-self: center; }
+.team-protokoll small { color: var(--color-text-muted); font-size: 0.78rem; }
+
+/* Fahrzeuge einer Wache: aufklappbar zum Bearbeiten */
+.fahrzeug-liste { list-style: none; display: grid; gap: 8px; }
+.fahrzeug-liste > li {
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  background: var(--color-surface);
+  overflow: hidden;
+}
+.fahrzeug-liste__eintrag--offen { border-color: var(--color-primary) !important; }
+.fahrzeug-liste__kopf {
+  width: 100%;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 12px;
+  border: none;
+  background: transparent;
+  color: var(--color-text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.fahrzeug-liste__kopf:hover { background: var(--color-surface-raised); }
+.fahrzeug-bearbeiten {
+  display: grid;
+  gap: 14px;
+  padding: 12px;
+  border-top: 1px solid var(--color-border);
+  background: var(--color-bg);
+}
+.fahrzeug-bearbeiten__zeile { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }

@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { formatEinsatzTitel, istWichtigeMeldung, type SpielEinsatz } from '@leitstellendispo/shared';
+import { getEinstellungen } from './einstellungen';
+import { spieleGong } from './ton';
 
 export interface EinsatzHinweis {
   id: string;
@@ -9,89 +11,19 @@ export interface EinsatzHinweis {
   text: string;
 }
 
-const TON_KEY = 'leitstellendispo.ton';
-const HINWEIS_DAUER_MS = 7000;
 const MAX_HINWEISE = 3;
 
 /** Nur wichtige Meldungen (Eskalation, Nachforderung) lösen Hinweis und Gong aus – nicht jede Statusmeldung. */
 const wichtigeMeldungen = (incident: SpielEinsatz) => incident.meldungen.filter(istWichtigeMeldung);
 
-const leseTonEinstellung = () => {
-  try {
-    return localStorage.getItem(TON_KEY) !== 'aus';
-  } catch {
-    return true;
-  }
-};
-
-/** Kurzer Alarmgong über die Web Audio API (keine Audiodatei nötig). */
-const spieleGong = (dringend: boolean) => {
-  try {
-    const AudioCtx = window.AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
-    if (!AudioCtx) return;
-    const ctx = new AudioCtx();
-    const toene = dringend ? [880, 660, 880] : [660, 880];
-    toene.forEach((frequenz, index) => {
-      const start = ctx.currentTime + index * 0.18;
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.type = 'sine';
-      osc.frequency.value = frequenz;
-      gain.gain.setValueAtTime(0.0001, start);
-      gain.gain.exponentialRampToValueAtTime(0.25, start + 0.02);
-      gain.gain.exponentialRampToValueAtTime(0.0001, start + 0.16);
-      osc.connect(gain).connect(ctx.destination);
-      osc.start(start);
-      osc.stop(start + 0.17);
-    });
-    setTimeout(() => ctx.close(), toene.length * 180 + 300);
-  } catch {
-    // Ton ist nur Komfort – Fehler (z. B. Autoplay-Sperre des Browsers) ignorieren
-  }
-};
-
-/** Kurzer, leiser Funk-Doppelpiep (Sprechwunsch) – dezenter als der Alarmgong. */
-export const spieleFunkPiep = () => {
-  try {
-    const AudioCtx = window.AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
-    if (!AudioCtx) return;
-    const ctx = new AudioCtx();
-    [0, 0.12].forEach((versatz) => {
-      const start = ctx.currentTime + versatz;
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.type = 'square';
-      osc.frequency.value = 1320;
-      gain.gain.setValueAtTime(0.0001, start);
-      gain.gain.exponentialRampToValueAtTime(0.06, start + 0.01);
-      gain.gain.exponentialRampToValueAtTime(0.0001, start + 0.07);
-      osc.connect(gain).connect(ctx.destination);
-      osc.start(start);
-      osc.stop(start + 0.08);
-    });
-    setTimeout(() => ctx.close(), 500);
-  } catch {
-    // Ton ist nur Komfort
-  }
-};
-
 /**
  * Erkennt neue Einsätze und neue Lagemeldungen, spielt (abschaltbar) einen Gong und liefert Einblendungen.
+ * Was eingeblendet wird und wie lange, steht in den Geräte-Einstellungen.
  * Erst ab `aktiv` (Spielstand geladen) – damit beim Laden nicht alle gespeicherten Einsätze gemeldet werden.
  */
 export function useEinsatzHinweise(incidents: SpielEinsatz[], aktiv: boolean) {
   const [hinweise, setHinweise] = useState<EinsatzHinweis[]>([]);
-  const [tonAn, setTonAnState] = useState(leseTonEinstellung);
   const bekannt = useRef<Map<string, number> | null>(null);
-
-  const setTonAn = (an: boolean) => {
-    setTonAnState(an);
-    try {
-      localStorage.setItem(TON_KEY, an ? 'an' : 'aus');
-    } catch {
-      // Einstellung gilt dann nur bis zum Neuladen
-    }
-  };
 
   useEffect(() => {
     if (!aktiv) return;
@@ -123,13 +55,16 @@ export function useEinsatzHinweise(incidents: SpielEinsatz[], aktiv: boolean) {
     bekannt.current = new Map(incidents.map((incident) => [incident.id, wichtigeMeldungen(incident).length]));
 
     if (neue.length === 0) return;
-    if (tonAn) spieleGong(neue.some((hinweis) => hinweis.art === 'meldung'));
-    setHinweise((current) => [...neue, ...current].slice(0, MAX_HINWEISE));
-    const ids = neue.map((hinweis) => hinweis.id);
-    setTimeout(() => setHinweise((current) => current.filter((hinweis) => !ids.includes(hinweis.id))), HINWEIS_DAUER_MS);
+    spieleGong(neue.some((hinweis) => hinweis.art === 'meldung'));
+    const { hinweise: modus, hinweisDauerSekunden } = getEinstellungen();
+    const anzeigen = modus === 'aus' ? [] : modus === 'wichtig' ? neue.filter((hinweis) => hinweis.art === 'meldung') : neue;
+    if (anzeigen.length === 0) return;
+    setHinweise((current) => [...anzeigen, ...current].slice(0, MAX_HINWEISE));
+    const ids = anzeigen.map((hinweis) => hinweis.id);
+    setTimeout(() => setHinweise((current) => current.filter((hinweis) => !ids.includes(hinweis.id))), hinweisDauerSekunden * 1000);
   }, [incidents, aktiv]);
 
   const schliesseHinweis = (id: string) => setHinweise((current) => current.filter((hinweis) => hinweis.id !== id));
 
-  return { hinweise, schliesseHinweis, tonAn, setTonAn };
+  return { hinweise, schliesseHinweis };
 }

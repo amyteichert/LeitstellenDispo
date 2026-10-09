@@ -5,6 +5,10 @@ import Anmeldung from './Anmeldung';
 import PasswortZuruecksetzen, { PASSWORT_SEITE } from './PasswortZuruecksetzen';
 import Rechtliches, { istRechtlicheSeite } from './Rechtliches';
 import './index.css';
+import { richteTonFreischaltungEin } from './ton';
+
+// Handy-Browser erlauben Töne erst nach einer Berührung: die erste Berührung schaltet den Gong frei
+richteTonFreischaltungEin();
 
 const pfad = window.location.pathname.replace(/\/+$/, '');
 

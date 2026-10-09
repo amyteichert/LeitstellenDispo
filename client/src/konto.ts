@@ -1,4 +1,15 @@
-import type { Konto, SpielstandZusammenfassung, TeamKonto, TeamUebersicht, UserRole } from '@leitstellendispo/shared';
+import type {
+  Ankuendigung,
+  AnkuendigungsArt,
+  Konto,
+  KontoNotiz,
+  SpielstandKorrektur,
+  SpielstandZusammenfassung,
+  TeamKonto,
+  TeamProtokollEintrag,
+  TeamUebersicht,
+  UserRole,
+} from '@leitstellendispo/shared';
 
 /** Wird ausgelöst, wenn der Server eine Anfrage mit 401 ablehnt (Sitzung abgelaufen oder Konto gesperrt). */
 export const SITZUNG_ABGELAUFEN = 'leitstellendispo:sitzung-abgelaufen';
@@ -108,4 +119,55 @@ export const teamApi = {
   loeschen: (id: number) => team<null>('DELETE', `/konten/${id}`),
   devMarkierung: () => team<null>('POST', '/dev-markierung'),
   passwortLink: (id: number) => team<{ link: string; laeuftAb: number }>('POST', `/konten/${id}/passwort-link`),
+  protokoll: () => team<{ eintraege: TeamProtokollEintrag[] }>('GET', '/protokoll').then((d) => d.eintraege),
+  notizen: (id: number) => team<{ notizen: KontoNotiz[] }>('GET', `/konten/${id}/notizen`).then((d) => d.notizen),
+  notizAnlegen: (id: number, text: string) => team<{ notizen: KontoNotiz[] }>('POST', `/konten/${id}/notizen`, { text }).then((d) => d.notizen),
+  notizLoeschen: (notizId: number) => team<null>('DELETE', `/notizen/${notizId}`),
+  ankuendigungSetzen: (text: string, art: AnkuendigungsArt) =>
+    team<{ ankuendigung: Ankuendigung }>('PUT', '/ankuendigung', { text, art }).then((d) => d.ankuendigung),
+  ankuendigungEntfernen: () => team<null>('DELETE', '/ankuendigung'),
+  korrekturen: (id: number) =>
+    team<{ korrekturen: Array<SpielstandKorrektur & { eingebucht: number }> }>('GET', `/konten/${id}/korrekturen`).then((d) => d.korrekturen),
+  korrekturAnlegen: (id: number, korrektur: { guthabenAenderung: number; rufNeu: number | null; grund: string }) =>
+    team<{ korrekturen: Array<SpielstandKorrektur & { eingebucht: number }> }>('POST', `/konten/${id}/korrekturen`, korrektur).then((d) => d.korrekturen),
 };
+
+// ---------------------------------------------------------------------------
+// Für alle Spieler: Ankündigung des Teams und Korrekturen am eigenen Spielstand
+// ---------------------------------------------------------------------------
+
+/** Aktuelle Ankündigung – `null`, wenn keine aktiv ist oder der Server nicht erreichbar ist (nur Komfort). */
+export async function ladeAnkuendigung(): Promise<Ankuendigung | null> {
+  try {
+    const res = await fetch('/api/ankuendigung');
+    if (!res.ok) return null;
+    return ((await res.json()) as { ankuendigung: Ankuendigung | null }).ankuendigung;
+  } catch {
+    return null;
+  }
+}
+
+/** Offene Korrekturen des Teams am eigenen Spielstand (leer, wenn der Server nicht erreichbar ist). */
+export async function ladeKorrekturen(): Promise<SpielstandKorrektur[]> {
+  try {
+    const res = await fetch('/api/spielstand/korrekturen');
+    if (!res.ok) return [];
+    return ((await res.json()) as { korrekturen: SpielstandKorrektur[] }).korrekturen;
+  } catch {
+    return [];
+  }
+}
+
+/** Bestätigt eingebuchte Korrekturen – danach liefert der Server sie nicht mehr aus. */
+export async function bestaetigeKorrekturen(ids: number[]): Promise<boolean> {
+  try {
+    const res = await fetch('/api/spielstand/korrekturen/eingebucht', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ids }),
+    });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}

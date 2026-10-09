@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { alarmiereFahrzeuge, erstelleAlarmVorschlag, getPassendeVerfuegbareFahrzeuge, istFahrzeugVerfuegbar } from './alarmierung.js';
 import { ALLE_EINSATZ_VORLAGEN, findeEinsatzVorlage, getEinsatzVersorgung } from './daten.js';
+import { fahrzeugErfuelltBedarf } from './fahrzeuge.js';
 import { berechneSpielTick } from './spielTick.js';
 import { T0, einsatz, fahrzeug, wache } from './testHilfen.js';
 import type { MapLocation } from './typen.js';
@@ -99,16 +100,24 @@ describe('Alarmierungsvorschlag', () => {
     expect(vorschlag.fahrzeugIds).toEqual(['lf2']);
   });
 
-  it('besetzt knappe Klassen zuerst (LF für TH, TLF zum Löschen)', () => {
+  it('besetzt knappe Klassen zuerst (HLF fürs Rettungsgerät, TLF zum Löschen)', () => {
     const e = einsatz('vu-eingeklemmt');
     const vehicles = [
-      fahrzeug('lf', 'LF 10', 'fw-1'),
+      fahrzeug('hlf', 'HLF 20', 'fw-1'),
       fahrzeug('tlf', 'TLF 3000', 'fw-1'),
       fahrzeug('rtw', 'RTW', 'fw-2'),
     ];
     const vorschlag = erstelleAlarmVorschlag(e, { incidents: [e], vehicles, locations });
-    expect(vorschlag.fahrzeugIds.sort()).toEqual(['lf', 'rtw', 'tlf']);
+    expect(vorschlag.fahrzeugIds.sort()).toEqual(['hlf', 'rtw', 'tlf']);
     expect(vorschlag.nichtVerfuegbar).toEqual([]);
+  });
+
+  it('eingeklemmte Person: ein normales LF hat kein Rettungsgerät – HLF oder Rüstwagen nötig', () => {
+    const e = einsatz('vu-eingeklemmt');
+    const vehicles = [fahrzeug('lf', 'LF 10', 'fw-1'), fahrzeug('lf2', 'LF 20', 'fw-1'), fahrzeug('rtw', 'RTW', 'fw-2')];
+    const vorschlag = erstelleAlarmVorschlag(e, { incidents: [e], vehicles, locations });
+    expect(vorschlag.nichtVerfuegbar).toEqual([{ category: 'Rettungsgerät', anzahl: 1 }]);
+    expect(fahrzeugErfuelltBedarf('RW', 'Rettungsgerät')).toBe(true);
   });
 
   it('meldet, was mit freien Fahrzeugen nicht gedeckt werden kann', () => {

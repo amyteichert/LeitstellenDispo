@@ -124,6 +124,12 @@ export interface SpielEinsatz extends Einsatz {
   eskalationBei?: number;
   /** Neue wichtige Meldung, die der Spieler noch nicht angesehen hat */
   neueMeldung?: boolean;
+  /** Durch Einsatzdruck entstanden: Dem Spieler fehlen (noch) passende Fahrzeuge */
+  fehlendeKraefte?: boolean;
+  /** Früherer Verfall als üblich (z. B. bei Einsätzen mit fehlenden Kräften) */
+  verfallAt?: number;
+  /** An die Nachbarleitstelle abgegeben: wird beim nächsten Tick ohne Vergütung entfernt */
+  abgegebenAt?: number;
   /** Krankenhausverlegung: Patient wird von Haus A (Einsatzort) in Haus B mit der fehlenden Abteilung gebracht */
   verlegung?: EinsatzVerlegung;
   /** Falls gesetzt: Zeitpunkt, zu dem der Einsatz eskaliert, wenn bis dahin niemand alarmiert wurde */
@@ -255,6 +261,7 @@ const NEF = (amount = 1): FahrzeugBedarf => ({ id: 'req-nef', category: 'NEF', a
 const LF = (amount = 1): FahrzeugBedarf => ({ id: 'req-lz', category: 'Löschfahrzeug', amount });
 const DLK = (amount = 1): FahrzeugBedarf => ({ id: 'req-dlk', category: 'Drehleiter', amount });
 const TH = (amount = 1): FahrzeugBedarf => ({ id: 'req-th', category: 'Technische Hilfe', amount });
+const RG = (amount = 1): FahrzeugBedarf => ({ id: 'req-rg', category: 'Rettungsgerät', amount });
 const KT = (amount = 1): FahrzeugBedarf => ({ id: 'req-kt', category: 'Krankentransport', amount });
 const RW = (amount = 1): FahrzeugBedarf => ({ id: 'req-rw', category: 'Rüstwagen', amount });
 const ELW = (amount = 1): FahrzeugBedarf => ({ id: 'req-elw', category: 'Einsatzleitwagen', amount });
@@ -807,7 +814,7 @@ export const EINSATZ_VORLAGEN: Record<WachenArt, EinsatzVorlage[]> = {
       stichwort: 'TH 2',
       meldebild: 'VU – Person eingeklemmt',
       organization: 'Feuerwehr',
-      requiredVehicles: [TH(), LF(), RTW()],
+      requiredVehicles: [RG(), LF(), RTW()],
       reward: 700,
       durationSeconds: 26,
       ortsArt: 'kreuzung',

@@ -17,6 +17,7 @@ export type Faehigkeit =
   | 'patiententransport'
   | 'notarzt'
   | 'schwere_technik'
+  | 'rettungsgeraet'
   | 'einsatzleitung';
 
 export const FAEHIGKEIT_LABELS: Record<Faehigkeit, string> = {
@@ -27,19 +28,40 @@ export const FAEHIGKEIT_LABELS: Record<Faehigkeit, string> = {
   patiententransport: 'Patiententransport',
   notarzt: 'Notarztversorgung',
   schwere_technik: 'Schwere technische Rettung',
+  rettungsgeraet: 'Hydraulisches Rettungsgerät',
   einsatzleitung: 'Einsatzleitung',
 };
 
 /** Qualifikationen des Personals – nur die, die ein Fahrzeug zwingend braucht. */
-export type Qualifikation = 'notfallsanitaeter' | 'notarzt' | 'maschinist_dlk' | 'gruppenfuehrer' | 'zugfuehrer';
+export type Qualifikation =
+  | 'rettungssanitaeter'
+  | 'notfallsanitaeter'
+  | 'notarzt'
+  | 'maschinist_dlk'
+  | 'gruppenfuehrer'
+  | 'zugfuehrer'
+  | 'technische_hilfe';
 
 export const QUALIFIKATION_LABELS: Record<Qualifikation, string> = {
+  rettungssanitaeter: 'Rettungssanitäter',
   notfallsanitaeter: 'Notfallsanitäter',
   notarzt: 'Notarzt',
   maschinist_dlk: 'Maschinist Drehleiter',
   gruppenfuehrer: 'Gruppenführer',
   zugfuehrer: 'Zugführer',
+  technische_hilfe: 'Technische Hilfeleistung',
 };
+
+/** Höhere Qualifikationen schließen niedrigere ein (z. B. darf ein Notfallsanitäter auch KTW fahren). */
+const QUALIFIKATION_UMFASST: Partial<Record<Qualifikation, Qualifikation[]>> = {
+  notfallsanitaeter: ['rettungssanitaeter'],
+  notarzt: ['rettungssanitaeter'],
+  zugfuehrer: ['gruppenfuehrer'],
+};
+
+/** Hat jemand mit diesen Qualifikationen die gesuchte – direkt oder über eine höhere? */
+export const besitztQualifikation = (qualifikationen: Qualifikation[], gesucht: Qualifikation) =>
+  qualifikationen.some((q) => q === gesucht || (QUALIFIKATION_UMFASST[q] ?? []).includes(gesucht));
 
 export interface FahrzeugTyp {
   /** Typbezeichnung, z. B. "RTW" oder "HLF 20" */
@@ -55,8 +77,8 @@ export interface FahrzeugTyp {
   /** Sollbesatzung (Personen) */
   besatzung: number;
   faehigkeiten: Faehigkeit[];
-  /** Mindestens eine Person der Besatzung braucht diese Qualifikation */
-  pflichtQualifikation?: Qualifikation;
+  /** Jede dieser Qualifikationen muss mindestens eine Person der Besatzung haben */
+  pflichtQualifikationen?: Qualifikation[];
   /** Sonderfahrzeuge, die allein kaum Einsätze schaffen, gibt es nicht als Startfahrzeug */
   keinStartfahrzeug?: boolean;
   /** Erst kaufbar, wenn der Spieler ein eigenes Krankenhaus hat */
@@ -67,27 +89,29 @@ export interface FahrzeugTyp {
 export const FAHRZEUG_TYPEN: FahrzeugTyp[] = [
   {
     typ: 'RTW', bezeichnung: 'Rettungswagen', kategorie: 'RTW', organisation: 'Rettungsdienst', wachenArt: 'Rettungswache',
-    preis: 4000, geschwindigkeitKmh: 60, besatzung: 2, faehigkeiten: ['patientenversorgung', 'patiententransport'], pflichtQualifikation: 'notfallsanitaeter',
+    preis: 4000, geschwindigkeitKmh: 60, besatzung: 2, faehigkeiten: ['patientenversorgung', 'patiententransport'], pflichtQualifikationen: ['notfallsanitaeter'],
   },
   {
     typ: 'NEF', bezeichnung: 'Notarzteinsatzfahrzeug', kategorie: 'NEF', organisation: 'Rettungsdienst', wachenArt: 'Rettungswache',
-    preis: 3500, geschwindigkeitKmh: 70, besatzung: 2, faehigkeiten: ['notarzt', 'patientenversorgung'], pflichtQualifikation: 'notarzt',
+    preis: 3500, geschwindigkeitKmh: 70, besatzung: 2, faehigkeiten: ['notarzt', 'patientenversorgung'], pflichtQualifikationen: ['notarzt'],
   },
   {
     typ: 'KTW', bezeichnung: 'Krankentransportwagen', kategorie: 'KTW', organisation: 'Rettungsdienst', wachenArt: 'Rettungswache',
-    preis: 2500, geschwindigkeitKmh: 55, besatzung: 2, faehigkeiten: ['patiententransport'], keinStartfahrzeug: true, brauchtEigenesKrankenhaus: true,
+    preis: 2500, geschwindigkeitKmh: 55, besatzung: 2, faehigkeiten: ['patiententransport'], pflichtQualifikationen: ['rettungssanitaeter'],
+    keinStartfahrzeug: true, brauchtEigenesKrankenhaus: true,
   },
   {
     typ: 'LF 10', bezeichnung: 'Löschgruppenfahrzeug 10', kategorie: 'Löschfahrzeug', organisation: 'Feuerwehr', wachenArt: 'Feuerwache',
-    preis: 5000, geschwindigkeitKmh: 52, besatzung: 9, faehigkeiten: ['brandbekaempfung', 'technische_hilfe'], pflichtQualifikation: 'gruppenfuehrer',
+    preis: 5000, geschwindigkeitKmh: 52, besatzung: 9, faehigkeiten: ['brandbekaempfung', 'technische_hilfe'], pflichtQualifikationen: ['gruppenfuehrer'],
   },
   {
     typ: 'LF 20', bezeichnung: 'Löschgruppenfahrzeug 20', kategorie: 'Löschfahrzeug', organisation: 'Feuerwehr', wachenArt: 'Feuerwache',
-    preis: 6500, geschwindigkeitKmh: 50, besatzung: 9, faehigkeiten: ['brandbekaempfung', 'technische_hilfe'], pflichtQualifikation: 'gruppenfuehrer',
+    preis: 6500, geschwindigkeitKmh: 50, besatzung: 9, faehigkeiten: ['brandbekaempfung', 'technische_hilfe'], pflichtQualifikationen: ['gruppenfuehrer'],
   },
   {
     typ: 'HLF 20', bezeichnung: 'Hilfeleistungslöschgruppenfahrzeug 20', kategorie: 'Löschfahrzeug', organisation: 'Feuerwehr', wachenArt: 'Feuerwache',
-    preis: 8000, geschwindigkeitKmh: 50, besatzung: 9, faehigkeiten: ['brandbekaempfung', 'technische_hilfe'], pflichtQualifikation: 'gruppenfuehrer',
+    preis: 8000, geschwindigkeitKmh: 50, besatzung: 9, faehigkeiten: ['brandbekaempfung', 'technische_hilfe', 'rettungsgeraet'],
+    pflichtQualifikationen: ['gruppenfuehrer', 'technische_hilfe'],
   },
   {
     typ: 'TLF 2000', bezeichnung: 'Tanklöschfahrzeug 2000', kategorie: 'Löschfahrzeug', organisation: 'Feuerwehr', wachenArt: 'Feuerwache',
@@ -103,15 +127,16 @@ export const FAHRZEUG_TYPEN: FahrzeugTyp[] = [
   },
   {
     typ: 'DLK 23/12', bezeichnung: 'Drehleiter mit Korb', kategorie: 'Drehleiter', organisation: 'Feuerwehr', wachenArt: 'Feuerwache',
-    preis: 9000, geschwindigkeitKmh: 48, besatzung: 3, faehigkeiten: ['hoehenrettung', 'brandbekaempfung'], pflichtQualifikation: 'maschinist_dlk',
+    preis: 9000, geschwindigkeitKmh: 48, besatzung: 3, faehigkeiten: ['hoehenrettung', 'brandbekaempfung'], pflichtQualifikationen: ['maschinist_dlk'],
   },
   {
     typ: 'RW', bezeichnung: 'Rüstwagen', kategorie: 'Rüstwagen', organisation: 'Feuerwehr', wachenArt: 'Feuerwache',
-    preis: 7500, geschwindigkeitKmh: 50, besatzung: 3, faehigkeiten: ['technische_hilfe', 'schwere_technik'], keinStartfahrzeug: true,
+    preis: 7500, geschwindigkeitKmh: 50, besatzung: 3, faehigkeiten: ['technische_hilfe', 'schwere_technik', 'rettungsgeraet'],
+    pflichtQualifikationen: ['technische_hilfe'], keinStartfahrzeug: true,
   },
   {
     typ: 'ELW 1', bezeichnung: 'Einsatzleitwagen 1', kategorie: 'Einsatzleitwagen', organisation: 'Feuerwehr', wachenArt: 'Feuerwache',
-    preis: 6000, geschwindigkeitKmh: 60, besatzung: 3, faehigkeiten: ['einsatzleitung'], pflichtQualifikation: 'zugfuehrer', keinStartfahrzeug: true,
+    preis: 6000, geschwindigkeitKmh: 60, besatzung: 3, faehigkeiten: ['einsatzleitung'], pflichtQualifikationen: ['zugfuehrer'], keinStartfahrzeug: true,
   },
 ];
 
@@ -125,6 +150,36 @@ export function getFahrzeugKategorie(typ?: string): FahrzeugKategorie | null {
 
 export function getFahrzeugTypenFuerWache(wachenArt: WachenArt): FahrzeugTyp[] {
   return FAHRZEUG_TYPEN.filter((eintrag) => eintrag.wachenArt === wachenArt);
+}
+
+/** Kurzform des Typs für Funkrufnamen: „LF 20“ → „LF20“, „DLK 23/12“ → „DLK“ */
+export const getFunkKurzname = (typ: string) => typ.replace(/\s+\d+\/\d+$/, '').replace(/\s+/g, '');
+
+export const FUNKRUFNAME_MAX_LAENGE = 24;
+
+/**
+ * Nächster freier Funkrufname an einer Wache: „RTW-1“, „RTW-2“ … – gezählt je Wache und Typ.
+ * Lücken (verkaufte Fahrzeuge) werden wieder aufgefüllt, doppelte Namen gibt es nicht.
+ */
+export function getNaechsterFunkrufname(
+  typ: string,
+  stationId: string | undefined,
+  vehicles: Array<Pick<Vehicle, 'callsign' | 'stationId'>>,
+): string {
+  const kurz = getFunkKurzname(typ);
+  const vergeben = new Set(vehicles.filter((vehicle) => vehicle.stationId === stationId).map((vehicle) => vehicle.callsign));
+  let nummer = 1;
+  while (vergeben.has(`${kurz}-${nummer}`)) nummer += 1;
+  return `${kurz}-${nummer}`;
+}
+
+/** Pflicht-Qualifikationen eines Typs, die in dieser Besatzung noch niemand hat */
+export function getFehlendeQualifikationen(
+  typ: string | undefined,
+  besatzung: Array<{ qualifikationen: Qualifikation[] }>,
+): Qualifikation[] {
+  return (getFahrzeugTyp(typ)?.pflichtQualifikationen ?? [])
+    .filter((pflicht) => !besatzung.some((person) => besitztQualifikation(person.qualifikationen, pflicht)));
 }
 
 /** Fahrzeugtypen, die beim Bau einer Wache als Startfahrzeug wählbar sind */
@@ -156,7 +211,7 @@ export function istAusreichendBesetzt(vehicle: Pick<Vehicle, 'type' | 'besatzung
  * Wonach ein Einsatz fragt: eine Fahrzeugklasse oder eine Fähigkeit.
  * „Technische Hilfe“ können z. B. LF und HLF leisten, ein TLF aber nicht.
  */
-export type BedarfsKlasse = FahrzeugKategorie | 'Technische Hilfe' | 'Krankentransport';
+export type BedarfsKlasse = FahrzeugKategorie | 'Technische Hilfe' | 'Rettungsgerät' | 'Krankentransport';
 
 interface BedarfsKlassenInfo {
   /** Anzeige, z. B. „LF/HLF (Technische Hilfe)“ */
@@ -174,6 +229,8 @@ export const BEDARFS_KLASSEN: Record<BedarfsKlasse, BedarfsKlassenInfo> = {
   Rüstwagen: { label: 'Rüstwagen', kategorien: ['Rüstwagen'] },
   Einsatzleitwagen: { label: 'ELW', kategorien: ['Einsatzleitwagen'] },
   'Technische Hilfe': { label: 'LF/HLF/RW (Techn. Hilfe)', faehigkeit: 'technische_hilfe' },
+  /** Schere und Spreizer für eingeklemmte Personen: nur HLF und Rüstwagen */
+  Rettungsgerät: { label: 'HLF/RW (Rettungsgerät)', faehigkeit: 'rettungsgeraet' },
   /** Krankentransport kann ein KTW oder ein RTW übernehmen */
   Krankentransport: { label: 'KTW/RTW (Krankentransport)', faehigkeit: 'patiententransport' },
 };

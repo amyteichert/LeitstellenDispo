@@ -1,6 +1,7 @@
 /** Typen für den Spielzustand – gemeinsam für Client und (später) Server. */
 import type { Adresse } from './adressen.js';
 import type { Qualifikation } from './fahrzeuge.js';
+import type { BewerberPool } from './personal.js';
 
 export type LocationType = 'station' | 'incident';
 
@@ -31,6 +32,8 @@ export type MapLocation = {
   stress?: { wert: number; stand: number };
   /** Bis hierhin wurde auf Kündigungen geprüft (stündlich) */
   kuendigungGeprueftAt?: number;
+  /** Aktuelle Bewerber der Wache – kommen alle 24 Std. neu, selbst neu würfeln geht alle 12 Std. */
+  bewerber?: BewerberPool;
 };
 
 export interface AusbildungsRaum {

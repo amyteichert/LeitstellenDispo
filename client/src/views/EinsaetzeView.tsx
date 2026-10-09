@@ -19,6 +19,7 @@ import {
   type EinsatzMeldung,
   type SpielEinsatz,
 } from '@leitstellendispo/shared';
+import EinsatzAbgabe from './EinsatzAbgabe';
 import type { MapLocation, Vehicle } from '../types';
 
 const formatEtaLabel = (seconds: number) => {
@@ -63,6 +64,7 @@ export default function EinsaetzeView({
   selectedIncidentId,
   setSelectedIncidentId,
   alarmIncidentVehicles,
+  gibEinsatzAb,
   markiereMeldungGelesen,
   triggerTestIncident,
   nowMs,
@@ -79,6 +81,7 @@ export default function EinsaetzeView({
   selectedIncidentId: string | null;
   setSelectedIncidentId: (id: string | null) => void;
   alarmIncidentVehicles: (incidentId: string, selectedVehicleIds: string[]) => void;
+  gibEinsatzAb: (incidentId: string) => void;
   markiereMeldungGelesen: (incidentId: string) => void;
   /** Nur für Team-Rollen gesetzt – ohne wird der Test-Knopf nicht angezeigt */
   triggerTestIncident?: () => void | Promise<void>;
@@ -459,6 +462,7 @@ export default function EinsaetzeView({
                       {selectedVehicleIds.length > 0 ? ` (${selectedVehicleIds.length})` : ''}
                     </button>
                   </div>
+                  <EinsatzAbgabe incident={selectedIncident} vehicles={vehicles} onAbgeben={() => gibEinsatzAb(selectedIncident.id)} />
                 </section>
               ) : null}
 

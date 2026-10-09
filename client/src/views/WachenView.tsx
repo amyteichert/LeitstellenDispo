@@ -33,6 +33,7 @@ import {
 } from '@leitstellendispo/shared';
 import type { MapLocation, Vehicle } from '../types';
 import PersonalReiter from './PersonalReiter';
+import FahrzeugBearbeiten from './FahrzeugBearbeiten';
 import AusbildungReiter, { type AusbildungAktionen } from './AusbildungReiter';
 
 type Reiter = 'Übersicht' | 'Fahrzeuge' | 'Personal' | 'Ausbildung' | 'Ausbau';
@@ -51,6 +52,7 @@ export interface PersonalAktionen extends AusbildungAktionen {
   kuendigungen: Kuendigung[];
   baueZufriedenheitsAusbau: (wacheId: string, ausbauId: ZufriedenheitsAusbau['id']) => string | null;
   stellePersonalEin: (wacheId: string, bewerber: Bewerber) => string | null;
+  wuerfleBewerberNeu: (wacheId: string) => string | null;
   entlassePersonal: (personId: string) => string | null;
   weisePersonalZu: (personId: string, fahrzeugId?: string) => string | null;
   besetzeFahrzeugAutomatisch: (fahrzeugId: string) => string | null;
@@ -67,6 +69,7 @@ export default function WachenView({
   nowMs,
   buyVehicle,
   eigenesKrankenhaus,
+  benenneFahrzeugUm,
   erweitereStellplaetze,
   personalAktionen,
   onWacheKaufen,
@@ -81,6 +84,7 @@ export default function WachenView({
   buyVehicle: (stationId: string, typ: string) => string | null;
   /** KTW gibt es erst mit eigenem Krankenhaus */
   eigenesKrankenhaus: boolean;
+  benenneFahrzeugUm: (fahrzeugId: string, name: string) => string | null;
   erweitereStellplaetze: (stationId: string) => string | null;
   personalAktionen: PersonalAktionen;
   onWacheKaufen: () => void;
@@ -100,6 +104,7 @@ export default function WachenView({
         nowMs={nowMs}
         buyVehicle={buyVehicle}
         eigenesKrankenhaus={eigenesKrankenhaus}
+        benenneFahrzeugUm={benenneFahrzeugUm}
         erweitereStellplaetze={erweitereStellplaetze}
         onZurueck={() => setVerwaltenId(null)}
       />
@@ -149,6 +154,7 @@ function WacheVerwalten({
   nowMs,
   buyVehicle,
   eigenesKrankenhaus,
+  benenneFahrzeugUm,
   erweitereStellplaetze,
   onZurueck,
 }: {
@@ -161,11 +167,13 @@ function WacheVerwalten({
   buyVehicle: (stationId: string, typ: string) => string | null;
   /** KTW gibt es erst mit eigenem Krankenhaus */
   eigenesKrankenhaus: boolean;
+  benenneFahrzeugUm: (fahrzeugId: string, name: string) => string | null;
   erweitereStellplaetze: (stationId: string) => string | null;
   onZurueck: () => void;
 }) {
   const [reiter, setReiter] = useState<Reiter>('Übersicht');
   const [meldung, setMeldung] = useState<{ art: 'ok' | 'fehler'; text: string } | null>(null);
+  const [offenesFahrzeug, setOffenesFahrzeug] = useState<string | null>(null);
   const kaufbareTypen = getFahrzeugTypenFuerWache(wache.stationKind ?? 'Rettungswache');
   const [kaufTyp, setKaufTyp] = useState(kaufbareTypen[0]?.typ ?? '');
 
@@ -284,14 +292,37 @@ function WacheVerwalten({
             {wachenFahrzeuge.length === 0 ? (
               <p className="einsatz-eintrag__zeile">Noch keine Fahrzeuge vorhanden.</p>
             ) : (
-              <ul className="einsatz-fahrzeuge">
+              <>
+              <ul className="fahrzeug-liste">
                 {wachenFahrzeuge.map((v) => (
-                  <li key={v.id}>
-                    <strong>{v.callsign ?? v.name}</strong> – {v.type ?? '–'} · S{FMS_STATUS[v.status ?? 'Einsatzbereit']} {v.status ?? 'Einsatzbereit'}
-                    {!istAusreichendBesetzt(v) && <span className="ruf-minus"> · nicht besetzt</span>}
+                  <li key={v.id} className={offenesFahrzeug === v.id ? 'fahrzeug-liste__eintrag--offen' : undefined}>
+                    <button
+                      type="button"
+                      className="fahrzeug-liste__kopf"
+                      aria-expanded={offenesFahrzeug === v.id}
+                      onClick={() => setOffenesFahrzeug(offenesFahrzeug === v.id ? null : v.id)}
+                    >
+                      <span>
+                        <strong>{v.callsign ?? v.name}</strong> – {v.type ?? '–'} · S{FMS_STATUS[v.status ?? 'Einsatzbereit']} {v.status ?? 'Einsatzbereit'}
+                        {!istAusreichendBesetzt(v) && <span className="ruf-minus"> · nicht besetzt</span>}
+                      </span>
+                      <span aria-hidden>{offenesFahrzeug === v.id ? '▴' : '✏️'}</span>
+                    </button>
+                    {offenesFahrzeug === v.id && (
+                      <FahrzeugBearbeiten
+                        fahrzeug={v}
+                        wachenPersonal={wachenPersonal}
+                        benenneFahrzeugUm={benenneFahrzeugUm}
+                        weisePersonalZu={personalAktionen.weisePersonalZu}
+                        besetzeFahrzeugAutomatisch={personalAktionen.besetzeFahrzeugAutomatisch}
+                        onMeldung={setMeldung}
+                      />
+                    )}
                   </li>
                 ))}
               </ul>
+              <small className="einsatz-eintrag__zeile">Tippe auf ein Fahrzeug, um es zu bearbeiten (Name, Besatzung).</small>
+              </>
             )}
           </section>
 

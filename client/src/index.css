@@ -35,6 +35,11 @@ body,
   height: 100%;
 }
 
+/* Kompakte Ansicht (Einstellungen): kleinere Grundschrift, alle rem-Maße schrumpfen mit */
+html.kompakt {
+  font-size: 14px;
+}
+
 body {
   font-family: var(--font);
   background: var(--color-bg);
