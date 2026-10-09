@@ -277,8 +277,8 @@ export function useSpiel(optionen: UseSpielOptionen = {}) {
   // Neue Einsätze: Häufigkeit und Art nach deutscher Uhrzeit, Wochentag, Wachenzahl und Wetter.
   // Eigener Sekundentakt mit Refs – sonst würde jede Fahrzeugbewegung den Takt neu starten.
   const eigenesKrankenhaus = hatEigenesKrankenhaus(krankenhaeuser);
-  const erzeugungRef = useRef({ locations, vehicles, wetter: 'klar' as Wetter, eigenesKrankenhaus });
-  erzeugungRef.current = { locations, vehicles, wetter: optionen.wetter ?? 'klar', eigenesKrankenhaus };
+  const erzeugungRef = useRef({ locations, vehicles, wetter: 'klar' as Wetter, krankenhaeuser });
+  erzeugungRef.current = { locations, vehicles, wetter: optionen.wetter ?? 'klar', krankenhaeuser };
   useEffect(() => {
     if (!spielstandGeladen) return;
     let zuletzt = Date.now();
@@ -286,14 +286,14 @@ export function useSpiel(optionen: UseSpielOptionen = {}) {
       const jetzt = Date.now();
       const vergangen = jetzt - zuletzt;
       zuletzt = jetzt;
-      const { locations: orte, vehicles: fahrzeuge, wetter, eigenesKrankenhaus: mitKrankenhaus } = erzeugungRef.current;
+      const { locations: orte, vehicles: fahrzeuge, wetter, krankenhaeuser: kliniken } = erzeugungRef.current;
       const wachen = orte.filter((location) => location.type === 'station').length;
       if (wachen === 0) return;
       const kontext: AufkommenKontext = { ...deutscheZeit(jetzt), wachen, wetter };
       if (!entstehtEinsatz(Math.min(vergangen, 5000), einsatzIntervallMs(kontext))) return;
       setIncidents((current) => {
         if (current.filter((incident) => incident.status !== 'abgeschlossen').length >= maxOffeneEinsaetze(wachen)) return current;
-        const ergebnis = erzeugeZufallsEinsatz(orte, fahrzeuge, jetzt, kontext, mitKrankenhaus);
+        const ergebnis = erzeugeZufallsEinsatz(orte, fahrzeuge, jetzt, kontext, kliniken);
         return 'einsatz' in ergebnis ? [ergebnis.einsatz, ...current] : current;
       });
     }, 1000);
@@ -619,7 +619,7 @@ export function useSpiel(optionen: UseSpielOptionen = {}) {
 
   /** Erzeugt sofort einen Test-Einsatz. Gibt die Einsatz-ID oder eine Fehlermeldung zurück. */
   const erzeugeTestEinsatz = (): { id: string } | { fehler: string } => {
-    const ergebnis = erzeugeZufallsEinsatz(locations, vehicles, Date.now(), undefined, eigenesKrankenhaus);
+    const ergebnis = erzeugeZufallsEinsatz(locations, vehicles, Date.now(), undefined, krankenhaeuser);
     if ('fehler' in ergebnis) {
       return {
         fehler: ergebnis.fehler === 'keine-wache'

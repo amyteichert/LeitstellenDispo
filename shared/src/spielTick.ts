@@ -30,6 +30,7 @@ import {
   getFachrichtungen,
   hatEigenesKrankenhaus,
   nimmPatientAuf,
+  nimmtAuf,
   type Krankenhaus,
 } from './krankenhaeuser.js';
 import { GAME_CONFIG } from './konfig.js';
@@ -266,6 +267,18 @@ const pruefeBearbeitungsbeginn = (einsatz: SpielEinsatz, ctx: TickKontext): Spie
   };
 };
 
+/** Verlegungen fahren in das vorgesehene Haus (solange es aufnimmt), sonst ins passende nächste Haus. */
+const findeTransportziel = (einsatz: SpielEinsatz, patient: Patient, ctx: TickKontext, jetzt: number): Krankenhaus | null => {
+  const verlegungsZiel = einsatz.verlegung
+    ? ctx.krankenhaeuser.find((kh) => kh.id === einsatz.verlegung!.nachKrankenhausId && nimmtAuf(kh, jetzt))
+    : undefined;
+  // Ist das Ziel voll: nie zurück ins abgebende Haus
+  const kandidaten = einsatz.verlegung
+    ? ctx.krankenhaeuser.filter((kh) => kh.id !== einsatz.verlegung!.vonKrankenhausId)
+    : ctx.krankenhaeuser;
+  return verlegungsZiel ?? findeZielKrankenhaus(einsatz.coords, kandidaten, patient.fachrichtung, jetzt);
+};
+
 /**
  * Nimmt das erste Fahrzeug aus der Liste, das diesen Patienten transportieren darf:
  * Schwer oder kritisch Verletzte nur mit Fahrzeugen, die auch versorgen können (RTW, nicht KTW).
@@ -302,7 +315,7 @@ const beendeBearbeitung = (einsatz: SpielEinsatz, ctx: TickKontext): SpielEinsat
       return { ...patient, status: 'ambulant' };
     }
     const fahrzeugId = patient.transportErforderlich ? nimmTransportFahrzeug(transportFahrzeuge, patient, ctx) : undefined;
-    const krankenhaus = fahrzeugId ? findeZielKrankenhaus(einsatz.coords, ctx.krankenhaeuser, patient.fachrichtung, ende) : null;
+    const krankenhaus = fahrzeugId ? findeTransportziel(einsatz, patient, ctx, ende) : null;
     if (!patient.transportErforderlich || !fahrzeugId || !krankenhaus) {
       neueMeldungen.push(meldung(ende, patient.transportErforderlich
         ? 'Kein Transportmittel bzw. Krankenhaus verfügbar – Patient vor Ort an den Hausarzt übergeben.'

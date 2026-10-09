@@ -57,6 +57,26 @@ export const hatEigenesKrankenhaus = (krankenhaeuser: Pick<Krankenhaus, 'eigen'>
 export const nimmtAuf = (krankenhaus: Krankenhaus, jetzt: number) =>
   krankenhaus.aufnahme && (!krankenhaus.eigen || getBelegteBetten(krankenhaus, jetzt) < getBetten(krankenhaus));
 
+export interface VerlegungsMoeglichkeit {
+  von: Krankenhaus;
+  nach: Krankenhaus;
+  /** Diese Abteilung hat nur das Zielhaus */
+  fachrichtung: Fachrichtung;
+}
+
+/**
+ * Mögliche Verlegungen zwischen eigenen Häusern: Haus B hat eine Fachabteilung, die Haus A fehlt.
+ * Nur wenn B aufnimmt und nicht weiter als MAX_TRANSPORT_KM entfernt ist.
+ */
+export function findeVerlegungen(krankenhaeuser: Krankenhaus[], jetzt: number = Date.now()): VerlegungsMoeglichkeit[] {
+  const eigene = krankenhaeuser.filter((kh) => kh.eigen);
+  return eigene.flatMap((von) => eigene
+    .filter((nach) => nach.id !== von.id && nimmtAuf(nach, jetzt) && haversineKm(von.coords, nach.coords) <= MAX_TRANSPORT_KM)
+    .flatMap((nach) => getFachrichtungen(nach)
+      .filter((fachrichtung) => !getFachrichtungen(von).includes(fachrichtung))
+      .map((fachrichtung) => ({ von, nach, fachrichtung }))));
+}
+
 /** Darf ein eigenes Krankenhaus gebaut werden? Gibt den Grund zurück, wenn nicht. */
 export function pruefeKrankenhausBau(wachen: number, ruf: number, guthaben: number): string | null {
   const k = EIGENES_KRANKENHAUS;

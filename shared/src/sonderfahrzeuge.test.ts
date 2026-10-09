@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { alarmiereFahrzeuge } from './alarmierung.js';
-import { getAvailableIncidentTemplates } from './einsatzErzeugung.js';
+import { erzeugeVerlegung, getAvailableIncidentTemplates } from './einsatzErzeugung.js';
+import { findeEinsatzVorlage } from './daten.js';
 import { fahrzeugErfuelltBedarf, getFahrzeugTyp, getStartfahrzeugTypen, istAusreichendBesetzt } from './fahrzeuge.js';
-import { hatEigenesKrankenhaus } from './krankenhaeuser.js';
+import { findeVerlegungen, hatEigenesKrankenhaus } from './krankenhaeuser.js';
 import { getLehrgang } from './ausbildung.js';
 import { synchronisiereBesatzung } from './personal.js';
 import { berechneSpielTick, type SpielTickZustand } from './spielTick.js';
@@ -50,7 +51,7 @@ describe('Sonderfahrzeuge KTW, RW und ELW 1', () => {
   it('Krankentransporte gibt es erst mit eigenem Krankenhaus – dann auch nur mit einem RTW', () => {
     const rtw = [fahrzeug('rtw', 'RTW')];
     expect(getAvailableIncidentTemplates('Rettungswache', rtw).map((v) => v.id)).not.toContain('krankentransport');
-    expect(getAvailableIncidentTemplates('Rettungswache', rtw, true).map((v) => v.id)).toContain('krankentransport');
+    expect(getAvailableIncidentTemplates('Rettungswache', rtw, [eigenesKrankenhausWeitWeg()]).map((v) => v.id)).toContain('krankentransport');
     expect(getFahrzeugTyp('KTW')?.brauchtEigenesKrankenhaus).toBe(true);
     expect(hatEigenesKrankenhaus([krankenhaus()])).toBe(false);
     expect(hatEigenesKrankenhaus([krankenhaus(), { ...krankenhaus('eigen'), eigen: true }])).toBe(true);
@@ -118,5 +119,48 @@ describe('Sonderfahrzeuge KTW, RW und ELW 1', () => {
     expect(abgeschlossen[0].patienten?.[0].status).toBe('ambulant');
     expect(abgeschlossen[0].meldungen.some((m) => m.text.includes('am Einsatzort entlassen'))).toBe(true);
     expect(zustand.vehicles.find((v) => v.id === 'rtw')?.status).not.toBe('Patiententransport');
+  });
+});
+
+describe('Krankenhausverlegung mit KTW', () => {
+  // Zwei eigene Häuser ca. 5 km auseinander; nur B hat eine Stroke Unit
+  const klinikA = { ...krankenhaus('kh-a'), coords: [48.775, 9.1771] as [number, number], eigen: true, kapazitaet: 10, fachbereiche: ['innere' as const] };
+  const klinikB = { ...krankenhaus('kh-b'), coords: [48.82, 9.1771] as [number, number], eigen: true, kapazitaet: 10, fachbereiche: ['innere' as const, 'neurologie' as const] };
+  const fremdesHaus = krankenhaus();
+
+  it('ist nur möglich, wenn ein eigenes Haus eine Abteilung hat, die dem anderen fehlt', () => {
+    expect(findeVerlegungen([klinikA])).toEqual([]);
+    expect(findeVerlegungen([klinikA, { ...klinikB, fachbereiche: ['innere'] }])).toEqual([]);
+    const moeglich = findeVerlegungen([klinikA, klinikB, fremdesHaus]);
+    expect(moeglich.map((m) => [m.von.id, m.nach.id, m.fachrichtung])).toEqual([['kh-a', 'kh-b', 'neurologie']]);
+    expect(getAvailableIncidentTemplates('Rettungswache', [fahrzeug('rtw', 'RTW')], [klinikA]).map((v) => v.id)).not.toContain('verlegung');
+    expect(getAvailableIncidentTemplates('Rettungswache', [fahrzeug('rtw', 'RTW')], [klinikA, klinikB]).map((v) => v.id)).toContain('verlegung');
+  });
+
+  it('startet an Klinik A und bringt den Patienten nach Klinik B', () => {
+    const vorlage = findeEinsatzVorlage('verlegung')!;
+    const e = erzeugeVerlegung(vorlage, locations, [klinikA, klinikB, fremdesHaus], T0, () => 0)!;
+    expect(e.coords).toEqual(klinikA.coords);
+    expect(e.address).toContain(klinikA.name);
+    expect(e.verlegung).toMatchObject({ vonKrankenhausId: 'kh-a', nachKrankenhausId: 'kh-b', fachrichtung: 'neurologie' });
+    expect(e.meldebild).toContain(klinikB.name);
+    expect(e.meldebild).toContain('Stroke');
+
+    // Ein fremdes Haus mit Stroke Unit liegt näher – trotzdem geht es nach Klinik B
+    const naheFremd = { ...fremdesHaus, coords: [48.78, 9.1771] as [number, number], fachbereiche: ['innere' as const, 'neurologie' as const] };
+    const start = alarmiereFahrzeuge({ incidents: [e], vehicles: [fahrzeug('ktw', 'KTW')], locations }, e.id, ['ktw'], T0);
+    const ankunft = start.incidents[0].alarmedVehicles[0].arrivalAt;
+    const danach = tickeBisRuhe({ ...start, locations, krankenhaeuser: [klinikA, klinikB, naheFremd] }, ankunft + e.durationSeconds * 1000);
+    expect(danach.incidents[0].patienten?.[0].transport).toMatchObject({ fahrzeugId: 'ktw', krankenhausId: 'kh-b' });
+  });
+
+  it('fährt nie zurück ins abgebende Haus, wenn Klinik B nicht aufnimmt', () => {
+    const vorlage = findeEinsatzVorlage('verlegung')!;
+    const e = erzeugeVerlegung(vorlage, locations, [klinikA, klinikB], T0, () => 0)!;
+    const start = alarmiereFahrzeuge({ incidents: [e], vehicles: [fahrzeug('ktw', 'KTW')], locations }, e.id, ['ktw'], T0);
+    const ankunft = start.incidents[0].alarmedVehicles[0].arrivalAt;
+    const bVoll = { ...klinikB, aufnahme: false };
+    const danach = tickeBisRuhe({ ...start, locations, krankenhaeuser: [klinikA, bVoll, fremdesHaus] }, ankunft + e.durationSeconds * 1000);
+    expect(danach.incidents[0].patienten?.[0].transport?.krankenhausId).toBe(fremdesHaus.id);
   });
 });

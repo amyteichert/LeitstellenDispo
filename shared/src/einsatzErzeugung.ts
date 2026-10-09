@@ -12,20 +12,28 @@ import {
 import { fahrzeugErfuelltBedarf } from './fahrzeuge.js';
 import { INCIDENT_SPAWN_CONFIG } from './konfig.js';
 import { waehleGewichtet, type AufkommenKontext } from './aufkommen.js';
-import { clamp } from './geo.js';
+import { clamp, haversineKm } from './geo.js';
+import { FACHRICHTUNGEN, findeVerlegungen, hatEigenesKrankenhaus, type Krankenhaus } from './krankenhaeuser.js';
 import { erzeugePatienten } from './patienten.js';
 import type { Koordinaten, MapLocation, StationKind, Vehicle } from './typen.js';
 
-/** Nur Vorlagen, die der Spieler mit seinen stationierten Fahrzeugen grundsätzlich schaffen kann. */
+/**
+ * Nur Vorlagen, die der Spieler mit seinen stationierten Fahrzeugen grundsätzlich schaffen kann.
+ * Krankentransporte erst mit eigenem Krankenhaus, Verlegungen nur, wenn zwei eigene Häuser sich ergänzen.
+ */
 export const getAvailableIncidentTemplates = (
   stationKind: StationKind | undefined,
   vehicles: Vehicle[],
-  eigenesKrankenhaus = false,
+  krankenhaeuser: Krankenhaus[] = [],
+  jetzt: number = Date.now(),
 ): EinsatzVorlage[] => {
+  const eigenesKrankenhaus = hatEigenesKrankenhaus(krankenhaeuser);
+  const verlegungMoeglich = findeVerlegungen(krankenhaeuser, jetzt).length > 0;
   const fahrzeugTypen = vehicles.filter((vehicle) => vehicle.stationId).map((vehicle) => vehicle.type);
   const templates = EINSATZ_VORLAGEN[stationKind ?? 'Rettungswache'] ?? EINSATZ_VORLAGEN.Rettungswache;
   return templates.filter((template) => istVorlageErfuellbar(template, fahrzeugTypen)
-    && (eigenesKrankenhaus || !template.brauchtEigenesKrankenhaus));
+    && (eigenesKrankenhaus || !template.brauchtEigenesKrankenhaus)
+    && (verlegungMoeglich || !template.verlegung));
 };
 
 const getIncidentSpawnRadiusKm = (stationCount: number) => {
@@ -126,6 +134,33 @@ export const createSpielEinsatz = (
   };
 };
 
+/**
+ * Krankenhausverlegung: Einsatzort ist das abgebende Haus, Ziel das Haus mit der fehlenden Abteilung.
+ * Zuständig ist die nächste Rettungswache.
+ */
+export const erzeugeVerlegung = (
+  template: EinsatzVorlage,
+  stations: MapLocation[],
+  krankenhaeuser: Krankenhaus[],
+  jetzt: number = Date.now(),
+  zufall: () => number = Math.random,
+): SpielEinsatz | null => {
+  const moeglichkeiten = findeVerlegungen(krankenhaeuser, jetzt);
+  const rettungswachen = stations.filter((station) => (station.stationKind ?? 'Rettungswache') === 'Rettungswache');
+  if (moeglichkeiten.length === 0 || rettungswachen.length === 0) return null;
+  const { von, nach, fachrichtung } = moeglichkeiten[Math.floor(zufall() * moeglichkeiten.length)];
+  const station = rettungswachen.reduce((naechste, wache) =>
+    (haversineKm(wache.coords, von.coords) < haversineKm(naechste.coords, von.coords) ? wache : naechste));
+  const einsatz = createSpielEinsatz(template, station, { coords: von.coords, adresse: von.adresse }, jetzt);
+  return {
+    ...einsatz,
+    meldebild: `Verlegung → ${nach.name} (${FACHRICHTUNGEN[fachrichtung].kurz})`,
+    address: `${von.name}, ${einsatz.address}`,
+    patienten: einsatz.patienten?.map((patient) => ({ ...patient, fachrichtung })),
+    verlegung: { vonKrankenhausId: von.id, nachKrankenhausId: nach.id, nachKrankenhausName: nach.name, fachrichtung },
+  };
+};
+
 export type EinsatzErzeugungErgebnis =
   | { einsatz: SpielEinsatz }
   | { fehler: 'keine-wache' | 'keine-machbare-vorlage' };
@@ -137,8 +172,8 @@ export const erzeugeZufallsEinsatz = (
   jetzt: number = Date.now(),
   /** Uhrzeit, Wochentag, Wetter: bestimmen, welche Einsätze häufiger sind */
   kontext?: AufkommenKontext,
-  /** Krankentransporte gibt es erst mit eigenem Krankenhaus */
-  eigenesKrankenhaus = false,
+  /** Bestimmt Krankentransporte und Verlegungen (erst mit eigenem Krankenhaus) */
+  krankenhaeuser: Krankenhaus[] = [],
 ): EinsatzErzeugungErgebnis => {
   const stations = locations.filter((location) => location.type === 'station');
   if (stations.length === 0) return { fehler: 'keine-wache' };
@@ -146,12 +181,17 @@ export const erzeugeZufallsEinsatz = (
   // Jede vorhandene Wachenart kommt gleich oft dran – unabhängig davon, wie viele Wachen es je Art gibt.
   // Arten ohne machbaren Einsatz (z. B. Feuerwache ohne passendes Fahrzeug) werden übersprungen.
   const arten = [...new Set(stations.map((station) => station.stationKind ?? 'Rettungswache'))]
-    .map((art) => ({ art, vorlagen: getAvailableIncidentTemplates(art, vehicles, eigenesKrankenhaus) }))
+    .map((art) => ({ art, vorlagen: getAvailableIncidentTemplates(art, vehicles, krankenhaeuser, jetzt) }))
     .filter((eintrag) => eintrag.vorlagen.length > 0);
   if (arten.length === 0) return { fehler: 'keine-machbare-vorlage' };
   const templates = arten[Math.floor(Math.random() * arten.length)].vorlagen;
 
   const template = kontext ? waehleGewichtet(templates, kontext) : templates[Math.floor(Math.random() * templates.length)];
+  if (template.verlegung) {
+    // Verlegungen nie als „normalen“ Einsatz an einer Zufallsadresse erzeugen
+    const einsatz = erzeugeVerlegung(template, stations, krankenhaeuser, jetzt);
+    return einsatz ? { einsatz } : { fehler: 'keine-machbare-vorlage' };
+  }
   const station = getBestIncidentStation(stations, template, vehicles);
   const ort = erzeugeEinsatzort(station, stations.length, template);
   return { einsatz: createSpielEinsatz(template, station, ort, jetzt) };

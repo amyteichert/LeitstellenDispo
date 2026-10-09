@@ -9,6 +9,7 @@ import {
   type FahrzeugBedarf,
 } from './fahrzeuge.js';
 import { erzeugePatienten, schwererZustand, type Patient, type PatientenVorgabe } from './patienten.js';
+import type { Fachrichtung } from './krankenhaeuser.js';
 import type { EinsatzOrganisation, WachenArt } from './typen.js';
 
 export const APP_NAME = 'LeitstellenDispo';
@@ -123,6 +124,8 @@ export interface SpielEinsatz extends Einsatz {
   eskalationBei?: number;
   /** Neue wichtige Meldung, die der Spieler noch nicht angesehen hat */
   neueMeldung?: boolean;
+  /** Krankenhausverlegung: Patient wird von Haus A (Einsatzort) in Haus B mit der fehlenden Abteilung gebracht */
+  verlegung?: EinsatzVerlegung;
   /** Falls gesetzt: Zeitpunkt, zu dem der Einsatz eskaliert, wenn bis dahin niemand alarmiert wurde */
   eskalationOhneAlarmAt?: number;
   /** Patienten (Rettungsdienst). Fehlt bei älteren Spielständen. */
@@ -144,6 +147,13 @@ export interface SpielEinsatz extends Einsatz {
 }
 
 /** Bewertung eines abgeschlossenen Einsatzes: Grundgeld gibt es immer, der Bonus hängt von Leistung und Ruf ab. */
+export interface EinsatzVerlegung {
+  vonKrankenhausId: string;
+  nachKrankenhausId: string;
+  nachKrankenhausName: string;
+  fachrichtung: Fachrichtung;
+}
+
 export interface EinsatzBewertung {
   /** 0–100 = Fahrzeugwahl + Hilfsfrist − Abzug für unnötig viele Kräfte */
   punkte: number;
@@ -214,6 +224,8 @@ export interface EinsatzVorlage {
   unklar?: boolean;
   /** Entsteht erst, wenn der Spieler ein eigenes Krankenhaus hat (z. B. Krankentransporte) */
   brauchtEigenesKrankenhaus?: boolean;
+  /** Verlegung zwischen zwei eigenen Häusern: Einsatzort und Ziel werden beim Erzeugen festgelegt */
+  verlegung?: boolean;
 }
 
 export interface EinsatzEntwarnung {
@@ -506,6 +518,19 @@ export const EINSATZ_VORLAGEN: Record<WachenArt, EinsatzVorlage[]> = {
       durationSeconds: 10,
       patienten: { anzahl: 1, zustand: 'leicht', transportWahrscheinlichkeit: 1, fachrichtung: 'unfallchirurgie' },
       lage: 'Bettlägeriger Patient nach Hüft-OP, Transport mit der Trage.',
+    },
+    {
+      id: 'verlegung',
+      stichwort: 'KTP',
+      meldebild: 'Krankenhausverlegung',
+      organization: 'Rettungsdienst',
+      requiredVehicles: [KT()],
+      brauchtEigenesKrankenhaus: true,
+      verlegung: true,
+      reward: 260,
+      durationSeconds: 8,
+      patienten: { anzahl: 1, zustand: 'mittel', transportWahrscheinlichkeit: 1 },
+      lage: 'Patient wird auf Station übernommen und für die Verlegung vorbereitet.',
     },
   ],
   Feuerwache: [

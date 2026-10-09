@@ -73,7 +73,7 @@ const VERKEHR = ['verkehrsunfall-rd', 'verkehrsunfall-th', 'vu-eingeklemmt', 'oe
 const INTERNISTISCH = ['kreislaufprobleme', 'atemnot', 'brustschmerzen', 'bewusstlose-person', 'reanimation', 'schlaganfall', 'unterzuckerung'];
 const WOHNUNGSBRAND = ['zimmerbrand', 'kellerbrand', 'gebaeudebrand', 'unklare-rauchentwicklung', 'heimrauchmelder', 'kuechenbrand-verletzt'];
 const STURZ = ['sturz', 'gestuerzte-person'];
-const KRANKENTRANSPORT = ['krankentransport', 'liegendtransport'];
+const KRANKENTRANSPORT = ['krankentransport', 'liegendtransport', 'verlegung'];
 
 /** Gewicht einer Einsatzvorlage im aktuellen Kontext (1 = normal) */
 export function vorlagenGewicht(vorlageId: string, kontext: AufkommenKontext): number {
