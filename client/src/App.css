@@ -1678,25 +1678,7 @@
   animation: radar-drehen 7s linear infinite;
 }
 
-.buehne__punkt {
-  position: absolute;
-  width: 12px;
-  height: 12px;
-  margin: -6px 0 0 -6px;
-  border-radius: 50%;
-  background: currentColor;
-  animation: einsatz-puls 3.2s ease-out infinite;
-}
-.buehne__punkt--rot { color: #ef4444; }
-.buehne__punkt--orange { color: #f59e0b; }
-.buehne__punkt--blau { color: #60a5fa; }
-
 @keyframes radar-drehen { to { transform: rotate(360deg); } }
-@keyframes einsatz-puls {
-  0% { box-shadow: 0 0 0 0 currentColor; }
-  70% { box-shadow: 0 0 0 18px transparent; }
-  100% { box-shadow: 0 0 0 0 transparent; }
-}
 
 .buehne__online {
   display: inline-block;
@@ -2008,7 +1990,6 @@
 
 @media (prefers-reduced-motion: reduce) {
   .buehne__sweep,
-  .buehne__punkt,
   .buehne__online,
   .anmeldung__ticker li,
   .anmeldung__spinner { animation: none; }

@@ -65,10 +65,6 @@ export default function Anmeldung({ children }: { children: (konto: Konto, onAbm
       <div className="anmeldung__hintergrund" aria-hidden>
         <div className="buehne__radar">
           <span className="buehne__sweep" />
-          <span className="buehne__punkt buehne__punkt--rot" style={{ top: '22%', left: '64%' }} />
-          <span className="buehne__punkt buehne__punkt--orange" style={{ top: '62%', left: '24%', animationDelay: '0.8s' }} />
-          <span className="buehne__punkt buehne__punkt--blau" style={{ top: '74%', left: '70%', animationDelay: '1.6s' }} />
-          <span className="buehne__punkt buehne__punkt--rot" style={{ top: '36%', left: '14%', animationDelay: '2.3s' }} />
         </div>
       </div>
 
