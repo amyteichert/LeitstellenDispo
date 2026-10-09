@@ -69,10 +69,11 @@ export function einsatzIntervallMs(kontext: AufkommenKontext): number {
 export const entstehtEinsatz = (vergangenMs: number, intervallMs: number, zufall: number = Math.random()) =>
   zufall < 1 - Math.exp(-vergangenMs / intervallMs);
 
-const VERKEHR = ['verkehrsunfall-rd', 'verkehrsunfall-th', 'vu-eingeklemmt', 'oelspur'];
-const INTERNISTISCH = ['kreislaufprobleme', 'atemnot', 'brustschmerzen', 'bewusstlose-person', 'reanimation'];
-const WOHNUNGSBRAND = ['zimmerbrand', 'kellerbrand', 'gebaeudebrand', 'unklare-rauchentwicklung'];
+const VERKEHR = ['verkehrsunfall-rd', 'verkehrsunfall-th', 'vu-eingeklemmt', 'oelspur', 'lkw-unfall', 'vu-mehrere-verletzte'];
+const INTERNISTISCH = ['kreislaufprobleme', 'atemnot', 'brustschmerzen', 'bewusstlose-person', 'reanimation', 'schlaganfall', 'unterzuckerung'];
+const WOHNUNGSBRAND = ['zimmerbrand', 'kellerbrand', 'gebaeudebrand', 'unklare-rauchentwicklung', 'heimrauchmelder', 'kuechenbrand-verletzt'];
 const STURZ = ['sturz', 'gestuerzte-person'];
+const KRANKENTRANSPORT = ['krankentransport', 'liegendtransport'];
 
 /** Gewicht einer Einsatzvorlage im aktuellen Kontext (1 = normal) */
 export function vorlagenGewicht(vorlageId: string, kontext: AufkommenKontext): number {
@@ -81,9 +82,11 @@ export function vorlagenGewicht(vorlageId: string, kontext: AufkommenKontext): n
   if (istNacht(kontext.stunde)) {
     if (INTERNISTISCH.includes(vorlageId) || WOHNUNGSBRAND.includes(vorlageId)) gewicht *= 1.5;
     if (VERKEHR.includes(vorlageId)) gewicht *= 0.6;
+    // Krankentransporte sind meist geplant und laufen tagsüber
+    if (KRANKENTRANSPORT.includes(vorlageId)) gewicht *= 0.3;
   }
-  if (istPartynacht(kontext) && ['verkehrsunfall-rd', 'schnittverletzung', 'bewusstlose-person', 'brennende-muelltonne'].includes(vorlageId)) gewicht *= 1.8;
-  if (istWochenende(kontext.wochentag) && !istNacht(kontext.stunde) && ['schnittverletzung', 'sturz', 'heckenbrand'].includes(vorlageId)) gewicht *= 1.4;
+  if (istPartynacht(kontext) && ['verkehrsunfall-rd', 'schnittverletzung', 'bewusstlose-person', 'brennende-muelltonne', 'hilflose-person', 'containerbrand'].includes(vorlageId)) gewicht *= 1.8;
+  if (istWochenende(kontext.wochentag) && !istNacht(kontext.stunde) && ['schnittverletzung', 'sturz', 'heckenbrand', 'sturz-aus-hoehe'].includes(vorlageId)) gewicht *= 1.4;
   switch (kontext.wetter) {
     case 'regen':
       if (VERKEHR.includes(vorlageId)) gewicht *= 1.6;
@@ -94,10 +97,11 @@ export function vorlagenGewicht(vorlageId: string, kontext: AufkommenKontext): n
       break;
     case 'hitze':
       if (vorlageId === 'kreislaufprobleme') gewicht *= 2.5;
-      if (['heckenbrand', 'brennende-muelltonne', 'muelleimerbrand'].includes(vorlageId)) gewicht *= 2.5;
+      if (['heckenbrand', 'brennende-muelltonne', 'muelleimerbrand', 'containerbrand', 'flaechenbrand'].includes(vorlageId)) gewicht *= 2.5;
+      if (vorlageId === 'allergische-reaktion') gewicht *= 1.5;
       break;
     case 'sturm':
-      if (vorlageId === 'baum-auf-strasse') gewicht *= 5;
+      if (['baum-auf-strasse', 'sturmschaden', 'baum-auf-pkw'].includes(vorlageId)) gewicht *= 5;
       break;
   }
   return gewicht;

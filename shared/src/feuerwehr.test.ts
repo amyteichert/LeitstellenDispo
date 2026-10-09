@@ -22,10 +22,13 @@ describe('Einsatzanforderungen (Daten)', () => {
     expect(bedarf('oelspur')).toEqual(['1× Technische Hilfe']);
   });
 
-  it('schickt für jeden Patienten genug RTW (Transport) mit', () => {
+  it('schickt für jeden Patienten genug Transportfahrzeuge (RTW/KTW) mit', () => {
+    const transportKlassen = ['RTW', 'KTW', 'Krankentransport'];
     for (const vorlage of ALLE_EINSATZ_VORLAGEN.filter((v) => v.patienten)) {
-      const rtw = vorlage.requiredVehicles.find((b) => b.category === 'RTW')?.amount ?? 0;
-      expect(rtw, vorlage.id).toBeGreaterThanOrEqual(vorlage.patienten!.anzahl);
+      const transport = vorlage.requiredVehicles
+        .filter((b) => transportKlassen.includes(b.category))
+        .reduce((summe, b) => summe + b.amount, 0);
+      expect(transport, vorlage.id).toBeGreaterThanOrEqual(vorlage.patienten!.anzahl);
     }
     // Reine Rettungsdienst-Einsätze haben immer Patienten
     for (const vorlage of ALLE_EINSATZ_VORLAGEN.filter((v) => v.organization === 'Rettungsdienst')) {

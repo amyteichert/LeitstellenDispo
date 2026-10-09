@@ -49,6 +49,7 @@ import {
   berechneSpielTick,
   createNeuesSpiel,
   erzeugeZufallsEinsatz,
+  hatEigenesKrankenhaus,
   EIGENES_KRANKENHAUS,
   FACHRICHTUNGEN,
   getBetten,
@@ -275,8 +276,9 @@ export function useSpiel(optionen: UseSpielOptionen = {}) {
   // Neue Einsätze in regelmäßigen Abständen
   // Neue Einsätze: Häufigkeit und Art nach deutscher Uhrzeit, Wochentag, Wachenzahl und Wetter.
   // Eigener Sekundentakt mit Refs – sonst würde jede Fahrzeugbewegung den Takt neu starten.
-  const erzeugungRef = useRef({ locations, vehicles, wetter: 'klar' as Wetter });
-  erzeugungRef.current = { locations, vehicles, wetter: optionen.wetter ?? 'klar' };
+  const eigenesKrankenhaus = hatEigenesKrankenhaus(krankenhaeuser);
+  const erzeugungRef = useRef({ locations, vehicles, wetter: 'klar' as Wetter, eigenesKrankenhaus });
+  erzeugungRef.current = { locations, vehicles, wetter: optionen.wetter ?? 'klar', eigenesKrankenhaus };
   useEffect(() => {
     if (!spielstandGeladen) return;
     let zuletzt = Date.now();
@@ -284,14 +286,14 @@ export function useSpiel(optionen: UseSpielOptionen = {}) {
       const jetzt = Date.now();
       const vergangen = jetzt - zuletzt;
       zuletzt = jetzt;
-      const { locations: orte, vehicles: fahrzeuge, wetter } = erzeugungRef.current;
+      const { locations: orte, vehicles: fahrzeuge, wetter, eigenesKrankenhaus: mitKrankenhaus } = erzeugungRef.current;
       const wachen = orte.filter((location) => location.type === 'station').length;
       if (wachen === 0) return;
       const kontext: AufkommenKontext = { ...deutscheZeit(jetzt), wachen, wetter };
       if (!entstehtEinsatz(Math.min(vergangen, 5000), einsatzIntervallMs(kontext))) return;
       setIncidents((current) => {
         if (current.filter((incident) => incident.status !== 'abgeschlossen').length >= maxOffeneEinsaetze(wachen)) return current;
-        const ergebnis = erzeugeZufallsEinsatz(orte, fahrzeuge, jetzt, kontext);
+        const ergebnis = erzeugeZufallsEinsatz(orte, fahrzeuge, jetzt, kontext, mitKrankenhaus);
         return 'einsatz' in ergebnis ? [ergebnis.einsatz, ...current] : current;
       });
     }, 1000);
@@ -351,6 +353,9 @@ export function useSpiel(optionen: UseSpielOptionen = {}) {
     if (!station || !fahrzeugTyp) return 'Wache oder Fahrzeugtyp nicht gefunden.';
     if (fahrzeugTyp.wachenArt !== (station.stationKind ?? 'Rettungswache')) {
       return `${typ} passt nicht zu einer ${station.stationKind ?? 'Rettungswache'}.`;
+    }
+    if (fahrzeugTyp.brauchtEigenesKrankenhaus && !eigenesKrankenhaus) {
+      return `Den ${typ} gibt es erst, wenn du ein eigenes Krankenhaus gebaut hast.`;
     }
     if (!hatFreienStellplatz(station, vehicles)) {
       return `Kein freier Stellplatz (${getBelegteStellplaetze(station.id, vehicles)} von ${getStellplaetze(station)} belegt). Erweitere die Wache unter „Ausbau“.`;
@@ -614,7 +619,7 @@ export function useSpiel(optionen: UseSpielOptionen = {}) {
 
   /** Erzeugt sofort einen Test-Einsatz. Gibt die Einsatz-ID oder eine Fehlermeldung zurück. */
   const erzeugeTestEinsatz = (): { id: string } | { fehler: string } => {
-    const ergebnis = erzeugeZufallsEinsatz(locations, vehicles);
+    const ergebnis = erzeugeZufallsEinsatz(locations, vehicles, Date.now(), undefined, eigenesKrankenhaus);
     if ('fehler' in ergebnis) {
       return {
         fehler: ergebnis.fehler === 'keine-wache'
@@ -694,6 +699,7 @@ export function useSpiel(optionen: UseSpielOptionen = {}) {
     nowMs,
     addVehicle,
     buyVehicle,
+    eigenesKrankenhaus,
     erstelleWache,
     erweitereStellplaetze,
     loescheWache,

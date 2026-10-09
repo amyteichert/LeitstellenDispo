@@ -11,7 +11,7 @@ import {
   formatEinsatzTitel,
   getFahrzeugPosition,
   getFahrzeugTyp,
-  getFahrzeugTypenFuerWache,
+  getStartfahrzeugTypen,
   istTeamRolle,
   WACHEN_PREISE,
   WETTER_LABELS,
@@ -215,7 +215,7 @@ function App({ konto, onAbmelden }: { konto: Konto; onAbmelden: () => Promise<vo
     setCurrentView('Einsätze');
   };
 
-  const [draftName, setDraftName] = useState('Neue Rettungswache');
+  const [draftName, setDraftName] = useState('');
 
   // New states for address search and preview behavior
   const [address, setAddress] = useState('');
@@ -238,7 +238,7 @@ function App({ konto, onAbmelden }: { konto: Konto; onAbmelden: () => Promise<vo
   const [draftStartVehicleCallsign, setDraftStartVehicleCallsign] = useState<string>('');
 
   useEffect(() => {
-    setDraftStartVehicleType(getFahrzeugTypenFuerWache(draftStationKind)[0]?.typ ?? '');
+    setDraftStartVehicleType(getStartfahrzeugTypen(draftStationKind)[0]?.typ ?? '');
   }, [draftStationKind]);
 
   const selectedLocation = useMemo(
@@ -332,13 +332,14 @@ function App({ konto, onAbmelden }: { konto: Konto; onAbmelden: () => Promise<vo
     }
 
     const kosten = (WACHEN_PREISE[draftStationKind] ?? 0) + (getFahrzeugTyp(draftStartVehicleType)?.preis ?? 0);
-    const name = draftName.trim() || draftStationKind;
+    // Ohne eigenen Namen gilt der graue Platzhalter („Neue Feuerwache“ …)
+    const name = draftName.trim() || `Neue ${draftStationKind}`;
     if (!window.confirm(`„${name}“ (${draftStationKind} mit ${draftStartVehicleType}) für ${kosten.toLocaleString('de-DE')} € kaufen?
 
 Dein Guthaben: ${balance.toLocaleString('de-DE')} €`)) return;
 
     const ergebnis = spiel.erstelleWache({
-      name: draftName,
+      name,
       stationKind: draftStationKind,
       coords,
       details: address,
@@ -376,7 +377,7 @@ Dein Guthaben: ${balance.toLocaleString('de-DE')} €`)) return;
           type="text"
           value={draftName}
           onChange={(event) => setDraftName(event.target.value)}
-          placeholder="z. B. Rettungswache Nord"
+          placeholder={`Neue ${draftStationKind}`}
         />
       </label>
 
@@ -447,7 +448,7 @@ Dein Guthaben: ${balance.toLocaleString('de-DE')} €`)) return;
       <label className="field">
         <span>Startfahrzeug</span>
         <select value={draftStartVehicleType} onChange={(e) => setDraftStartVehicleType(e.target.value)}>
-          {getFahrzeugTypenFuerWache(draftStationKind).map((fahrzeugTyp) => (
+          {getStartfahrzeugTypen(draftStationKind).map((fahrzeugTyp) => (
             <option key={fahrzeugTyp.typ} value={fahrzeugTyp.typ}>{fahrzeugTyp.typ}</option>
           ))}
         </select>
@@ -854,6 +855,7 @@ Dein Guthaben: ${balance.toLocaleString('de-DE')} €`)) return;
                 balance={balance}
                 nowMs={nowMs}
                 buyVehicle={spiel.buyVehicle}
+                eigenesKrankenhaus={spiel.eigenesKrankenhaus}
                 erweitereStellplaetze={spiel.erweitereStellplaetze}
                 personalAktionen={spiel}
                 onWacheKaufen={() => setWacheKaufenOffen(true)}

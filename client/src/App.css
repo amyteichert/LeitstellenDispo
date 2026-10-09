@@ -2081,6 +2081,11 @@
   color: var(--color-text);
 }
 
+/* Auf breiten Bildschirmen neben die Standorte-Leiste, damit „Standort erstellen“ nicht verdeckt wird */
+@media (min-width: 901px) {
+  .app-shell:has(.sidebar) .erste-schritte { left: calc(340px + 16px); }
+}
+
 .erste-schritte--zu {
   width: auto;
   padding: 8px 12px;

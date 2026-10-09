@@ -26,6 +26,17 @@ export const krankenhaus = (id = 'kh-1', aufnahme = true): Krankenhaus => ({
   aufnahme,
 });
 
+/**
+ * Eigenes Krankenhaus weit weg (ca. 36 km): schaltet Patiententransporte frei,
+ * ist aber nie das nächste Ziel – Tests mit `krankenhaus()` fahren weiter dorthin.
+ */
+export const eigenesKrankenhausWeitWeg = (): Krankenhaus => ({
+  ...krankenhaus('eigen-weit'),
+  coords: [49.1, 9.1771],
+  eigen: true,
+  kapazitaet: 10,
+});
+
 /** `stationId: null` = Fahrzeug ohne Wache */
 export const fahrzeug = (id: string, type: string, stationId: string | null = 'rw-1'): Vehicle => ({
   id,

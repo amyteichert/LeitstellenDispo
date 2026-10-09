@@ -5,10 +5,10 @@ import { getFahrzeugGeschwindigkeit } from './fahrzeuge.js';
 import { getFahrzeitSekunden, getFahrzeugPosition } from './geo.js';
 import { GAME_CONFIG } from './konfig.js';
 import { berechneSpielTick, type SpielTickZustand } from './spielTick.js';
-import { T0, einsatz, fahrzeug, krankenhaus, wache } from './testHilfen.js';
+import { T0, eigenesKrankenhausWeitWeg, einsatz, fahrzeug, krankenhaus, wache } from './testHilfen.js';
 
 const locations = [wache()];
-const krankenhaeuser = [krankenhaus()];
+const krankenhaeuser = [krankenhaus(), eigenesKrankenhausWeitWeg()];
 
 /** Tickt so lange zum selben Zeitpunkt, bis sich nichts mehr ändert. */
 const tickeBisRuhe = (zustand: SpielTickZustand, jetzt: number) => {
@@ -131,7 +131,7 @@ describe('Rettungsdienst – Patient, Transport und Krankenhaus', () => {
 
   it('fährt nur aufnahmebereite Krankenhäuser an – das nächste zuerst', () => {
     const fern = { ...krankenhaus('kh-fern'), coords: [48.9, 9.1771] as [number, number] };
-    const zustand = { ...starteRd('sturz'), krankenhaeuser: [{ ...krankenhaus('kh-voll', false), coords: [48.785, 9.1771] as [number, number] }, fern, krankenhaus()] };
+    const zustand = { ...starteRd('sturz'), krankenhaeuser: [{ ...krankenhaus('kh-voll', false), coords: [48.785, 9.1771] as [number, number] }, fern, krankenhaus(), eigenesKrankenhausWeitWeg()] };
     const ergebnis = tickeBisRuhe(zustand, T0 + 60 * 60 * 1000);
     expect(ergebnis.abgeschlossen[0].patienten![0].transport?.krankenhausId).toBe('kh-1');
   });

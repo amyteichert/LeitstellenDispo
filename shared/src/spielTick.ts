@@ -23,7 +23,15 @@ import {
   ordneFahrzeugeBedarfZu,
 } from './fahrzeuge.js';
 import { getFahrzeitSekunden, getPositionAufAnfahrt, getStationCoords } from './geo.js';
-import { EIGENES_KRANKENHAUS, FACHRICHTUNGEN, findeZielKrankenhaus, getFachrichtungen, nimmPatientAuf, type Krankenhaus } from './krankenhaeuser.js';
+import {
+  EIGENES_KRANKENHAUS,
+  FACHRICHTUNGEN,
+  findeZielKrankenhaus,
+  getFachrichtungen,
+  hatEigenesKrankenhaus,
+  nimmPatientAuf,
+  type Krankenhaus,
+} from './krankenhaeuser.js';
 import { GAME_CONFIG } from './konfig.js';
 import { getTransportStatus, istPatientAbgeschlossen, type Patient } from './patienten.js';
 import type { FahrzeugStatus, Koordinaten, MapLocation, Vehicle } from './typen.js';
@@ -259,6 +267,20 @@ const pruefeBearbeitungsbeginn = (einsatz: SpielEinsatz, ctx: TickKontext): Spie
 };
 
 /**
+ * Nimmt das erste Fahrzeug aus der Liste, das diesen Patienten transportieren darf:
+ * Schwer oder kritisch Verletzte nur mit Fahrzeugen, die auch versorgen können (RTW, nicht KTW).
+ */
+const nimmTransportFahrzeug = (fahrzeugIds: string[], patient: Patient, ctx: TickKontext): string | undefined => {
+  const brauchtVersorgung = patient.zustand === 'schwer' || patient.zustand === 'kritisch';
+  const kannVersorgen = (id: string) => hatFaehigkeit(typVon(ctx, id), 'patientenversorgung');
+  // Leicht Verletzte fahren bevorzugt mit dem KTW, damit der RTW für Schwerverletzte frei bleibt
+  const index = brauchtVersorgung
+    ? fahrzeugIds.findIndex(kannVersorgen)
+    : Math.max(fahrzeugIds.findIndex((id) => !kannVersorgen(id)), 0);
+  return index === -1 || fahrzeugIds.length === 0 ? undefined : fahrzeugIds.splice(index, 1)[0];
+};
+
+/**
  * Ende der Behandlung/Bearbeitung vor Ort.
  * Patienten mit Transportbedarf fahren mit einem RTW ins nächste Krankenhaus, alle anderen Fahrzeuge werden frei.
  */
@@ -269,10 +291,17 @@ const beendeBearbeitung = (einsatz: SpielEinsatz, ctx: TickKontext): SpielEinsat
     .map((a) => a.vehicleId);
   const neueMeldungen: EinsatzMeldung[] = [];
   let patientenImEigenenHaus = 0;
+  // Patiententransporte gibt es erst, wenn der Spieler ein eigenes Krankenhaus gebaut hat
+  const transporteMoeglich = hatEigenesKrankenhaus(ctx.krankenhaeuser);
 
   const patienten = (einsatz.patienten ?? []).map((patient): Patient => {
     if (istPatientAbgeschlossen(patient)) return patient;
-    const fahrzeugId = patient.transportErforderlich ? transportFahrzeuge.shift() : undefined;
+    if (patient.transportErforderlich && !transporteMoeglich) {
+      neueMeldungen.push(meldung(ende, 'Patient vor Ort versorgt und am Einsatzort entlassen. '
+        + '(Transporte ins Krankenhaus gibt es, sobald du ein eigenes Krankenhaus hast.)', 'patient'));
+      return { ...patient, status: 'ambulant' };
+    }
+    const fahrzeugId = patient.transportErforderlich ? nimmTransportFahrzeug(transportFahrzeuge, patient, ctx) : undefined;
     const krankenhaus = fahrzeugId ? findeZielKrankenhaus(einsatz.coords, ctx.krankenhaeuser, patient.fachrichtung, ende) : null;
     if (!patient.transportErforderlich || !fahrzeugId || !krankenhaus) {
       neueMeldungen.push(meldung(ende, patient.transportErforderlich

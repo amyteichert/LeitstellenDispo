@@ -50,6 +50,9 @@ export const getBetten = (krankenhaus: Krankenhaus) => krankenhaus.kapazitaet ??
 export const getBelegteBetten = (krankenhaus: Krankenhaus, jetzt: number) =>
   (krankenhaus.aufnahmen ?? []).filter((zeit) => zeit > jetzt - EIGENES_KRANKENHAUS.liegedauerMs).length;
 
+/** Hat der Spieler mindestens ein eigenes Krankenhaus gebaut? */
+export const hatEigenesKrankenhaus = (krankenhaeuser: Pick<Krankenhaus, 'eigen'>[]) => krankenhaeuser.some((kh) => kh.eigen);
+
 /** Fremde Häuser nehmen immer auf (sofern nicht abgemeldet), eigene nur mit freien Betten */
 export const nimmtAuf = (krankenhaus: Krankenhaus, jetzt: number) =>
   krankenhaus.aufnahme && (!krankenhaus.eigen || getBelegteBetten(krankenhaus, jetzt) < getBetten(krankenhaus));

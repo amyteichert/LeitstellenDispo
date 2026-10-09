@@ -25,6 +25,7 @@ export const LEHRGAENGE: Lehrgang[] = [
   { qualifikation: 'notarzt', dauerMs: 5 * TAG, kosten: 6000, wachenArt: 'Rettungswache', voraussetzung: 'notfallsanitaeter' },
   { qualifikation: 'gruppenfuehrer', dauerMs: 2 * TAG, kosten: 2000, wachenArt: 'Feuerwache' },
   { qualifikation: 'maschinist_dlk', dauerMs: 1 * TAG, kosten: 1500, wachenArt: 'Feuerwache' },
+  { qualifikation: 'zugfuehrer', dauerMs: 3 * TAG, kosten: 3500, wachenArt: 'Feuerwache', voraussetzung: 'gruppenfuehrer' },
 ];
 
 export const AUSBILDUNG_CONFIG = {

@@ -66,6 +66,7 @@ export default function WachenView({
   balance,
   nowMs,
   buyVehicle,
+  eigenesKrankenhaus,
   erweitereStellplaetze,
   personalAktionen,
   onWacheKaufen,
@@ -78,6 +79,8 @@ export default function WachenView({
   balance: number;
   nowMs: number;
   buyVehicle: (stationId: string, typ: string) => string | null;
+  /** KTW gibt es erst mit eigenem Krankenhaus */
+  eigenesKrankenhaus: boolean;
   erweitereStellplaetze: (stationId: string) => string | null;
   personalAktionen: PersonalAktionen;
   onWacheKaufen: () => void;
@@ -96,6 +99,7 @@ export default function WachenView({
         balance={balance}
         nowMs={nowMs}
         buyVehicle={buyVehicle}
+        eigenesKrankenhaus={eigenesKrankenhaus}
         erweitereStellplaetze={erweitereStellplaetze}
         onZurueck={() => setVerwaltenId(null)}
       />
@@ -144,6 +148,7 @@ function WacheVerwalten({
   balance,
   nowMs,
   buyVehicle,
+  eigenesKrankenhaus,
   erweitereStellplaetze,
   onZurueck,
 }: {
@@ -154,6 +159,8 @@ function WacheVerwalten({
   balance: number;
   nowMs: number;
   buyVehicle: (stationId: string, typ: string) => string | null;
+  /** KTW gibt es erst mit eigenem Krankenhaus */
+  eigenesKrankenhaus: boolean;
   erweitereStellplaetze: (stationId: string) => string | null;
   onZurueck: () => void;
 }) {
@@ -300,11 +307,14 @@ function WacheVerwalten({
                 <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
                   <label className="field" style={{ flex: '1 1 160px' }}>
                     <select value={kaufTyp} onChange={(e) => setKaufTyp(e.target.value)}>
-                      {kaufbareTypen.map((fahrzeugTyp) => (
-                        <option key={fahrzeugTyp.typ} value={fahrzeugTyp.typ}>
-                          {fahrzeugTyp.typ} – {euro(fahrzeugTyp.preis)}
-                        </option>
-                      ))}
+                      {kaufbareTypen.map((fahrzeugTyp) => {
+                        const gesperrt = fahrzeugTyp.brauchtEigenesKrankenhaus && !eigenesKrankenhaus;
+                        return (
+                          <option key={fahrzeugTyp.typ} value={fahrzeugTyp.typ} disabled={gesperrt}>
+                            {fahrzeugTyp.typ} – {euro(fahrzeugTyp.preis)}{gesperrt ? ' (erst mit eigenem Krankenhaus)' : ''}
+                          </option>
+                        );
+                      })}
                     </select>
                   </label>
                   <button

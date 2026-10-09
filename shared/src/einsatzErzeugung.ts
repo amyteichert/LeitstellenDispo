@@ -17,10 +17,15 @@ import { erzeugePatienten } from './patienten.js';
 import type { Koordinaten, MapLocation, StationKind, Vehicle } from './typen.js';
 
 /** Nur Vorlagen, die der Spieler mit seinen stationierten Fahrzeugen grundsätzlich schaffen kann. */
-export const getAvailableIncidentTemplates = (stationKind: StationKind | undefined, vehicles: Vehicle[]): EinsatzVorlage[] => {
+export const getAvailableIncidentTemplates = (
+  stationKind: StationKind | undefined,
+  vehicles: Vehicle[],
+  eigenesKrankenhaus = false,
+): EinsatzVorlage[] => {
   const fahrzeugTypen = vehicles.filter((vehicle) => vehicle.stationId).map((vehicle) => vehicle.type);
   const templates = EINSATZ_VORLAGEN[stationKind ?? 'Rettungswache'] ?? EINSATZ_VORLAGEN.Rettungswache;
-  return templates.filter((template) => istVorlageErfuellbar(template, fahrzeugTypen));
+  return templates.filter((template) => istVorlageErfuellbar(template, fahrzeugTypen)
+    && (eigenesKrankenhaus || !template.brauchtEigenesKrankenhaus));
 };
 
 const getIncidentSpawnRadiusKm = (stationCount: number) => {
@@ -132,6 +137,8 @@ export const erzeugeZufallsEinsatz = (
   jetzt: number = Date.now(),
   /** Uhrzeit, Wochentag, Wetter: bestimmen, welche Einsätze häufiger sind */
   kontext?: AufkommenKontext,
+  /** Krankentransporte gibt es erst mit eigenem Krankenhaus */
+  eigenesKrankenhaus = false,
 ): EinsatzErzeugungErgebnis => {
   const stations = locations.filter((location) => location.type === 'station');
   if (stations.length === 0) return { fehler: 'keine-wache' };
@@ -139,7 +146,7 @@ export const erzeugeZufallsEinsatz = (
   // Jede vorhandene Wachenart kommt gleich oft dran – unabhängig davon, wie viele Wachen es je Art gibt.
   // Arten ohne machbaren Einsatz (z. B. Feuerwache ohne passendes Fahrzeug) werden übersprungen.
   const arten = [...new Set(stations.map((station) => station.stationKind ?? 'Rettungswache'))]
-    .map((art) => ({ art, vorlagen: getAvailableIncidentTemplates(art, vehicles) }))
+    .map((art) => ({ art, vorlagen: getAvailableIncidentTemplates(art, vehicles, eigenesKrankenhaus) }))
     .filter((eintrag) => eintrag.vorlagen.length > 0);
   if (arten.length === 0) return { fehler: 'keine-machbare-vorlage' };
   const templates = arten[Math.floor(Math.random() * arten.length)].vorlagen;

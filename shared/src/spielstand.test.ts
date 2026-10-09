@@ -3,7 +3,7 @@ import { alarmiereFahrzeuge } from './alarmierung.js';
 import { findeZielKrankenhaus, STANDARD_KRANKENHAEUSER } from './krankenhaeuser.js';
 import { berechneSpielTick } from './spielTick.js';
 import { SPIELSTAND_VERSION, createNeuesSpiel, migriereSpielstand, type Spielstand } from './spielstand.js';
-import { T0, einsatz, fahrzeug, krankenhaus, wache } from './testHilfen.js';
+import { T0, eigenesKrankenhausWeitWeg, einsatz, fahrzeug, krankenhaus, wache } from './testHilfen.js';
 import { haversineKm } from './geo.js';
 import { erzeugeBesatzungFuer, synchronisiereBesatzung } from './personal.js';
 
@@ -39,7 +39,7 @@ describe('Spielstand speichern und laden', () => {
   it('übersteht JSON-Speichern und -Laden mit laufendem Transport unverändert', () => {
     const e = einsatz('sturz', undefined, undefined, { transport: true });
     const start = alarmiereFahrzeuge({ incidents: [e], vehicles: [fahrzeug('rtw', 'RTW')], locations: [wache()] }, e.id, ['rtw'], T0);
-    const kh = [krankenhaus()];
+    const kh = [krankenhaus(), eigenesKrankenhausWeitWeg()];
     const ende = berechneSpielTick({ ...start, locations: [wache()], krankenhaeuser: kh }, start.incidents[0].alarmedVehicles[0].arrivalAt).incidents[0].processingEndsAt!;
     let zustand = { ...start, locations: [wache()], krankenhaeuser: kh };
     for (const zeit of [start.incidents[0].alarmedVehicles[0].arrivalAt, ende]) {

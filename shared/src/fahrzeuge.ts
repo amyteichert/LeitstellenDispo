@@ -6,7 +6,7 @@ import { GAME_CONFIG } from './konfig.js';
 import type { EinsatzOrganisation, Vehicle, WachenArt } from './typen.js';
 
 /** Grobe Fahrzeugklasse – so denkt der Disponent („2 LF und eine DLK“). */
-export type FahrzeugKategorie = 'RTW' | 'NEF' | 'Löschfahrzeug' | 'Drehleiter';
+export type FahrzeugKategorie = 'RTW' | 'NEF' | 'KTW' | 'Löschfahrzeug' | 'Drehleiter' | 'Rüstwagen' | 'Einsatzleitwagen';
 
 /** Was ein Fahrzeug kann. Bewusst wenige – nur was die Spiellogik aktuell nutzt. */
 export type Faehigkeit =
@@ -15,7 +15,9 @@ export type Faehigkeit =
   | 'hoehenrettung'
   | 'patientenversorgung'
   | 'patiententransport'
-  | 'notarzt';
+  | 'notarzt'
+  | 'schwere_technik'
+  | 'einsatzleitung';
 
 export const FAEHIGKEIT_LABELS: Record<Faehigkeit, string> = {
   brandbekaempfung: 'Brandbekämpfung',
@@ -24,16 +26,19 @@ export const FAEHIGKEIT_LABELS: Record<Faehigkeit, string> = {
   patientenversorgung: 'Patientenversorgung',
   patiententransport: 'Patiententransport',
   notarzt: 'Notarztversorgung',
+  schwere_technik: 'Schwere technische Rettung',
+  einsatzleitung: 'Einsatzleitung',
 };
 
 /** Qualifikationen des Personals – nur die, die ein Fahrzeug zwingend braucht. */
-export type Qualifikation = 'notfallsanitaeter' | 'notarzt' | 'maschinist_dlk' | 'gruppenfuehrer';
+export type Qualifikation = 'notfallsanitaeter' | 'notarzt' | 'maschinist_dlk' | 'gruppenfuehrer' | 'zugfuehrer';
 
 export const QUALIFIKATION_LABELS: Record<Qualifikation, string> = {
   notfallsanitaeter: 'Notfallsanitäter',
   notarzt: 'Notarzt',
   maschinist_dlk: 'Maschinist Drehleiter',
   gruppenfuehrer: 'Gruppenführer',
+  zugfuehrer: 'Zugführer',
 };
 
 export interface FahrzeugTyp {
@@ -52,6 +57,10 @@ export interface FahrzeugTyp {
   faehigkeiten: Faehigkeit[];
   /** Mindestens eine Person der Besatzung braucht diese Qualifikation */
   pflichtQualifikation?: Qualifikation;
+  /** Sonderfahrzeuge, die allein kaum Einsätze schaffen, gibt es nicht als Startfahrzeug */
+  keinStartfahrzeug?: boolean;
+  /** Erst kaufbar, wenn der Spieler ein eigenes Krankenhaus hat */
+  brauchtEigenesKrankenhaus?: boolean;
 }
 
 /** Alle Fahrzeugtypen, die im Spiel gekauft bzw. als Startfahrzeug gewählt werden können. */
@@ -63,6 +72,10 @@ export const FAHRZEUG_TYPEN: FahrzeugTyp[] = [
   {
     typ: 'NEF', bezeichnung: 'Notarzteinsatzfahrzeug', kategorie: 'NEF', organisation: 'Rettungsdienst', wachenArt: 'Rettungswache',
     preis: 3500, geschwindigkeitKmh: 70, besatzung: 2, faehigkeiten: ['notarzt', 'patientenversorgung'], pflichtQualifikation: 'notarzt',
+  },
+  {
+    typ: 'KTW', bezeichnung: 'Krankentransportwagen', kategorie: 'KTW', organisation: 'Rettungsdienst', wachenArt: 'Rettungswache',
+    preis: 2500, geschwindigkeitKmh: 55, besatzung: 2, faehigkeiten: ['patiententransport'], keinStartfahrzeug: true, brauchtEigenesKrankenhaus: true,
   },
   {
     typ: 'LF 10', bezeichnung: 'Löschgruppenfahrzeug 10', kategorie: 'Löschfahrzeug', organisation: 'Feuerwehr', wachenArt: 'Feuerwache',
@@ -92,6 +105,14 @@ export const FAHRZEUG_TYPEN: FahrzeugTyp[] = [
     typ: 'DLK 23/12', bezeichnung: 'Drehleiter mit Korb', kategorie: 'Drehleiter', organisation: 'Feuerwehr', wachenArt: 'Feuerwache',
     preis: 9000, geschwindigkeitKmh: 48, besatzung: 3, faehigkeiten: ['hoehenrettung', 'brandbekaempfung'], pflichtQualifikation: 'maschinist_dlk',
   },
+  {
+    typ: 'RW', bezeichnung: 'Rüstwagen', kategorie: 'Rüstwagen', organisation: 'Feuerwehr', wachenArt: 'Feuerwache',
+    preis: 7500, geschwindigkeitKmh: 50, besatzung: 3, faehigkeiten: ['technische_hilfe', 'schwere_technik'], keinStartfahrzeug: true,
+  },
+  {
+    typ: 'ELW 1', bezeichnung: 'Einsatzleitwagen 1', kategorie: 'Einsatzleitwagen', organisation: 'Feuerwehr', wachenArt: 'Feuerwache',
+    preis: 6000, geschwindigkeitKmh: 60, besatzung: 3, faehigkeiten: ['einsatzleitung'], pflichtQualifikation: 'zugfuehrer', keinStartfahrzeug: true,
+  },
 ];
 
 export function getFahrzeugTyp(typ?: string): FahrzeugTyp | undefined {
@@ -104,6 +125,11 @@ export function getFahrzeugKategorie(typ?: string): FahrzeugKategorie | null {
 
 export function getFahrzeugTypenFuerWache(wachenArt: WachenArt): FahrzeugTyp[] {
   return FAHRZEUG_TYPEN.filter((eintrag) => eintrag.wachenArt === wachenArt);
+}
+
+/** Fahrzeugtypen, die beim Bau einer Wache als Startfahrzeug wählbar sind */
+export function getStartfahrzeugTypen(wachenArt: WachenArt): FahrzeugTyp[] {
+  return getFahrzeugTypenFuerWache(wachenArt).filter((eintrag) => !eintrag.keinStartfahrzeug);
 }
 
 export function hatFaehigkeit(typ: string | undefined, faehigkeit: Faehigkeit): boolean {
@@ -130,7 +156,7 @@ export function istAusreichendBesetzt(vehicle: Pick<Vehicle, 'type' | 'besatzung
  * Wonach ein Einsatz fragt: eine Fahrzeugklasse oder eine Fähigkeit.
  * „Technische Hilfe“ können z. B. LF und HLF leisten, ein TLF aber nicht.
  */
-export type BedarfsKlasse = FahrzeugKategorie | 'Technische Hilfe';
+export type BedarfsKlasse = FahrzeugKategorie | 'Technische Hilfe' | 'Krankentransport';
 
 interface BedarfsKlassenInfo {
   /** Anzeige, z. B. „LF/HLF (Technische Hilfe)“ */
@@ -144,7 +170,12 @@ export const BEDARFS_KLASSEN: Record<BedarfsKlasse, BedarfsKlassenInfo> = {
   NEF: { label: 'NEF', kategorien: ['NEF'] },
   Löschfahrzeug: { label: 'Löschfahrzeug', kategorien: ['Löschfahrzeug'] },
   Drehleiter: { label: 'Drehleiter', kategorien: ['Drehleiter'] },
-  'Technische Hilfe': { label: 'LF/HLF (Techn. Hilfe)', faehigkeit: 'technische_hilfe' },
+  KTW: { label: 'KTW', kategorien: ['KTW'] },
+  Rüstwagen: { label: 'Rüstwagen', kategorien: ['Rüstwagen'] },
+  Einsatzleitwagen: { label: 'ELW', kategorien: ['Einsatzleitwagen'] },
+  'Technische Hilfe': { label: 'LF/HLF/RW (Techn. Hilfe)', faehigkeit: 'technische_hilfe' },
+  /** Krankentransport kann ein KTW oder ein RTW übernehmen */
+  Krankentransport: { label: 'KTW/RTW (Krankentransport)', faehigkeit: 'patiententransport' },
 };
 
 export interface FahrzeugBedarf {

@@ -30,7 +30,7 @@ describe('Spieldaten', () => {
   });
 
   it('bietet je Wachenart nur passende Fahrzeuge an', () => {
-    expect(getFahrzeugTypenFuerWache('Rettungswache').map((eintrag) => eintrag.typ)).toEqual(['RTW', 'NEF']);
+    expect(getFahrzeugTypenFuerWache('Rettungswache').map((eintrag) => eintrag.typ)).toEqual(['RTW', 'NEF', 'KTW']);
     expect(getFahrzeugTypenFuerWache('Feuerwache').every((eintrag) => eintrag.wachenArt === 'Feuerwache')).toBe(true);
     expect(getFahrzeugKategorie('HLF 20')).toBe('Löschfahrzeug');
     expect(getFahrzeugKategorie('Unbekannt')).toBeNull();
@@ -62,7 +62,7 @@ describe('erzeugeZufallsEinsatz', () => {
     for (let i = 0; i < 200; i += 1) {
       const ergebnis = erzeugeZufallsEinsatz([wache()], [fahrzeug('rtw', 'RTW')]);
       if (!('einsatz' in ergebnis)) throw new Error('Einsatz erwartet');
-      expect(ergebnis.einsatz.stichwort).toBe('RD 1');
+      expect(['RD 1', 'KTP']).toContain(ergebnis.einsatz.stichwort);
     }
   });
 

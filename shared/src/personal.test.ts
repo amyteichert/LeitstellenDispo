@@ -77,7 +77,7 @@ describe('Einstellen und Limit', () => {
 
   it('Bewerber passen zur Wachenart', () => {
     const qualis = erzeugeBewerber(wache('fw-1', 'Feuerwache'), 50).flatMap((b) => b.qualifikationen);
-    expect(qualis.every((q) => q === 'gruppenfuehrer' || q === 'maschinist_dlk')).toBe(true);
+    expect(qualis.every((q) => ['gruppenfuehrer', 'maschinist_dlk', 'zugfuehrer'].includes(q))).toBe(true);
   });
 
   it('Ruheräume erhöhen das Personal-Limit', () => {
