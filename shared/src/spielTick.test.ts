@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { alarmiereFahrzeuge } from './alarmierung.js';
 import { berechneSpielTick } from './spielTick.js';
+import { findeEinsatzVorlage } from './daten.js';
 import { T0, einsatz, fahrzeug, wache } from './testHilfen.js';
 
 const locations = [wache()];
@@ -28,7 +29,7 @@ describe('berechneSpielTick – Einsatzablauf', () => {
     const fertig = berechneSpielTick({ ...angekommen, locations }, ende);
     expect(fertig.incidents).toHaveLength(0);
     expect(fertig.abgeschlossen).toHaveLength(1);
-    expect(fertig.abgeschlossen[0].reward).toBe(220);
+    expect(fertig.abgeschlossen[0].reward).toBe(findeEinsatzVorlage('sturz')!.reward);
     expect(fertig.abgeschlossen[0].completedAt).toBe(ende);
     expect(fertig.vehicles[0].status).toBe('Rückfahrt');
     expect(fertig.vehicles[0].rueckfahrt?.startAt).toBe(ende);
@@ -91,7 +92,7 @@ describe('berechneSpielTick – Eskalation', () => {
     expect(e.stichwort).toBe('RD 2');
     expect(e.vorlageId).toBe('reanimation');
     expect(e.status).toBe('alarmiert');
-    expect(e.reward).toBe(450);
+    expect(e.reward).toBe(findeEinsatzVorlage('reanimation')!.reward);
     expect(e.neueMeldung).toBe(true);
     // Erst die Lagemeldung beim Eintreffen, dann die Eskalation samt begründeter Nachforderung
     expect(e.meldungen.map((m) => m.art)).toEqual(['lage', 'eskalation', 'nachforderung']);
@@ -198,7 +199,7 @@ describe('berechneSpielTick – Randfälle der Eskalation', () => {
     expect(ergebnis.abgeschlossen).toHaveLength(1);
     const fertig = ergebnis.abgeschlossen[0];
     expect(fertig.meldebild).toBe('Kellerbrand');
-    expect(fertig.reward).toBe(520);
+    expect(fertig.reward).toBe(findeEinsatzVorlage('kellerbrand')!.reward);
     // Ende = Lagemeldung + Dauer des Kellerbrands (nicht "jetzt")
     const eskalation = fertig.meldungen.find((m) => m.art === 'eskalation')!;
     expect(fertig.completedAt).toBe(eskalation.zeit + fertig.durationSeconds * 1000);

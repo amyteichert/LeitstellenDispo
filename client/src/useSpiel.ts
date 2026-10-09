@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   GAME_CONFIG,
   RUF_CONFIG,
-  WACHEN_PREISE,
+  getWachenPreis,
   rechneEinsaetzeAb,
   getBelegteStellplaetze,
   getStellplaetze,
@@ -521,7 +521,7 @@ export function useSpiel(optionen: UseSpielOptionen = {}) {
   };
 
   const erstelleWache = (wache: NeueWache): { id: string } | { fehler: string } => {
-    const stationPrice = WACHEN_PREISE[wache.stationKind] ?? 0;
+    const stationPrice = getWachenPreis(wache.stationKind, locations.filter((location) => location.type === 'station').length);
     const vehiclePrice = getFahrzeugTyp(wache.startFahrzeugTyp)?.preis ?? 0;
     const totalCost = stationPrice + vehiclePrice;
 

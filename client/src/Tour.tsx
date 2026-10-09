@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { WACHEN_PREISE } from '@leitstellendispo/shared';
+import { ERSTE_WACHE_HOECHSTPREIS } from '@leitstellendispo/shared';
 import type { Ansicht } from './startansicht';
 
 /**
@@ -34,7 +34,7 @@ export const TOUR_SCHRITTE: TourSchritt[] = [
     standorteOeffnen: true,
     ziel: '[data-tour="wache-bauen"]',
     titel: 'Baue deine erste Wache',
-    text: `Hier entstehen deine Wachen. Gib ihr einen Namen und wähle die Art: Rettungswache (${euro(WACHEN_PREISE.Rettungswache)}) oder Feuerwache (${euro(WACHEN_PREISE.Feuerwache)}). Dazu kommt ein Startfahrzeug – samt Besatzung.`,
+    text: `Hier entstehen deine Wachen. Gib ihr einen Namen und wähle die Art: Rettungswache oder Feuerwache – deine erste Wache kostet höchstens ${euro(ERSTE_WACHE_HOECHSTPREIS)}. Dazu kommt ein Startfahrzeug – samt Besatzung.`,
   },
   {
     ansicht: 'Karte',

@@ -15,7 +15,7 @@ import {
   FUNKRUFNAME_MAX_LAENGE,
   getFunkKurzname,
   istTeamRolle,
-  WACHEN_PREISE,
+  getWachenPreis,
   WETTER_LABELS,
   type Wetter,
   istEskaliert,
@@ -383,7 +383,7 @@ function App({ konto, onAbmelden }: { konto: Konto; onAbmelden: () => Promise<vo
       return;
     }
 
-    const kosten = (WACHEN_PREISE[draftStationKind] ?? 0) + (getFahrzeugTyp(draftStartVehicleType)?.preis ?? 0);
+    const kosten = wachenPreis + (getFahrzeugTyp(draftStartVehicleType)?.preis ?? 0);
     // Ohne eigenen Namen gilt der graue Platzhalter („Neue Feuerwache“ …)
     const name = draftName.trim() || `Neue ${draftStationKind}`;
     if (!window.confirm(`„${name}“ (${draftStationKind} mit ${draftStartVehicleType}) für ${kosten.toLocaleString('de-DE')} € kaufen?
@@ -417,7 +417,7 @@ Dein Guthaben: ${balance.toLocaleString('de-DE')} €`)) return;
     setSelectedGeocodeIndex(null);
   };
 
-  const wachenPreis = WACHEN_PREISE[draftStationKind] ?? 0;
+  const wachenPreis = getWachenPreis(draftStationKind, locations.filter((location) => location.type === 'station').length);
   const startFahrzeugPreis = getFahrzeugTyp(draftStartVehicleType)?.preis ?? 0;
   // Dasselbe Formular steht in der Standort-Leiste und im Fenster „Wache kaufen“ (Ansicht Wachen)
   const wachenFormular = (

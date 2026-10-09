@@ -71,7 +71,7 @@ export const entstehtEinsatz = (vergangenMs: number, intervallMs: number, zufall
 
 const VERKEHR = ['verkehrsunfall-rd', 'verkehrsunfall-th', 'vu-eingeklemmt', 'oelspur', 'lkw-unfall', 'vu-mehrere-verletzte'];
 const INTERNISTISCH = ['kreislaufprobleme', 'atemnot', 'brustschmerzen', 'bewusstlose-person', 'reanimation', 'schlaganfall', 'unterzuckerung'];
-const WOHNUNGSBRAND = ['zimmerbrand', 'kellerbrand', 'gebaeudebrand', 'unklare-rauchentwicklung', 'heimrauchmelder', 'kuechenbrand-verletzt'];
+const WOHNUNGSBRAND = ['zimmerbrand', 'kellerbrand', 'gebaeudebrand', 'unklare-rauchentwicklung', 'heimrauchmelder', 'kuechenbrand-verletzt', 'dachstuhlbrand'];
 const STURZ = ['sturz', 'gestuerzte-person'];
 const KRANKENTRANSPORT = ['krankentransport', 'liegendtransport', 'verlegung'];
 
