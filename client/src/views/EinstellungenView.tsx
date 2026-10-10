@@ -148,6 +148,17 @@ export default function EinstellungenView({
         </section>
 
         <section className="ausbau-karte">
+          <span className="ausbau-karte__kategorie">ℹ️ Gut zu wissen</span>
+          <p>
+            <strong>Anfahrtszeiten:</strong> Die Fahrzeiten sind realistisch angelegt – mit Ausrückzeit, typischen Geschwindigkeiten
+            bei Einsatzfahrten und dem Umweg über die Straße. Auf der Karte fahren die Fahrzeuge aber vorerst auf direktem Weg.
+          </p>
+          <p>
+            Echte Routenführung über das Straßennetz ist in nächster Zeit nicht geplant, haben wir aber für später im Hinterkopf.
+          </p>
+        </section>
+
+        <section className="ausbau-karte">
           <span className="ausbau-karte__kategorie">🎓 Tour durchs Spiel</span>
           <p>Zeigt dir Schritt für Schritt die wichtigsten Bereiche – jederzeit wiederholbar.</p>
           <button className="btn btn--secondary" type="button" onClick={onTourStarten}>Tour starten</button>

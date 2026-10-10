@@ -413,7 +413,7 @@ export default function EinsaetzeView({
                             <span>
                               <strong>{vehicle.callsign ?? vehicle.name}</strong> · {vehicle.type}
                               <small>
-                                ⏱ ca. {formatEtaLabel(anfahrtSekunden)} · 🏠 {station?.name ?? '–'} · {distanzKm.toFixed(1)} km
+                                <span title="Realistische Anfahrtszeit (Ausrückzeit + Straßenweg). Auf der Karte vorerst auf direktem Weg – echte Routenführung ist für später angedacht.">⏱ ca. {formatEtaLabel(anfahrtSekunden)}</span> · 🏠 {station?.name ?? '–'} · {distanzKm.toFixed(1)} km
                                 {!passend && ' · zählt nicht zum Bedarf'}
                               </small>
                             </span>

@@ -160,7 +160,7 @@ export function KarteEinsatzPanel({
                   <span>
                     <strong>{vehicle.callsign ?? vehicle.name}</strong> · {vehicle.type}
                     <small>
-                      ⏱ {formatAnfahrt(anfahrtSekunden)} · 🏠 {locations.find((l) => l.id === vehicle.stationId)?.name ?? '–'} · {distanzKm.toFixed(1)} km
+                      <span title="Realistische Anfahrtszeit (Ausrückzeit + Straßenweg). Auf der Karte vorerst auf direktem Weg – echte Routenführung ist für später angedacht.">⏱ {formatAnfahrt(anfahrtSekunden)}</span> · 🏠 {locations.find((l) => l.id === vehicle.stationId)?.name ?? '–'} · {distanzKm.toFixed(1)} km
                       {!passend && ' · zählt nicht zum Bedarf'}
                     </small>
                   </span>
