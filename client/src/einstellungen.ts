@@ -12,7 +12,16 @@ export interface GeraeteEinstellungen {
   hinweisDauerSekunden: number;
   /** Karte startet an der zuletzt angezeigten Stelle */
   karteMerken: boolean;
+  /** Wie oft neue Einsätze kommen: Faktor auf das normale Aufkommen */
+  einsatzTempo: number;
 }
+
+export const EINSATZ_TEMPI: Array<{ wert: number; text: string; info: string }> = [
+  { wert: 0.5, text: 'Ruhig', info: 'halb so viele Einsätze' },
+  { wert: 1, text: 'Normal', info: 'wie im echten Leitstellenalltag' },
+  { wert: 1.5, text: 'Belebt', info: 'eineinhalbmal so viele' },
+  { wert: 2, text: 'Viel los', info: 'doppelt so viele Einsätze' },
+];
 
 export const STANDARD_EINSTELLUNGEN: GeraeteEinstellungen = {
   ton: true,
@@ -22,6 +31,7 @@ export const STANDARD_EINSTELLUNGEN: GeraeteEinstellungen = {
   hinweise: 'alle',
   hinweisDauerSekunden: 7,
   karteMerken: true,
+  einsatzTempo: 1,
 };
 
 const SCHLUESSEL = 'leitstellendispo.einstellungen';

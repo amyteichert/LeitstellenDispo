@@ -86,6 +86,7 @@ import {
   type SpielEinsatz,
   type StationKind,
 } from '@leitstellendispo/shared';
+import { getEinstellungen } from './einstellungen';
 import { bestaetigeKorrekturen, ladeKorrekturen } from './konto';
 import type { FinanceTransaction, MapLocation, Vehicle } from './types';
 import { SPIELSTAND_VERSION, spielstandSpeicher, type Spielstand } from './spielstand';
@@ -358,7 +359,8 @@ export function useSpiel(optionen: UseSpielOptionen = {}) {
       const wachen = orte.filter((location) => location.type === 'station').length;
       if (wachen === 0) return;
       const kontext: AufkommenKontext = { ...deutscheZeit(jetzt), wachen, wetter };
-      if (!entstehtEinsatz(Math.min(vergangen, 5000), einsatzIntervallMs(kontext))) return;
+      // Einsatztempo aus den Einstellungen: kürzerer Abstand = mehr Einsätze
+      if (!entstehtEinsatz(Math.min(vergangen, 5000), einsatzIntervallMs(kontext) / getEinstellungen().einsatzTempo)) return;
       setIncidents((current) => {
         if (current.filter((incident) => incident.status !== 'abgeschlossen').length >= maxOffeneEinsaetze(wachen)) return current;
         const ergebnis = erzeugeZufallsEinsatz(orte, fahrzeuge, jetzt, kontext, kliniken);

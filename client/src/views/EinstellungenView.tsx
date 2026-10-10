@@ -2,7 +2,7 @@ import { useState } from 'react';
 import type { Konto, UserRole } from '@leitstellendispo/shared';
 import { STARTANSICHTEN, ladeStartansicht, speichereStartansicht, type Ansicht } from '../startansicht';
 import { RechtlicheLinks } from '../Rechtliches';
-import { setEinstellungen, useEinstellungen, type GeraeteEinstellungen } from '../einstellungen';
+import { EINSATZ_TEMPI, setEinstellungen, useEinstellungen, type GeraeteEinstellungen } from '../einstellungen';
 import { testeTon } from '../ton';
 import KontoEinstellungen from './KontoEinstellungen';
 
@@ -126,6 +126,25 @@ export default function EinstellungenView({
           </label>
           <Schalter text="Kompakte Ansicht" info="Kleinere Schrift und Abstände – mehr Platz am Handy" an={einstellungen.kompakt} onChange={(kompakt) => setEinstellungen({ kompakt })} />
           <Schalter text="Karte merken" info="Die Karte startet da, wo du zuletzt warst" an={einstellungen.karteMerken} onChange={(karteMerken) => setEinstellungen({ karteMerken })} />
+        </section>
+
+        <section className="ausbau-karte">
+          <span className="ausbau-karte__kategorie">🚨 Einsatztempo</span>
+          <p>Wie oft neue Einsätze reinkommen. Uhrzeit, Wochentag und Wetter wirken zusätzlich.</p>
+          <div className="einsatztempo">
+            {EINSATZ_TEMPI.map((tempo) => (
+              <button
+                key={tempo.wert}
+                type="button"
+                className={`btn ${einstellungen.einsatzTempo === tempo.wert ? 'btn--primary' : ''}`}
+                aria-pressed={einstellungen.einsatzTempo === tempo.wert}
+                onClick={() => setEinstellungen({ einsatzTempo: tempo.wert })}
+              >
+                {tempo.text}
+              </button>
+            ))}
+          </div>
+          <small className="einsatz-eintrag__zeile">{EINSATZ_TEMPI.find((t) => t.wert === einstellungen.einsatzTempo)?.info}</small>
         </section>
 
         <section className="ausbau-karte">

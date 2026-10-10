@@ -2569,3 +2569,4 @@
 .personal-liste__ort { font-size: 0.85rem; color: var(--color-text-muted); white-space: nowrap; }
 .personal-liste__aktionen { display: flex; gap: 6px; align-items: center; }
 .personal-liste__aktionen select { padding: 0.35rem 0.5rem; min-width: 120px; max-width: 46vw; }
+.einsatztempo { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px; }
