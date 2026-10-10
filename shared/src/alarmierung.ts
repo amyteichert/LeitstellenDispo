@@ -1,4 +1,4 @@
-import { getAktiveZuteilungen, type AlarmiertesFahrzeug, type SpielEinsatz } from './daten.js';
+import { getAktiveZuteilungen, getEinsatzVersorgung, type AlarmiertesFahrzeug, type SpielEinsatz } from './daten.js';
 import {
   fahrzeugErfuelltBedarf,
   getFahrzeugGeschwindigkeit,
@@ -7,7 +7,7 @@ import {
   istAusreichendBesetzt,
   type BedarfsKlasse,
 } from './fahrzeuge.js';
-import { getFahrzeitSekunden, getRueckfahrtPosition, getStationCoords, haversineKm } from './geo.js';
+import { getFahrzeitSekunden, getPositionAufAnfahrt, getRueckfahrtPosition, getStationCoords, haversineKm } from './geo.js';
 import { GAME_CONFIG } from './konfig.js';
 import type { MapLocation, Vehicle } from './typen.js';
 import { getAusrueckVerzoegerung } from './zufriedenheit.js';
@@ -71,7 +71,7 @@ export const alarmiereFahrzeuge = (
   if (incident.status !== 'offen' && incident.status !== 'alarmiert') return { incidents, vehicles };
 
   const neueZuteilungen = [...new Set(vehicleIds)]
-    .filter((vehicleId) => !incident.alarmedVehicles.some((existing) => existing.vehicleId === vehicleId))
+    .filter((vehicleId) => !getAktiveZuteilungen(incident).some((existing) => existing.vehicleId === vehicleId))
     .map((vehicleId): AlarmiertesFahrzeug | null => {
       const vehicle = vehicles.find((item) => item.id === vehicleId);
       const wache = getStationCoords(vehicle?.stationId, locations);
@@ -108,6 +108,82 @@ export const alarmiereFahrzeuge = (
     )),
   };
 };
+
+/** Darf ein zugeteiltes Fahrzeug gerade zurückalarmiert werden? Nur solange der Einsatz noch nicht bearbeitet wird. */
+export const kannRueckalarmieren = (einsatz: SpielEinsatz, vehicleId: string): boolean =>
+  (einsatz.status === 'offen' || einsatz.status === 'alarmiert')
+  && getAktiveZuteilungen(einsatz).some((assignment) => assignment.vehicleId === vehicleId);
+
+/**
+ * Holt ein Fahrzeug vom Einsatz zurück (Rückalarmierung): Es fährt von seiner aktuellen Position zur Wache
+ * und kann unterwegs sofort neu alarmiert werden. Bleibt kein Fahrzeug übrig, ist der Einsatz wieder offen.
+ */
+export const rueckalarmiereFahrzeug = (
+  zustand: AlarmierungsZustand,
+  incidentId: string,
+  vehicleId: string,
+  jetzt: number = Date.now(),
+): AlarmierungErgebnis => {
+  const { incidents, vehicles, locations } = zustand;
+  const einsatz = incidents.find((entry) => entry.id === incidentId);
+  const vehicle = vehicles.find((entry) => entry.id === vehicleId);
+  const wache = getStationCoords(vehicle?.stationId, locations);
+  if (!einsatz || !vehicle || !wache || !kannRueckalarmieren(einsatz, vehicleId)) return { incidents, vehicles };
+  const assignment = getAktiveZuteilungen(einsatz).find((entry) => entry.vehicleId === vehicleId)!;
+
+  const von = assignment.arrivalAt <= jetzt ? einsatz.coords : getPositionAufAnfahrt(wache, einsatz.coords, assignment, jetzt);
+  const fahrzeit = getFahrzeitSekunden(von, wache, getFahrzeugGeschwindigkeit(vehicle.type));
+  const alarmedVehicles = einsatz.alarmedVehicles.map((entry) => (entry === assignment ? { ...entry, freigegebenAt: jetzt } : entry));
+  const nochZugeteilt = alarmedVehicles.some((entry) => entry.freigegebenAt === undefined);
+
+  return {
+    incidents: incidents.map((entry) => (
+      entry.id === incidentId ? { ...entry, alarmedVehicles, status: nochZugeteilt ? entry.status : 'offen' } : entry
+    )),
+    vehicles: vehicles.map((entry) => (
+      entry.id === vehicleId
+        ? { ...entry, status: 'Rückfahrt', rueckfahrt: { von, startAt: jetzt, ankunftAt: jetzt + fahrzeit * 1000 } }
+        : entry
+    )),
+  };
+};
+
+export interface WartendesFahrzeug {
+  vehicleId: string;
+  /** Seit wann es vor Ort steht, ohne dass die Bearbeitung beginnen kann */
+  wartetSeit: number;
+}
+
+export interface WarteLage {
+  wartende: WartendesFahrzeug[];
+  /** Bedarf, für den noch gar nichts alarmiert ist */
+  fehlt: Array<{ category: BedarfsKlasse; anzahl: number }>;
+  /** Gibt es für den fehlenden Bedarf gerade ein freies Fahrzeug? */
+  freiesFahrzeugFuerFehlendes: boolean;
+  /** Ankunft des letzten noch fehlenden Fahrzeugs auf Anfahrt (wenn nichts mehr fehlt) */
+  letzteAnkunftAt?: number;
+}
+
+/**
+ * Warten Fahrzeuge an der Einsatzstelle, weil der Bedarf noch nicht vor Ort ist?
+ * Grundlage für den Hinweis zur Rückalarmierung (z. B. RTW wartet auf ein NEF, das nicht frei ist).
+ */
+export function getWarteLage(einsatz: SpielEinsatz, zustand: AlarmierungsZustand, jetzt: number = Date.now()): WarteLage | null {
+  if (einsatz.status !== 'alarmiert') return null;
+  const aktiv = getAktiveZuteilungen(einsatz);
+  const vorOrt = aktiv.filter((assignment) => assignment.arrivalAt <= jetzt);
+  if (vorOrt.length === 0) return null;
+  const { fehlendAlarmiert } = getEinsatzVersorgung(einsatz, zustand.vehicles, jetzt);
+  const freiesFahrzeugFuerFehlendes = fehlendAlarmiert.length > 0 && getPassendeVerfuegbareFahrzeuge(einsatz, zustand)
+    .some(({ vehicle }) => fehlendAlarmiert.some((bedarf) => fahrzeugErfuelltBedarf(vehicle.type, bedarf.category)));
+  const unterwegs = aktiv.filter((assignment) => assignment.arrivalAt > jetzt);
+  return {
+    wartende: vorOrt.map((assignment) => ({ vehicleId: assignment.vehicleId, wartetSeit: assignment.arrivalAt })),
+    fehlt: fehlendAlarmiert,
+    freiesFahrzeugFuerFehlendes,
+    letzteAnkunftAt: fehlendAlarmiert.length === 0 && unterwegs.length > 0 ? Math.max(...unterwegs.map((a) => a.arrivalAt)) : undefined,
+  };
+}
 
 export interface PassendesFahrzeug {
   vehicle: Vehicle;

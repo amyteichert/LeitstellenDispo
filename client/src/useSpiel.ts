@@ -55,6 +55,7 @@ import {
   type Mitarbeiter,
   type Qualifikation,
   alarmiereFahrzeuge,
+  rueckalarmiereFahrzeug,
   berechneSpielTick,
   createNeuesSpiel,
   erzeugeZufallsEinsatz,
@@ -750,6 +751,13 @@ export function useSpiel(optionen: UseSpielOptionen = {}) {
     if (einsatz && alarmierte.length > 0) setFunk((current) => fuegeFunkHinzu(current, [erzeugeAlarmDurchsage(einsatz, alarmierte, jetzt)]));
   };
 
+  /** Holt ein Fahrzeug vom Einsatz zurück (Rückalarmierung) */
+  const rueckalarmieren = (incidentId: string, vehicleId: string) => {
+    const ergebnis = rueckalarmiereFahrzeug({ incidents, vehicles, locations }, incidentId, vehicleId, Date.now());
+    setIncidents(ergebnis.incidents);
+    setVehicles(ergebnis.vehicles);
+  };
+
   /** Gibt einen Einsatz an die Nachbarleitstelle ab – der nächste Tick lässt die Fahrzeuge einrücken und entfernt ihn. */
   const gibEinsatzAb = (incidentId: string) => {
     const jetzt = Date.now();
@@ -840,6 +848,7 @@ export function useSpiel(optionen: UseSpielOptionen = {}) {
     devLehrgaengeBeenden,
     alarmieren,
     gibEinsatzAb,
+    rueckalarmieren,
     markiereMeldungGelesen,
     neuesSpiel,
   };

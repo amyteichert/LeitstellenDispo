@@ -92,8 +92,8 @@ describe('Erstalarmierung merkt sich das beste freie Fahrzeug', () => {
 describe('Abrechnung mit Ruf', () => {
   it('zahlt immer das Grundgeld und einen Bonus abhängig von Leistung und Ruf', () => {
     const { einsaetze } = rechneEinsaetzeAb([abgeschlossen(60)], 50);
-    // 300 € × 0,8 × 100 % Punkte × Ruf 50 % = 120 €
-    expect(einsaetze[0].bewertung).toMatchObject({ grundgeld: 300, bonus: 120, punkte: 100, rufAenderung: 2 });
+    // 300 € × Bonusanteil × 100 % Punkte × Ruf 50 %
+    expect(einsaetze[0].bewertung).toMatchObject({ grundgeld: 300, bonus: Math.round(300 * RUF_CONFIG.maxBonusAnteil * 0.5), punkte: 100, rufAenderung: 2 });
   });
 
   it('bei Ruf 0 gibt es nur das Grundgeld', () => {

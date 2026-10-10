@@ -116,15 +116,15 @@ const eskaliere = (einsatz: SpielEinsatz, ziel: EinsatzVorlage, text: string, ze
 
 /** Gibt ein Fahrzeug frei: vor Ort von der Einsatzstelle aus, noch auf Anfahrt von seiner aktuellen Position. */
 const gibFrei = (einsatz: SpielEinsatz, vehicleId: string, zeit: number, ctx: TickKontext, von?: Koordinaten): SpielEinsatz => {
-  const assignment = einsatz.alarmedVehicles.find((a) => a.vehicleId === vehicleId);
-  if (!assignment || assignment.freigegebenAt !== undefined) return einsatz;
+  const assignment = getAktiveZuteilungen(einsatz).find((a) => a.vehicleId === vehicleId);
+  if (!assignment) return einsatz;
   const wache = getStationCoords(ctx.vehicles.find((v) => v.id === vehicleId)?.stationId, ctx.locations);
   const position = von
     ?? (assignment.arrivalAt <= zeit || !wache ? einsatz.coords : getPositionAufAnfahrt(wache, einsatz.coords, assignment, zeit));
   ctx.freigaben.push({ vehicleId, von: position, startAt: zeit });
   return {
     ...einsatz,
-    alarmedVehicles: einsatz.alarmedVehicles.map((a) => (a.vehicleId === vehicleId ? { ...a, freigegebenAt: zeit } : a)),
+    alarmedVehicles: einsatz.alarmedVehicles.map((a) => (a === assignment ? { ...a, freigegebenAt: zeit } : a)),
   };
 };
 
@@ -413,7 +413,8 @@ const aktualisiereEinsatz = (incident: SpielEinsatz, ctx: TickKontext): SpielEin
   if (incident.abgegebenAt !== undefined && (incident.status === 'offen' || incident.status === 'alarmiert')) {
     return gibAnNachbarleitstelleAb(incident, ctx);
   }
-  if (incident.status === 'offen' && incident.alarmedVehicles.length === 0) return pruefeUnbearbeitet(incident, ctx);
+  // Offen = niemand (mehr) unterwegs – auch nach einer Rückalarmierung aller Fahrzeuge
+  if (incident.status === 'offen' && getAktiveZuteilungen(incident).length === 0) return pruefeUnbearbeitet(incident, ctx);
 
   let einsatz = incident;
   if (einsatz.status === 'offen') {

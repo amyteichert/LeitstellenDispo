@@ -21,6 +21,7 @@ import {
   getBearbeitungsMs,
 } from '@leitstellendispo/shared';
 import EinsatzAbgabe from './EinsatzAbgabe';
+import Rueckalarmierung from './Rueckalarmierung';
 import type { MapLocation, Vehicle } from '../types';
 
 const formatEtaLabel = (seconds: number) => {
@@ -66,6 +67,7 @@ export default function EinsaetzeView({
   setSelectedIncidentId,
   alarmIncidentVehicles,
   gibEinsatzAb,
+  rueckalarmieren,
   markiereMeldungGelesen,
   triggerTestIncident,
   nowMs,
@@ -83,6 +85,7 @@ export default function EinsaetzeView({
   setSelectedIncidentId: (id: string | null) => void;
   alarmIncidentVehicles: (incidentId: string, selectedVehicleIds: string[]) => void;
   gibEinsatzAb: (incidentId: string) => void;
+  rueckalarmieren: (incidentId: string, vehicleId: string) => void;
   markiereMeldungGelesen: (incidentId: string) => void;
   /** Nur für Team-Rollen gesetzt – ohne wird der Test-Knopf nicht angezeigt */
   triggerTestIncident?: () => void | Promise<void>;
@@ -466,12 +469,12 @@ export default function EinsaetzeView({
                 <h4>Eingesetzte Fahrzeuge</h4>
                 {(
                   <ul className="einsatz-fahrzeuge">
-                    {selectedIncident.alarmedVehicles.map((assignment) => {
+                    {selectedIncident.alarmedVehicles.map((assignment, index) => {
                       const vehicle = vehicles.find((item) => item.id === assignment.vehicleId);
                       const callSign = vehicle?.callsign ?? vehicle?.name ?? 'Fahrzeug';
                       const fms = vehicle?.status ? FMS_STATUS[vehicle.status] : undefined;
                       return (
-                        <li key={assignment.vehicleId}>
+                        <li key={`${assignment.vehicleId}-${index}`}>
                           <strong>{callSign}</strong>
                           {selectedIncident.status !== 'abgeschlossen' && (
                             <span> – {fms !== undefined ? `S${fms} · ` : ''}{beschreibeZuteilung(selectedIncident, assignment, nowMs)}</span>
@@ -481,6 +484,14 @@ export default function EinsaetzeView({
                     })}
                   </ul>
                 )}
+                <Rueckalarmierung
+                  incident={selectedIncident}
+                  incidents={incidents}
+                  vehicles={vehicles}
+                  locations={locations}
+                  nowMs={nowMs}
+                  onRueckalarmieren={(vehicleId) => rueckalarmieren(selectedIncident.id, vehicleId)}
+                />
               </section>
               )}
 

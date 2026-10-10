@@ -17,6 +17,7 @@ import {
 } from '@leitstellendispo/shared';
 import type { MapLocation, Vehicle } from '../types';
 import EinsatzAbgabe from './EinsatzAbgabe';
+import Rueckalarmierung from './Rueckalarmierung';
 
 /** Leiste oben auf der Karte mit allen laufenden Einsätzen. */
 export function KarteEinsatzLeiste({
@@ -67,9 +68,12 @@ export function KarteEinsatzPanel({
   onOpenInEinsaetze,
   onAlarmieren,
   onAbgeben,
+  onRueckalarmieren,
   funk,
   onSprechaufforderung,
 }: {
+  /** Fahrzeug vom Einsatz zurückholen */
+  onRueckalarmieren: (vehicleId: string) => void;
   funk: FunkSpruch[];
   onSprechaufforderung: (sprechwunschId: string) => void;
   incident: SpielEinsatz;
@@ -190,6 +194,14 @@ export function KarteEinsatzPanel({
         <p className="einsatz-eintrag__zeile">Kein freies Fahrzeug für: {formatBedarfsListe(vorschlag.nichtVerfuegbar)}</p>
       )}
       {rueckmeldung && <div className="aktion-rueckmeldung" role="status">{rueckmeldung}</div>}
+      <Rueckalarmierung
+        incident={incident}
+        incidents={incidents}
+        vehicles={vehicles}
+        locations={locations}
+        nowMs={nowMs}
+        onRueckalarmieren={onRueckalarmieren}
+      />
       <EinsatzAbgabe incident={incident} vehicles={vehicles} onAbgeben={onAbgeben} />
 
 

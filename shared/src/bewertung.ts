@@ -19,7 +19,7 @@ export const RUF_CONFIG = {
   /** … ab so vielen Sekunden Umweg keine mehr */
   wahlNullSekunden: 150,
   /** Bonus bei 100 Punkten und Ruf 100 (Anteil am Grundgeld) */
-  maxBonusAnteil: 0.8,
+  maxBonusAnteil: 0.4,
 } as const;
 
 export const RUF_STUFEN: Array<{ ab: number; label: string }> = [

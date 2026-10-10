@@ -2574,3 +2574,20 @@
 /* Einsatzliste: Bedarf als kleine Chips statt langer Textzeile */
 .einsatz-eintrag__bedarf { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; }
 .bedarf-chip--klein { padding: 1px 6px; font-size: 0.72rem; border-radius: 6px; }
+
+/* Rückalarmierung: Fahrzeuge vom Einsatz zurückholen */
+.rueckalarmierung { display: grid; gap: 6px; margin: 8px 0; }
+.rueckalarmierung__knoepfe { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+.rueckalarmierung__knoepfe small { flex-basis: 100%; }
+.rueckalarmierung__aufklapper {
+  justify-self: start;
+  background: none;
+  border: none;
+  padding: 2px 0;
+  color: inherit;
+  opacity: 0.75;
+  font: inherit;
+  font-size: 0.9em;
+  cursor: pointer;
+}
+.rueckalarmierung__aufklapper:hover { opacity: 1; text-decoration: underline; }

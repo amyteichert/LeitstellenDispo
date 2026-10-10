@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { GAME_CONFIG } from './konfig.js';
-import { alarmiereFahrzeuge } from './alarmierung.js';
+import { alarmiereFahrzeuge, getWarteLage, rueckalarmiereFahrzeug } from './alarmierung.js';
+import { getAktiveZuteilungen } from './daten.js';
 import { getFahrzeugGeschwindigkeit } from './fahrzeuge.js';
 import { getFahrzeitSekunden } from './geo.js';
 import { T0, einsatz, fahrzeug, wache } from './testHilfen.js';
@@ -79,5 +80,37 @@ describe('alarmiereFahrzeuge – belegte Fahrzeuge', () => {
       T0 + 1000,
     );
     expect(zweit.incidents[1].alarmedVehicles).toHaveLength(0);
+  });
+});
+
+describe('rueckalarmiereFahrzeug', () => {
+  it('holt ein Fahrzeug vor Ort zurück – Einsatz wird wieder offen, Fahrzeug fährt von dort heim', () => {
+    const e = einsatz('sturz');
+    const alarmiert = alarmiereFahrzeuge({ incidents: [e], vehicles: [fahrzeug('rtw', 'RTW')], locations }, e.id, ['rtw'], T0);
+    const ankunft = alarmiert.incidents[0].alarmedVehicles[0].arrivalAt;
+    const zurueck = rueckalarmiereFahrzeug({ ...alarmiert, locations }, e.id, 'rtw', ankunft + 60_000);
+    expect(zurueck.incidents[0].status).toBe('offen');
+    expect(zurueck.incidents[0].alarmedVehicles[0].freigegebenAt).toBe(ankunft + 60_000);
+    expect(zurueck.vehicles[0].status).toBe('Rückfahrt');
+    expect(zurueck.vehicles[0].rueckfahrt?.von).toEqual(e.coords);
+  });
+
+  it('erlaubt die erneute Alarmierung desselben Fahrzeugs', () => {
+    const e = einsatz('sturz');
+    const alarmiert = alarmiereFahrzeuge({ incidents: [e], vehicles: [fahrzeug('rtw', 'RTW')], locations }, e.id, ['rtw'], T0);
+    const zurueck = rueckalarmiereFahrzeug({ ...alarmiert, locations }, e.id, 'rtw', T0 + 10_000);
+    const wieder = alarmiereFahrzeuge({ ...zurueck, locations }, e.id, ['rtw'], T0 + 20_000);
+    expect(getAktiveZuteilungen(wieder.incidents[0])).toHaveLength(1);
+    expect(wieder.vehicles[0].status).toBe('Alarmiert / auf Anfahrt');
+  });
+
+  it('meldet wartende Fahrzeuge, wenn Bedarf fehlt und nichts frei ist', () => {
+    const e = einsatz('reanimation');
+    const alarmiert = alarmiereFahrzeuge({ incidents: [e], vehicles: [fahrzeug('rtw', 'RTW')], locations }, e.id, ['rtw'], T0);
+    const spaeter = alarmiert.incidents[0].alarmedVehicles[0].arrivalAt + 1000;
+    const lage = getWarteLage(alarmiert.incidents[0], { ...alarmiert, locations }, spaeter);
+    expect(lage?.wartende.map((w) => w.vehicleId)).toEqual(['rtw']);
+    expect(lage?.fehlt.length).toBeGreaterThan(0);
+    expect(lage?.freiesFahrzeugFuerFehlendes).toBe(false);
   });
 });
