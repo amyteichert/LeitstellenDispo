@@ -18,6 +18,8 @@ export const GAME_CONFIG = {
   transportVerguetung: 120,
   /** Bis die Besatzung im Fahrzeug sitzt und losfährt (Sekunden) */
   ausrueckzeitSekunden: { Rettungsdienst: 30, Feuerwehr: 60 },
+  /** Straßenweg ≈ Luftlinie × Faktor (typischer Wert für Stadt und Land) */
+  strassenUmwegFaktor: 1.35,
   /** Die Arbeit vor Ort dauert so viel länger als die Vorlage angibt (realistischeres Tempo) */
   bearbeitungsFaktor: 4,
 };

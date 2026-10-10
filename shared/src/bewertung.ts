@@ -10,10 +10,10 @@ export const RUF_CONFIG = {
   start: 50,
   min: 0,
   max: 100,
-  /** Bis zu dieser Anfahrtszeit gibt es volle Punkte … */
-  anfahrtVollSekunden: 120,
+  /** Bis zu dieser Anfahrtszeit gibt es volle Punkte (übliche Hilfsfrist: 8 Minuten) … */
+  anfahrtVollSekunden: 480,
   /** … ab dieser keine mehr (dazwischen linear) */
-  anfahrtNullSekunden: 420,
+  anfahrtNullSekunden: 1080,
   /** Fahrzeugwahl: bis so viele Sekunden langsamer als das beste freie Fahrzeug gibt es volle Punkte … */
   wahlToleranzSekunden: 15,
   /** … ab so vielen Sekunden Umweg keine mehr */

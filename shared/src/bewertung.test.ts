@@ -20,7 +20,7 @@ describe('Punkte', () => {
   it('Hilfsfrist: volle Punkte bei schneller Anfahrt, keine bei sehr langer, dazwischen linear', () => {
     expect(getFristPunkte(60)).toBe(50);
     expect(getFristPunkte(RUF_CONFIG.anfahrtVollSekunden)).toBe(50);
-    expect(getFristPunkte(270)).toBe(25);
+    expect(getFristPunkte(780)).toBe(25);
     expect(getFristPunkte(RUF_CONFIG.anfahrtNullSekunden)).toBe(0);
   });
 
@@ -32,12 +32,12 @@ describe('Punkte', () => {
   });
 
   it('weit entfernter Einsatz mit dem nächsten Fahrzeug: volle Wahlpunkte, aber Abzug bei der Hilfsfrist', () => {
-    const e = { ...abgeschlossen(300), besteAnfahrtSekunden: 300 };
+    const e = { ...abgeschlossen(840), besteAnfahrtSekunden: 840 };
     expect(rechneEinsaetzeAb([e], 50).einsaetze[0].bewertung).toMatchObject({ wahlPunkte: 50, fristPunkte: 20, punkte: 70 });
   });
 
   it('nahes Fahrzeug übersehen: Abzug bei der Fahrzeugwahl', () => {
-    const e = { ...abgeschlossen(200), besteAnfahrtSekunden: 40 };
+    const e = { ...abgeschlossen(640), besteAnfahrtSekunden: 40 };
     expect(rechneEinsaetzeAb([e], 50).einsaetze[0].bewertung).toMatchObject({ wahlPunkte: 0, fristPunkte: 37 });
   });
 });
@@ -46,15 +46,15 @@ describe('Fehlerübersicht', () => {
   const hinweise = (e: AbgeschlossenerSpielEinsatz) => getBewertungsHinweise(rechneEinsaetzeAb([e], 50).einsaetze[0].bewertung!);
 
   it('nennt ein übersehenes nahes Fahrzeug und die überschrittene Hilfsfrist', () => {
-    const texte = hinweise({ ...abgeschlossen(200), besteAnfahrtSekunden: 40 });
+    const texte = hinweise({ ...abgeschlossen(640), besteAnfahrtSekunden: 40 });
     expect(texte.filter((h) => h.art === 'fehler').map((h) => h.text)).toEqual([
-      'Nicht das nächste freie Fahrzeug geschickt: 2:40 Min. langsamer als möglich (3:20 Min. statt 0:40 Min.).',
-      'Hilfsfrist überschritten: Anfahrt 3:20 Min. (volle Punkte bis 2:00 Min.).',
+      'Nicht das nächste freie Fahrzeug geschickt: 10:00 Min. langsamer als möglich (10:40 Min. statt 0:40 Min.).',
+      'Hilfsfrist überschritten: Anfahrt 10:40 Min. (volle Punkte bis 8:00 Min.).',
     ]);
   });
 
   it('schlägt eine neue Wache vor, wenn schon das beste Fahrzeug zu weit weg war', () => {
-    const texte = hinweise({ ...abgeschlossen(300), besteAnfahrtSekunden: 300 });
+    const texte = hinweise({ ...abgeschlossen(840), besteAnfahrtSekunden: 840 });
     expect(texte[0]).toEqual({ art: 'gut', text: 'Nächstes freies Fahrzeug gewählt.' });
     expect(texte[1].text).toContain('neue Wache');
   });
@@ -108,7 +108,7 @@ describe('Abrechnung mit Ruf', () => {
   });
 
   it('lange Anfahrt mit falschem Fahrzeug senkt den Ruf, der Ruf bleibt zwischen 0 und 100', () => {
-    const schlecht = { ...abgeschlossen(500), besteAnfahrtSekunden: 60 };
+    const schlecht = { ...abgeschlossen(1100), besteAnfahrtSekunden: 60 };
     expect(rechneEinsaetzeAb([schlecht], 50).ruf).toBe(48);
     expect(rechneEinsaetzeAb([schlecht], 1).ruf).toBe(0);
     expect(rechneEinsaetzeAb([abgeschlossen(60)], 99).ruf).toBe(100);

@@ -18,11 +18,11 @@ export const haversineKm = (from: Koordinaten, to: Koordinaten) => {
 };
 
 /**
- * Fahrzeit in Sekunden auf der Luftlinie (später durch echtes Straßen-Routing ersetzen).
- * Ohne Geschwindigkeit gilt der Durchschnittswert aus der Konfiguration.
+ * Fahrzeit in Sekunden. Straßen sind im Schnitt deutlich länger als die Luftlinie – daher der Umwegfaktor
+ * (später durch echtes Straßen-Routing ersetzbar). Ohne Geschwindigkeit gilt der Durchschnittswert.
  */
 export const getFahrzeitSekunden = (from: Koordinaten, to: Koordinaten, geschwindigkeitKmh: number = GAME_CONFIG.averageSpeedKmh) =>
-  Math.max(1, Math.round((haversineKm(from, to) / geschwindigkeitKmh) * 3600));
+  Math.max(1, Math.round(((haversineKm(from, to) * GAME_CONFIG.strassenUmwegFaktor) / geschwindigkeitKmh) * 3600));
 
 export const getStationCoords = (stationId: string | undefined, locations: MapLocation[]): Koordinaten | null => {
   if (!stationId) return null;
