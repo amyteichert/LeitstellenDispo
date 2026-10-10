@@ -2553,22 +2553,19 @@
 .sitzplatz__raus:hover:not(:disabled) { background: var(--color-surface-raised); color: var(--color-text); }
 .sitzplatz--frei { place-items: center; padding: 6px; border-style: dashed; color: var(--color-text-muted); background: transparent; }
 
-/* Personal einer Wache: eine Zeile je Person */
-.personal-liste { list-style: none; display: grid; gap: 6px; }
+/* Personal einer Wache: eine Zeile je Person – links Name/Qualifikation, rechts Einteilung/Aktionen */
+.personal-liste { list-style: none; display: grid; }
 .personal-liste li {
-  display: grid;
-  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) auto;
+  display: flex;
+  justify-content: space-between;
   align-items: center;
-  gap: 10px;
-  padding: 8px 10px;
-  border-radius: 8px;
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
+  gap: 12px;
+  padding: 10px 2px;
+  border-bottom: 1px solid var(--color-border);
 }
-.personal-liste__name { display: grid; gap: 2px; min-width: 0; }
-.personal-liste__ort { font-size: 0.85rem; color: var(--color-text-muted); }
+.personal-liste li:last-child { border-bottom: none; }
+.personal-liste__name { display: grid; gap: 3px; min-width: 0; }
+.personal-liste__rechts { display: grid; gap: 4px; justify-items: end; text-align: right; flex-shrink: 0; }
+.personal-liste__ort { font-size: 0.85rem; color: var(--color-text-muted); white-space: nowrap; }
 .personal-liste__aktionen { display: flex; gap: 6px; align-items: center; }
-.personal-liste__aktionen select { padding: 0.4rem 0.6rem; min-width: 130px; }
-@media (max-width: 640px) {
-  .personal-liste li { grid-template-columns: 1fr; gap: 6px; }
-}
+.personal-liste__aktionen select { padding: 0.35rem 0.5rem; min-width: 120px; max-width: 46vw; }

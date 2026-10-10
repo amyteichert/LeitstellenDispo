@@ -147,44 +147,46 @@ export default function PersonalReiter({
                     <strong>{person.name}</strong>
                     <small><QualiChips qualifikationen={person.qualifikationen} /></small>
                   </span>
-                  <span className="personal-liste__ort">
-                    {lehrgang
-                      ? `📚 Lehrgang bis ${formatZeitpunkt(person.inAusbildungBis!)}`
-                      : fahrzeug ? `🚒 ${fahrzeug.callsign ?? fahrzeug.name}${kannUmbesetzen(fahrzeug) ? '' : ' (unterwegs)'}` : '🛋️ Ohne Fahrzeug'}
-                  </span>
-                  <span className="personal-liste__aktionen">
-                    <label className="field" style={{ margin: 0 }}>
-                      <select
-                        value={person.fahrzeugId ?? ''}
+                  <span className="personal-liste__rechts">
+                    <span className="personal-liste__ort">
+                      {lehrgang
+                        ? `📚 Lehrgang bis ${formatZeitpunkt(person.inAusbildungBis!)}`
+                        : fahrzeug ? `🚒 ${fahrzeug.callsign ?? fahrzeug.name}${kannUmbesetzen(fahrzeug) ? '' : ' (unterwegs)'}` : '🛋️ Ohne Fahrzeug'}
+                    </span>
+                    <span className="personal-liste__aktionen">
+                      <label className="field" style={{ margin: 0 }}>
+                        <select
+                          value={person.fahrzeugId ?? ''}
+                          disabled={gesperrt}
+                          aria-label={`Einteilung von ${person.name}`}
+                          onChange={(event) => {
+                            const ziel = fahrzeuge.find((f) => f.id === event.target.value);
+                            melde(weisePersonalZu(person.id, ziel?.id), ziel ? `✓ ${person.name} → ${ziel.callsign ?? ziel.name}.` : `✓ ${person.name} ist jetzt ohne Fahrzeug.`);
+                          }}
+                        >
+                          <option value="">Ohne Fahrzeug</option>
+                          {fahrzeuge.map((f) => (
+                            <option key={f.id} value={f.id}>
+                              {f.callsign ?? f.name} ({personal.filter((p) => p.fahrzeugId === f.id).length}/{getFahrzeugTyp(f.type)?.besatzung ?? 0})
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                      <button
+                        type="button"
+                        className="btn btn--klein"
                         disabled={gesperrt}
-                        aria-label={`Einteilung von ${person.name}`}
-                        onChange={(event) => {
-                          const ziel = fahrzeuge.find((f) => f.id === event.target.value);
-                          melde(weisePersonalZu(person.id, ziel?.id), ziel ? `✓ ${person.name} → ${ziel.callsign ?? ziel.name}.` : `✓ ${person.name} ist jetzt ohne Fahrzeug.`);
+                        title="Entlassen"
+                        aria-label={`${person.name} entlassen`}
+                        onClick={() => {
+                          if (window.confirm(`${person.name} wirklich entlassen? Die Einstellungskosten werden nicht erstattet.`)) {
+                            melde(entlassePersonal(person.id), `${person.name} wurde entlassen.`);
+                          }
                         }}
                       >
-                        <option value="">Ohne Fahrzeug</option>
-                        {fahrzeuge.map((f) => (
-                          <option key={f.id} value={f.id}>
-                            {f.callsign ?? f.name} ({personal.filter((p) => p.fahrzeugId === f.id).length}/{getFahrzeugTyp(f.type)?.besatzung ?? 0})
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                    <button
-                      type="button"
-                      className="btn btn--klein"
-                      disabled={gesperrt}
-                      title="Entlassen"
-                      aria-label={`${person.name} entlassen`}
-                      onClick={() => {
-                        if (window.confirm(`${person.name} wirklich entlassen? Die Einstellungskosten werden nicht erstattet.`)) {
-                          melde(entlassePersonal(person.id), `${person.name} wurde entlassen.`);
-                        }
-                      }}
-                    >
-                      🗑️
-                    </button>
+                        🗑️
+                      </button>
+                    </span>
                   </span>
                 </li>
               );
