@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import {
   QUALIFIKATION_LABELS,
   ZUFRIEDENHEIT_CONFIG,
@@ -5,7 +6,6 @@ import {
   getNeuWuerfelnAb,
   type Kuendigung,
   getFahrzeugTyp,
-  getFehlendeQualifikationen,
   getPersonalLimit,
   istInAusbildung,
   kannUmbesetzen,
@@ -24,6 +24,14 @@ export const QualiChips = ({ qualifikationen }: { qualifikationen: Qualifikation
     : <>{qualifikationen.map((q) => <span key={q} className="quali-chip">{QUALIFIKATION_LABELS[q]}</span>)}</>
 );
 
+type Filter = 'alle' | 'reserve' | 'fahrzeug' | 'lehrgang';
+const FILTER: Array<{ id: Filter; text: string; passt: (person: Mitarbeiter) => boolean }> = [
+  { id: 'alle', text: 'Alle', passt: () => true },
+  { id: 'reserve', text: 'Reserve', passt: (p) => !p.fahrzeugId && !istInAusbildung(p) },
+  { id: 'fahrzeug', text: 'Auf Fahrzeug', passt: (p) => Boolean(p.fahrzeugId) && !istInAusbildung(p) },
+  { id: 'lehrgang', text: 'Im Lehrgang', passt: istInAusbildung },
+];
+
 const formatZeitpunkt = (zeit: number) =>
   new Date(zeit).toLocaleString('de-DE', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
 
@@ -40,7 +48,6 @@ export default function PersonalReiter({
   wuerfleBewerberNeu,
   entlassePersonal,
   weisePersonalZu,
-  besetzeFahrzeugAutomatisch,
 }: {
   wache: MapLocation;
   fahrzeuge: Vehicle[];
@@ -67,7 +74,8 @@ export default function PersonalReiter({
   const limit = getPersonalLimit(wache);
   const voll = personal.length >= limit;
   const reserve = personal.filter((person) => !person.fahrzeugId && !istInAusbildung(person));
-  const imLehrgang = personal.filter(istInAusbildung);
+  const [filter, setFilter] = useState<Filter>('alle');
+  const gefiltert = personal.filter(FILTER.find((f) => f.id === filter)!.passt);
 
   const melde = (fehler: string | null, ok: string) => onMeldung(fehler ? { art: 'fehler', text: fehler } : { art: 'ok', text: ok });
 
@@ -110,127 +118,80 @@ export default function PersonalReiter({
       )}
 
       <section className="einsatz-abschnitt">
-        <h4>Besatzung der Fahrzeuge</h4>
-        {fahrzeuge.length === 0 && <p className="einsatz-eintrag__zeile">Noch keine Fahrzeuge an dieser Wache.</p>}
-        <div className="besatzung-raster">
-          {fahrzeuge.map((fahrzeug) => {
-            const typ = getFahrzeugTyp(fahrzeug.type);
-            const soll = typ?.besatzung ?? 0;
-            const besatzung = personal.filter((person) => person.fahrzeugId === fahrzeug.id);
-            const fehlend = getFehlendeQualifikationen(fahrzeug.type, besatzung);
-            const einsatzbereit = besatzung.length >= soll && fehlend.length === 0;
-            const umbesetzbar = kannUmbesetzen(fahrzeug);
-            return (
-              <article key={fahrzeug.id} className={`besatzung-karte ${einsatzbereit ? '' : 'besatzung-karte--fehlt'}`}>
-                <div className="besatzung-karte__kopf">
-                  <strong>{fahrzeug.callsign ?? fahrzeug.name}</strong>
-                  <span>{besatzung.length} / {soll}</span>
-                </div>
-                {typ?.pflichtQualifikationen?.map((pflicht) => (
-                  <small key={pflicht} className={fehlend.includes(pflicht) ? 'ruf-minus' : 'ruf-plus'}>
-                    {fehlend.includes(pflicht) ? '✗' : '✓'} {QUALIFIKATION_LABELS[pflicht]}
-                  </small>
-                ))}
-                {!einsatzbereit && (
-                  <small className="ruf-minus">
-                    Nicht alarmierbar:{' '}
-                    {[
-                      besatzung.length < soll && `${soll - besatzung.length} Person(en) fehlen`,
-                      fehlend.length > 0 && `${fehlend.map((q) => QUALIFIKATION_LABELS[q]).join(', ')} fehlt`,
-                    ].filter(Boolean).join(', ')}
-                  </small>
-                )}
-                {!umbesetzbar && <small>Unterwegs – Umbesetzen erst nach der Rückkehr.</small>}
-                <ul className="besatzung-liste">
-                  {besatzung.map((person) => (
-                    <li key={person.id}>
-                      <span>{person.name} <QualiChips qualifikationen={person.qualifikationen} /></span>
-                      <button
-                        type="button"
-                        className="btn"
-                        disabled={!umbesetzbar}
-                        title="In die Reserve"
-                        onClick={() => melde(weisePersonalZu(person.id), `✓ ${person.name} ist in der Reserve.`)}
-                      >
-                        ↓ Reserve
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-                {besatzung.length < soll || fehlend.length > 0 ? (
-                  <button
-                    type="button"
-                    className="btn btn--secondary"
-                    disabled={!umbesetzbar || reserve.length === 0}
-                    onClick={() => melde(besetzeFahrzeugAutomatisch(fahrzeug.id), `✓ ${fahrzeug.callsign ?? fahrzeug.name} mit Reserve besetzt.`)}
-                  >
-                    Automatisch besetzen
-                  </button>
-                ) : null}
-              </article>
-            );
-          })}
+        <h4>Personal der Wache ({personal.length})</h4>
+        <div className="verwalten-reiter" role="tablist" aria-label="Personal filtern">
+          {FILTER.map((f) => (
+            <button
+              key={f.id}
+              type="button"
+              role="tab"
+              aria-selected={filter === f.id}
+              className={`btn ${filter === f.id ? 'btn--primary' : ''}`}
+              onClick={() => setFilter(f.id)}
+            >
+              {f.text} ({personal.filter(f.passt).length})
+            </button>
+          ))}
         </div>
-      </section>
-
-      <section className="einsatz-abschnitt">
-        <h4>Reserve ({reserve.length})</h4>
-        {reserve.length === 0 ? (
-          <p className="einsatz-eintrag__zeile">Alle sind einem Fahrzeug zugewiesen.</p>
+        {gefiltert.length === 0 ? (
+          <p className="einsatz-eintrag__zeile">Hier ist gerade niemand.</p>
         ) : (
-          <ul className="besatzung-liste">
-            {reserve.map((person) => (
-              <li key={person.id}>
-                <span>{person.name} <QualiChips qualifikationen={person.qualifikationen} /></span>
-                <span style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                  <label className="field" style={{ margin: 0 }}>
-                    <select
-                      value=""
-                      aria-label={`${person.name} einem Fahrzeug zuweisen`}
-                      onChange={(event) => {
-                        const ziel = fahrzeuge.find((f) => f.id === event.target.value);
-                        if (ziel) melde(weisePersonalZu(person.id, ziel.id), `✓ ${person.name} → ${ziel.callsign ?? ziel.name}.`);
+          <ul className="personal-liste">
+            {gefiltert.map((person) => {
+              const fahrzeug = fahrzeuge.find((f) => f.id === person.fahrzeugId);
+              const lehrgang = istInAusbildung(person);
+              const gesperrt = lehrgang || (fahrzeug !== undefined && !kannUmbesetzen(fahrzeug));
+              return (
+                <li key={person.id}>
+                  <span className="personal-liste__name">
+                    <strong>{person.name}</strong>
+                    <small><QualiChips qualifikationen={person.qualifikationen} /></small>
+                  </span>
+                  <span className="personal-liste__ort">
+                    {lehrgang
+                      ? `📚 Lehrgang bis ${formatZeitpunkt(person.inAusbildungBis!)}`
+                      : fahrzeug ? `🚒 ${fahrzeug.callsign ?? fahrzeug.name}${kannUmbesetzen(fahrzeug) ? '' : ' (unterwegs)'}` : '🛋️ Reserve'}
+                  </span>
+                  <span className="personal-liste__aktionen">
+                    <label className="field" style={{ margin: 0 }}>
+                      <select
+                        value={person.fahrzeugId ?? ''}
+                        disabled={gesperrt}
+                        aria-label={`Einteilung von ${person.name}`}
+                        onChange={(event) => {
+                          const ziel = fahrzeuge.find((f) => f.id === event.target.value);
+                          melde(weisePersonalZu(person.id, ziel?.id), ziel ? `✓ ${person.name} → ${ziel.callsign ?? ziel.name}.` : `✓ ${person.name} ist in der Reserve.`);
+                        }}
+                      >
+                        <option value="">Reserve</option>
+                        {fahrzeuge.map((f) => (
+                          <option key={f.id} value={f.id}>
+                            {f.callsign ?? f.name} ({personal.filter((p) => p.fahrzeugId === f.id).length}/{getFahrzeugTyp(f.type)?.besatzung ?? 0})
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <button
+                      type="button"
+                      className="btn btn--klein"
+                      disabled={gesperrt}
+                      title="Entlassen"
+                      aria-label={`${person.name} entlassen`}
+                      onClick={() => {
+                        if (window.confirm(`${person.name} wirklich entlassen? Die Einstellungskosten werden nicht erstattet.`)) {
+                          melde(entlassePersonal(person.id), `${person.name} wurde entlassen.`);
+                        }
                       }}
                     >
-                      <option value="">Zuweisen …</option>
-                      {fahrzeuge.map((f) => (
-                        <option key={f.id} value={f.id}>
-                          {f.callsign ?? f.name} ({personal.filter((p) => p.fahrzeugId === f.id).length}/{getFahrzeugTyp(f.type)?.besatzung ?? 0})
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                  <button
-                    type="button"
-                    className="btn"
-                    onClick={() => {
-                      if (window.confirm(`${person.name} wirklich entlassen? Die Einstellungskosten werden nicht erstattet.`)) {
-                        melde(entlassePersonal(person.id), `${person.name} wurde entlassen.`);
-                      }
-                    }}
-                  >
-                    Entlassen
-                  </button>
-                </span>
-              </li>
-            ))}
+                      🗑️
+                    </button>
+                  </span>
+                </li>
+              );
+            })}
           </ul>
         )}
       </section>
-
-      {imLehrgang.length > 0 && (
-        <section className="einsatz-abschnitt">
-          <h4>Auf Lehrgang ({imLehrgang.length})</h4>
-          <ul className="besatzung-liste">
-            {imLehrgang.map((person) => (
-              <li key={person.id}>
-                <span>📚 {person.name} <QualiChips qualifikationen={person.qualifikationen} /></span>
-                <small>zurück am {new Date(person.inAusbildungBis!).toLocaleString('de-DE', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</small>
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
 
       <section className="einsatz-abschnitt">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
