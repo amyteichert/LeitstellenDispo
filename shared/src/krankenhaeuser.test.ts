@@ -53,7 +53,7 @@ describe('Fachrichtungen und eigene Krankenhäuser', () => {
   });
 
   it('Bau und Fachrichtungen brauchen Wachen, Ruf und Geld', () => {
-    expect(pruefeKrankenhausBau(2, 90, 9e6)).toMatch(/3 Wachen/);
+    expect(pruefeKrankenhausBau(2, 90, 9e6)).toMatch(/3 Rettungswachen/);
     expect(pruefeKrankenhausBau(3, 40, 9e6)).toMatch(/Ruf/);
     expect(pruefeKrankenhausBau(3, 60, 1000)).toMatch(/Guthaben/);
     expect(pruefeKrankenhausBau(3, 60, 9e6)).toBeNull();

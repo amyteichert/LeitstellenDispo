@@ -56,6 +56,7 @@ import {
   type Qualifikation,
   alarmiereFahrzeuge,
   rueckalarmiereFahrzeug,
+  zaehleRettungswachen,
   berechneSpielTick,
   createNeuesSpiel,
   erzeugeZufallsEinsatz,
@@ -457,8 +458,7 @@ export function useSpiel(optionen: UseSpielOptionen = {}) {
   /** Baut eine neue Wache mit Startfahrzeug. Gibt die neue Wachen-ID oder eine Fehlermeldung zurück. */
   /** Eigenes Krankenhaus bauen (Voraussetzungen: Wachen, Ruf, Geld) */
   const baueKrankenhaus = (name: string, coords: [number, number], adresse?: Adresse): string | null => {
-    const wachen = locations.filter((location) => location.type === 'station').length;
-    const grund = pruefeKrankenhausBau(wachen, ruf, balance);
+    const grund = pruefeKrankenhausBau(zaehleRettungswachen(locations), ruf, balance);
     if (grund) return grund;
     const ort = adresse ?? { strasse: 'Klinikstraße', plz: '', ort: name };
     setKrankenhaeuser((current) => [...current, {

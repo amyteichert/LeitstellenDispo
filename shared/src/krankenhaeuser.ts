@@ -224,10 +224,14 @@ export function findeVerlegungen(krankenhaeuser: Krankenhaus[], jetzt: number = 
       .map((fachrichtung) => ({ von, nach, fachrichtung }))));
 }
 
-/** Darf ein eigenes Krankenhaus gebaut werden? Gibt den Grund zurück, wenn nicht. */
-export function pruefeKrankenhausBau(wachen: number, ruf: number, guthaben: number): string | null {
+/** Für Krankenhäuser zählen nur Rettungswachen – Feuerwachen bringen keine Patienten. */
+export const zaehleRettungswachen = (locations: Array<{ type: string; stationKind?: string }>): number =>
+  locations.filter((location) => location.type === 'station' && location.stationKind === 'Rettungswache').length;
+
+/** Darf ein eigenes Krankenhaus gebaut werden? `rettungswachen` = Anzahl Rettungswachen. Gibt den Grund zurück, wenn nicht. */
+export function pruefeKrankenhausBau(rettungswachen: number, ruf: number, guthaben: number): string | null {
   const k = EIGENES_KRANKENHAUS;
-  if (wachen < k.abWachen) return `Erst ab ${k.abWachen} Wachen (du hast ${wachen}).`;
+  if (rettungswachen < k.abWachen) return `Erst ab ${k.abWachen} Rettungswachen (du hast ${rettungswachen}) – Feuerwachen zählen nicht.`;
   if (ruf < k.abRuf) return `Erst ab Ruf ${k.abRuf} (aktuell ${ruf}).`;
   if (guthaben < k.preis) return `Nicht genug Guthaben (${k.preis.toLocaleString('de-DE')} € nötig).`;
   return null;

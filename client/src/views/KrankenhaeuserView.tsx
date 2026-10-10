@@ -23,6 +23,7 @@ import {
   pruefePflegekraft,
   pruefeFachrichtung,
   pruefeKrankenhausBau,
+  zaehleRettungswachen,
   type Fachrichtung,
   type Krankenhaus,
   type MapLocation,
@@ -60,7 +61,7 @@ export default function KrankenhaeuserView({ krankenhaeuser, wachen, ruf, balanc
   const [coords, setCoords] = useState<[number, number] | null>(null);
   const [meldung, setMeldung] = useState<{ art: 'ok' | 'fehler'; text: string } | null>(null);
 
-  const bauGrund = pruefeKrankenhausBau(wachen.length, ruf, balance);
+  const bauGrund = pruefeKrankenhausBau(zaehleRettungswachen(wachen), ruf, balance);
   // Nur Häuser in der Nähe der eigenen Wachen zeigen (eigene immer)
   const relevant = krankenhaeuser
     .filter((kh) => kh.eigen || wachen.some((wache) => haversineKm(wache.coords, kh.coords) <= 50))
@@ -93,7 +94,8 @@ export default function KrankenhaeuserView({ krankenhaeuser, wachen, ruf, balanc
         Patienten mit Fachbedarf (Herzinfarkt, Schlaganfall, Unfall) fahren ins nächste passende Haus – bis 40 km.
         Ohne Krankenhaus im Umkreis von 50 km werden Patienten vor Ort versorgt. Eigene Häuser bringen
         {' '}extra Geld je Patient – je besser ihr Ruf, desto mehr.
-        {bauGrund && <> <strong>Bauen: {bauGrund}</strong> (ab {EIGENES_KRANKENHAUS.abWachen} Wachen, Ruf {EIGENES_KRANKENHAUS.abRuf}, {euro(EIGENES_KRANKENHAUS.preis)})</>}
+        {' '}ℹ️ Für den Bau zählen nur <strong>Rettungswachen</strong>, Feuerwachen nicht.
+        {bauGrund && <> <strong>Bauen: {bauGrund}</strong> (ab {EIGENES_KRANKENHAUS.abWachen} Rettungswachen, Ruf {EIGENES_KRANKENHAUS.abRuf}, {euro(EIGENES_KRANKENHAUS.preis)})</>}
       </p>
 
       {meldung && (
