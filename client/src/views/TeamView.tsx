@@ -3,9 +3,9 @@ import {
   ANKUENDIGUNG_MAX_LAENGE,
   NOTIZ_MAX_LAENGE,
   ROLLEN_LABELS,
-  VERGEBBARE_ROLLEN,
   darfKontoVerwalten,
   darfRolleVergeben,
+  getVergebbareRollen,
   type Ankuendigung,
   type AnkuendigungsArt,
   type Konto,
@@ -165,7 +165,8 @@ function KontoZeile({ konto, ich, offen, umschalten, melde, ersetze, entferne }:
   const [stand, setStand] = useState<SpielstandZusammenfassung | null | undefined>(undefined);
   const [passwortLink, setPasswortLink] = useState<string | null>(null);
   const verwaltbar = darfKontoVerwalten(ich, konto);
-  const rollenVergabe = ich.rolle === 'owner' && ich.id !== konto.id;
+  const vergebbar = getVergebbareRollen(ich);
+  const rollenVergabe = vergebbar.some((rolle) => darfRolleVergeben(ich, konto, rolle));
 
   useEffect(() => {
     if (offen && stand === undefined) teamApi.spielstand(konto.id).then(setStand).catch((e) => melde('fehler', fehlerText(e)));
@@ -235,7 +236,7 @@ function KontoZeile({ konto, ich, offen, umschalten, melde, ersetze, entferne }:
                     void aktion(async () => ersetze(await teamApi.rolle(konto.id, rolle)), `${konto.name} ist jetzt ${ROLLEN_LABELS[rolle]}.`);
                   }}
                 >
-                  {(konto.rolle === 'owner' ? ['owner' as UserRole] : VERGEBBARE_ROLLEN).map((r) => <option key={r} value={r}>{ROLLEN_LABELS[r]}</option>)}
+                  {vergebbar.map((r) => <option key={r} value={r}>{ROLLEN_LABELS[r]}</option>)}
                 </select>
               </label>
             )}

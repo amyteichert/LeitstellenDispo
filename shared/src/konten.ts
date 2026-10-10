@@ -101,10 +101,20 @@ export function darfKontoVerwalten(handelnd: Pick<Konto, 'id' | 'rolle'>, ziel: 
   return handelnd.id !== ziel.id && istTeamRolle(handelnd.rolle) && ROLLEN_RANG[handelnd.rolle] > ROLLEN_RANG[ziel.rolle];
 }
 
-/** Rollen vergibt nur der Owner – nicht an sich selbst und nie die Owner-Rolle. */
-export function darfRolleVergeben(handelnd: Pick<Konto, 'id' | 'rolle'>, ziel: Pick<Konto, 'id'>, neueRolle: UserRole): boolean {
-  return handelnd.rolle === 'owner' && handelnd.id !== ziel.id && VERGEBBARE_ROLLEN.includes(neueRolle);
+/**
+ * Rollen vergeben Owner und Co-Owner – nur an Konten mit niedrigerem Rang und nur Rollen unter dem eigenen Rang.
+ * Der Owner ernennt also Co-Owner, der Co-Owner nur Admins und Spieler. Nie an sich selbst, nie die Owner-Rolle.
+ */
+export function darfRolleVergeben(handelnd: Pick<Konto, 'id' | 'rolle'>, ziel: Pick<Konto, 'id' | 'rolle'>, neueRolle: UserRole): boolean {
+  return ROLLEN_RANG[handelnd.rolle] >= ROLLEN_RANG.co_owner
+    && darfKontoVerwalten(handelnd, ziel)
+    && VERGEBBARE_ROLLEN.includes(neueRolle)
+    && ROLLEN_RANG[neueRolle] < ROLLEN_RANG[handelnd.rolle];
 }
+
+/** Rollen, die `handelnd` überhaupt vergeben darf (für die Auswahl im Team-Bereich). */
+export const getVergebbareRollen = (handelnd: Pick<Konto, 'rolle'>): UserRole[] =>
+  VERGEBBARE_ROLLEN.filter((rolle) => ROLLEN_RANG[rolle] < ROLLEN_RANG[handelnd.rolle]);
 
 /** Konto, wie es der Team-Bereich sieht */
 export interface TeamKonto extends Konto {

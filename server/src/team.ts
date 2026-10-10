@@ -167,7 +167,7 @@ export function erstelleTeamRouter(db: Datenbank, konten: KontenDienst, optionen
     const zeile = sql.konto.get(Number(req.params.id)) as TeamKontoZeile | undefined;
     if (!zeile) return void res.status(404).json({ fehler: 'Konto nicht gefunden.' });
     if (!darfRolleVergeben(ich(res), zeile, rolle)) {
-      return void res.status(403).json({ fehler: 'Rollen vergibt nur der Owner – nicht an sich selbst und nicht die Owner-Rolle.' });
+      return void res.status(403).json({ fehler: 'Du darfst nur Konten mit niedrigerem Rang eine Rolle unter deinem eigenen Rang geben.' });
     }
     sql.rolle.run(rolle, zeile.id);
     protokolliere(ich(res), 'Rolle geändert', zeile, `${zeile.rolle} → ${rolle}`);

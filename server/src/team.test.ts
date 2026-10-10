@@ -66,7 +66,7 @@ describe('Kontenverwaltung', () => {
     expect((await server.anfrage('DELETE', `/team/konten/${ids.Amy}`, { cookie: owner })).status).toBe(403); // nicht sich selbst
   });
 
-  it('Rollen vergibt nur der Owner – nie die Owner-Rolle und nicht an sich selbst', async () => {
+  it('Rollen vergeben Owner und Co-Owner – nur unter dem eigenen Rang, nie die Owner-Rolle, nicht an sich selbst', async () => {
     expect((await server.anfrage('POST', `/team/konten/${ids.Disponent}/rolle`, { body: { rolle: 'admin' }, cookie: admin })).status).toBe(403);
     expect((await server.anfrage('POST', `/team/konten/${ids.Disponent}/rolle`, { body: { rolle: 'owner' }, cookie: owner })).status).toBe(403);
     expect((await server.anfrage('POST', `/team/konten/${ids.Amy}/rolle`, { body: { rolle: 'player' }, cookie: owner })).status).toBe(403);
@@ -74,6 +74,14 @@ describe('Kontenverwaltung', () => {
     const res = await json(await server.anfrage('POST', `/team/konten/${ids.Disponent}/rolle`, { body: { rolle: 'co_owner' }, cookie: owner }));
     expect(res.daten.konto.rolle).toBe('co_owner');
     expect((await server.anfrage('GET', '/team/uebersicht', { cookie: spieler })).status).toBe(200);
+
+    // Co-Owner: Admins und Spieler ja, Co-Owner ernennen oder den Owner ändern nein
+    expect((await server.anfrage('POST', `/team/konten/${ids.Helfer}/rolle`, { body: { rolle: 'co_owner' }, cookie: spieler })).status).toBe(403);
+    expect((await server.anfrage('POST', `/team/konten/${ids.Amy}/rolle`, { body: { rolle: 'admin' }, cookie: spieler })).status).toBe(403);
+    const herab = await json(await server.anfrage('POST', `/team/konten/${ids.Helfer}/rolle`, { body: { rolle: 'player' }, cookie: spieler }));
+    expect(herab.daten.konto.rolle).toBe('player');
+    const hoch = await json(await server.anfrage('POST', `/team/konten/${ids.Helfer}/rolle`, { body: { rolle: 'admin' }, cookie: spieler }));
+    expect(hoch.daten.konto.rolle).toBe('admin');
   });
 
   it('Spielstand einsehen (Zusammenfassung) und zurücksetzen', async () => {
