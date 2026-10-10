@@ -78,6 +78,8 @@ export interface AlarmiertesFahrzeug {
   distanceKm: number;
   etaSeconds: number;
   arrivalAt: number;
+  /** Startpunkt der Anfahrt, wenn das Fahrzeug nicht von der Wache kam (z. B. auf der Rückfahrt alarmiert) */
+  startCoords?: [number, number];
   /** Gesetzt, sobald das Fahrzeug vom Einsatz entlassen wurde (z. B. NEF nach der Behandlung, RTW nach der Übergabe) */
   freigegebenAt?: number;
 }

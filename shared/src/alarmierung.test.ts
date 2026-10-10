@@ -43,8 +43,22 @@ describe('alarmiereFahrzeuge', () => {
   });
 });
 
+describe('alarmiereFahrzeuge – auf der Rückfahrt', () => {
+  it('alarmiert von der aktuellen Position aus, ohne Ausrückzeit', () => {
+    const e = einsatz('sturz');
+    const von: [number, number] = [e.coords[0] + 0.02, e.coords[1]];
+    const rtw = { ...fahrzeug('rtw', 'RTW'), status: 'Rückfahrt' as const, rueckfahrt: { von, startAt: T0, ankunftAt: T0 + 600_000 } };
+    const ergebnis = alarmiereFahrzeuge({ incidents: [e], vehicles: [rtw], locations }, e.id, ['rtw'], T0);
+    const zuteilung = ergebnis.incidents[0].alarmedVehicles[0];
+    expect(zuteilung.startCoords).toEqual(von);
+    expect(zuteilung.etaSeconds).toBe(getFahrzeitSekunden(von, e.coords, getFahrzeugGeschwindigkeit('RTW')));
+    expect(ergebnis.vehicles[0].rueckfahrt).toBeUndefined();
+    expect(ergebnis.vehicles[0].status).toBe('Alarmiert / auf Anfahrt');
+  });
+});
+
 describe('alarmiereFahrzeuge – belegte Fahrzeuge', () => {
-  it.each(['Alarmiert / auf Anfahrt', 'Im Einsatz', 'Rückfahrt'] as const)('alarmiert kein Fahrzeug mit Status „%s“', (status) => {
+  it.each(['Alarmiert / auf Anfahrt', 'Im Einsatz'] as const)('alarmiert kein Fahrzeug mit Status „%s“', (status) => {
     const e = einsatz('sturz');
     const vehicles = [{ ...fahrzeug('rtw', 'RTW'), status }];
     const ergebnis = alarmiereFahrzeuge({ incidents: [e], vehicles, locations }, e.id, ['rtw'], T0);

@@ -7,7 +7,7 @@ import {
   istAusreichendBesetzt,
   type BedarfsKlasse,
 } from './fahrzeuge.js';
-import { getFahrzeitSekunden, getStationCoords, haversineKm } from './geo.js';
+import { getFahrzeitSekunden, getRueckfahrtPosition, getStationCoords, haversineKm } from './geo.js';
 import { GAME_CONFIG } from './konfig.js';
 import type { MapLocation, Vehicle } from './typen.js';
 import { getAusrueckVerzoegerung } from './zufriedenheit.js';
@@ -26,19 +26,20 @@ interface AlarmierungsZustand {
 /**
  * Ist ein Fahrzeug frei für eine neue Alarmierung?
  * Nur einsatzbereite, besetzte Fahrzeuge mit Wache, die keinem laufenden Einsatz zugeteilt sind
- * (also nicht alarmiert, auf Anfahrt, am Einsatzort, auf Transport oder auf Rückfahrt).
+ * (also nicht alarmiert, auf Anfahrt, am Einsatzort oder auf Transport).
+ * Fahrzeuge auf der Rückfahrt zur Wache dürfen direkt von unterwegs alarmiert werden.
  */
 export const istFahrzeugVerfuegbar = (vehicle: Vehicle, incidents: SpielEinsatz[]): boolean =>
-  (vehicle.status ?? 'Einsatzbereit') === 'Einsatzbereit'
+  ((vehicle.status ?? 'Einsatzbereit') === 'Einsatzbereit' || Boolean(vehicle.rueckfahrt))
   && Boolean(vehicle.stationId)
-  && !vehicle.rueckfahrt
   && istAusreichendBesetzt(vehicle)
   && !incidents.some((incident) => incident.status !== 'abgeschlossen'
     && getAktiveZuteilungen(incident).some((assignment) => assignment.vehicleId === vehicle.id));
 
 /**
- * Anfahrtszeit eines Fahrzeugs von seiner Wache zu einem Ort: Fahrzeit (Geschwindigkeit seines Typs)
+ * Anfahrtszeit eines Fahrzeugs von seiner Wache zu einem Ort: Ausrückzeit + Fahrzeit (Geschwindigkeit seines Typs)
  * plus Ausrückverzögerung, wenn das Personal der Wache unzufrieden ist.
+ * Auf der Rückfahrt fährt es von seiner aktuellen Position los – ohne Ausrückzeit, die Besatzung sitzt ja schon drin.
  */
 export const getAnfahrtSekunden = (
   vehicle: Vehicle,
@@ -48,6 +49,8 @@ export const getAnfahrtSekunden = (
 ): number | null => {
   const wache = locations.find((location) => location.id === vehicle.stationId && location.type === 'station');
   if (!wache) return null;
+  const unterwegs = getRueckfahrtPosition(vehicle, locations, jetzt);
+  if (unterwegs) return getFahrzeitSekunden(unterwegs, ziel, getFahrzeugGeschwindigkeit(vehicle.type));
   const ausrueckzeit = GAME_CONFIG.ausrueckzeitSekunden[getFahrzeugTyp(vehicle.type)?.organisation ?? 'Rettungsdienst'];
   return ausrueckzeit + getFahrzeitSekunden(wache.coords, ziel, getFahrzeugGeschwindigkeit(vehicle.type)) + getAusrueckVerzoegerung(wache, jetzt);
 };
@@ -71,14 +74,17 @@ export const alarmiereFahrzeuge = (
     .filter((vehicleId) => !incident.alarmedVehicles.some((existing) => existing.vehicleId === vehicleId))
     .map((vehicleId): AlarmiertesFahrzeug | null => {
       const vehicle = vehicles.find((item) => item.id === vehicleId);
-      const coords = getStationCoords(vehicle?.stationId, locations);
-      if (!vehicle || !coords || !istFahrzeugVerfuegbar(vehicle, incidents)) return null;
+      const wache = getStationCoords(vehicle?.stationId, locations);
+      if (!vehicle || !wache || !istFahrzeugVerfuegbar(vehicle, incidents)) return null;
+      const unterwegs = getRueckfahrtPosition(vehicle, locations, jetzt);
+      const start = unterwegs ?? wache;
       const etaSeconds = getAnfahrtSekunden(vehicle, incident.coords, locations, jetzt) ?? 0;
       return {
         vehicleId,
-        distanceKm: Number(haversineKm(coords, incident.coords).toFixed(1)),
+        distanceKm: Number(haversineKm(start, incident.coords).toFixed(1)),
         etaSeconds,
         arrivalAt: jetzt + etaSeconds * 1000,
+        ...(unterwegs ? { startCoords: unterwegs } : {}),
       };
     })
     .filter((entry): entry is AlarmiertesFahrzeug => Boolean(entry));
@@ -98,7 +104,7 @@ export const alarmiereFahrzeuge = (
         : entry
     )),
     vehicles: vehicles.map((vehicle) => (
-      alarmierteIds.includes(vehicle.id) ? { ...vehicle, status: 'Alarmiert / auf Anfahrt' } : vehicle
+      alarmierteIds.includes(vehicle.id) ? { ...vehicle, status: 'Alarmiert / auf Anfahrt', rueckfahrt: undefined } : vehicle
     )),
   };
 };
@@ -121,7 +127,7 @@ export function getPassendeVerfuegbareFahrzeuge(einsatz: SpielEinsatz, zustand: 
       return {
         vehicle,
         station,
-        distanzKm: station ? haversineKm(station.coords, einsatz.coords) : Infinity,
+        distanzKm: station ? haversineKm(getRueckfahrtPosition(vehicle, locations, Date.now()) ?? station.coords, einsatz.coords) : Infinity,
         anfahrtSekunden: getAnfahrtSekunden(vehicle, einsatz.coords, locations) ?? Infinity,
       };
     })
@@ -143,7 +149,7 @@ export function getVerfuegbareFahrzeugeFuerEinsatz(einsatz: SpielEinsatz, zustan
       return {
         vehicle,
         station,
-        distanzKm: station ? haversineKm(station.coords, einsatz.coords) : Infinity,
+        distanzKm: station ? haversineKm(getRueckfahrtPosition(vehicle, locations, Date.now()) ?? station.coords, einsatz.coords) : Infinity,
         anfahrtSekunden: getAnfahrtSekunden(vehicle, einsatz.coords, locations) ?? Infinity,
         passend: einsatz.requiredVehicles.some((bedarf) => fahrzeugErfuelltBedarf(vehicle.type, bedarf.category)),
       };

@@ -36,13 +36,13 @@ export const interpoliereFahrt = (von: Koordinaten, nach: Koordinaten, startAt: 
   return [von[0] + (nach[0] - von[0]) * anteil, von[1] + (nach[1] - von[1]) * anteil];
 };
 
-/** Position eines Fahrzeugs auf der Anfahrt (Wache → Einsatzort) zu einem Zeitpunkt. */
+/** Position eines Fahrzeugs auf der Anfahrt (Wache bzw. Startpunkt → Einsatzort) zu einem Zeitpunkt. */
 export const getPositionAufAnfahrt = (
   wache: Koordinaten,
   einsatzort: Koordinaten,
-  assignment: Pick<AlarmiertesFahrzeug, 'arrivalAt' | 'etaSeconds'>,
+  assignment: Pick<AlarmiertesFahrzeug, 'arrivalAt' | 'etaSeconds' | 'startCoords'>,
   jetzt: number,
-): Koordinaten => interpoliereFahrt(wache, einsatzort, assignment.arrivalAt - assignment.etaSeconds * 1000, assignment.arrivalAt, jetzt);
+): Koordinaten => interpoliereFahrt(assignment.startCoords ?? wache, einsatzort, assignment.arrivalAt - assignment.etaSeconds * 1000, assignment.arrivalAt, jetzt);
 
 export interface FahrzeugFahrt {
   position: Koordinaten;
@@ -51,6 +51,14 @@ export interface FahrzeugFahrt {
   /** Was das Fahrzeug gerade tut – für Farbe/Linie auf der Karte */
   art: 'anfahrt' | 'einsatzstelle' | 'transport' | 'krankenhaus' | 'rueckfahrt';
 }
+
+/** Aktuelle Position eines Fahrzeugs auf der Rückfahrt – oder null, wenn es nicht auf Rückfahrt ist. */
+export const getRueckfahrtPosition = (vehicle: Vehicle, locations: MapLocation[], nowMs: number): Koordinaten | null => {
+  const wache = getStationCoords(vehicle.stationId, locations);
+  if (!vehicle.rueckfahrt || !wache) return null;
+  const { von, startAt, ankunftAt } = vehicle.rueckfahrt;
+  return interpoliereFahrt(von, wache, startAt, ankunftAt, nowMs);
+};
 
 /** Aktuelle Position eines Fahrzeugs unterwegs – oder null, wenn es an der Wache steht. */
 export const getFahrzeugPosition = (

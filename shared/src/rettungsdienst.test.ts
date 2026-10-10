@@ -81,7 +81,8 @@ describe('Rettungsdienst – Patient, Transport und Krankenhaus', () => {
     expect(fertig.abgeschlossen[0].meldungen.at(-1)?.text).toContain('übergeben');
     expect(fertig.vehicles[0].status).toBe('Rückfahrt');
     expect(fertig.vehicles[0].rueckfahrt).toMatchObject({ von: krankenhaeuser[0].coords, startAt: t.uebergabeBis });
-    expect(istFahrzeugVerfuegbar(fertig.vehicles[0], fertig.incidents)).toBe(false);
+    // Auf der Rückfahrt darf der RTW direkt von unterwegs neu alarmiert werden
+    expect(istFahrzeugVerfuegbar(fertig.vehicles[0], fertig.incidents)).toBe(true);
 
     // Erst an der Wache wieder einsatzbereit
     const zurueck = berechneSpielTick({ ...zustand, vehicles: fertig.vehicles, incidents: [] }, fertig.vehicles[0].rueckfahrt!.ankunftAt);
