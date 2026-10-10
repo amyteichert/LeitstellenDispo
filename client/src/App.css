@@ -2570,3 +2570,7 @@
 .personal-liste__aktionen { display: flex; gap: 6px; align-items: center; }
 .personal-liste__aktionen select { padding: 0.35rem 0.5rem; min-width: 120px; max-width: 46vw; }
 .einsatztempo { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px; }
+
+/* Einsatzliste: Bedarf als kleine Chips statt langer Textzeile */
+.einsatz-eintrag__bedarf { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; }
+.bedarf-chip--klein { padding: 1px 6px; font-size: 0.72rem; border-radius: 6px; }

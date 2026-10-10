@@ -233,11 +233,7 @@ export default function EinsaetzeView({
               )}
               <ul className="einsatz-liste">
                 {visibleIncidents.map((incident) => {
-                  const { abdeckung, ausreichendAlarmiert } = getEinsatzVersorgung(incident, vehicles, nowMs);
-                  const benoetigt = abdeckung.reduce((summe, eintrag) => summe + eintrag.amount, 0);
-                  const vorOrt = abdeckung.reduce((summe, eintrag) => summe + eintrag.vorOrt, 0);
-                  const alarmiert = abdeckung.reduce((summe, eintrag) => summe + eintrag.alarmiert, 0);
-                  const unterversorgt = (incident.status === 'offen' || incident.status === 'alarmiert') && !ausreichendAlarmiert;
+                  const { abdeckung } = getEinsatzVersorgung(incident, vehicles, nowMs);
                   return (
                     <li key={incident.id}>
                       <button
@@ -251,9 +247,16 @@ export default function EinsaetzeView({
                         </span>
                         {incident.neueMeldung && <span className="neue-meldung-badge" style={{ marginLeft: 0, width: 'fit-content' }}>⚠ Neue Meldung</span>}
                         <span className="einsatz-eintrag__zeile">📍 {incident.address}</span>
-                        <span className="einsatz-eintrag__zeile">
-                          {incident.organization} · Fahrzeuge {alarmiert}/{benoetigt} alarmiert, {vorOrt} vor Ort · {incident.reward} €
-                          {unterversorgt && <strong style={{ color: 'var(--color-primary-text)' }}> · Kräfte fehlen!</strong>}
+                        <span className="einsatz-eintrag__zeile einsatz-eintrag__bedarf">
+                          <span>{incident.reward} €</span>
+                          {abdeckung.map((eintrag, index) => {
+                            const zustand = eintrag.vorOrt >= eintrag.amount ? 'erfuellt' : eintrag.alarmiert >= eintrag.amount ? 'unterwegs' : 'fehlt';
+                            return (
+                              <span key={`${eintrag.category}-${index}`} className={`bedarf-chip bedarf-chip--klein bedarf-chip--${zustand}`}>
+                                {zustand === 'erfuellt' ? '✓' : zustand === 'unterwegs' ? '🚨' : '✗'} {eintrag.amount}× {getBedarfsLabel(eintrag.category)}
+                              </span>
+                            );
+                          })}
                         </span>
                       </button>
                     </li>
@@ -298,6 +301,9 @@ export default function EinsaetzeView({
                 <div>
                   <h3>{formatEinsatzTitel(selectedIncident)}</h3>
                   <div className="einsatz-eintrag__zeile" style={{ fontSize: '0.95rem', marginTop: 2 }}>📍 {selectedIncident.address}</div>
+                  <div className="einsatz-eintrag__zeile">
+                    {selectedIncident.organization} · {selectedIncident.reward} € · eingegangen {formatUhrzeit(selectedIncident.createdAt)} · 🏠 {selectedIncident.generatedByStationName}
+                  </div>
                 </div>
                 <span className={`status-badge status-badge--${selectedIncident.status}`}>{EINSATZ_STATUS_LABELS[selectedIncident.status]}</span>
               </div>
@@ -329,17 +335,6 @@ export default function EinsaetzeView({
 
               {rueckmeldung && <div className="aktion-rueckmeldung" role="status">{rueckmeldung}</div>}
 
-              {versorgung && kannAlarmieren && (
-                !versorgung.ausreichendAlarmiert ? (
-                  <div className="versorgung-hinweis versorgung-hinweis--fehlt">
-                    <strong>Nicht ausreichend versorgt.</strong> Es fehlen: {formatBedarfsListe(versorgung.fehlendAlarmiert)}.
-                  </div>
-                ) : !versorgung.ausreichendVorOrt ? (
-                  <div className="versorgung-hinweis versorgung-hinweis--unterwegs">
-                    Alle benötigten Fahrzeuge sind alarmiert – noch auf Anfahrt: {formatBedarfsListe(versorgung.fehlendVorOrt)}.
-                  </div>
-                ) : null
-              )}
 
               {selectedIncident.status === 'in_bearbeitung' && selectedIncident.processingEndsAt && selectedIncident.processingStartedAt && (
                 <div className="bearbeitung-fortschritt">
@@ -372,9 +367,8 @@ export default function EinsaetzeView({
                       : eintrag.alarmiert >= eintrag.amount ? 'bedarf-chip--unterwegs' : 'bedarf-chip--fehlt';
                     return (
                       <li key={`${eintrag.category}-${index}`} className={`bedarf-chip ${klasse}`}>
-                        {getBedarfsLabel(eintrag.category)}: {eintrag.alarmiert}/{eintrag.amount}
-                        {!fertig && eintrag.alarmiert > 0 && <small> ({eintrag.vorOrt} vor Ort)</small>}
-                        {klasse === 'bedarf-chip--erfuellt' ? ' ✓' : ''}
+                        {klasse === 'bedarf-chip--erfuellt' ? '✓' : klasse === 'bedarf-chip--unterwegs' ? '🚨' : '✗'} {eintrag.amount}× {getBedarfsLabel(eintrag.category)}
+                        {!fertig && eintrag.alarmiert > 0 && klasse !== 'bedarf-chip--erfuellt' && <small> · {eintrag.vorOrt}/{eintrag.amount} vor Ort</small>}
                       </li>
                     );
                   })}
@@ -417,9 +411,9 @@ export default function EinsaetzeView({
                           <label>
                             <input type="checkbox" checked={selectedVehicleIds.includes(vehicle.id)} onChange={() => toggleVehicle(vehicle.id)} />
                             <span>
-                              <strong>{vehicle.callsign ?? vehicle.name}</strong> – {vehicle.type}
+                              <strong>{vehicle.callsign ?? vehicle.name}</strong> · {vehicle.type}
                               <small>
-                                {distanzKm.toFixed(1)} km · ca. {formatEtaLabel(anfahrtSekunden)} · {station?.name ?? ''}
+                                ⏱ ca. {formatEtaLabel(anfahrtSekunden)} · 🏠 {station?.name ?? '–'} · {distanzKm.toFixed(1)} km
                                 {!passend && ' · zählt nicht zum Bedarf'}
                               </small>
                             </span>
@@ -467,11 +461,10 @@ export default function EinsaetzeView({
                 </section>
               ) : null}
 
+              {selectedIncident.alarmedVehicles.length > 0 && (
               <section className="einsatz-abschnitt">
                 <h4>Eingesetzte Fahrzeuge</h4>
-                {selectedIncident.alarmedVehicles.length === 0 ? (
-                  <p className="einsatz-eintrag__zeile">Noch keine Fahrzeuge alarmiert.</p>
-                ) : (
+                {(
                   <ul className="einsatz-fahrzeuge">
                     {selectedIncident.alarmedVehicles.map((assignment) => {
                       const vehicle = vehicles.find((item) => item.id === assignment.vehicleId);
@@ -489,13 +482,11 @@ export default function EinsaetzeView({
                   </ul>
                 )}
               </section>
+              )}
 
+              {(selectedIncident.bewertung || selectedIncident.status === 'abgeschlossen') && (
               <dl className="einsatz-infos">
-                <div><dt>Organisation</dt><dd>{selectedIncident.organization}</dd></div>
-                <div><dt>Einsatzort</dt><dd>{selectedIncident.address}</dd></div>
-                <div><dt>Eingegangen</dt><dd>{formatUhrzeit(selectedIncident.createdAt)}</dd></div>
-                <div><dt>Wachbereich</dt><dd>{selectedIncident.generatedByStationName}</dd></div>
-                <div><dt>{selectedIncident.bewertung ? 'Grundgeld' : 'Belohnung'}</dt><dd>{selectedIncident.reward} €</dd></div>
+                <div><dt>Grundgeld</dt><dd>{selectedIncident.reward} €</dd></div>
                 {selectedIncident.bewertung && (
                   <>
                     <div><dt>Bewertung</dt><dd>{selectedIncident.bewertung.punkte} / 100 Punkte</dd></div>
@@ -528,6 +519,7 @@ export default function EinsaetzeView({
                   </>
                 )}
               </dl>
+              )}
             </div>
           ) : (
             <div className="leerzustand">
