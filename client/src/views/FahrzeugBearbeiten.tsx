@@ -12,7 +12,6 @@ import {
   type Mitarbeiter,
 } from '@leitstellendispo/shared';
 import type { Vehicle } from '../types';
-import { QualiChips } from './PersonalReiter';
 
 type Melde = (meldung: { art: 'ok' | 'fehler'; text: string }) => void;
 
@@ -86,25 +85,30 @@ export default function FahrzeugBearbeiten({
         </div>
         {!umbesetzbar && <small className="einsatz-eintrag__zeile">Unterwegs – Umbesetzen erst nach der Rückkehr.</small>}
 
-        {besatzung.length === 0 ? (
-          <p className="einsatz-eintrag__zeile">Noch niemand auf diesem Fahrzeug.</p>
-        ) : (
-          <ul className="besatzung-liste">
-            {besatzung.map((person) => (
-              <li key={person.id}>
-                <span>{person.name} <QualiChips qualifikationen={person.qualifikationen} /></span>
-                <button
-                  type="button"
-                  className="btn"
-                  disabled={!umbesetzbar}
-                  onClick={() => melde(weisePersonalZu(person.id), `✓ ${person.name} ist in der Reserve.`)}
-                >
-                  ↓ Reserve
-                </button>
-              </li>
-            ))}
-          </ul>
-        )}
+        {/* Sitzplätze: belegte Plätze als kleine Kacheln, freie Plätze gestrichelt */}
+        <ul className="sitzplaetze">
+          {besatzung.map((person) => (
+            <li key={person.id} className="sitzplatz">
+              <span className="sitzplatz__name">{person.name}</span>
+              <span className="sitzplatz__quali">
+                {person.qualifikationen.length === 0 ? 'Grundausbildung' : person.qualifikationen.map((q) => QUALIFIKATION_LABELS[q]).join(', ')}
+              </span>
+              <button
+                type="button"
+                className="sitzplatz__raus"
+                disabled={!umbesetzbar}
+                aria-label={`${person.name} in die Reserve`}
+                title="In die Reserve"
+                onClick={() => melde(weisePersonalZu(person.id), `✓ ${person.name} ist in der Reserve.`)}
+              >
+                ✕
+              </button>
+            </li>
+          ))}
+          {Array.from({ length: Math.max(0, soll - besatzung.length) }, (_, i) => (
+            <li key={`frei-${i}`} className="sitzplatz sitzplatz--frei">frei</li>
+          ))}
+        </ul>
 
         <div className="fahrzeug-bearbeiten__zeile">
           <label className="field" style={{ flex: '1 1 200px', margin: 0 }}>
