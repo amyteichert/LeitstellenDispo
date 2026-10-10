@@ -163,7 +163,7 @@ function KontoZeile({ konto, ich, offen, umschalten, melde, ersetze, entferne }:
   entferne: () => void;
 }) {
   const [stand, setStand] = useState<SpielstandZusammenfassung | null | undefined>(undefined);
-  const [passwortLink, setPasswortLink] = useState<string | null>(null);
+  const [passwortLink, setPasswortLink] = useState<{ link: string; laeuftAb: number } | null>(null);
   const verwaltbar = darfKontoVerwalten(ich, konto);
   const vergebbar = getVergebbareRollen(ich);
   const rollenVergabe = vergebbar.some((rolle) => darfRolleVergeben(ich, konto, rolle));
@@ -215,8 +215,8 @@ function KontoZeile({ konto, ich, offen, umschalten, melde, ersetze, entferne }:
 
           {passwortLink && (
             <label className="field">
-              <span style={{ fontSize: 12, color: 'var(--color-text-muted)' }}>Passwort-Link für {konto.name} (nur an diese Person weitergeben):</span>
-              <input readOnly value={passwortLink} onFocus={(e) => e.target.select()} />
+              <span style={{ fontSize: 12, color: 'var(--color-text-muted)' }}>Passwort-Link für {konto.name} – gültig bis {new Date(passwortLink.laeuftAb).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })} Uhr, nur an diese Person weitergeben:</span>
+              <input readOnly value={passwortLink.link} onFocus={(e) => e.target.select()} />
             </label>
           )}
 
@@ -254,8 +254,8 @@ function KontoZeile({ konto, ich, offen, umschalten, melde, ersetze, entferne }:
                   className="btn"
                   title="Link, mit dem die Person ein neues Passwort festlegt (1 Stunde gültig) – z. B. im Discord weitergeben"
                   onClick={() => void aktion(async () => {
-                    const { link } = await teamApi.passwortLink(konto.id);
-                    setPasswortLink(link);
+                    const { link, laeuftAb } = await teamApi.passwortLink(konto.id);
+                    setPasswortLink({ link, laeuftAb });
                     await navigator.clipboard?.writeText(link).catch(() => undefined);
                   }, 'Link erzeugt (1 Stunde gültig) und – falls möglich – in die Zwischenablage kopiert.')}
                 >
