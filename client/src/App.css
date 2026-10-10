@@ -2591,3 +2591,10 @@
   cursor: pointer;
 }
 .rueckalarmierung__aufklapper:hover { opacity: 1; text-decoration: underline; }
+
+/* Passwort zurücksetzen: nur die Karte, mittig */
+.anmeldung__mitte.anmeldung__mitte--einzeln {
+  grid-template-columns: minmax(0, 430px);
+  justify-content: center;
+}
+a.anmeldung__link { text-align: center; }
