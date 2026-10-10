@@ -33,7 +33,7 @@ import {
   nimmtAuf,
   type Krankenhaus,
 } from './krankenhaeuser.js';
-import { GAME_CONFIG } from './konfig.js';
+import { GAME_CONFIG, getBearbeitungsMs } from './konfig.js';
 import { getTransportStatus, istPatientAbgeschlossen, type Patient } from './patienten.js';
 import type { FahrzeugStatus, Koordinaten, MapLocation, Vehicle } from './typen.js';
 
@@ -272,7 +272,7 @@ const pruefeBearbeitungsbeginn = (einsatz: SpielEinsatz, ctx: TickKontext): Spie
     ...einsatz,
     status: 'in_bearbeitung',
     processingStartedAt: start,
-    processingEndsAt: start + einsatz.durationSeconds * 1000,
+    processingEndsAt: start + getBearbeitungsMs(einsatz),
     patienten: einsatz.patienten?.map((patient) => (patient.status === 'wartet' ? { ...patient, status: 'in_behandlung' } : patient)),
   };
 };
@@ -430,7 +430,7 @@ const aktualisiereEinsatz = (incident: SpielEinsatz, ctx: TickKontext): SpielEin
     const { processingStartedAt, eskalationBei } = einsatz;
     // Lagemeldung von der Einsatzstelle während der Bearbeitung
     const eskalationsZeitpunkt = eskalationBei !== undefined && processingStartedAt
-      ? processingStartedAt + eskalationBei * einsatz.durationSeconds * 1000
+      ? processingStartedAt + eskalationBei * getBearbeitungsMs(einsatz)
       : undefined;
     if (eskalationsZeitpunkt !== undefined && ctx.jetzt >= eskalationsZeitpunkt) {
       ctx.geaendert = true;

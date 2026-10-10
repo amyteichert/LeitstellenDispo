@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { getBearbeitungsMs } from './konfig.js';
 import { alarmiereFahrzeuge } from './alarmierung.js';
 import { erzeugeVerlegung, getAvailableIncidentTemplates } from './einsatzErzeugung.js';
 import { findeEinsatzVorlage } from './daten.js';
@@ -78,7 +79,7 @@ describe('Sonderfahrzeuge KTW, RW und ELW 1', () => {
     const start = alarmiereFahrzeuge({ incidents: [e], vehicles: fahrzeuge, locations }, e.id, ['ktw'], T0);
     const zustand = { ...start, locations, krankenhaeuser };
     const ankunft = start.incidents[0].alarmedVehicles[0].arrivalAt;
-    const nachBehandlung = tickeBisRuhe(zustand, ankunft + e.durationSeconds * 1000);
+    const nachBehandlung = tickeBisRuhe(zustand, ankunft + getBearbeitungsMs(e));
     expect(nachBehandlung.incidents[0].status).toBe('transport');
     expect(nachBehandlung.incidents[0].patienten?.[0].transport?.fahrzeugId).toBe('ktw');
   });
@@ -89,7 +90,7 @@ describe('Sonderfahrzeuge KTW, RW und ELW 1', () => {
     const start = alarmiereFahrzeuge({ incidents: [e], vehicles: fahrzeuge, locations }, e.id, ['ktw', 'rtw', 'nef'], T0);
     const zustand = { ...start, locations, krankenhaeuser };
     const spaeteste = Math.max(...start.incidents[0].alarmedVehicles.map((a) => a.arrivalAt));
-    const danach = tickeBisRuhe(zustand, spaeteste + e.durationSeconds * 1000);
+    const danach = tickeBisRuhe(zustand, spaeteste + getBearbeitungsMs(e));
     expect(danach.incidents[0].patienten?.[0].transport?.fahrzeugId).toBe('rtw');
   });
 
@@ -99,7 +100,7 @@ describe('Sonderfahrzeuge KTW, RW und ELW 1', () => {
     const start = alarmiereFahrzeuge({ incidents: [e], vehicles: fahrzeuge, locations }, e.id, ['rtw', 'ktw'], T0);
     const zustand = { ...start, locations, krankenhaeuser };
     const spaeteste = Math.max(...start.incidents[0].alarmedVehicles.map((a) => a.arrivalAt));
-    const danach = tickeBisRuhe(zustand, spaeteste + e.durationSeconds * 1000);
+    const danach = tickeBisRuhe(zustand, spaeteste + getBearbeitungsMs(e));
     expect(danach.incidents[0].patienten?.[0].transport?.fahrzeugId).toBe('ktw');
   });
 
@@ -107,7 +108,7 @@ describe('Sonderfahrzeuge KTW, RW und ELW 1', () => {
     const e = einsatz('sturz', undefined, undefined, { transport: true });
     const start = alarmiereFahrzeuge({ incidents: [e], vehicles: [fahrzeug('rtw', 'RTW')], locations }, e.id, ['rtw'], T0);
     const ankunft = start.incidents[0].alarmedVehicles[0].arrivalAt;
-    const ende = ankunft + e.durationSeconds * 1000;
+    const ende = ankunft + getBearbeitungsMs(e);
     let zustand: SpielTickZustand = { ...start, locations, krankenhaeuser: [krankenhaus()] };
     const abgeschlossen = [];
     for (const zeit of [ankunft, ende, ende]) {
@@ -150,7 +151,7 @@ describe('Krankenhausverlegung mit KTW', () => {
     const naheFremd = { ...fremdesHaus, coords: [48.78, 9.1771] as [number, number], fachbereiche: ['innere' as const, 'neurologie' as const] };
     const start = alarmiereFahrzeuge({ incidents: [e], vehicles: [fahrzeug('ktw', 'KTW')], locations }, e.id, ['ktw'], T0);
     const ankunft = start.incidents[0].alarmedVehicles[0].arrivalAt;
-    const danach = tickeBisRuhe({ ...start, locations, krankenhaeuser: [klinikA, klinikB, naheFremd] }, ankunft + e.durationSeconds * 1000);
+    const danach = tickeBisRuhe({ ...start, locations, krankenhaeuser: [klinikA, klinikB, naheFremd] }, ankunft + getBearbeitungsMs(e));
     expect(danach.incidents[0].patienten?.[0].transport).toMatchObject({ fahrzeugId: 'ktw', krankenhausId: 'kh-b' });
   });
 
@@ -160,7 +161,7 @@ describe('Krankenhausverlegung mit KTW', () => {
     const start = alarmiereFahrzeuge({ incidents: [e], vehicles: [fahrzeug('ktw', 'KTW')], locations }, e.id, ['ktw'], T0);
     const ankunft = start.incidents[0].alarmedVehicles[0].arrivalAt;
     const bVoll = { ...klinikB, aufnahme: false };
-    const danach = tickeBisRuhe({ ...start, locations, krankenhaeuser: [klinikA, bVoll, fremdesHaus] }, ankunft + e.durationSeconds * 1000);
+    const danach = tickeBisRuhe({ ...start, locations, krankenhaeuser: [klinikA, bVoll, fremdesHaus] }, ankunft + getBearbeitungsMs(e));
     expect(danach.incidents[0].patienten?.[0].transport?.krankenhausId).toBe(fremdesHaus.id);
   });
 });

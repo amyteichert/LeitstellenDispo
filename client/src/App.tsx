@@ -99,7 +99,7 @@ const FAHRT_LINIEN_FARBEN: Record<FahrzeugFahrt['art'], string> = {
 const createVehicleMarkerIcon = (label: string, art: FahrzeugFahrt['art'], organisation: 'fw' | 'rd') =>
   L.divIcon({
     className: `vehicle-marker vehicle-marker--${art} vehicle-marker--${organisation}`,
-    html: `<span>${label}</span>`,
+    html: `<span>${organisation === 'fw' ? '🚒' : '🚑'} ${label}</span>`,
     iconSize: undefined,
     iconAnchor: [0, 0],
   });

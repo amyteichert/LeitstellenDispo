@@ -2,11 +2,13 @@ import { getAktiveZuteilungen, type AlarmiertesFahrzeug, type SpielEinsatz } fro
 import {
   fahrzeugErfuelltBedarf,
   getFahrzeugGeschwindigkeit,
+  getFahrzeugTyp,
   getFehlendenBedarf,
   istAusreichendBesetzt,
   type BedarfsKlasse,
 } from './fahrzeuge.js';
 import { getFahrzeitSekunden, getStationCoords, haversineKm } from './geo.js';
+import { GAME_CONFIG } from './konfig.js';
 import type { MapLocation, Vehicle } from './typen.js';
 import { getAusrueckVerzoegerung } from './zufriedenheit.js';
 
@@ -46,7 +48,8 @@ export const getAnfahrtSekunden = (
 ): number | null => {
   const wache = locations.find((location) => location.id === vehicle.stationId && location.type === 'station');
   if (!wache) return null;
-  return getFahrzeitSekunden(wache.coords, ziel, getFahrzeugGeschwindigkeit(vehicle.type)) + getAusrueckVerzoegerung(wache, jetzt);
+  const ausrueckzeit = GAME_CONFIG.ausrueckzeitSekunden[getFahrzeugTyp(vehicle.type)?.organisation ?? 'Rettungsdienst'];
+  return ausrueckzeit + getFahrzeitSekunden(wache.coords, ziel, getFahrzeugGeschwindigkeit(vehicle.type)) + getAusrueckVerzoegerung(wache, jetzt);
 };
 
 /**

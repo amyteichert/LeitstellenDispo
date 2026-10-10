@@ -16,7 +16,14 @@ export const GAME_CONFIG = {
   patientenUebergabeSekunden: 15,
   /** Vergütung je Patient, der ins Krankenhaus transportiert wird (Transporte werden abgerechnet) */
   transportVerguetung: 120,
+  /** Bis die Besatzung im Fahrzeug sitzt und losfährt (Sekunden) */
+  ausrueckzeitSekunden: { Rettungsdienst: 30, Feuerwehr: 60 },
+  /** Die Arbeit vor Ort dauert so viel länger als die Vorlage angibt (realistischeres Tempo) */
+  bearbeitungsFaktor: 4,
 };
+
+/** Dauer der Arbeit vor Ort in Millisekunden */
+export const getBearbeitungsMs = (einsatz: { durationSeconds: number }) => einsatz.durationSeconds * GAME_CONFIG.bearbeitungsFaktor * 1000;
 
 /**
  * Einsatzdruck: Ab einer gewissen Größe kommen auch Einsätze, für die dem Spieler noch Fahrzeuge fehlen

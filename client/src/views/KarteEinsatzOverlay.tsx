@@ -53,6 +53,9 @@ export function KarteEinsatzLeiste({
   );
 }
 
+/** Anfahrtszeit kurz: „ca. 45 Sek.“ oder „ca. 3 Min.“ */
+const formatAnfahrt = (sekunden: number) => (sekunden < 90 ? `ca. ${Math.round(sekunden)} Sek.` : `ca. ${Math.round(sekunden / 60)} Min.`);
+
 /** Schwebendes Fenster rechts mit einer Kurzinfo zum gewählten Einsatz. */
 export function KarteEinsatzPanel({
   incident,
@@ -81,7 +84,7 @@ export function KarteEinsatzPanel({
   /** Einsatz an die Nachbarleitstelle abgeben */
   onAbgeben: () => void;
 }) {
-  const { abdeckung, ausreichendAlarmiert, fehlendAlarmiert } = getEinsatzVersorgung(incident, vehicles, nowMs);
+  const { abdeckung } = getEinsatzVersorgung(incident, vehicles, nowMs);
   const vorschlag = erstelleAlarmVorschlag(incident, { incidents, vehicles, locations });
   const vorschlagNamen = vorschlag.fahrzeugIds.map((id) => {
     const vehicle = vehicles.find((item) => item.id === id);
@@ -126,13 +129,20 @@ export function KarteEinsatzPanel({
         </div>
       ))}
 
-      <p><strong>Status:</strong> {EINSATZ_STATUS_LABELS[incident.status]}</p>
-      <p><strong>Organisation:</strong> {incident.organization}</p>
-      <p><strong>Belohnung:</strong> {incident.reward} €</p>
+      <p className="einsatz-eintrag__zeile">{EINSATZ_STATUS_LABELS[incident.status]} · {incident.organization} · {incident.reward} €</p>
 
-      {kannAlarmieren && !ausreichendAlarmiert && (
-        <div className="versorgung-hinweis versorgung-hinweis--fehlt">Es fehlen: {formatBedarfsListe(fehlendAlarmiert)}</div>
-      )}
+      {/* Bedarf: ✓ erst, wenn das Fahrzeug vor Ort ist – unterwegs und fehlend sind getrennt erkennbar */}
+      <ul className="bedarf-liste">
+        {abdeckung.map((eintrag, index) => {
+          const zustand = eintrag.vorOrt >= eintrag.amount ? 'erfuellt' : eintrag.alarmiert >= eintrag.amount ? 'unterwegs' : 'fehlt';
+          return (
+            <li key={`${eintrag.category}-${index}`} className={`bedarf-chip bedarf-chip--${zustand}`} title={`${eintrag.alarmiert} alarmiert, ${eintrag.vorOrt} vor Ort`}>
+              {zustand === 'erfuellt' ? '✓' : zustand === 'unterwegs' ? '🚨' : '✗'} {eintrag.amount}× {getBedarfsLabel(eintrag.category)}
+              {zustand !== 'erfuellt' && eintrag.alarmiert > 0 && <small> · {eintrag.vorOrt}/{eintrag.amount} vor Ort</small>}
+            </li>
+          );
+        })}
+      </ul>
 
       {/* Vorschlag ist nur ein Hinweis – die Fahrzeuge wählt der Disponent selbst aus */}
       {kannAlarmieren && vorschlag.fahrzeugIds.length > 0 && (
@@ -148,8 +158,11 @@ export function KarteEinsatzPanel({
                 <label>
                   <input type="checkbox" checked={auswahl.includes(vehicle.id)} onChange={() => toggle(vehicle.id)} />
                   <span>
-                    <strong>{vehicle.callsign ?? vehicle.name}</strong> – {vehicle.type}
-                    <small>{distanzKm.toFixed(1)} km · ca. {Math.round(anfahrtSekunden)} Sek.{!passend && ' · zählt nicht zum Bedarf'}</small>
+                    <strong>{vehicle.callsign ?? vehicle.name}</strong> · {vehicle.type}
+                    <small>
+                      ⏱ {formatAnfahrt(anfahrtSekunden)} · 🏠 {locations.find((l) => l.id === vehicle.stationId)?.name ?? '–'} · {distanzKm.toFixed(1)} km
+                      {!passend && ' · zählt nicht zum Bedarf'}
+                    </small>
                   </span>
                 </label>
               </li>
@@ -179,14 +192,6 @@ export function KarteEinsatzPanel({
       {rueckmeldung && <div className="aktion-rueckmeldung" role="status">{rueckmeldung}</div>}
       <EinsatzAbgabe incident={incident} vehicles={vehicles} onAbgeben={onAbgeben} />
 
-      <h4>Fahrzeuge</h4>
-      <ul>
-        {abdeckung.map((eintrag, index) => (
-          <li key={`${eintrag.category}-${index}`}>
-            {getBedarfsLabel(eintrag.category)}: {eintrag.alarmiert}/{eintrag.amount} alarmiert, {eintrag.vorOrt} vor Ort {eintrag.vorOrt >= eintrag.amount ? '✓' : ''}
-          </li>
-        ))}
-      </ul>
 
       {incident.patienten && incident.patienten.length > 0 && (
         <>

@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { getBearbeitungsMs } from './konfig.js';
 import { alarmiereFahrzeuge } from './alarmierung.js';
 import { eskaliereEinsatz, findeEinsatzVorlage, fuegeMeldungenHinzu, istEskaliert, istWichtigeMeldung } from './daten.js';
 import { berechneSpielTick } from './spielTick.js';
@@ -50,7 +51,7 @@ describe('Eskalation im Rettungsdienst', () => {
     const ankunft = start.incidents[0].alarmedVehicles[0].arrivalAt;
     const zustand = { ...start, locations, krankenhaeuser: [krankenhaus()] };
     const inBehandlung = berechneSpielTick(zustand, ankunft);
-    const eskalation = ankunft + 0.5 * inBehandlung.incidents[0].durationSeconds * 1000;
+    const eskalation = ankunft + 0.5 * getBearbeitungsMs(inBehandlung.incidents[0]);
     const eskaliert = berechneSpielTick({ ...zustand, ...inBehandlung }, eskalation).incidents[0];
 
     expect(eskaliert.meldebild).toBe('Bewusstlose Person');

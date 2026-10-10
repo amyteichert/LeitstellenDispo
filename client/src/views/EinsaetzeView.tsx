@@ -18,6 +18,7 @@ import {
   type AbgeschlossenerSpielEinsatz,
   type EinsatzMeldung,
   type SpielEinsatz,
+  getBearbeitungsMs,
 } from '@leitstellendispo/shared';
 import EinsatzAbgabe from './EinsatzAbgabe';
 import type { MapLocation, Vehicle } from '../types';
@@ -523,7 +524,7 @@ export default function EinsaetzeView({
                 {selectedIncident.status === 'abgeschlossen' && (
                   <>
                     <div><dt>Abschlusszeit</dt><dd>{formatDateTime(selectedIncident.completedAt ?? nowMs)}</dd></div>
-                    <div><dt>Einsatzdauer</dt><dd>{formatEtaLabel(selectedIncident.totalDurationSeconds ?? selectedIncident.durationSeconds)}</dd></div>
+                    <div><dt>Einsatzdauer</dt><dd>{formatEtaLabel(selectedIncident.totalDurationSeconds ?? getBearbeitungsMs(selectedIncident) / 1000)}</dd></div>
                   </>
                 )}
               </dl>

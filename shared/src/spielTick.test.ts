@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { getBearbeitungsMs } from './konfig.js';
 import { alarmiereFahrzeuge } from './alarmierung.js';
 import { berechneSpielTick } from './spielTick.js';
 import { findeEinsatzVorlage } from './daten.js';
@@ -49,7 +50,7 @@ describe('berechneSpielTick – Einsatzablauf', () => {
     const spaeter = berechneSpielTick({ ...start, locations }, T0 + 60 * 60 * 1000);
     expect(spaeter.abgeschlossen).toHaveLength(1);
     expect(spaeter.abgeschlossen[0].processingStartedAt).toBe(ankunft);
-    expect(spaeter.abgeschlossen[0].completedAt).toBe(ankunft + spaeter.abgeschlossen[0].durationSeconds * 1000);
+    expect(spaeter.abgeschlossen[0].completedAt).toBe(ankunft + getBearbeitungsMs(spaeter.abgeschlossen[0]));
 
     // Die Rückfahrt ist ebenfalls längst vorbei
     const danach = berechneSpielTick({ ...spaeter, locations }, T0 + 60 * 60 * 1000);
@@ -84,7 +85,7 @@ describe('berechneSpielTick – Eskalation', () => {
     const start = alarmiertesRd1();
     const ankunft = start.incidents[0].alarmedVehicles[0].arrivalAt;
     const inBearbeitung = berechneSpielTick({ ...start, locations }, ankunft);
-    const dauer = inBearbeitung.incidents[0].durationSeconds * 1000;
+    const dauer = getBearbeitungsMs(inBearbeitung.incidents[0]);
     const eskalationsZeit = ankunft + 0.5 * dauer;
 
     const eskaliert = berechneSpielTick({ ...inBearbeitung, locations }, eskalationsZeit);
@@ -179,7 +180,7 @@ describe('berechneSpielTick – Randfälle der Eskalation', () => {
     // Bearbeitung beginnt mit dem ersten LF – mehr braucht der Kleinbrand nicht
     const beginn = inBearbeitung.incidents[0].processingStartedAt!;
     expect(beginn).toBe(Math.min(...start.incidents[0].alarmedVehicles.map((a) => a.arrivalAt)));
-    const eskalationsZeit = beginn + 0.5 * inBearbeitung.incidents[0].durationSeconds * 1000;
+    const eskalationsZeit = beginn + 0.5 * getBearbeitungsMs(inBearbeitung.incidents[0]);
     const eskaliert = berechneSpielTick({ ...inBearbeitung, locations: feuerwache }, eskalationsZeit);
     expect(eskaliert.incidents[0].meldebild).toBe('Kellerbrand');
 
@@ -202,7 +203,7 @@ describe('berechneSpielTick – Randfälle der Eskalation', () => {
     expect(fertig.reward).toBe(findeEinsatzVorlage('kellerbrand')!.reward);
     // Ende = Lagemeldung + Dauer des Kellerbrands (nicht "jetzt")
     const eskalation = fertig.meldungen.find((m) => m.art === 'eskalation')!;
-    expect(fertig.completedAt).toBe(eskalation.zeit + fertig.durationSeconds * 1000);
+    expect(fertig.completedAt).toBe(eskalation.zeit + getBearbeitungsMs(fertig));
     expect(ergebnis.vehicles.every((v) => v.status === 'Einsatzbereit')).toBe(true);
   });
 
