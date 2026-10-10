@@ -45,6 +45,7 @@ import KrankenhaeuserView from './views/KrankenhaeuserView';
 import EinsaetzeView from './views/EinsaetzeView';
 import { KarteEinsatzLeiste, KarteEinsatzPanel } from './views/KarteEinsatzOverlay';
 import RufFenster from './views/RufFenster';
+import WetterFenster from './views/WetterFenster';
 import FinanzenView from './views/FinanzenView';
 import StatistikView from './views/StatistikView';
 import AnkuendigungsBanner from './AnkuendigungsBanner';
@@ -210,6 +211,7 @@ function App({ konto, onAbmelden }: { konto: Konto; onAbmelden: () => Promise<vo
   // Einsatz, dessen Kurzinfo gerade als schwebendes Fenster auf der Karte angezeigt wird
   const [mapIncidentId, setMapIncidentId] = useState<string | null>(null);
   const [rufFensterOffen, setRufFensterOffen] = useState(false);
+  const [wetterFensterOffen, setWetterFensterOffen] = useState(false);
   const [wacheKaufenOffen, setWacheKaufenOffen] = useState(false);
   const [kaufMeldung, setKaufMeldung] = useState<string | null>(null);
 
@@ -626,7 +628,9 @@ Dein Guthaben: ${balance.toLocaleString('de-DE')} €`)) return;
           {/* Will render current view and open a small dropdown when clicked. */}
           { /* Version chip kept for visibility */ }
           <span className="chip chip--version">V{APP_VERSION}</span>
-          <span className="chip" title="Guthaben">💶 {balance.toLocaleString('de-DE')} €</span>
+          <button type="button" className="chip ruf-chip" title="Guthaben – antippen für die Finanzen" onClick={() => setCurrentView('Finanzen')}>
+            💶 {balance.toLocaleString('de-DE')} €
+          </button>
           {offeneSprechwuensche.length > 0 && (
             <button
               type="button"
@@ -637,10 +641,15 @@ Dein Guthaben: ${balance.toLocaleString('de-DE')} €`)) return;
               📻 S5 × {offeneSprechwuensche.length}
             </button>
           )}
-          {spiel.locations.some((location) => location.type === 'station') && wetter !== 'klar' && (
-            <span className="chip" title="Echtes Wetter an deiner ersten Wache – beeinflusst, welche Einsätze kommen">
+          {spiel.locations.some((location) => location.type === 'station') && (
+            <button
+              type="button"
+              className="chip ruf-chip"
+              title="Echtes Wetter an deiner ersten Wache – antippen für mehr Infos"
+              onClick={() => setWetterFensterOffen(true)}
+            >
               {WETTER_LABELS[wetter].split(' ')[0]}<span className="nur-breit"> {WETTER_LABELS[wetter].split(' ').slice(1).join(' ')}</span>
-            </span>
+            </button>
           )}
           <button
             type="button"
@@ -685,6 +694,8 @@ Dein Guthaben: ${balance.toLocaleString('de-DE')} €`)) return;
       </header>
 
       <AnkuendigungsBanner />
+
+      {wetterFensterOffen && <WetterFenster wetter={wetter} onClose={() => setWetterFensterOffen(false)} />}
 
       {rufFensterOffen && (
         <RufFenster

@@ -14,6 +14,15 @@ export const WETTER_LABELS: Record<Wetter, string> = {
   sturm: '🌪️ Sturm',
 };
 
+/** Kurze Erklärung für Spieler: Was bewirkt das Wetter? (passt zu vorlagenGewicht) */
+export const WETTER_INFO: Record<Wetter, string> = {
+  klar: 'Keine Besonderheiten – das Einsatzaufkommen ist normal.',
+  regen: 'Nasse Straßen: deutlich mehr Verkehrsunfälle.',
+  glaette: 'Glatte Straßen und Wege: viel mehr Verkehrsunfälle und Stürze.',
+  hitze: 'Mehr Kreislaufprobleme und allergische Reaktionen, dazu viele Hecken-, Flächen- und Müllbrände.',
+  sturm: 'Umgestürzte Bäume und Sturmschäden – die Feuerwehr hat viel zu tun.',
+};
+
 export interface AufkommenKontext {
   /** Stunde 0–23 (deutsche Zeit) */
   stunde: number;
@@ -51,7 +60,8 @@ export function tageszeitFaktor(kontext: Pick<AufkommenKontext, 'stunde' | 'woch
   return 1;
 }
 
-const WETTER_MENGE: Record<Wetter, number> = { klar: 1, regen: 1.15, glaette: 1.3, hitze: 1.1, sturm: 1.25 };
+/** Wie viele Einsätze mehr bei diesem Wetter entstehen (1 = normal) */
+export const WETTER_MENGE: Record<Wetter, number> = { klar: 1, regen: 1.15, glaette: 1.3, hitze: 1.1, sturm: 1.25 };
 
 /** Mehr Wachen = größeres Gebiet = mehr Einsätze (gedeckelt) */
 export const wachenFaktor = (wachen: number) => Math.min(3, 1 + 0.35 * Math.max(0, wachen - 1));
