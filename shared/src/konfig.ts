@@ -30,6 +30,12 @@ export const EINSATZDRUCK_CONFIG = {
   verfallNachMs: 30 * 60 * 1000,
 } as const;
 
+/**
+ * Einsätze, die nur mit noch unbesetzten Fahrzeugen zu schaffen wären, kommen seltener –
+ * als Hinweis, dass Personal fehlt, ohne den Spieler damit zu überschwemmen.
+ */
+export const UNBESETZT_HAEUFIGKEIT = 0.3;
+
 /** Wie weit neue Einsätze um eine Wache herum entstehen – wächst mit der Anzahl der Wachen. */
 export const INCIDENT_SPAWN_CONFIG = {
   earlyPhaseMaxStationCount: 3,

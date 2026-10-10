@@ -9,8 +9,8 @@ import {
   type EinsatzVorlage,
   type SpielEinsatz,
 } from './daten.js';
-import { FAHRZEUG_TYPEN, fahrzeugErfuelltBedarf } from './fahrzeuge.js';
-import { EINSATZDRUCK_CONFIG, INCIDENT_SPAWN_CONFIG } from './konfig.js';
+import { FAHRZEUG_TYPEN, fahrzeugErfuelltBedarf, istAusreichendBesetzt } from './fahrzeuge.js';
+import { EINSATZDRUCK_CONFIG, INCIDENT_SPAWN_CONFIG, UNBESETZT_HAEUFIGKEIT } from './konfig.js';
 import { waehleGewichtet, type AufkommenKontext } from './aufkommen.js';
 import { clamp, haversineKm } from './geo.js';
 import { FACHRICHTUNGEN, findeVerlegungen, hatEigenesKrankenhaus, type Krankenhaus } from './krankenhaeuser.js';
@@ -236,7 +236,10 @@ export const erzeugeZufallsEinsatz = (
     if (druck) return { einsatz: druck };
   }
 
-  const template = kontext ? waehleGewichtet(templates, kontext) : templates[Math.floor(Math.random() * templates.length)];
+  // Nur mit unbesetzten Fahrzeugen machbar? Dann seltener (Hinweis: Personal fehlt)
+  const besetzteTypen = vehicles.filter((vehicle) => vehicle.stationId && istAusreichendBesetzt(vehicle)).map((vehicle) => vehicle.type);
+  const template = waehleGewichtet(templates, kontext, Math.random(),
+    (vorlage) => (istVorlageErfuellbar(vorlage, besetzteTypen) ? 1 : UNBESETZT_HAEUFIGKEIT));
   if (template.verlegung) {
     // Verlegungen nie als „normalen“ Einsatz an einer Zufallsadresse erzeugen
     const einsatz = erzeugeVerlegung(template, stations, krankenhaeuser, jetzt);

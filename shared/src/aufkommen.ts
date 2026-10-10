@@ -108,8 +108,14 @@ export function vorlagenGewicht(vorlageId: string, kontext: AufkommenKontext): n
 }
 
 /** Zieht eine Vorlage – häufiger, was zu Uhrzeit, Tag und Wetter passt */
-export function waehleGewichtet<T extends { id: string }>(vorlagen: T[], kontext: AufkommenKontext, zufall: number = Math.random()): T {
-  const gewichte = vorlagen.map((vorlage) => vorlagenGewicht(vorlage.id, kontext));
+export function waehleGewichtet<T extends { id: string }>(
+  vorlagen: T[],
+  kontext: AufkommenKontext | undefined,
+  zufall: number = Math.random(),
+  /** Zusätzlicher Faktor je Vorlage (z. B. seltener, wenn das passende Fahrzeug unbesetzt ist) */
+  zusatzFaktor: (vorlage: T) => number = () => 1,
+): T {
+  const gewichte = vorlagen.map((vorlage) => (kontext ? vorlagenGewicht(vorlage.id, kontext) : 1) * zusatzFaktor(vorlage));
   let rest = zufall * gewichte.reduce((summe, g) => summe + g, 0);
   for (let i = 0; i < vorlagen.length; i++) {
     rest -= gewichte[i];

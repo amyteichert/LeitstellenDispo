@@ -69,3 +69,23 @@ describe('An die Nachbarleitstelle abgeben', () => {
     expect(ergebnis.vehicles.find((v) => v.id === 'rtw')?.status).toBe('Rückfahrt');
   });
 });
+
+describe('Unbesetzte Fahrzeuge', () => {
+  it('Einsätze, die nur mit unbesetzten Fahrzeugen gingen, kommen seltener – aber sie kommen', () => {
+    const rtw = fahrzeug('rtw', 'RTW');
+    const nefUnbesetzt = { ...fahrzeug('nef', 'NEF'), besatzung: 0 };
+    const nefBesetzt = { ...fahrzeug('nef', 'NEF'), besatzung: 2 };
+    const anteilRd2 = (nef: typeof nefBesetzt) => {
+      let rd2 = 0;
+      for (let i = 0; i < 2000; i += 1) {
+        const e = erzeugeZufallsEinsatz([wache()], [rtw, nef], T0);
+        if ('einsatz' in e && e.einsatz.stichwort === 'RD 2' && e.einsatz.requiredVehicles.some((b) => b.category === 'NEF')) rd2 += 1;
+      }
+      return rd2 / 2000;
+    };
+    const unbesetzt = anteilRd2(nefUnbesetzt);
+    const besetzt = anteilRd2(nefBesetzt);
+    expect(unbesetzt).toBeGreaterThan(0);
+    expect(unbesetzt).toBeLessThan(besetzt * 0.7);
+  });
+});
