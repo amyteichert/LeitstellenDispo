@@ -27,7 +27,7 @@ export const QualiChips = ({ qualifikationen }: { qualifikationen: Qualifikation
 type Filter = 'alle' | 'reserve' | 'fahrzeug' | 'lehrgang';
 const FILTER: Array<{ id: Filter; text: string; passt: (person: Mitarbeiter) => boolean }> = [
   { id: 'alle', text: 'Alle', passt: () => true },
-  { id: 'reserve', text: 'Reserve', passt: (p) => !p.fahrzeugId && !istInAusbildung(p) },
+  { id: 'reserve', text: 'Ohne Fahrzeug', passt: (p) => !p.fahrzeugId && !istInAusbildung(p) },
   { id: 'fahrzeug', text: 'Auf Fahrzeug', passt: (p) => Boolean(p.fahrzeugId) && !istInAusbildung(p) },
   { id: 'lehrgang', text: 'Im Lehrgang', passt: istInAusbildung },
 ];
@@ -35,7 +35,7 @@ const FILTER: Array<{ id: Filter; text: string; passt: (person: Mitarbeiter) => 
 const formatZeitpunkt = (zeit: number) =>
   new Date(zeit).toLocaleString('de-DE', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
 
-/** Reiter „Personal“ einer Wache: Besatzung der Fahrzeuge, Reserve und Bewerber. */
+/** Reiter „Personal“ einer Wache: Liste aller Leute der Wache und Bewerber. */
 export default function PersonalReiter({
   wache,
   fahrzeuge,
@@ -93,7 +93,7 @@ export default function PersonalReiter({
           {voll && <small>Voll – Ruheräume unter „Ausbau“ bauen</small>}
         </div>
         <div className="verwalten-kachel">
-          <small>In Reserve (keinem Fahrzeug zugewiesen)</small>
+          <small>Ohne Fahrzeug</small>
           <strong>{reserve.length}</strong>
         </div>
       </div>
@@ -150,7 +150,7 @@ export default function PersonalReiter({
                   <span className="personal-liste__ort">
                     {lehrgang
                       ? `📚 Lehrgang bis ${formatZeitpunkt(person.inAusbildungBis!)}`
-                      : fahrzeug ? `🚒 ${fahrzeug.callsign ?? fahrzeug.name}${kannUmbesetzen(fahrzeug) ? '' : ' (unterwegs)'}` : '🛋️ Reserve'}
+                      : fahrzeug ? `🚒 ${fahrzeug.callsign ?? fahrzeug.name}${kannUmbesetzen(fahrzeug) ? '' : ' (unterwegs)'}` : '🛋️ Ohne Fahrzeug'}
                   </span>
                   <span className="personal-liste__aktionen">
                     <label className="field" style={{ margin: 0 }}>
@@ -160,10 +160,10 @@ export default function PersonalReiter({
                         aria-label={`Einteilung von ${person.name}`}
                         onChange={(event) => {
                           const ziel = fahrzeuge.find((f) => f.id === event.target.value);
-                          melde(weisePersonalZu(person.id, ziel?.id), ziel ? `✓ ${person.name} → ${ziel.callsign ?? ziel.name}.` : `✓ ${person.name} ist in der Reserve.`);
+                          melde(weisePersonalZu(person.id, ziel?.id), ziel ? `✓ ${person.name} → ${ziel.callsign ?? ziel.name}.` : `✓ ${person.name} ist jetzt ohne Fahrzeug.`);
                         }}
                       >
-                        <option value="">Reserve</option>
+                        <option value="">Ohne Fahrzeug</option>
                         {fahrzeuge.map((f) => (
                           <option key={f.id} value={f.id}>
                             {f.callsign ?? f.name} ({personal.filter((p) => p.fahrzeugId === f.id).length}/{getFahrzeugTyp(f.type)?.besatzung ?? 0})

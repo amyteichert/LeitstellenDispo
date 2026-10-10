@@ -126,7 +126,7 @@ export default function AusbildungReiter({
           <h4>Zuletzt abgeschlossen</h4>
           <ul className="besatzung-liste">
             {eigeneAbschluesse.map((a, index) => (
-              <li key={`${a.qualifikation}-${index}`}>🎓 {QUALIFIKATION_LABELS[a.qualifikation]}: {a.namen.join(', ')} – jetzt in der Reserve</li>
+              <li key={`${a.qualifikation}-${index}`}>🎓 {QUALIFIKATION_LABELS[a.qualifikation]}: {a.namen.join(', ')} – jetzt ohne Fahrzeug, bitte neu einteilen</li>
             ))}
           </ul>
         </section>
@@ -197,7 +197,7 @@ function RaumKarte({
 
   const fahrzeugName = (person: Mitarbeiter) => {
     const f = fahrzeuge.find((v) => v.id === person.fahrzeugId);
-    return f ? f.callsign ?? f.name : 'Reserve';
+    return f ? f.callsign ?? f.name : 'ohne Fahrzeug';
   };
   const kandidaten = lehrgang ? personal.filter((p) => pruefeTeilnehmer(p, lehrgang) === null) : [];
   const kosten = (lehrgang?.kosten ?? 0) * auswahl.length;

@@ -559,7 +559,7 @@ function DevWerkzeuge({ dev, melde }: { dev: DevAktionen; melde: Melde }) {
         <article className="ausbau-karte">
           <span className="ausbau-karte__kategorie">Ausbildung</span>
           <h3>Lehrgänge beenden</h3>
-          <p>Alle laufenden Lehrgänge sind sofort fertig – die Teilnehmer kommen mit Qualifikation in die Reserve.</p>
+          <p>Alle laufenden Lehrgänge sind sofort fertig – die Teilnehmer kommen mit Qualifikation zurück – erst mal ohne Fahrzeug.</p>
           <button type="button" className="btn" onClick={() => void mitMarkierung(dev.lehrgaengeBeenden, '✓ Alle Lehrgänge beendet.')}>Sofort beenden</button>
         </article>
       </div>

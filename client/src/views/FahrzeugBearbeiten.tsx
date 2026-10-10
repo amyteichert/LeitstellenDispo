@@ -41,7 +41,7 @@ export default function FahrzeugBearbeiten({
   const besatzung = wachenPersonal.filter((person) => person.fahrzeugId === fahrzeug.id);
   const fehlend = getFehlendeQualifikationen(fahrzeug.type, besatzung);
   const umbesetzbar = kannUmbesetzen(fahrzeug);
-  // Reserve: wer passt, steht oben (hat eine fehlende Pflicht-Qualifikation)
+  // Personal ohne Fahrzeug: wer passt, steht oben (hat eine fehlende Pflicht-Qualifikation)
   const reserve = wachenPersonal
     .filter((person) => !person.fahrzeugId && !istInAusbildung(person))
     .sort((a, b) => Number(fehlend.some((q) => besitztQualifikation(b.qualifikationen, q)))
@@ -97,9 +97,9 @@ export default function FahrzeugBearbeiten({
                 type="button"
                 className="sitzplatz__raus"
                 disabled={!umbesetzbar}
-                aria-label={`${person.name} in die Reserve`}
-                title="In die Reserve"
-                onClick={() => melde(weisePersonalZu(person.id), `✓ ${person.name} ist in der Reserve.`)}
+                aria-label={`${person.name} vom Fahrzeug nehmen`}
+                title="Vom Fahrzeug nehmen"
+                onClick={() => melde(weisePersonalZu(person.id), `✓ ${person.name} ist jetzt ohne Fahrzeug.`)}
               >
                 ✕
               </button>
@@ -115,14 +115,14 @@ export default function FahrzeugBearbeiten({
             <select
               value=""
               disabled={!umbesetzbar || voll || reserve.length === 0}
-              aria-label="Person aus der Reserve aufs Fahrzeug setzen"
+              aria-label="Person ohne Fahrzeug aufs Fahrzeug setzen"
               onChange={(event) => {
                 const person = reserve.find((p) => p.id === event.target.value);
                 if (person) melde(weisePersonalZu(person.id, fahrzeug.id), `✓ ${person.name} → ${fahrzeug.callsign ?? fahrzeug.name}.`);
               }}
             >
               <option value="">
-                {voll ? 'Fahrzeug ist voll besetzt' : reserve.length === 0 ? 'Niemand in der Reserve' : 'Aus der Reserve hinzufügen …'}
+                {voll ? 'Fahrzeug ist voll besetzt' : reserve.length === 0 ? 'Niemand ohne Fahrzeug frei' : 'Person ohne Fahrzeug hinzufügen …'}
               </option>
               {reserve.map((person) => (
                 <option key={person.id} value={person.id}>
@@ -135,7 +135,7 @@ export default function FahrzeugBearbeiten({
             type="button"
             className="btn btn--secondary"
             disabled={!umbesetzbar || reserve.length === 0 || (voll && fehlend.length === 0)}
-            onClick={() => melde(besetzeFahrzeugAutomatisch(fahrzeug.id), `✓ ${fahrzeug.callsign ?? fahrzeug.name} mit Reserve besetzt.`)}
+            onClick={() => melde(besetzeFahrzeugAutomatisch(fahrzeug.id), `✓ ${fahrzeug.callsign ?? fahrzeug.name} besetzt.`)}
           >
             Automatisch besetzen
           </button>

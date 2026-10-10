@@ -142,7 +142,7 @@ export function getBewertungsHinweise(bewertung: EinsatzBewertung): BewertungsHi
   if (bewertung.ueberzaehlig) {
     hinweise.push({
       art: 'fehler',
-      text: `Unnötig viele Kräfte: ${bewertung.ueberzaehlig} Fahrzeug${bewertung.ueberzaehlig > 1 ? 'e' : ''} mehr als nötig (eine Reserve ist in Ordnung) – −${bewertung.ueberAbzug} Punkte. Die fehlen dir woanders.`,
+      text: `Unnötig viele Kräfte: ${bewertung.ueberzaehlig} Fahrzeug${bewertung.ueberzaehlig > 1 ? 'e' : ''} mehr als nötig (ein Fahrzeug extra ist in Ordnung) – −${bewertung.ueberAbzug} Punkte. Die fehlen dir woanders.`,
     });
   }
   return hinweise;
