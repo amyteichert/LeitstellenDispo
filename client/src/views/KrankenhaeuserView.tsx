@@ -28,6 +28,7 @@ import {
   type Krankenhaus,
   type MapLocation,
 } from '@leitstellendispo/shared';
+import { Kennzeichen } from '../Kennzeichen';
 
 const euro = (betrag: number) => `${betrag.toLocaleString('de-DE')} €`;
 const uhrzeit = (zeit?: number) => (zeit ? new Date(zeit).toLocaleString('de-DE', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '–');
@@ -140,7 +141,7 @@ export default function KrankenhaeuserView({ krankenhaeuser, wachen, ruf, balanc
           return (
             <li key={kh.id} className="ausbau-karte">
               <span className="ausbau-karte__kategorie">{kh.eigen ? '⭐ Eigenes Haus' : 'Krankenhaus'}</span>
-              <h3>🏥 {kh.name}</h3>
+              <h3 className="mit-kennzeichen"><Kennzeichen art="krankenhaus" groesse={28} />{kh.name}</h3>
               <div className="notruf-chips" style={{ display: 'flex', flexWrap: 'wrap', gap: 6, margin: '6px 0' }}>
                 {fach.map((f) => <span key={f} className="chip">{FACHRICHTUNGEN[f].kurz}</span>)}
               </div>

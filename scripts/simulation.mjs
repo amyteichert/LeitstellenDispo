@@ -7,6 +7,7 @@
 // - alarmiert jeden Einsatz mit dem Alarmvorschlag (was gerade frei ist) und alarmiert nach
 // - spart auf weitere Rettungswachen (mit RTW) bis 5 Wachen, danach kauft er RTW/NEF für freie Stellplätze
 // - Personal: Startfahrzeuge haben Besatzung; gekaufte Fahrzeuge kosten zusätzlich Einstellungskosten
+// - laufende Kosten (Gehälter, Unterhalt) werden wie im Spiel minütlich abgebucht
 import {
   START_GUTHABEN,
   alarmiereFahrzeuge,
@@ -14,7 +15,9 @@ import {
   einsatzIntervallMs,
   entstehtEinsatz,
   erstelleAlarmVorschlag,
+  erzeugeBesatzungFuer,
   erzeugeZufallsEinsatz,
+  getLaufendeKosten,
   getFahrzeugTyp,
   getStellplaetze,
   getWachenPreis,
@@ -38,6 +41,10 @@ let vehicles = [];
 let incidents = [];
 let einnahmen = 0;
 let abgeschlossenGesamt = 0;
+let kostenGesamt = 0;
+let personal = [];
+let letzteKostenMinute = T0;
+let minimum = Infinity;
 const meilensteine = [];
 
 const wache = (nr) => ({
@@ -65,7 +72,9 @@ const baueWache = () => {
   if (balance < preis) return false;
   const w = wache(locations.length + 1);
   locations = [...locations, w];
-  vehicles = [...vehicles, fahrzeug('RTW', w.id)];
+  const rtw = fahrzeug('RTW', w.id);
+  vehicles = [...vehicles, rtw];
+  personal = [...personal, ...erzeugeBesatzungFuer(rtw)];
   balance -= preis;
   meilensteine.push({ zeit: jetzt, text: `${locations.length}. Wache gebaut` });
   return true;
@@ -76,7 +85,9 @@ const kaufeFahrzeug = (typ) => {
   if (balance < preis) return false;
   const w = locations.find((l) => vehicles.filter((v) => v.stationId === l.id).length < getStellplaetze(l));
   if (!w) return false;
-  vehicles = [...vehicles, fahrzeug(typ, w.id)];
+  const neu = fahrzeug(typ, w.id);
+  vehicles = [...vehicles, neu];
+  personal = [...personal, ...erzeugeBesatzungFuer(neu)];
   balance -= preis;
   meilensteine.push({ zeit: jetzt, text: `${typ} gekauft (${vehicles.length} Fahrzeuge)` });
   return true;
@@ -126,6 +137,15 @@ while (jetzt < ende) {
     }
   }
 
+  // Laufende Kosten minütlich
+  if (jetzt - letzteKostenMinute >= 60_000) {
+    letzteKostenMinute += 60_000;
+    const kosten = getLaufendeKosten({ locations, vehicles, personal, krankenhaeuser: [] }).gesamt / 60;
+    balance -= kosten;
+    kostenGesamt += kosten;
+  }
+  minimum = Math.min(minimum, balance);
+
   // Einkaufen
   if (locations.length < 5) baueWache();
   else if (vehicles.filter((v) => v.type === 'NEF').length < locations.length / 2) kaufeFahrzeug('NEF');
@@ -137,6 +157,8 @@ console.log(`\nSimulation: ${STUNDEN} Stunden, Einsatztempo ${TEMPO}\n`);
 for (const m of meilensteine) console.log(`  ${min(m.zeit).padStart(8)}  ${m.text}`);
 console.log(`\n  Einsätze abgeschlossen: ${abgeschlossenGesamt} (${(abgeschlossenGesamt / STUNDEN).toFixed(1)} pro Stunde)`);
 console.log(`  Einnahmen gesamt:       ${Math.round(einnahmen).toLocaleString('de-DE')} € (${Math.round(einnahmen / STUNDEN).toLocaleString('de-DE')} € pro Stunde)`);
+console.log(`  Laufende Kosten gesamt: ${Math.round(kostenGesamt).toLocaleString('de-DE')} € (${Math.round(kostenGesamt / STUNDEN).toLocaleString('de-DE')} € pro Stunde, Ende: ${getLaufendeKosten({ locations, vehicles, personal, krankenhaeuser: [] }).gesamt.toLocaleString('de-DE')} €/Std.)`);
+console.log(`  Tiefster Kontostand:    ${Math.round(minimum).toLocaleString('de-DE')} €`);
 console.log(`  Guthaben am Ende:       ${Math.round(balance).toLocaleString('de-DE')} €`);
 console.log(`  Ruf am Ende:            ${ruf}`);
 console.log(`  Wachen / Fahrzeuge:     ${locations.length} / ${vehicles.length}\n`);

@@ -1,12 +1,15 @@
-// Team-Bereich: Übersicht, Kontenverwaltung, Spielstände einsehen und Dev-Markierung – nur für Owner, Co-Owner, Admin
+// Team-Bereich: Übersicht, Kontenverwaltung, Spielstände einsehen und Dev-Markierung – nur für Owner, Co-Owner, Admin.
+// Kritische Aktionen (löschen, zurücksetzen, korrigieren, Ankündigung) erst ab Co-Owner – siehe TEAM_RECHT_AB.
 import { Router, type NextFunction, type Request, type Response } from 'express';
 import {
   ANKUENDIGUNG_MAX_LAENGE,
   NOTIZ_MAX_LAENGE,
   RUF_CONFIG,
   darfKontoVerwalten,
+  darfNotizLoeschen,
   darfRolleVergeben,
   fasseSpielstandZusammen,
+  hatTeamRecht,
   istTeamRolle,
   type Ankuendigung,
   type AnkuendigungsArt,
@@ -15,6 +18,7 @@ import {
   type SpielstandKorrektur,
   type TeamKonto,
   type TeamProtokollEintrag,
+  type TeamRecht,
   type TeamUebersicht,
   type UserRole,
 } from '@leitstellendispo/shared';
@@ -53,6 +57,15 @@ export function nurTeam(_req: Request, res: Response, next: NextFunction) {
   next();
 }
 
+/** Lässt nur Team-Mitglieder mit diesem Recht durch (kritische Aktionen erst ab Co-Owner). */
+export const nurMitRecht = (recht: TeamRecht) => (_req: Request, res: Response, next: NextFunction) => {
+  if (!hatTeamRecht((res.locals.konto as Konto).rolle, recht)) {
+    res.status(403).json({ fehler: 'Dafür fehlt dir die Berechtigung (erst ab Co-Owner).' });
+    return;
+  }
+  next();
+};
+
 const KONTO_SPALTEN = `
   b.id, b.name, b.rolle, b.gesperrt, b.erstellt, b.dev_markiert, b.email, s.aktualisiert AS zuletzt
   FROM benutzer b LEFT JOIN spielstaende s ON s.benutzer_id = b.id`;
@@ -85,7 +98,7 @@ export function erstelleTeamRouter(db: Datenbank, konten: KontenDienst, optionen
       FROM team_protokoll ORDER BY id DESC LIMIT 200`),
     notizen: db.prepare('SELECT id, zeit, von_name AS vonName, text FROM konto_notizen WHERE benutzer_id = ? ORDER BY id DESC'),
     notizAnlegen: db.prepare('INSERT INTO konto_notizen (benutzer_id, von_name, text) VALUES (?, ?, ?)'),
-    notiz: db.prepare('SELECT id, benutzer_id FROM konto_notizen WHERE id = ?'),
+    notiz: db.prepare('SELECT id, benutzer_id, von_name AS vonName FROM konto_notizen WHERE id = ?'),
     notizLoeschen: db.prepare('DELETE FROM konto_notizen WHERE id = ?'),
     ankuendigungSetzen: db.prepare(`
       INSERT INTO ankuendigung (id, text, art, von_name, zeit) VALUES (1, ?, ?, ?, strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
@@ -183,7 +196,7 @@ export function erstelleTeamRouter(db: Datenbank, konten: KontenDienst, optionen
     res.json({ link: passwortLink(spielBasisUrl(req, optionen.spielUrl), token), laeuftAb });
   });
 
-  router.delete('/konten/:id/spielstand', (req, res) => {
+  router.delete('/konten/:id/spielstand', nurMitRecht('spielstand_zuruecksetzen'), (req, res) => {
     const ziel = zielKonto(req, res);
     if (!ziel) return;
     sql.spielstandLoeschen.run(ziel.id);
@@ -191,7 +204,7 @@ export function erstelleTeamRouter(db: Datenbank, konten: KontenDienst, optionen
     res.status(204).end();
   });
 
-  router.delete('/konten/:id', (req, res) => {
+  router.delete('/konten/:id', nurMitRecht('konto_loeschen'), (req, res) => {
     const ziel = zielKonto(req, res);
     if (!ziel) return;
     sql.loeschen.run(ziel.id); // Sitzungen und Spielstand fallen per ON DELETE CASCADE mit weg
@@ -223,15 +236,16 @@ export function erstelleTeamRouter(db: Datenbank, konten: KontenDienst, optionen
   });
 
   router.delete('/notizen/:id', (req, res) => {
-    const notiz = sql.notiz.get(Number(req.params.id)) as { id: number; benutzer_id: number } | undefined;
+    const notiz = sql.notiz.get(Number(req.params.id)) as { id: number; benutzer_id: number; vonName: string } | undefined;
     if (!notiz) return void res.status(404).json({ fehler: 'Notiz nicht gefunden.' });
+    if (!darfNotizLoeschen(ich(res), notiz)) return void res.status(403).json({ fehler: 'Fremde Notizen dürfen erst Co-Owner löschen.' });
     sql.notizLoeschen.run(notiz.id);
     protokolliere(ich(res), 'Notiz gelöscht', sql.konto.get(notiz.benutzer_id) as TeamKontoZeile | undefined);
     res.status(204).end();
   });
 
   // ---- Ankündigung an alle Spieler ----
-  router.put('/ankuendigung', (req, res) => {
+  router.put('/ankuendigung', nurMitRecht('ankuendigung'), (req, res) => {
     const text = typeof req.body?.text === 'string' ? req.body.text.trim() : '';
     const art: AnkuendigungsArt = ['info', 'wartung', 'wichtig'].includes(req.body?.art) ? req.body.art : 'info';
     if (!text) return void res.status(400).json({ fehler: 'Die Ankündigung ist leer.' });
@@ -241,7 +255,7 @@ export function erstelleTeamRouter(db: Datenbank, konten: KontenDienst, optionen
     res.json({ ankuendigung: ladeAnkuendigung(db) });
   });
 
-  router.delete('/ankuendigung', (_req, res) => {
+  router.delete('/ankuendigung', nurMitRecht('ankuendigung'), (_req, res) => {
     sql.ankuendigungLoeschen.run();
     protokolliere(ich(res), 'Ankündigung entfernt');
     res.status(204).end();
@@ -254,7 +268,7 @@ export function erstelleTeamRouter(db: Datenbank, konten: KontenDienst, optionen
     res.json({ korrekturen: sql.korrekturen.all(ziel.id) });
   });
 
-  router.post('/konten/:id/korrekturen', (req, res) => {
+  router.post('/konten/:id/korrekturen', nurMitRecht('spielstand_korrigieren'), (req, res) => {
     const ziel = zielKonto(req, res);
     if (!ziel) return;
     const guthabenAenderung = Math.round(Number(req.body?.guthabenAenderung ?? 0));

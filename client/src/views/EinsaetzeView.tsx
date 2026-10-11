@@ -23,6 +23,7 @@ import {
 import EinsatzAbgabe from './EinsatzAbgabe';
 import Rueckalarmierung from './Rueckalarmierung';
 import type { MapLocation, Vehicle } from '../types';
+import { Kennzeichen } from '../Kennzeichen';
 
 const formatEtaLabel = (seconds: number) => {
   const totalSeconds = Math.max(0, Math.ceil(seconds));
@@ -245,7 +246,7 @@ export default function EinsaetzeView({
                         onClick={() => setSelectedIncidentId(incident.id)}
                       >
                         <span className="einsatz-eintrag__kopf">
-                          <strong>{formatEinsatzTitel(incident)}</strong>
+                          <strong className="mit-kennzeichen"><Kennzeichen art="einsatz" einsatz={incident} groesse={24} />{formatEinsatzTitel(incident)}</strong>
                           <span className={`status-badge status-badge--${incident.status}`}>{EINSATZ_STATUS_LABELS[incident.status]}</span>
                         </span>
                         {incident.neueMeldung && <span className="neue-meldung-badge" style={{ marginLeft: 0, width: 'fit-content' }}>⚠ Neue Meldung</span>}
@@ -284,7 +285,7 @@ export default function EinsaetzeView({
                       onClick={() => setSelectedIncidentId(incident.id)}
                     >
                       <span className="einsatz-eintrag__kopf">
-                        <strong>{formatEinsatzTitel(incident)}</strong>
+                        <strong className="mit-kennzeichen"><Kennzeichen art="einsatz" einsatz={incident} groesse={24} />{formatEinsatzTitel(incident)}</strong>
                         <span className="status-badge status-badge--abgeschlossen">Abgeschlossen</span>
                       </span>
                       <span className="einsatz-eintrag__zeile">📍 {incident.address}</span>
@@ -302,7 +303,7 @@ export default function EinsaetzeView({
             <div className="einsatz-details">
               <div className="einsatz-details__kopf">
                 <div>
-                  <h3>{formatEinsatzTitel(selectedIncident)}</h3>
+                  <h3 className="mit-kennzeichen"><Kennzeichen art="einsatz" einsatz={selectedIncident} groesse={30} />{formatEinsatzTitel(selectedIncident)}</h3>
                   <div className="einsatz-eintrag__zeile" style={{ fontSize: '0.95rem', marginTop: 2 }}>📍 {selectedIncident.address}</div>
                   <div className="einsatz-eintrag__zeile">
                     {selectedIncident.organization} · {selectedIncident.reward} € · eingegangen {formatUhrzeit(selectedIncident.createdAt)} · 🏠 {selectedIncident.generatedByStationName}
@@ -414,7 +415,7 @@ export default function EinsaetzeView({
                           <label>
                             <input type="checkbox" checked={selectedVehicleIds.includes(vehicle.id)} onChange={() => toggleVehicle(vehicle.id)} />
                             <span>
-                              <strong>{vehicle.callsign ?? vehicle.name}</strong> · {vehicle.type}
+                              <strong className="mit-kennzeichen"><Kennzeichen art="fahrzeug" typ={vehicle.type} groesse={22} />{vehicle.callsign ?? vehicle.name}</strong> · {vehicle.type}
                               <small>
                                 <span title="Realistische Anfahrtszeit (Ausrückzeit + Straßenweg). Auf der Karte vorerst auf direktem Weg – echte Routenführung ist für später angedacht.">⏱ ca. {formatEtaLabel(anfahrtSekunden)}</span> · 🏠 {station?.name ?? '–'} · {distanzKm.toFixed(1)} km
                                 {!passend && ' · zählt nicht zum Bedarf'}
@@ -475,7 +476,7 @@ export default function EinsaetzeView({
                       const fms = vehicle?.status ? FMS_STATUS[vehicle.status] : undefined;
                       return (
                         <li key={`${assignment.vehicleId}-${index}`}>
-                          <strong>{callSign}</strong>
+                          <strong className="mit-kennzeichen"><Kennzeichen art="fahrzeug" typ={vehicle?.type} groesse={20} />{callSign}</strong>
                           {selectedIncident.status !== 'abgeschlossen' && (
                             <span> – {fms !== undefined ? `S${fms} · ` : ''}{beschreibeZuteilung(selectedIncident, assignment, nowMs)}</span>
                           )}

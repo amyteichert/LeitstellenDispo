@@ -2,6 +2,7 @@ import { useId, useState, type FormEvent } from 'react';
 import { APP_VERSION, KONTO_REGELN, pruefePasswort } from '@leitstellendispo/shared';
 import { KontoFehler, passwortZuruecksetzen } from './konto';
 import { RechtlicheLinks } from './Rechtliches';
+import { Marke } from './Symbole';
 
 export const PASSWORT_SEITE = '/passwort-zuruecksetzen';
 
@@ -40,7 +41,6 @@ export default function PasswortZuruecksetzen() {
     <div className="anmeldung__feld">
       <label htmlFor={feldId}>{label}</label>
       <div className="anmeldung__eingabe">
-        <span aria-hidden>🔒</span>
         <input
           id={feldId}
           type={sichtbar ? 'text' : 'password'}
@@ -58,7 +58,7 @@ export default function PasswortZuruecksetzen() {
             aria-label={sichtbar ? 'Passwort verbergen' : 'Passwort anzeigen'}
             title={sichtbar ? 'Passwort verbergen' : 'Passwort anzeigen'}
           >
-            {sichtbar ? '🙈' : '👁️'}
+            {sichtbar ? 'Verbergen' : 'Zeigen'}
           </button>
         )}
       </div>
@@ -67,17 +67,9 @@ export default function PasswortZuruecksetzen() {
 
   return (
     <div className="anmeldung">
-      <div className="anmeldung__hintergrund" aria-hidden>
-        <div className="buehne__radar">
-          <span className="buehne__sweep" />
-        </div>
+      <div className="anmeldung__leiste">
+        <Marke untertitel="Leitstellen-Simulation im Browser" />
       </div>
-
-      <header className="anmeldung__kopf">
-        <div className="anmeldung__banner">
-          <img src="/brand-banner.png" alt="LeitstellenDispo" />
-        </div>
-      </header>
 
       <div className="anmeldung__mitte anmeldung__mitte--einzeln">
         <main className="anmeldung__karte">

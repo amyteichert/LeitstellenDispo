@@ -4,8 +4,10 @@ import {
   NOTIZ_MAX_LAENGE,
   ROLLEN_LABELS,
   darfKontoVerwalten,
+  darfNotizLoeschen,
   darfRolleVergeben,
   getVergebbareRollen,
+  hatTeamRecht,
   type Ankuendigung,
   type AnkuendigungsArt,
   type Konto,
@@ -69,7 +71,7 @@ export default function TeamView({ konto, dev }: { konto: Konto; dev: DevAktione
 
       {reiter === 'Übersicht' && <Uebersicht melde={melde} />}
       {reiter === 'Konten' && <Konten ich={konto} melde={melde} />}
-      {reiter === 'Ankündigung' && <AnkuendigungVerwalten melde={melde} />}
+      {reiter === 'Ankündigung' && <AnkuendigungVerwalten ich={konto} melde={melde} />}
       {reiter === 'Protokoll' && <Protokoll melde={melde} />}
       {reiter === 'Dev-Werkzeuge' && <DevWerkzeuge dev={dev} melde={melde} />}
     </div>
@@ -220,8 +222,8 @@ function KontoZeile({ konto, ich, offen, umschalten, melde, ersetze, entferne }:
             </label>
           )}
 
-          {verwaltbar && <KorrekturFormular konto={konto} melde={melde} />}
-          <Notizen konto={konto} melde={melde} />
+          {verwaltbar && hatTeamRecht(ich.rolle, 'spielstand_korrigieren') && <KorrekturFormular konto={konto} melde={melde} />}
+          <Notizen konto={konto} ich={ich} melde={melde} />
 
           <div className="team-konto__aktionen">
             {rollenVergabe && (
@@ -261,27 +263,34 @@ function KontoZeile({ konto, ich, offen, umschalten, melde, ersetze, entferne }:
                 >
                   Passwort-Link erzeugen
                 </button>
-                <button
-                  type="button"
-                  className="btn"
-                  disabled={!stand}
-                  onClick={() => {
-                    if (!window.confirm(`Spielstand von ${konto.name} wirklich zurücksetzen? Das lässt sich nicht rückgängig machen.`)) return;
-                    void aktion(async () => { await teamApi.spielstandZuruecksetzen(konto.id); setStand(null); }, `Spielstand von ${konto.name} zurückgesetzt.`);
-                  }}
-                >
-                  Spielstand zurücksetzen
-                </button>
-                <button
-                  type="button"
-                  className="btn btn--danger"
-                  onClick={() => {
-                    if (!window.confirm(`Konto ${konto.name} samt Spielstand endgültig löschen?`)) return;
-                    void aktion(async () => { await teamApi.loeschen(konto.id); entferne(); }, `Konto ${konto.name} gelöscht.`);
-                  }}
-                >
-                  Konto löschen
-                </button>
+                {hatTeamRecht(ich.rolle, 'spielstand_zuruecksetzen') && (
+                  <button
+                    type="button"
+                    className="btn"
+                    disabled={!stand}
+                    onClick={() => {
+                      if (!window.confirm(`Spielstand von ${konto.name} wirklich zurücksetzen? Das lässt sich nicht rückgängig machen.`)) return;
+                      void aktion(async () => { await teamApi.spielstandZuruecksetzen(konto.id); setStand(null); }, `Spielstand von ${konto.name} zurückgesetzt.`);
+                    }}
+                  >
+                    Spielstand zurücksetzen
+                  </button>
+                )}
+                {hatTeamRecht(ich.rolle, 'konto_loeschen') && (
+                  <button
+                    type="button"
+                    className="btn btn--danger"
+                    onClick={() => {
+                      if (!window.confirm(`Konto ${konto.name} samt Spielstand endgültig löschen?`)) return;
+                      void aktion(async () => { await teamApi.loeschen(konto.id); entferne(); }, `Konto ${konto.name} gelöscht.`);
+                    }}
+                  >
+                    Konto löschen
+                  </button>
+                )}
+                {!hatTeamRecht(ich.rolle, 'konto_loeschen') && (
+                  <small>Löschen, Zurücksetzen und Korrekturen übernehmen Co-Owner und Owner – sprich sie bei Bedarf an.</small>
+                )}
               </>
             ) : (
               konto.id !== ich.id && <small>Dieses Konto hat einen gleichen oder höheren Rang – du kannst es nicht verwalten.</small>
@@ -294,7 +303,8 @@ function KontoZeile({ konto, ich, offen, umschalten, melde, ersetze, entferne }:
 }
 
 /** Ankündigung an alle Spieler: erscheint oben im Spiel, bis sie entfernt wird. */
-function AnkuendigungVerwalten({ melde }: { melde: Melde }) {
+function AnkuendigungVerwalten({ ich, melde }: { ich: Konto; melde: Melde }) {
+  const darf = hatTeamRecht(ich.rolle, 'ankuendigung');
   const [aktuell, setAktuell] = useState<Ankuendigung | null | undefined>(undefined);
   const [text, setText] = useState('');
   const [art, setArt] = useState<AnkuendigungsArt>('info');
@@ -334,9 +344,10 @@ function AnkuendigungVerwalten({ melde }: { melde: Melde }) {
       <section className="ausbau-karte">
         <span className="ausbau-karte__kategorie">📢 Ankündigung an alle</span>
         <p>Erscheint bei allen Spielern oben im Spiel (z. B. Wartung, neue Version). Jeder kann sie für sich wegklicken.</p>
+        {!darf && <small className="einsatz-eintrag__zeile">Ankündigungen veröffentlichen Co-Owner und Owner. Du siehst hier die aktuelle.</small>}
         <label className="field">
           <span>Art</span>
-          <select value={art} onChange={(e) => setArt(e.target.value as AnkuendigungsArt)}>
+          <select disabled={!darf} value={art} onChange={(e) => setArt(e.target.value as AnkuendigungsArt)}>
             <option value="info">ℹ️ Info</option>
             <option value="wartung">🛠️ Wartung</option>
             <option value="wichtig">⚠️ Wichtig</option>
@@ -344,14 +355,14 @@ function AnkuendigungVerwalten({ melde }: { melde: Melde }) {
         </label>
         <label className="field">
           <span>Text <small>({text.length}/{ANKUENDIGUNG_MAX_LAENGE})</small></span>
-          <textarea rows={3} maxLength={ANKUENDIGUNG_MAX_LAENGE} value={text} onChange={(e) => setText(e.target.value)} placeholder="z. B. Heute ab 20 Uhr kurze Wartung (ca. 10 Minuten)." />
+          <textarea rows={3} readOnly={!darf} maxLength={ANKUENDIGUNG_MAX_LAENGE} value={text} onChange={(e) => setText(e.target.value)} placeholder="z. B. Heute ab 20 Uhr kurze Wartung (ca. 10 Minuten)." />
         </label>
-        <div className="team-konto__aktionen">
+        {darf && <div className="team-konto__aktionen">
           <button type="button" className="btn btn--primary" disabled={!text.trim()} onClick={() => void veroeffentlichen()}>
             {aktuell ? 'Aktualisieren' : 'Veröffentlichen'}
           </button>
           {aktuell && <button type="button" className="btn btn--danger" onClick={() => void entfernen()}>Entfernen</button>}
-        </div>
+        </div>}
         {aktuell && <small className="einsatz-eintrag__zeile">Aktiv seit {datum(aktuell.zeit)} · von {aktuell.vonName}</small>}
         {aktuell === null && <small className="einsatz-eintrag__zeile">Gerade ist keine Ankündigung aktiv.</small>}
       </section>
@@ -389,7 +400,7 @@ function Protokoll({ melde }: { melde: Melde }) {
 }
 
 /** Interne Notizen des Teams zu einem Konto */
-function Notizen({ konto, melde }: { konto: TeamKonto; melde: Melde }) {
+function Notizen({ konto, ich, melde }: { konto: TeamKonto; ich: Konto; melde: Melde }) {
   const [notizen, setNotizen] = useState<KontoNotiz[] | null>(null);
   const [text, setText] = useState('');
 
@@ -425,7 +436,9 @@ function Notizen({ konto, melde }: { konto: TeamKonto; melde: Melde }) {
           <li key={n.id}>
             <small>{datum(n.zeit)} · {n.vonName}</small>
             <span>{n.text}</span>
-            <button type="button" className="btn btn--klein" onClick={() => void loeschen(n)} aria-label="Notiz löschen">🗑️</button>
+            {darfNotizLoeschen(ich, n) && (
+              <button type="button" className="btn btn--klein" onClick={() => void loeschen(n)} aria-label="Notiz löschen">🗑️</button>
+            )}
           </li>
         ))}
       </ul>

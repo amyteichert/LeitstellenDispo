@@ -16,6 +16,7 @@ import {
 import { KontoFehler, SITZUNG_ABGELAUFEN, abmelden, anmelden, holeFunktionen, holeKonto, passwortVergessen, registrieren } from './konto';
 import { serverSpeicher, uebernimmBrowserSpielstand } from './spielstand';
 import { RechtlicheLinks } from './Rechtliches';
+import { Marke, Piktogramm, type SymbolName } from './Symbole';
 import './App.css';
 
 type Zustand =
@@ -62,16 +63,11 @@ export default function Anmeldung({ children }: { children: (konto: Konto, onAbm
 
   return (
     <div className="anmeldung">
-      <div className="anmeldung__hintergrund" aria-hidden>
-        <div className="buehne__radar">
-          <span className="buehne__sweep" />
-        </div>
+      <div className="anmeldung__leiste">
+        <Marke untertitel="Leitstellen-Simulation im Browser" />
       </div>
 
       <header className="anmeldung__kopf">
-        <div className="anmeldung__banner">
-          <img src="/brand-banner.png" alt="LeitstellenDispo" />
-        </div>
         <h1>Bereit für deine Schicht?</h1>
         <p>{APP_SUBTITLE}</p>
       </header>
@@ -111,11 +107,11 @@ export default function Anmeldung({ children }: { children: (konto: Konto, onAbm
   );
 }
 
-const MERKMALE = [
-  { icon: '🚑', titel: 'Einsätze disponieren', text: 'Notrufe kommen rein – du schickst die richtigen Fahrzeuge los.' },
-  { icon: '🚒', titel: 'Rettungsdienst & Feuerwehr', text: 'Von der Schnittverletzung bis zum Gebäudebrand.' },
-  { icon: '🏥', titel: 'Wachen ausbauen', text: 'Neue Standorte, mehr Stellplätze, größere Flotte.' },
-  { icon: '⭐', titel: 'Ruf aufbauen', text: 'Schnelle, richtige Entscheidungen bringen Ruf und Geld.' },
+const MERKMALE: Array<{ icon: SymbolName; titel: string; text: string }> = [
+  { icon: 'einsatz', titel: 'Einsätze disponieren', text: 'Notrufe kommen rein – du schickst die richtigen Fahrzeuge los.' },
+  { icon: 'karte', titel: 'Rettungsdienst & Feuerwehr', text: 'Von der Schnittverletzung bis zum Gebäudebrand – auf echten Karten.' },
+  { icon: 'wache', titel: 'Wachen ausbauen', text: 'Neue Standorte, mehr Stellplätze, Personal und Ausbildung.' },
+  { icon: 'geld', titel: 'Haushalten', text: 'Einsätze bringen Geld, Gehälter und Unterhalt kosten es.' },
 ];
 
 // Echte Zahlen aus dem Spiel – keine Fantasiewerte
@@ -132,7 +128,7 @@ function Merkmale() {
       <ul className="anmeldung__merkmale">
         {MERKMALE.map((merkmal) => (
           <li key={merkmal.titel}>
-            <span aria-hidden>{merkmal.icon}</span>
+            <span aria-hidden><Piktogramm name={merkmal.icon} groesse={18} /></span>
             <div><strong>{merkmal.titel}</strong><small>{merkmal.text}</small></div>
           </li>
         ))}
@@ -152,22 +148,15 @@ function zufallsVorlage(sichtbar: TickerEintrag[]) {
   return frei[Math.floor(Math.random() * frei.length)];
 }
 
-/** Werbe-Ticker: zeigt nacheinander echte Einsatzarten aus dem Spiel */
+/** Drei echte Einsatzarten aus dem Spiel als Beispiel (einmal ausgewählt – kein Laufband) */
 function EinsatzTicker() {
-  const [eintraege, setEintraege] = useState<TickerEintrag[]>(() =>
+  const [eintraege] = useState<TickerEintrag[]>(() =>
     Array.from({ length: 3 }).reduce<TickerEintrag[]>((liste, _, nr) => [...liste, { nr, vorlage: zufallsVorlage(liste) }], []),
   );
 
-  useEffect(() => {
-    const intervall = setInterval(() => {
-      setEintraege((aktuell) => [{ nr: Math.max(...aktuell.map((eintrag) => eintrag.nr)) + 1, vorlage: zufallsVorlage(aktuell) }, ...aktuell].slice(0, 4));
-    }, 3500);
-    return () => clearInterval(intervall);
-  }, []);
-
   return (
     <section aria-label="Beispiel-Einsätze aus dem Spiel">
-      <h3><span className="buehne__online" aria-hidden /> Diese Einsätze könnten dich erwarten</h3>
+      <h3>Beispiel-Einsätze</h3>
       <ul className="anmeldung__ticker">
         {eintraege.map(({ nr, vorlage }) => (
           <li key={nr} className={vorlage.organization === 'Feuerwehr' ? 'fw' : 'rd'}>
@@ -258,7 +247,6 @@ function AnmeldeFormular({ hinweis, onErfolg }: { hinweis?: string; onErfolg: (k
         <div className="anmeldung__feld">
           <label htmlFor={`${id}-email`}>E-Mail-Adresse</label>
           <div className="anmeldung__eingabe">
-            <span aria-hidden>✉️</span>
             <input
               id={`${id}-email`}
               type="email"
@@ -278,7 +266,6 @@ function AnmeldeFormular({ hinweis, onErfolg }: { hinweis?: string; onErfolg: (k
       <div className="anmeldung__feld">
         <label htmlFor={`${id}-name`}>Benutzername</label>
         <div className="anmeldung__eingabe">
-          <span aria-hidden>👤</span>
           <input
             id={`${id}-name`}
             value={name}
@@ -303,7 +290,6 @@ function AnmeldeFormular({ hinweis, onErfolg }: { hinweis?: string; onErfolg: (k
       <div className="anmeldung__feld">
         <label htmlFor={`${id}-passwort`}>Passwort</label>
         <div className="anmeldung__eingabe">
-          <span aria-hidden>🔒</span>
           <input
             id={`${id}-passwort`}
             type={passwortSichtbar ? 'text' : 'password'}
@@ -319,7 +305,7 @@ function AnmeldeFormular({ hinweis, onErfolg }: { hinweis?: string; onErfolg: (k
             aria-label={passwortSichtbar ? 'Passwort verbergen' : 'Passwort anzeigen'}
             title={passwortSichtbar ? 'Passwort verbergen' : 'Passwort anzeigen'}
           >
-            {passwortSichtbar ? '🙈' : '👁️'}
+            {passwortSichtbar ? 'Verbergen' : 'Zeigen'}
           </button>
         </div>
       </div>
@@ -327,7 +313,6 @@ function AnmeldeFormular({ hinweis, onErfolg }: { hinweis?: string; onErfolg: (k
         <div className="anmeldung__feld">
           <label htmlFor={`${id}-wiederholt`}>Passwort wiederholen</label>
           <div className="anmeldung__eingabe">
-            <span aria-hidden>🔒</span>
             <input
               id={`${id}-wiederholt`}
               type={passwortSichtbar ? 'text' : 'password'}
@@ -352,7 +337,7 @@ function AnmeldeFormular({ hinweis, onErfolg }: { hinweis?: string; onErfolg: (k
       {fehler && <p className="anmeldung__fehler" role="alert">{fehler}</p>}
 
       <button type="submit" className="btn btn--primary anmeldung__absenden" disabled={sendet}>
-        {sendet ? <><span className="anmeldung__spinner" aria-hidden /> Bitte warten …</> : istRegistrierung ? 'Konto erstellen →' : 'Zum Dienst anmelden →'}
+        {sendet ? <><span className="anmeldung__spinner" aria-hidden /> Bitte warten …</> : istRegistrierung ? 'Konto erstellen' : 'Anmelden'}
       </button>
       {!istRegistrierung && (
         <button type="button" className="anmeldung__link" onClick={() => setModus('vergessen')} disabled={sendet}>
@@ -408,7 +393,6 @@ function PasswortVergessen({ email, setEmail, onZurueck }: { email: string; setE
           <div className="anmeldung__feld">
             <label htmlFor={`${id}-email`}>E-Mail-Adresse</label>
             <div className="anmeldung__eingabe">
-              <span aria-hidden>✉️</span>
               <input
                 id={`${id}-email`}
                 type="email"
@@ -424,7 +408,7 @@ function PasswortVergessen({ email, setEmail, onZurueck }: { email: string; setE
           </div>
           {fehler && <p className="anmeldung__fehler" role="alert">{fehler}</p>}
           <button type="submit" className="btn btn--primary anmeldung__absenden" disabled={sendet || verfuegbar === null}>
-            {sendet ? <><span className="anmeldung__spinner" aria-hidden /> Bitte warten …</> : 'Link anfordern →'}
+            {sendet ? <><span className="anmeldung__spinner" aria-hidden /> Bitte warten …</> : 'Link anfordern'}
           </button>
         </>
       )}

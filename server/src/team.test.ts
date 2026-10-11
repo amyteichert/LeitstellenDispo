@@ -89,12 +89,15 @@ describe('Kontenverwaltung', () => {
     const ansicht = await json(await server.anfrage('GET', `/team/konten/${ids.Disponent}/spielstand`, { cookie: admin }));
     expect(ansicht.daten.zusammenfassung).toMatchObject({ guthaben: 4711, ruf: 50, wachen: 0, fahrzeuge: 0, personal: 0 });
 
-    expect((await server.anfrage('DELETE', `/team/konten/${ids.Disponent}/spielstand`, { cookie: admin })).status).toBe(204);
+    // Zurücksetzen erst ab Co-Owner – Admins moderieren nur
+    expect((await server.anfrage('DELETE', `/team/konten/${ids.Disponent}/spielstand`, { cookie: admin })).status).toBe(403);
+    expect((await server.anfrage('DELETE', `/team/konten/${ids.Disponent}/spielstand`, { cookie: owner })).status).toBe(204);
     expect((await json(await server.anfrage('GET', '/spielstand', { cookie: spieler }))).daten.spielstand).toBeNull();
   });
 
   it('Löschen entfernt Konto, Sitzungen und Spielstand', async () => {
     await server.anfrage('PUT', '/spielstand', { body: createNeuesSpiel(), cookie: spieler2 });
+    expect((await server.anfrage('DELETE', `/team/konten/${ids.Gast}`, { cookie: admin })).status).toBe(403);
     expect((await server.anfrage('DELETE', `/team/konten/${ids.Gast}`, { cookie: owner })).status).toBe(204);
     expect((await server.anfrage('GET', '/auth/ich', { cookie: spieler2 })).status).toBe(401);
     expect(server.db.prepare('SELECT COUNT(*) AS n FROM spielstaende').get()).toEqual({ n: 0 });
@@ -127,27 +130,51 @@ describe('Team-Werkzeuge: Protokoll, Notizen, Ankündigung, Korrekturen', () => 
     expect((await server.anfrage('DELETE', `/team/notizen/${neu.daten.notizen[0].id}`, { cookie: owner })).status).toBe(204);
   });
 
+  it('Notizen löschen: eigene immer, fremde erst ab Co-Owner', async () => {
+    const vomOwner = await json(await server.anfrage('POST', `/team/konten/${ids.Gast}/notizen`, { body: { text: 'Vom Owner' }, cookie: owner }));
+    const vomAdmin = await json(await server.anfrage('POST', `/team/konten/${ids.Gast}/notizen`, { body: { text: 'Vom Admin' }, cookie: admin }));
+    const idOwner = vomOwner.daten.notizen[0].id;
+    const idAdmin = vomAdmin.daten.notizen[0].id;
+    expect((await server.anfrage('DELETE', `/team/notizen/${idOwner}`, { cookie: admin })).status).toBe(403);
+    expect((await server.anfrage('DELETE', `/team/notizen/${idAdmin}`, { cookie: admin })).status).toBe(204);
+    expect((await server.anfrage('DELETE', `/team/notizen/${idOwner}`, { cookie: owner })).status).toBe(204);
+  });
+
   it('Ankündigung: Team setzt sie, alle lesen sie, Entfernen löscht sie', async () => {
     expect((await json(await server.anfrage('GET', '/ankuendigung'))).daten.ankuendigung).toBeNull();
     expect((await server.anfrage('PUT', '/team/ankuendigung', { body: { text: 'Heute 20 Uhr Wartung', art: 'wartung' }, cookie: spieler })).status).toBe(403);
-    await server.anfrage('PUT', '/team/ankuendigung', { body: { text: 'Heute 20 Uhr Wartung', art: 'wartung' }, cookie: admin });
+    // Ankündigungen an alle erst ab Co-Owner
+    expect((await server.anfrage('PUT', '/team/ankuendigung', { body: { text: 'Heute 20 Uhr Wartung', art: 'wartung' }, cookie: admin })).status).toBe(403);
+    await server.anfrage('PUT', '/team/ankuendigung', { body: { text: 'Heute 20 Uhr Wartung', art: 'wartung' }, cookie: owner });
     const gelesen = await json(await server.anfrage('GET', '/ankuendigung', { cookie: spieler }));
-    expect(gelesen.daten.ankuendigung).toMatchObject({ text: 'Heute 20 Uhr Wartung', art: 'wartung', vonName: 'Helfer' });
+    expect(gelesen.daten.ankuendigung).toMatchObject({ text: 'Heute 20 Uhr Wartung', art: 'wartung', vonName: 'Amy' });
+    expect((await server.anfrage('DELETE', '/team/ankuendigung', { cookie: admin })).status).toBe(403);
     await server.anfrage('DELETE', '/team/ankuendigung', { cookie: owner });
     expect((await json(await server.anfrage('GET', '/ankuendigung'))).daten.ankuendigung).toBeNull();
   });
 
-  it('Korrekturen: Team legt an, der Spieler holt sie ab und bestätigt – danach sind sie weg', async () => {
+  it('Korrekturen: Co-Owner/Owner legt an, der Spieler holt sie ab und bestätigt – danach sind sie weg', async () => {
+    // Co-Owner anlegen: Helfer (bisher Admin) wird Co-Owner, ein neuer Admin bekommt kein Korrektur-Recht
+    server.db.prepare("UPDATE benutzer SET rolle = 'co_owner' WHERE name = 'Helfer'").run();
+    const coOwner = admin;
+    const neuerAdmin = await registriere('Moderator');
+    server.db.prepare("UPDATE benutzer SET rolle = 'admin' WHERE name = 'Moderator'").run();
+    expect((await server.anfrage('POST', `/team/konten/${ids.Disponent}/korrekturen`, {
+      body: { guthabenAenderung: 5000, grund: 'x' }, cookie: neuerAdmin,
+    })).status).toBe(403);
+    // Ansehen dürfen Admins weiterhin
+    expect((await server.anfrage('GET', `/team/konten/${ids.Disponent}/korrekturen`, { cookie: neuerAdmin })).status).toBe(200);
+
     const angelegt = await server.anfrage('POST', `/team/konten/${ids.Disponent}/korrekturen`, {
-      body: { guthabenAenderung: 5000, rufNeu: 60, grund: 'Bug beim Fahrzeugkauf' }, cookie: admin,
+      body: { guthabenAenderung: 5000, rufNeu: 60, grund: 'Bug beim Fahrzeugkauf' }, cookie: coOwner,
     });
     expect(angelegt.status).toBe(201);
     // Ohne Grund oder ohne Änderung abgelehnt, Ruf nur 0–100
-    expect((await server.anfrage('POST', `/team/konten/${ids.Disponent}/korrekturen`, { body: { guthabenAenderung: 10 }, cookie: admin })).status).toBe(400);
-    expect((await server.anfrage('POST', `/team/konten/${ids.Disponent}/korrekturen`, { body: { grund: 'x' }, cookie: admin })).status).toBe(400);
-    expect((await server.anfrage('POST', `/team/konten/${ids.Disponent}/korrekturen`, { body: { rufNeu: 150, grund: 'x' }, cookie: admin })).status).toBe(400);
-    // Admin darf keine gleichrangigen/höheren Konten korrigieren
-    expect((await server.anfrage('POST', `/team/konten/${ids.Amy}/korrekturen`, { body: { guthabenAenderung: 1, grund: 'x' }, cookie: admin })).status).toBe(403);
+    expect((await server.anfrage('POST', `/team/konten/${ids.Disponent}/korrekturen`, { body: { guthabenAenderung: 10 }, cookie: coOwner })).status).toBe(400);
+    expect((await server.anfrage('POST', `/team/konten/${ids.Disponent}/korrekturen`, { body: { grund: 'x' }, cookie: coOwner })).status).toBe(400);
+    expect((await server.anfrage('POST', `/team/konten/${ids.Disponent}/korrekturen`, { body: { rufNeu: 150, grund: 'x' }, cookie: coOwner })).status).toBe(400);
+    // Co-Owner darf den höherrangigen Owner nicht korrigieren
+    expect((await server.anfrage('POST', `/team/konten/${ids.Amy}/korrekturen`, { body: { guthabenAenderung: 1, grund: 'x' }, cookie: coOwner })).status).toBe(403);
 
     const offen = await json(await server.anfrage('GET', '/spielstand/korrekturen', { cookie: spieler }));
     expect(offen.daten.korrekturen).toEqual([expect.objectContaining({ guthabenAenderung: 5000, rufNeu: 60, grund: 'Bug beim Fahrzeugkauf' })]);

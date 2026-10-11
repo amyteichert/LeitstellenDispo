@@ -19,3 +19,5 @@ export * from './funk.js';
 export * from './konten.js';
 export * from './ersteSchritte.js';
 export * from './aufkommen.js';
+export * from './kosten.js';
+export * from './symbole.js';

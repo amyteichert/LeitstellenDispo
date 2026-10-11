@@ -22,6 +22,7 @@ import {
   type Adresse,
   type FahrzeugFahrt,
   type Konto,
+  type MapLocation,
   type SpielEinsatz,
 } from '@leitstellendispo/shared';
 import 'leaflet/dist/leaflet.css';
@@ -33,6 +34,8 @@ import { useSpiel } from './useSpiel';
 import { useWetter } from './useWetter';
 import { ladeStartansicht, sichtbareAnsichten, type Ansicht } from './startansicht';
 import TeamView from './views/TeamView';
+import { Marke, Piktogramm, type SymbolName } from './Symbole';
+import { einsatzMarkerHtml, fahrzeugSymbolHtml, krankenhausMarkerHtml, wachenMarkerHtml } from './Kennzeichen';
 import Tour, { tourGesehen } from './Tour';
 import { teamApi } from './konto';
 import { useEinsatzHinweise } from './useEinsatzHinweise';
@@ -68,25 +71,37 @@ const INCIDENT_MARKER_COLORS: Record<SpielEinsatz['status'], string> = {
   abgeschlossen: '#6b7280',
 };
 
-/** Einsatz-Marker in Statusfarbe; offene Einsätze pulsieren, eskalierte sind rot umrandet, der gewählte ist größer. */
+/**
+ * Einsatz-Marker: Symbol der Einsatzart (Brand, Patient, Unfall …) auf Statusfarbe.
+ * Offene Einsätze pulsieren, eskalierte sind rot umrandet, der gewählte ist größer.
+ */
 const createIncidentMarkerIcon = (incident: SpielEinsatz, selected: boolean) => {
   const { status } = incident;
-  const size = selected ? 22 : 16;
+  const size = selected ? 32 : 26;
   const organisation = incident.organization === 'Feuerwehr' ? 'fw' : 'rd';
   return L.divIcon({
     className: `custom-marker incident-marker incident-marker--${status} incident-marker--${organisation} ${istEskaliert(incident) ? 'incident-marker--eskaliert' : ''}`,
-    html: `<span style="display:block; width:${size}px; height:${size}px; border-radius:50%; background:${INCIDENT_MARKER_COLORS[status]}; border:2px solid #fff; box-shadow:0 2px 8px rgba(0,0,0,0.25);"></span>`,
+    html: einsatzMarkerHtml(incident, INCIDENT_MARKER_COLORS[status], size),
     iconSize: [size, size],
     iconAnchor: [size / 2, size / 2],
   });
 };
 
-/** Krankenhaus als Ziel für Patiententransporte */
+/** Wache als Quadrat mit Symbol: Feuerwehrhelm (rot) bzw. Stern des Lebens (orange) */
+const createWachenMarkerIcon = (location: Pick<MapLocation, 'stationKind'>, groesse = 32) =>
+  L.divIcon({
+    className: 'custom-marker',
+    html: wachenMarkerHtml(location.stationKind, groesse),
+    iconSize: [groesse, groesse],
+    iconAnchor: [groesse / 2, groesse / 2],
+  });
+
+/** Krankenhaus als Ziel für Patiententransporte (blaues H wie das Verkehrsschild) */
 const hospitalMarkerIcon = L.divIcon({
-  className: 'hospital-marker',
-  html: '<span>H</span>',
-  iconSize: [22, 22],
-  iconAnchor: [11, 11],
+  className: 'custom-marker',
+  html: krankenhausMarkerHtml(),
+  iconSize: [26, 26],
+  iconAnchor: [13, 13],
 });
 
 const FAHRT_LINIEN_FARBEN: Record<FahrzeugFahrt['art'], string> = {
@@ -97,10 +112,10 @@ const FAHRT_LINIEN_FARBEN: Record<FahrzeugFahrt['art'], string> = {
   rueckfahrt: '#9ca3af',
 };
 
-const createVehicleMarkerIcon = (label: string, art: FahrzeugFahrt['art'], organisation: 'fw' | 'rd') =>
+const createVehicleMarkerIcon = (label: string, art: FahrzeugFahrt['art'], organisation: 'fw' | 'rd', typ: string | undefined) =>
   L.divIcon({
     className: `vehicle-marker vehicle-marker--${art} vehicle-marker--${organisation}`,
-    html: `<span>${organisation === 'fw' ? '🚒' : '🚑'} ${label}</span>`,
+    html: `<span>${fahrzeugSymbolHtml(typ)}${label.replace(/[&<>"']/g, (z) => `&#${z.charCodeAt(0)};`)}</span>`,
     iconSize: undefined,
     iconAnchor: [0, 0],
   });
@@ -113,6 +128,13 @@ function KarteFolgt({ coords }: { coords: [number, number] | null }) {
   }, [coords, map]);
   return null;
 }
+
+/** Die wichtigsten Bereiche in der Tab-Leiste unten links */
+const SCHNELLZUGRIFF: Array<{ ansicht: Ansicht; symbol: SymbolName }> = [
+  { ansicht: 'Karte', symbol: 'karte' },
+  { ansicht: 'Einsätze', symbol: 'einsatz' },
+  { ansicht: 'Einstellungen', symbol: 'einstellungen' },
+];
 
 const KARTE_KEY = 'leitstellendispo.karte';
 
@@ -302,6 +324,9 @@ function App({ konto, onAbmelden }: { konto: Konto; onAbmelden: () => Promise<vo
 
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const triggerRef = useRef<HTMLElement>(null);
+
+  // Einsätze, die auf den Disponenten warten: noch nicht alarmiert oder mit neuer Lagemeldung
+  const wartendeEinsaetze = incidents.filter((incident) => incident.status === 'offen' || incident.neueMeldung).length;
 
   const selectView = (v: typeof currentView) => {
     setCurrentView(v);
@@ -585,7 +610,7 @@ Dein Guthaben: ${balance.toLocaleString('de-DE')} €`)) return;
           {hinweise.map((hinweis) => (
             <div key={hinweis.id} className={`einsatz-hinweis einsatz-hinweis--${hinweis.art}`}>
               <button type="button" className="einsatz-hinweis__inhalt" onClick={() => oeffneHinweis(hinweis.einsatzId, hinweis.id)}>
-                <strong>{hinweis.art === 'meldung' ? '⚠ ' : '🚨 '}{hinweis.titel}</strong>
+                <strong>{hinweis.titel}</strong>
                 <span>{hinweis.text}</span>
               </button>
               <button type="button" className="einsatz-hinweis__schliessen" onClick={() => schliesseHinweis(hinweis.id)} aria-label="Schließen">✕</button>
@@ -614,51 +639,53 @@ Dein Guthaben: ${balance.toLocaleString('de-DE')} €`)) return;
         </div>
       )}
       <header className="topbar">
-        {/* banner image fills the header */}
-        <img className="topbar__banner" src="/brand-banner.png" alt="LeitstellenDispo Banner" />
-
         <div className="brand">
-          <div className="brand__text">
-            {/* Title and subtitle intentionally removed as requested (empty space reserved) */}
-          </div>
+          <Marke />
+          <span className="chip chip--version" title="Spielversion">V{APP_VERSION}</span>
         </div>
 
         <div className="topbar__meta">
-          {/* Single dropdown trigger showing the currently active main view */}
-          {/* Will render current view and open a small dropdown when clicked. */}
-          { /* Version chip kept for visibility */ }
-          <span className="chip chip--version">V{APP_VERSION}</span>
-          <button type="button" className="chip ruf-chip" title="Guthaben – antippen für die Finanzen" onClick={() => setCurrentView('Finanzen')}>
-            💶 {balance.toLocaleString('de-DE')} €
+          <button
+            type="button"
+            className={`chip ruf-chip status-chip ${balance < 0 ? 'status-chip--minus' : ''}`}
+            title={`Guthaben – laufende Kosten ${spiel.laufendeKosten.gesamt.toLocaleString('de-DE')} €/Std. · antippen für die Finanzen`}
+            onClick={() => setCurrentView('Finanzen')}
+          >
+            <Piktogramm name="geld" />
+            <span className="status-chip__wert">{balance.toLocaleString('de-DE')} €</span>
           </button>
           {offeneSprechwuensche.length > 0 && (
             <button
               type="button"
-              className="chip ruf-chip funk-chip"
+              className="chip ruf-chip status-chip funk-chip"
               title="Fahrzeuge mit Sprechwunsch (Status 5) – antippen zum Funk"
               onClick={() => setCurrentView('Funk')}
             >
-              📻 S5 × {offeneSprechwuensche.length}
+              <Piktogramm name="funk" />
+              <span className="status-chip__wert">S5 × {offeneSprechwuensche.length}</span>
             </button>
           )}
           {spiel.locations.some((location) => location.type === 'station') && (
             <button
               type="button"
-              className="chip ruf-chip"
-              title="Echtes Wetter an deiner ersten Wache – antippen für mehr Infos"
+              className="chip ruf-chip status-chip"
+              title={`Echtes Wetter an deiner ersten Wache: ${WETTER_LABELS[wetter].split(' ').slice(1).join(' ')} – antippen für mehr Infos`}
               onClick={() => setWetterFensterOffen(true)}
             >
-              {WETTER_LABELS[wetter].split(' ')[0]}<span className="nur-breit"> {WETTER_LABELS[wetter].split(' ').slice(1).join(' ')}</span>
+              <Piktogramm name="wetter" />
+              <span className="nur-breit">{WETTER_LABELS[wetter].split(' ').slice(1).join(' ')}</span>
             </button>
           )}
           <button
             type="button"
-            className="chip ruf-chip"
+            className="chip ruf-chip status-chip"
             data-tour="ruf"
             title="Ruf der Leitstelle – antippen für deine Bewertungen und Fehler"
             onClick={() => setRufFensterOffen(true)}
           >
-            ⭐ Ruf {spiel.ruf}<span className="nur-breit"> · {getRufLabel(spiel.ruf)}</span>
+            <Piktogramm name="stern" />
+            <span className="status-chip__wert">{spiel.ruf}</span>
+            <span className="nur-breit status-chip__label">{getRufLabel(spiel.ruf)}</span>
           </button>
 
           <div className="view-dropdown">
@@ -851,13 +878,12 @@ Dein Guthaben: ${balance.toLocaleString('de-DE')} €`)) return;
               )}
 
               {locations.map((location) => {
-                const iconColor = location.type === 'incident' ? '#f59e0b' : '#d92d2d';
-
                 return (
                   <Marker
                     key={location.id}
                     position={location.coords}
-                    icon={createMarkerIcon(iconColor)}
+                    icon={location.type === 'station' ? createWachenMarkerIcon(location) : createMarkerIcon('#f59e0b')}
+                    zIndexOffset={200}
                     eventHandlers={{ click: () => setSelectedId(location.id) }}
                   >
                     <Popup>
@@ -909,7 +935,7 @@ Dein Guthaben: ${balance.toLocaleString('de-DE')} €`)) return;
                     )}
                     <Marker
                       position={fahrt.position}
-                      icon={createVehicleMarkerIcon(vehicle.callsign ?? vehicle.name, fahrt.art, organisation)}
+                      icon={createVehicleMarkerIcon(vehicle.callsign ?? vehicle.name, fahrt.art, organisation, vehicle.type)}
                       zIndexOffset={2000}
                       interactive={false}
                     />
@@ -919,7 +945,7 @@ Dein Guthaben: ${balance.toLocaleString('de-DE')} €`)) return;
             </MapContainer>
           </section>
         ) : (
-          <section className="panel--secondary" style={{ padding: 16 }}>
+          <section className="panel--secondary seiten-inhalt">
             {currentView === 'Wachen' && (
               <WachenView
                 locations={locations}
@@ -960,7 +986,7 @@ Dein Guthaben: ${balance.toLocaleString('de-DE')} €`)) return;
                     <MapClickHandler onMapClick={handleMapClick} />
                     <KarteFolgt coords={tempCoords} />
                     {locations.filter((location) => location.type === 'station').map((location) => (
-                      <Marker key={location.id} position={location.coords} icon={createMarkerIcon('#d92d2d')} />
+                      <Marker key={location.id} position={location.coords} icon={createWachenMarkerIcon(location, 22)} />
                     ))}
                     {tempCoords && <Marker position={tempCoords} icon={createMarkerIcon('#2563eb')} />}
                   </MapContainer>
@@ -1034,7 +1060,7 @@ Dein Guthaben: ${balance.toLocaleString('de-DE')} €`)) return;
             )}
 
             {currentView === 'Finanzen' && (
-              <FinanzenView balance={balance} locations={locations} vehicles={vehicles} transactions={transactions} />
+              <FinanzenView balance={balance} locations={locations} vehicles={vehicles} transactions={transactions} laufendeKosten={spiel.laufendeKosten} nowMs={nowMs} />
             )}
 
             {currentView === 'Statistik' && <StatistikView verlauf={completedIncidentHistory} ruf={spiel.ruf} />}
@@ -1052,6 +1078,25 @@ Dein Guthaben: ${balance.toLocaleString('de-DE')} €`)) return;
           </section>
         )}
       </main>
+
+      {/* Schnellzugriff unten links – alle weiteren Bereiche über das Menü oben rechts */}
+      <nav className="tab-leiste" aria-label="Schnellzugriff">
+        {SCHNELLZUGRIFF.map(({ ansicht, symbol }) => (
+          <button
+            key={ansicht}
+            type="button"
+            className={`tab-leiste__tab ${currentView === ansicht ? 'tab-leiste__tab--aktiv' : ''}`}
+            aria-current={currentView === ansicht ? 'page' : undefined}
+            onClick={() => selectView(ansicht)}
+          >
+            <span className="tab-leiste__symbol">
+              <Piktogramm name={symbol} groesse={20} />
+              {ansicht === 'Einsätze' && wartendeEinsaetze > 0 && <span className="tab-leiste__zahl">{wartendeEinsaetze}</span>}
+            </span>
+            <span>{ansicht}</span>
+          </button>
+        ))}
+      </nav>
     </div>
   );
 }

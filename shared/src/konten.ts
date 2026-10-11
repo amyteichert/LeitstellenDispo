@@ -116,6 +116,27 @@ export function darfRolleVergeben(handelnd: Pick<Konto, 'id' | 'rolle'>, ziel: P
 export const getVergebbareRollen = (handelnd: Pick<Konto, 'rolle'>): UserRole[] =>
   VERGEBBARE_ROLLEN.filter((rolle) => ROLLEN_RANG[rolle] < ROLLEN_RANG[handelnd.rolle]);
 
+/**
+ * Kritische Team-Aktionen – endgültig, wirken aufs Spielgeschehen oder auf alle Spieler.
+ * Admins moderieren (ansehen, sperren, Notizen, Passwort-Link); alles hier erst ab der angegebenen Rolle.
+ */
+export type TeamRecht = 'konto_loeschen' | 'spielstand_zuruecksetzen' | 'spielstand_korrigieren' | 'ankuendigung' | 'fremde_notizen_loeschen';
+
+export const TEAM_RECHT_AB: Record<TeamRecht, UserRole> = {
+  konto_loeschen: 'co_owner',
+  spielstand_zuruecksetzen: 'co_owner',
+  spielstand_korrigieren: 'co_owner',
+  ankuendigung: 'co_owner',
+  fremde_notizen_loeschen: 'co_owner',
+};
+
+export const hatTeamRecht = (rolle: UserRole, recht: TeamRecht): boolean =>
+  istTeamRolle(rolle) && ROLLEN_RANG[rolle] >= ROLLEN_RANG[TEAM_RECHT_AB[recht]];
+
+/** Eigene Notizen darf jedes Team-Mitglied löschen, fremde erst ab Co-Owner. */
+export const darfNotizLoeschen = (handelnd: Pick<Konto, 'name' | 'rolle'>, notiz: Pick<KontoNotiz, 'vonName'>): boolean =>
+  istTeamRolle(handelnd.rolle) && (notiz.vonName === handelnd.name || hatTeamRecht(handelnd.rolle, 'fremde_notizen_loeschen'));
+
 /** Konto, wie es der Team-Bereich sieht */
 export interface TeamKonto extends Konto {
   gesperrt: boolean;

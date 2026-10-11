@@ -18,6 +18,7 @@ import {
 import type { MapLocation, Vehicle } from '../types';
 import EinsatzAbgabe from './EinsatzAbgabe';
 import Rueckalarmierung from './Rueckalarmierung';
+import { Kennzeichen } from '../Kennzeichen';
 
 /** Leiste oben auf der Karte mit allen laufenden Einsätzen. */
 export function KarteEinsatzLeiste({
@@ -116,7 +117,7 @@ export function KarteEinsatzPanel({
   return (
     <aside className="map-incident-panel">
       <div className="map-incident-panel__header">
-        <h3>{formatEinsatzTitel(incident)}</h3>
+        <h3 className="mit-kennzeichen"><Kennzeichen art="einsatz" einsatz={incident} groesse={26} />{formatEinsatzTitel(incident)}</h3>
         <button type="button" className="map-incident-panel__close" onClick={onClose} aria-label="Schließen">✕</button>
       </div>
 
@@ -162,7 +163,7 @@ export function KarteEinsatzPanel({
                 <label>
                   <input type="checkbox" checked={auswahl.includes(vehicle.id)} onChange={() => toggle(vehicle.id)} />
                   <span>
-                    <strong>{vehicle.callsign ?? vehicle.name}</strong> · {vehicle.type}
+                    <strong className="mit-kennzeichen"><Kennzeichen art="fahrzeug" typ={vehicle.type} groesse={20} />{vehicle.callsign ?? vehicle.name}</strong> · {vehicle.type}
                     <small>
                       <span title="Realistische Anfahrtszeit (Ausrückzeit + Straßenweg). Auf der Karte vorerst auf direktem Weg – echte Routenführung ist für später angedacht.">⏱ {formatAnfahrt(anfahrtSekunden)}</span> · 🏠 {locations.find((l) => l.id === vehicle.stationId)?.name ?? '–'} · {distanzKm.toFixed(1)} km
                       {!passend && ' · zählt nicht zum Bedarf'}

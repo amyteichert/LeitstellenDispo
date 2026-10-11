@@ -1,22 +1,24 @@
 :root {
-  /* LeitstellenDispo Design – ruhiges Blau */
+  /* LeitstellenDispo Design – ruhig und sachlich: neutrale Flächen, ein Akzent-Blau, Rot nur für Einsätze/Warnungen */
   color-scheme: dark;
-  --color-primary: #2563eb;
-  --color-primary-dark: #1d4ed8;
-  --color-primary-light: rgba(37, 99, 235, 0.14);
-  --color-primary-text: #93c5fd; /* Akzent für Text auf dunklem Grund */
-  --color-bg: #0b0d16;
-  --color-surface: #131626;
-  --color-surface-raised: #1a1e33;
-  --color-input: #0f1220;
-  --color-text: #e8eaf6;
-  --color-text-muted: #9aa0b8;
-  --color-border: #262b45;
-  --color-border-strong: #343a5c;
-  --color-success: #16a34a;
-  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.3);
-  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.35);
-  --shadow-card: 0 6px 18px rgba(0, 0, 0, 0.35);
+  --color-primary: #2f6fde;
+  --color-primary-dark: #285fbf;
+  --color-primary-light: rgba(47, 111, 222, 0.14);
+  --color-primary-text: #8cb4ff; /* Akzent für Text auf dunklem Grund */
+  --color-bg: #0d1117;
+  --color-surface: #151b23;
+  --color-surface-raised: #1c232d;
+  --color-input: #10151c;
+  --color-text: #e6edf3;
+  --color-text-muted: #9aa4b2;
+  --color-border: #252d38;
+  --color-border-strong: #323c49;
+  --color-success: #2ea043;
+  --color-danger: #d93f3f;
+  --color-warning: #d29922;
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.3);
+  --shadow-card: 0 8px 24px rgba(0, 0, 0, 0.35);
   --radius: 8px;
   --font: 'Inter', system-ui, -apple-system, sans-serif;
 }
@@ -42,6 +44,8 @@ html.kompakt {
 
 body {
   font-family: var(--font);
+  line-height: 1.45;
+  font-feature-settings: 'cv11', 'ss01';
   background: var(--color-bg);
   color: var(--color-text);
   -webkit-font-smoothing: antialiased;

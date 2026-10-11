@@ -1,5 +1,6 @@
 import { FAEHIGKEIT_LABELS, FMS_STATUS, getFahrzeugTyp } from '@leitstellendispo/shared';
 import type { Vehicle } from '../types';
+import { Kennzeichen } from '../Kennzeichen';
 
 export default function FahrzeugeView({ vehicles, stations }: { vehicles: Vehicle[]; addVehicle: (v: Omit<Vehicle, 'id'>) => void; stations: any[] }) {
   return (
@@ -12,7 +13,7 @@ export default function FahrzeugeView({ vehicles, stations }: { vehicles: Vehicl
             {vehicles.map((v) => (
               <li key={v.id} style={{ marginBottom: 8 }}>
                 <div style={{ padding: 10, borderRadius: 8, background: 'var(--color-surface)', boxShadow: 'var(--shadow-card)' }}>
-                  <strong>{v.callsign ? `${v.callsign} (${v.name})` : v.name}</strong>
+                  <strong className="mit-kennzeichen"><Kennzeichen art="fahrzeug" typ={v.type} groesse={26} />{v.callsign ? `${v.callsign} (${v.name})` : v.name}</strong>
                   <div style={{ fontSize: 12, color: 'var(--color-text-muted)' }}>
                     Typ: {v.type ?? '–'} · Status {FMS_STATUS[v.status ?? 'Einsatzbereit']}: {v.status ?? 'Einsatzbereit'}
                   </div>

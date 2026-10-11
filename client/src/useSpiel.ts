@@ -2,6 +2,9 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   GAME_CONFIG,
   RUF_CONFIG,
+  bucheLaufendeKosten,
+  getLaufendeKosten,
+  rechneLaufendeKostenAb,
   getWachenPreis,
   rechneEinsaetzeAb,
   getBelegteStellplaetze,
@@ -160,6 +163,23 @@ export function useSpiel(optionen: UseSpielOptionen = {}) {
     return fahrzeug;
   };
 
+  // Laufende Kosten (Gehälter, Unterhalt): minütlich abbuchen, aber nur solange das Spiel offen ist
+  const [kostenAbgerechnetBis, setKostenAbgerechnetBis] = useState<number | undefined>(undefined);
+  const laufendeKosten = useMemo(
+    () => getLaufendeKosten({ locations, vehicles, personal, krankenhaeuser }),
+    [locations, vehicles, personal, krankenhaeuser],
+  );
+  useEffect(() => {
+    if (!spielstandGeladen) return;
+    const ergebnis = rechneLaufendeKostenAb(laufendeKosten.gesamt, kostenAbgerechnetBis, nowMs);
+    if (ergebnis.abgerechnetBis === kostenAbgerechnetBis) return;
+    setKostenAbgerechnetBis(ergebnis.abgerechnetBis);
+    if (ergebnis.betrag > 0) {
+      setBalance((cur) => cur - ergebnis.betrag);
+      setTransactions((cur) => bucheLaufendeKosten(cur, ergebnis.betrag, nowMs));
+    }
+  }, [spielstandGeladen, nowMs, laufendeKosten.gesamt, kostenAbgerechnetBis]);
+
   // Fällige Lehrgänge abschließen (auch solche, die während das Spiel geschlossen war, geendet haben)
   const [ausbildungsAbschluesse, setAusbildungsAbschluesse] = useState<AbgeschlossenerLehrgang[]>([]);
   useEffect(() => {
@@ -290,6 +310,7 @@ export function useSpiel(optionen: UseSpielOptionen = {}) {
     setRuf(spielstand.ruf ?? RUF_CONFIG.start);
     setPersonal(spielstand.personal ?? []);
     setFunk(spielstand.funk ?? []);
+    setKostenAbgerechnetBis(spielstand.kostenAbgerechnetBis);
     // Nach dem Laden neu einlesen, ohne alte Meldungen und Status nochmal zu funken
     statusStand.current = null;
     bekannteMeldungen.current = null;
@@ -333,10 +354,11 @@ export function useSpiel(optionen: UseSpielOptionen = {}) {
         ruf,
         personal,
         funk,
+        kostenAbgerechnetBis,
       });
     }, 1000);
     return () => clearTimeout(timeout);
-  }, [spielstandGeladen, balance, transactions, locations, vehicles, incidents, completedIncidentHistory, krankenhaeuser, ruf, personal, funk]);
+  }, [spielstandGeladen, balance, transactions, locations, vehicles, incidents, completedIncidentHistory, krankenhaeuser, ruf, personal, funk, kostenAbgerechnetBis]);
 
   // Spielzeit
   useEffect(() => {
@@ -809,6 +831,7 @@ export function useSpiel(optionen: UseSpielOptionen = {}) {
     vehicles,
     balance,
     transactions,
+    laufendeKosten,
     incidents,
     completedIncidentHistory,
     completedIncidentStats,

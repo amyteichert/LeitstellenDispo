@@ -37,6 +37,8 @@ export interface Spielstand {
   personal?: Mitarbeiter[];
   /** Funkverkehr (neueste zuerst) – fehlt bei älteren Spielständen */
   funk?: FunkSpruch[];
+  /** Bis hierhin sind die laufenden Kosten abgerechnet – fehlt = Abrechnung beginnt beim nächsten Start */
+  kostenAbgerechnetBis?: number;
 }
 
 export const START_WACHEN: MapLocation[] = [

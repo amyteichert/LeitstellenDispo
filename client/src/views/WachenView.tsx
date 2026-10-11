@@ -5,6 +5,7 @@ import {
   STELLPLATZ_CONFIG,
   formatAdresse,
   getBelegteStellplaetze,
+  getWachenKostenJeStunde,
   getFahrzeugTyp,
   getFahrzeugTypenFuerWache,
   getStellplaetze,
@@ -35,6 +36,7 @@ import type { MapLocation, Vehicle } from '../types';
 import PersonalReiter from './PersonalReiter';
 import FahrzeugBearbeiten from './FahrzeugBearbeiten';
 import AusbildungReiter, { type AusbildungAktionen } from './AusbildungReiter';
+import { Kennzeichen } from '../Kennzeichen';
 
 type Reiter = 'Übersicht' | 'Fahrzeuge' | 'Personal' | 'Ausbildung' | 'Ausbau';
 const REITER: Reiter[] = ['Übersicht', 'Fahrzeuge', 'Personal', 'Ausbildung', 'Ausbau'];
@@ -129,10 +131,11 @@ export default function WachenView({
           const plaetze = getStellplaetze(s);
           return (
             <li key={s.id} className={`wachen-karte ${selectedId === s.id ? 'wachen-karte--aktiv' : ''}`}>
+              <Kennzeichen art="wache" wachenArt={s.stationKind} groesse={40} />
               <button type="button" className="wachen-karte__info" onClick={() => setSelectedId(s.id)}>
-                <strong>{s.stationKind === 'Feuerwache' ? '🚒' : '🚑'} {s.name}</strong>
+                <strong>{s.name}</strong>
                 <small>{s.adresse ? formatAdresse(s.adresse) : s.details}</small>
-                <small>{s.stationKind ?? 'Rettungswache'} · Stellplätze {belegt}/{plaetze}</small>
+                <small>{s.stationKind ?? 'Rettungswache'} · Stellplätze {belegt}/{plaetze} · Kosten {formatEuro(getWachenKostenJeStunde(s, { vehicles, personal }))}/Std.</small>
               </button>
               <button type="button" className="btn btn--primary" data-tour={index === 0 ? "wache-verwalten" : undefined} onClick={() => setVerwaltenId(s.id)}>
                 Verwalten
@@ -216,7 +219,7 @@ function WacheVerwalten({
       <div className="verwalten-kopf">
         <button type="button" className="btn" onClick={onZurueck}>← Zurück</button>
         <div>
-          <h2 style={{ margin: 0 }}>{wache.stationKind === 'Feuerwache' ? '🚒' : '🚑'} {wache.name}</h2>
+          <h2 className="mit-kennzeichen" style={{ margin: 0 }}><Kennzeichen art="wache" wachenArt={wache.stationKind} groesse={32} />{wache.name}</h2>
           <small>{wache.stationKind ?? 'Rettungswache'} · {wache.adresse ? formatAdresse(wache.adresse) : wache.details}</small>
         </div>
       </div>
@@ -278,6 +281,11 @@ function WacheVerwalten({
             <strong>{wachenPersonal.length} / {personalLimit}</strong>
           </div>
           <div className="verwalten-kachel">
+            <small>Laufende Kosten</small>
+            <strong>{formatEuro(getWachenKostenJeStunde(wache, { vehicles, personal }))} / Std.</strong>
+            <small>Gehälter, Fahrzeuge und Unterhalt</small>
+          </div>
+          <div className="verwalten-kachel">
             <small>Fahrzeuge nicht alarmierbar</small>
             <strong>{nichtBesetzt.length}</strong>
             {nichtBesetzt.length > 0 && <small>Besatzung fehlt – siehe „Personal“</small>}
@@ -303,7 +311,7 @@ function WacheVerwalten({
                       onClick={() => setOffenesFahrzeug(offenesFahrzeug === v.id ? null : v.id)}
                     >
                       <span>
-                        <strong>{v.callsign ?? v.name}</strong> – {v.type ?? '–'} · S{FMS_STATUS[v.status ?? 'Einsatzbereit']} {v.status ?? 'Einsatzbereit'}
+                        <strong className="mit-kennzeichen"><Kennzeichen art="fahrzeug" typ={v.type} groesse={24} />{v.callsign ?? v.name}</strong> – {v.type ?? '–'} · S{FMS_STATUS[v.status ?? 'Einsatzbereit']} {v.status ?? 'Einsatzbereit'}
                         {!istAusreichendBesetzt(v) && <span className="ruf-minus"> · nicht besetzt</span>}
                       </span>
                       <span aria-hidden>{offenesFahrzeug === v.id ? '▴' : '✏️'}</span>

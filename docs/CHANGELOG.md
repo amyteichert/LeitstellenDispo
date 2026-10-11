@@ -6,6 +6,34 @@ Format basiert auf [Keep a Changelog](https://keepachangelog.com/).
 
 ---
 
+## [Unreleased] – Laufende Kosten, Team-Rechte, ruhigeres Design
+
+### Hinzugefügt
+- **Laufende Kosten**: Gehälter (Grundgehalt + Zulagen je Qualifikation), Unterhalt für Wachen, Ausbauten,
+  Ausbildungsräume, Fahrzeuge und eigene Krankenhäuser (`shared/src/kosten.ts`, Werte in `KOSTEN_CONFIG`).
+  Minütlich abgebucht, aber nur solange das Spiel offen ist; eine Sammelbuchung je Stunde in den Finanzen
+- Finanzen: Kostenaufstellung je Stunde, Einnahmen der letzten Stunde, Bilanz, Hinweis bei Minus-Konto
+- Wachen: laufende Kosten je Wache in Liste und Übersicht
+- Balancing-Simulation rechnet die laufenden Kosten mit ein
+- **Symbole** für Feuerwachen (Helm), Rettungswachen (Stern des Lebens), Krankenhäuser (H), jede Fahrzeugart
+  (RTW, KTW, NEF, Löschfahrzeug, Drehleiter, Rüstwagen, ELW) und Einsatzarten (Brand, Alarm/BMA, Patient, Herz,
+  Verkehrsunfall, Technik, Baum, Wasser/Öl, Tier, Tür, Krankentransport) – auf der Karte und in den Listen gleich
+  (`client/src/Kennzeichen.tsx`, Zuordnung der Einsätze in `shared/src/symbole.ts`)
+- Symbole von Flaticon für Feuerwache, Rettungswache, Krankenhaus, RTW, KTW und Löschfahrzeug (`client/public/symbole`),
+  Bildnachweis im Impressum
+
+- **Tab-Leiste unten** (links): Schnellzugriff auf Karte, Einsätze (mit Zahl wartender Einsätze) und Einstellungen;
+  alle weiteren Bereiche bleiben im Menü oben rechts
+
+### Geändert
+- **Team-Rechte**: Admins moderieren (ansehen, sperren, Notizen, Passwort-Link). Konto löschen, Spielstand
+  zurücksetzen, Guthaben/Ruf korrigieren und Ankündigungen erst ab Co-Owner; fremde Notizen löschen erst ab Co-Owner
+- **Design**: schlichte Kopfzeile mit Signet statt Banner, neutrale Statusanzeigen mit Linien-Symbolen,
+  ruhigere Buttons (kein Springen/Leuchten), einheitliche Seitenbreite und Überschriften
+- Anmeldung und Passwort-Seite ohne Werbebanner, Radar-Animation und Laufband
+
+---
+
 ## [Unreleased] – Einsatzorte, Fahrzeugbedarf, Rettungsdienst
 
 ### Hinzugefügt

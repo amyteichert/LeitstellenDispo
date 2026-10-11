@@ -66,6 +66,12 @@ function Impressum() {
       <p>
         {HOSTER.name}, {HOSTER.strasse}, {HOSTER.ort}
       </p>
+      <h2>Bildnachweis</h2>
+      <p>
+        Symbole für Feuerwache, Rettungswache, Krankenhaus, Rettungswagen, Krankentransportwagen und Löschfahrzeug:{' '}
+        <a href="https://www.flaticon.com" target="_blank" rel="noopener noreferrer">Flaticon (www.flaticon.com)</a>.
+        Alle übrigen Symbole sind eigene Gestaltungen von LeitstellenDispo.
+      </p>
       <h2>Hinweis</h2>
       <p>
         LeitstellenDispo ist ein Browserspiel. Alle Einsätze, Personen und Adressen im Spiel sind frei erfunden;

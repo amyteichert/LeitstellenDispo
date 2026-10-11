@@ -2,196 +2,135 @@
   min-height: 100vh;
   display: flex;
   flex-direction: column;
-  background:
-    radial-gradient(1200px 600px at 85% -10%, rgba(37, 99, 235, 0.06), transparent 60%),
-    var(--color-bg);
+  background: var(--color-bg);
 }
 
+/* Kopfzeile: Marke links, Status und Menü rechts – schlicht, ohne Bild */
 .topbar {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 0;
-  height: 90px;
-  min-height: 90px;
-  background: transparent;
-  border-bottom: none;
-  box-shadow: none;
+  gap: 12px;
+  min-height: 60px;
+  padding: 8px 20px;
+  background: var(--color-surface);
+  border-bottom: 1px solid var(--color-border);
   color: var(--color-text);
   position: relative;
- z-index: 1200; /* Header über Karteninhalten platzieren (überschaubarer Wert, nicht willkürlich hoch) */
- overflow: visible;
-}
-
-/* Full-width banner image inside the header */
-.topbar__banner,
-.anmeldung__banner img {
-  position: absolute;
-  /* Linke Kante bleibt unverändert (aktuelle visuelle Position beibehalten) */
-  left: -8%;
-  top: 0;
-  height: 100%;
-  /* Sicherstellen, dass das Bild mindestens bis zum rechten Rand reicht und
-     nicht von seiner intrinsischen Größe limitiert wird */
-  display: block;
-  width: auto; /* erlauben, dass object-fit die Darstellung kontrolliert */
-  min-width: calc(100% + 8%);
-  max-width: none;
-  object-fit: cover; /* kein unnatürliches Verzerren */
-  object-position: center;
-  z-index: 0;
-}
-
-/* Keep header content above the banner (exclude the banner image itself) */
-.topbar > :not(.topbar__banner) {
-  position: relative;
-  z-index: 1;
-}
-
-/* Adjust chips and other meta so they remain visible on banner */
-.topbar__meta {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 1rem 1.5rem;
+  z-index: 1200; /* Header über Karteninhalten platzieren (überschaubarer Wert, nicht willkürlich hoch) */
 }
 
 .brand {
   display: flex;
   align-items: center;
-  gap: 0.9rem;
-  padding: 1rem 1.5rem;
+  gap: 12px;
+  min-width: 0;
 }
 
-.brand__mark {
-  width: 56px;
-  height: 56px;
-  border-radius: 12px;
-  overflow: hidden;
-}
-
-.brand__text {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-}
-
-
-.brand {
-  display: flex;
+.marke {
+  display: inline-flex;
   align-items: center;
-  gap: 0.9rem;
+  gap: 10px;
+  min-width: 0;
 }
 
-.brand__text {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-}
-
-
-/* Small square app icon aligned to the top-left raster */
-.brand__mark {
-  width: 56px;
-  height: 56px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 12px;
-  overflow: hidden;
-  background: transparent;
-  box-shadow: 0 6px 18px rgba(0,0,0,0.16);
+.marke__signet {
+  width: 32px;
+  height: 32px;
   flex: 0 0 auto;
-  margin-left: 0;
-  margin-top: 0;
 }
 
-.brand__icon {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  display: block;
+.marke__text {
+  display: grid;
+  line-height: 1.15;
 }
 
-/* keep banner class for backward compatibility; not used for large banner here */
-.brand__banner {
-  display: none;
-}
-
-@media (max-width: 900px) {
-  .brand__mark {
-    width: 48px;
-    height: 48px;
-  }
-}
-
-@media (max-width: 900px) {
-  .brand__mark {
-    width: 64px;
-    height: 64px;
-    margin-left: -8px;
-    margin-top: -8px;
-  }
-
-  .brand__banner {
-    height: 64px;
-    margin-left: -10px;
-  }
-}
-
-.brand__mark {
-  width: 42px;
-  height: 42px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 12px;
-  background: #2563eb;
-  color: #fff;
+.marke__text strong {
+  font-size: 1.05rem;
   font-weight: 700;
-  letter-spacing: 0.04em;
+  letter-spacing: -0.01em;
+  color: var(--color-text);
 }
 
-.brand__mark img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  border-radius: 12px;
-  display: block;
+.marke__text strong span {
+  color: var(--color-primary-text);
 }
 
-.brand__title {
-  font-size: 1.25rem;
-  font-weight: 700;
-  color: #ffffff;
-}
-
-.brand__subtitle {
-  font-size: 0.72rem;
-  color: rgba(255,255,255,0.9);
+.marke__text small {
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
 }
 
 .topbar__meta {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 6px;
 }
 
+/* Kleine Statusanzeigen (Guthaben, Wetter, Ruf) */
 .chip {
   display: inline-flex;
   align-items: center;
-  padding: 0.38rem 0.7rem;
-  border-radius: 999px;
-  background: #2563eb;
-  color: #fff;
-  font-size: 0.75rem;
-  border: 1px solid rgba(255,255,255,0.12);
+  gap: 6px;
+  min-height: 34px;
+  padding: 0 10px;
+  border-radius: 8px;
+  background: var(--color-surface-raised);
+  color: var(--color-text);
+  font-size: 0.85rem;
+  font-weight: 500;
+  border: 1px solid var(--color-border);
+  white-space: nowrap;
+}
+
+.chip--version {
+  min-height: 0;
+  padding: 2px 6px;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--color-text-muted);
+  font-size: 0.7rem;
+  font-weight: 500;
 }
 
 .chip--accent {
-  background: #1d4ed8; /* slightly darker accent */
+  background: var(--color-primary);
+  border-color: var(--color-primary);
   color: #fff;
-  border-color: rgba(255,255,255,0.12);
+}
+
+.symbol {
+  flex: 0 0 auto;
+  color: var(--color-text-muted);
+}
+
+.status-chip__wert {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+.status-chip__label {
+  color: var(--color-text-muted);
+}
+
+.status-chip--minus .status-chip__wert,
+.status-chip--minus .symbol {
+  color: #ff8a8a;
+}
+
+@media (max-width: 700px) {
+  .topbar {
+    padding: 8px 12px;
+  }
+
+  .topbar .marke__text,
+  .chip--version {
+    display: none;
+  }
+
+  .chip {
+    padding: 0 8px;
+  }
 }
 
 .dashboard {
@@ -493,25 +432,43 @@
   border-color: #ff8a9b;
 }
 
-/* Krankenhäuser */
-.hospital-marker span {
-  display: grid;
+/* Symbole für Wachen, Krankenhäuser, Fahrzeuge und Einsätze (Grafiken in Kennzeichen.tsx) */
+.kennzeichen {
+  display: inline-grid;
   place-items: center;
-  width: 22px;
-  height: 22px;
-  border-radius: 5px;
-  background: #1d4ed8;
-  color: #fff;
-  font-size: 0.8rem;
-  font-weight: 800;
+  flex: 0 0 auto;
+  border-radius: 6px;
+  box-sizing: border-box;
+}
+.kennzeichen svg { display: block; }
+/* Leaflet hebt für Bilder max-width auf – daher feste Spur im Raster und ausdrückliche Größe */
+.kennzeichen { grid-template: 100% / 100%; }
+.kennzeichen .kennzeichen__bild { display: block; width: 100%; height: 100%; min-width: 0; min-height: 0; object-fit: contain; }
+.kennzeichen__bild--weiss { filter: brightness(0) invert(1); }
+.kennzeichen--rund { border-radius: 50%; }
+/* Auf der Karte mit weißem Rand und Schatten, damit die Symbole auf jedem Kartengrund auffallen */
+.leaflet-marker-icon .kennzeichen {
   border: 2px solid #fff;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.45);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
+}
+.mit-kennzeichen {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.kennzeichen-inline {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  margin-right: 4px;
+  vertical-align: -3px;
 }
 
 /* Einblendungen bei neuen Einsätzen und Lagemeldungen */
 .einsatz-hinweise {
   position: fixed;
-  top: 100px;
+  top: 72px;
   right: 16px;
   z-index: 2500; /* über Karte und Kopfzeile, unter dem Navigationsmenü */
   display: grid;
@@ -522,7 +479,7 @@
 .einsatz-hinweis {
   display: flex;
   align-items: flex-start;
-  border-radius: 12px;
+  border-radius: 10px;
   background: var(--color-surface-raised);
   border: 1px solid var(--color-border-strong);
   border-left: 4px solid #f59e0b;
@@ -604,17 +561,21 @@
 }
 
 /* Einsatz-Marker: offene Einsätze pulsieren */
-.incident-marker--offen span {
+.incident-marker .kennzeichen {
+  border-radius: 50%;
+}
+
+.incident-marker--offen .kennzeichen {
   animation: incident-pulse 1.6s ease-out infinite;
 }
 
 /* Feuerwehr-Einsätze eckig, Rettungsdienst rund */
-.incident-marker--fw span {
-  border-radius: 4px !important;
+.incident-marker--fw .kennzeichen {
+  border-radius: 6px;
 }
 
 /* Eskalierte Einsätze: roter Ring und Ausrufezeichen */
-.incident-marker--eskaliert span {
+.incident-marker--eskaliert .kennzeichen {
   outline: 3px solid #ff3b5c;
   outline-offset: 1px;
 }
@@ -857,52 +818,54 @@
 .view-trigger {
   display: inline-flex;
   align-items: center;
-  gap: 0.5rem;
-  padding: 0.38rem 0.9rem;
-  border-radius: 999px;
-  background: #2563eb;
+  gap: 8px;
+  min-height: 34px;
+  padding: 0 12px;
+  border-radius: 8px;
+  background: var(--color-primary);
+  border: 1px solid var(--color-primary);
   color: #fff;
-  font-size: 0.95rem;
-  border: 1px solid rgba(255,255,255,0.08);
+  font-size: 0.9rem;
+  font-weight: 600;
   cursor: pointer;
-  transition: transform 0.12s ease, box-shadow 0.12s ease;
+  transition: background 0.12s ease;
 }
 
 .view-trigger:hover {
-  box-shadow: 0 8px 22px rgba(0,0,0,0.22);
-  transform: translateY(-2px);
+  background: var(--color-primary-dark);
 }
 
-.view-trigger:focus {
-  outline: none;
-  box-shadow: 0 0 0 3px rgba(37, 99, 235,0.12);
+.view-trigger:focus-visible {
+  outline: 2px solid var(--color-primary-text);
+  outline-offset: 2px;
 }
 
 .view-trigger .chev {
   width: 0;
   height: 0;
-  border-left: 6px solid transparent;
-  border-right: 6px solid transparent;
-  border-top: 6px solid rgba(255,255,255,0.95);
-  margin-left: 4px;
+  border-left: 4px solid transparent;
+  border-right: 4px solid transparent;
+  border-top: 5px solid currentColor;
+  opacity: 0.85;
 }
 
 .view-dropdown {
   position: relative;
   display: inline-block;
-  margin-left: 8px;
+  margin-left: 6px;
 }
 
 .view-dropdown__menu {
   position: absolute;
   right: 0;
   margin-top: 6px;
-  min-width: 180px; /* Wunsch: ca. 180–220 px */
-  max-width: 220px;
+  min-width: 200px;
+  max-width: 240px;
   background: var(--color-surface-raised);
-  color: #fff;
-  border-radius: 8px;
-  box-shadow: 0 12px 36px rgba(0,0,0,0.36);
+  color: var(--color-text);
+  border: 1px solid var(--color-border-strong);
+  border-radius: 10px;
+  box-shadow: var(--shadow-card);
   padding: 6px;
   z-index: 3000; /* bleibt hoch, Menü selbst liegt über allem */
 }
@@ -920,25 +883,24 @@
   display: block;
   width: 100%;
   text-align: left;
-  padding: 10px 14px;
-  border-radius: 8px;
+  padding: 9px 12px;
+  border-radius: 6px;
   background: transparent;
-  color: #fff;
+  color: var(--color-text);
   border: none;
   cursor: pointer;
-  font-size: 0.95rem;
-  transition: background 0.12s ease, transform 0.08s ease;
+  font-size: 0.92rem;
+  transition: background 0.12s ease;
 }
 
 .view-menu-item:hover {
-  background: rgba(255,255,255,0.04);
-  transform: translateY(-1px);
+  background: rgba(255, 255, 255, 0.05);
 }
 
 .view-menu-item.active {
-  background: linear-gradient(90deg, rgba(37, 99, 235,0.16), rgba(37, 99, 235,0.08));
-  color: #fff;
-  box-shadow: inset 0 0 0 1px rgba(37, 99, 235,0.08);
+  background: var(--color-primary-light);
+  color: var(--color-primary-text);
+  font-weight: 600;
 }
 
 /* Variante für helle Hintergründe (z. B. Einsatzliste) */
@@ -951,66 +913,72 @@
   background: rgba(255,255,255,0.04);
 }
 
-/* Button system */
+/* Button system: ruhig, ohne Springen und Leuchten */
 .btn {
   display: inline-flex;
   align-items: center;
-  gap: 0.6rem;
-  padding: 0.5rem 0.9rem;
-  border-radius: 10px;
-  border: 0;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.95rem;
+  border-radius: 8px;
+  border: 1px solid var(--color-border-strong);
   background: var(--color-surface-raised);
   color: var(--color-text);
-  font-size: 0.95rem;
+  font: inherit;
+  font-size: 0.92rem;
+  font-weight: 500;
   cursor: pointer;
-  transition: transform 0.12s ease, box-shadow 0.12s ease, opacity 0.12s ease;
+  transition: background 0.12s ease, border-color 0.12s ease, opacity 0.12s ease;
+}
+
+.btn:hover:not(:disabled) {
+  border-color: #46525f;
+  background: #222a35;
+}
+
+.btn:focus-visible {
+  outline: 2px solid var(--color-primary-text);
+  outline-offset: 2px;
 }
 
 .btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
-  transform: none;
-  box-shadow: none;
 }
 
 .btn--primary {
-  background: #2563eb;
+  background: var(--color-primary);
+  border-color: var(--color-primary);
   color: #fff;
-  box-shadow: none;
+  font-weight: 600;
 }
 
 .btn--primary:hover:not(:disabled) {
-  transform: translateY(-2px);
-  box-shadow: 0 12px 30px rgba(37, 99, 235,0.22);
+  background: var(--color-primary-dark);
+  border-color: var(--color-primary-dark);
 }
 
 .btn--secondary {
   background: var(--color-surface-raised);
   color: var(--color-text);
-  border: 1px solid var(--color-border-strong);
-  box-shadow: var(--shadow-sm);
-}
-
-.btn--secondary:hover:not(:disabled) {
-  transform: translateY(-1px);
-  box-shadow: var(--shadow-md);
 }
 
 .btn--ghost {
   background: transparent;
-  color: #fff;
+  border-color: transparent;
+  color: var(--color-text);
   padding: 8px 10px;
 }
 
 .btn--danger {
-  background: linear-gradient(180deg,#ff6b6b,#d92d2d);
-  color: #fff;
-  box-shadow: none;
+  background: transparent;
+  border-color: rgba(217, 63, 63, 0.6);
+  color: #ff8a8a;
 }
 
 .btn--danger:hover:not(:disabled) {
-  transform: translateY(-1px);
-  box-shadow: none;
+  background: rgba(217, 63, 63, 0.14);
+  border-color: var(--color-danger);
 }
 
 /* Make existing delete-button match the new system */
@@ -1637,104 +1605,41 @@
 .anmeldung {
   position: relative;
   min-height: 100vh;
-  overflow: hidden;
   display: grid;
-  grid-template-rows: auto 1fr auto;
+  grid-template-rows: auto auto 1fr auto;
   justify-items: center;
   gap: 28px;
   padding: 0 0 24px;
-  background:
-    radial-gradient(900px 520px at 50% 30%, rgba(37, 99, 235, 0.26), transparent 65%),
-    radial-gradient(700px 500px at 0% 100%, rgba(37, 99, 235, 0.14), transparent 60%),
-    radial-gradient(700px 500px at 100% 100%, rgba(96, 165, 250, 0.06), transparent 60%),
-    repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.035) 0 1px, transparent 1px 56px),
-    repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.035) 0 1px, transparent 1px 56px),
-    #0e0709;
+  background: var(--color-bg);
 }
 
-.anmeldung > :not(.anmeldung__hintergrund) { position: relative; z-index: 1; }
-
-.anmeldung__hintergrund {
-  position: absolute;
-  inset: 0;
-  display: grid;
-  place-items: center;
-  pointer-events: none;
+/* Schmale Leiste oben mit der Marke – statt großem Werbebanner */
+.anmeldung__leiste {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  padding: 14px 24px;
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-surface);
 }
 
-.buehne__radar {
-  position: relative;
-  width: min(1000px, 130vw);
-  aspect-ratio: 1;
-  border-radius: 50%;
-  background:
-    radial-gradient(circle, transparent 0 24%, rgba(147, 197, 253, 0.12) 24.2% 24.5%, transparent 24.7% 49%,
-      rgba(147, 197, 253, 0.10) 49.2% 49.5%, transparent 49.7% 74%, rgba(147, 197, 253, 0.08) 74.2% 74.5%, transparent 74.7%);
-  border: 1px solid rgba(147, 197, 253, 0.12);
-}
-
-.buehne__sweep {
-  position: absolute;
-  inset: 0;
-  border-radius: 50%;
-  background: conic-gradient(from 0deg, rgba(37, 99, 235, 0.28), transparent 18%);
-  animation: radar-drehen 7s linear infinite;
-}
-
-@keyframes radar-drehen { to { transform: rotate(360deg); } }
-
-.buehne__online {
-  display: inline-block;
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: #22c55e;
-  animation: online-blinken 2s ease-in-out infinite;
-}
-@keyframes online-blinken { 50% { opacity: 0.35; } }
-
-/* Kopf: Banner über die ganze Breite, darunter die Überschrift */
 .anmeldung__kopf {
   width: 100%;
   display: grid;
   justify-items: center;
   gap: 8px;
+  padding-top: clamp(8px, 4vh, 40px);
   text-align: center;
 }
-.anmeldung__banner {
-  position: relative;
-  width: 100%;
-  /* Höhe wächst mit der Bildschirmbreite: Handy ~130px, Laptop ~230px, großer PC max. 320px */
-  height: clamp(130px, 16vw, 320px);
-  overflow: hidden;
-  border-bottom: 1px solid rgba(37, 99, 235, 0.45);
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
-}
-.anmeldung__banner img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  object-position: center 45%;
-  display: block;
-}
-
-/* Weicher Übergang vom Banner in den Hintergrund */
-.anmeldung__banner::after {
-  content: '';
-  position: absolute;
-  inset: auto 0 0 0;
-  height: 35%;
-  background: linear-gradient(transparent, rgba(11, 13, 22, 0.85));
-}
 .anmeldung__kopf h1 {
-  margin-top: 12px;
   padding: 0 16px;
-  font-size: clamp(1.6rem, 3.2vw, 2.8rem);
-  line-height: 1.1;
+  font-size: clamp(1.6rem, 3vw, 2.4rem);
+  line-height: 1.15;
   letter-spacing: -0.02em;
-  text-shadow: 0 4px 24px rgba(0, 0, 0, 0.6);
 }
 .anmeldung__kopf p { color: var(--color-text-muted); padding: 0 16px; }
+
+@keyframes radar-drehen { to { transform: rotate(360deg); } }
 
 /* Mitte: Werbung | Anmeldung | Werbung */
 .anmeldung__mitte {
@@ -1750,11 +1655,10 @@
 .anmeldung__karte {
   width: 100%;
   padding: 28px;
-  background: linear-gradient(180deg, rgba(26, 30, 51, 0.94), rgba(19, 22, 38, 0.94));
-  border: 1px solid var(--color-border-strong);
-  border-radius: 20px;
-  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(37, 99, 235, 0.2), 0 0 60px rgba(37, 99, 235, 0.15);
-  backdrop-filter: blur(6px);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 14px;
+  box-shadow: var(--shadow-card);
 }
 
 .anmeldung__seite {
@@ -1787,10 +1691,15 @@
 }
 .anmeldung__merkmale li > span {
   flex-shrink: 0;
-  font-size: 1.6rem;
-  line-height: 1;
-  filter: drop-shadow(0 0 12px rgba(37, 99, 235, 0.6));
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  background: var(--color-surface-raised);
+  border: 1px solid var(--color-border);
 }
+.anmeldung__merkmale li > span .symbol { color: var(--color-primary-text); }
 .anmeldung__merkmale li div { display: grid; gap: 3px; }
 .anmeldung__merkmale strong { font-size: 1.02rem; }
 .anmeldung__merkmale small,
@@ -1801,9 +1710,9 @@
   gap: 2px;
   padding: 10px 0 10px 16px;
   position: relative;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-  animation: ticker-rein 0.45s ease-out;
+  border-bottom: 1px solid var(--color-border);
 }
+.anmeldung__ticker li:last-child { border-bottom: 0; }
 /* Farbpunkt statt Kasten: Rot = Feuerwehr, Orange = Rettungsdienst */
 .anmeldung__ticker li::before {
   content: '';
@@ -1813,17 +1722,9 @@
   width: 7px;
   height: 7px;
   border-radius: 50%;
-  background: #ef4444;
-  box-shadow: 0 0 10px currentColor;
-  color: #ef4444;
+  background: #e5534b;
 }
-.anmeldung__ticker li.rd::before { background: #f59e0b; color: #f59e0b; }
-.anmeldung__ticker li:nth-child(3) { opacity: 0.7; }
-.anmeldung__ticker li:nth-child(4) { opacity: 0.4; border-bottom: 0; }
-@keyframes ticker-rein {
-  from { opacity: 0; transform: translateY(-10px); }
-  to { opacity: 1; transform: none; }
-}
+.anmeldung__ticker li.rd::before { background: var(--color-warning); }
 
 .anmeldung__fakten {
   display: flex;
@@ -1832,7 +1733,7 @@
   font-size: 0.85rem;
   color: var(--color-text-muted);
 }
-.anmeldung__fakten strong { font-size: 1.35rem; color: var(--color-primary-text); }
+.anmeldung__fakten strong { font-size: 1.2rem; color: var(--color-text); }
 
 .anmeldung__fuss { font-size: 0.75rem; color: var(--color-text-muted); opacity: 0.75; text-align: center; }
 
@@ -1862,9 +1763,9 @@
   transition: background 0.15s ease, color 0.15s ease;
 }
 .anmeldung__reiter button.aktiv {
-  background: #2563eb;
-  color: #fff;
-  box-shadow: 0 4px 14px rgba(37, 99, 235, 0.3);
+  background: var(--color-surface-raised);
+  color: var(--color-text);
+  box-shadow: var(--shadow-sm);
 }
 
 .anmeldung__feld { display: grid; gap: 6px; }
@@ -1888,7 +1789,7 @@
 }
 .anmeldung__eingabe:focus-within {
   border-color: var(--color-primary);
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.25);
+  box-shadow: 0 0 0 3px rgba(47, 111, 222, 0.25);
 }
 .anmeldung__eingabe > span { opacity: 0.7; }
 .anmeldung__eingabe input {
@@ -1907,9 +1808,11 @@
   border: 0;
   background: none;
   cursor: pointer;
-  font-size: 1rem;
+  color: var(--color-text-muted);
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 500;
   padding: 6px;
-  opacity: 0.75;
 }
 .anmeldung__auge:hover { opacity: 1; }
 
@@ -1944,8 +1847,8 @@
 
 .anmeldung__absenden {
   justify-content: center;
-  min-height: 48px;
-  font-weight: 700;
+  min-height: 46px;
+  font-weight: 600;
   font-size: 1rem;
 }
 
@@ -1992,9 +1895,6 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .buehne__sweep,
-  .buehne__online,
-  .anmeldung__ticker li,
   .anmeldung__spinner { animation: none; }
 }
 
@@ -2015,13 +1915,12 @@
 @media (max-width: 600px) {
   .topbar__meta {
     margin-left: auto;
-    padding: 0.5rem;
-    gap: 0.3rem;
+    gap: 4px;
     flex-wrap: nowrap;
   }
   .topbar .chip {
-    font-size: 0.7rem;
-    padding: 0.3rem 0.5rem;
+    font-size: 0.78rem;
+    min-height: 32px;
   }
   .topbar .chip--version,
   .topbar .nur-breit {
@@ -2045,7 +1944,61 @@
 }
 .finanz-kachel span,
 .finanz-kachel small { font-size: 0.75rem; color: var(--color-text-muted); }
-.finanz-kachel strong { font-size: 1.1rem; }
+.finanz-kachel strong { font-size: 1.15rem; font-variant-numeric: tabular-nums; }
+.finanz-kachel--plus strong { color: #5fd38a; }
+.finanz-kachel--minus strong { color: #ff8a8a; }
+
+/* Aufstellung der laufenden Kosten */
+.finanz-posten {
+  list-style: none;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  background: var(--color-surface);
+  overflow: hidden;
+}
+.finanz-posten li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--color-border);
+}
+.finanz-posten li:last-child { border-bottom: 0; }
+.finanz-posten li > div { display: grid; gap: 2px; }
+.finanz-posten small { font-size: 0.78rem; color: var(--color-text-muted); }
+.finanz-posten span { font-variant-numeric: tabular-nums; font-weight: 600; white-space: nowrap; }
+.finanz-posten__summe { background: var(--color-surface-raised); }
+
+/* Inhaltsseiten (alles außer der Karte): begrenzte Breite, einheitliche Überschriften */
+.seiten-inhalt {
+  width: 100%;
+  max-width: 1240px;
+  margin: 0 auto;
+  padding: 24px 24px 48px;
+}
+.seiten-inhalt h2 {
+  font-size: 1.4rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  margin-bottom: 14px;
+}
+.seiten-inhalt .wachen-kopf { margin-bottom: 14px; }
+.seiten-inhalt .wachen-kopf h2 { margin-bottom: 0; }
+.seiten-kopf { margin-bottom: 16px; }
+.seiten-kopf h2 { margin-bottom: 4px; }
+.seiten-kopf p { color: var(--color-text-muted); font-size: 0.9rem; max-width: 70ch; }
+.abschnitt-titel {
+  margin: 24px 0 10px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+@media (max-width: 600px) {
+  .seiten-inhalt { padding: 16px 16px 40px; }
+}
 
 .finanz-buchungen {
   list-style: none;
@@ -2067,11 +2020,11 @@
 .betrag--plus { color: #4ade80; font-weight: 700; white-space: nowrap; }
 .betrag--minus { color: var(--color-primary-text); font-weight: 700; white-space: nowrap; }
 
-/* „Erste Schritte“ für neue Spieler – schwebt unten links, einklappbar */
+/* „Erste Schritte“ für neue Spieler – schwebt unten links (über der Tab-Leiste), einklappbar */
 .erste-schritte {
   position: fixed;
   left: 16px;
-  bottom: 16px;
+  bottom: calc(var(--tab-leiste-hoehe) + 16px);
   z-index: 2400; /* über der Karte, unter den Einsatz-Hinweisen */
   width: min(320px, calc(100vw - 32px));
   display: grid;
@@ -2378,7 +2331,7 @@
 .kauf-meldung {
   position: fixed;
   left: 50%;
-  bottom: 24px;
+  bottom: calc(var(--tab-leiste-hoehe) + 16px);
   transform: translateX(-50%);
   z-index: 3000;
   max-width: calc(100% - 32px);
@@ -2386,15 +2339,6 @@
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
 }
 
-.btn--primary:hover:not(:disabled) {
-  background: #3b82f6;
-}
-
-/* Banner ist rot gestaltet – Farbton auf Blaulicht-Blau/Lila drehen (Weiß bleibt Weiß) */
-.topbar__banner,
-.anmeldung__banner img {
-  filter: hue-rotate(215deg) saturate(0.85);
-}
 
 /* Einstellungen: Karten-Raster wie bei Wachen/Ausbau */
 .einstellungen-raster {
@@ -2598,3 +2542,70 @@
   justify-content: center;
 }
 a.anmeldung__link { text-align: center; }
+
+/* Tab-Leiste unten: Schnellzugriff auf Karte, Einsätze, Einstellungen (alles andere über das Menü oben rechts).
+   Klebt am unteren Bildschirmrand und gehört zum Layout – sie überdeckt also keine Inhalte. */
+:root { --tab-leiste-hoehe: 60px; }
+
+.tab-leiste {
+  position: sticky;
+  bottom: 0;
+  z-index: 1300; /* über der Karte, unter Menü und Hinweisen */
+  display: flex;
+  gap: 4px;
+  min-height: var(--tab-leiste-hoehe);
+  padding: 6px 12px calc(6px + env(safe-area-inset-bottom));
+  background: var(--color-surface);
+  border-top: 1px solid var(--color-border);
+}
+
+.tab-leiste__tab {
+  display: grid;
+  justify-items: center;
+  align-content: center;
+  gap: 2px;
+  min-width: 92px;
+  padding: 4px 12px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--color-text-muted);
+  font: inherit;
+  font-size: 0.75rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.12s ease, color 0.12s ease;
+}
+.tab-leiste__tab .symbol { color: inherit; }
+.tab-leiste__tab:hover { background: rgba(255, 255, 255, 0.04); color: var(--color-text); }
+.tab-leiste__tab:focus-visible { outline: 2px solid var(--color-primary-text); outline-offset: 2px; }
+.tab-leiste__tab--aktiv,
+.tab-leiste__tab--aktiv:hover {
+  background: var(--color-primary-light);
+  color: var(--color-primary-text);
+}
+
+.tab-leiste__symbol { position: relative; display: inline-flex; }
+
+/* Anzahl wartender Einsätze */
+.tab-leiste__zahl {
+  position: absolute;
+  top: -6px;
+  right: -12px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 9px;
+  background: var(--color-danger);
+  color: #fff;
+  font-size: 0.68rem;
+  font-weight: 700;
+  line-height: 18px;
+  text-align: center;
+}
+
+/* Handy: die drei Tabs teilen sich die ganze Breite */
+@media (max-width: 600px) {
+  .tab-leiste { padding-left: 6px; padding-right: 6px; }
+  .tab-leiste__tab { flex: 1; min-width: 0; }
+}
