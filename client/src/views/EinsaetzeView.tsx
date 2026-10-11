@@ -24,6 +24,7 @@ import FehlendeKraefte from './FehlendeKraefte';
 import Rueckalarmierung from './Rueckalarmierung';
 import type { MapLocation, Vehicle } from '../types';
 import { Kennzeichen } from '../Kennzeichen';
+import { useIstSchmal } from '../useIstSchmal';
 
 const formatEtaLabel = (seconds: number) => {
   const totalSeconds = Math.max(0, Math.ceil(seconds));
@@ -97,6 +98,8 @@ export default function EinsaetzeView({
   const [activeTab, setActiveTab] = useState<'Aktive' | 'Abgeschlossen'>('Aktive');
   const [rueckmeldung, setRueckmeldung] = useState<string | null>(null);
 
+  const istSchmal = useIstSchmal();
+
   // Rückmeldung nach einer Aktion nach ein paar Sekunden wieder ausblenden
   useEffect(() => {
     if (!rueckmeldung) return;
@@ -115,6 +118,12 @@ export default function EinsaetzeView({
       ?? (activeTab === 'Aktive' ? incidents[0] ?? null : completedIncidentHistory[0] ?? null),
     [incidents, completedIncidentHistory, selectedIncidentId, activeTab],
   );
+
+  // Handy: aufgeklappten Einsatz nach oben holen, damit die Details sofort zu sehen sind
+  useEffect(() => {
+    if (!istSchmal || !selectedIncidentId) return;
+    document.getElementById(`einsatz-${selectedIncidentId}`)?.scrollIntoView({ block: 'start', behavior: 'smooth' });
+  }, [istSchmal, selectedIncidentId]);
 
   // Neue Lagemeldung gilt als gelesen, sobald der Einsatz hier angezeigt wird
   useEffect(() => {
@@ -184,122 +193,8 @@ export default function EinsaetzeView({
   const hatWichtigeMeldung = selectedIncident?.meldungen.some(istWichtigeMeldung) ?? false;
   const verborgeneMeldungen = useMemo(() => getVerborgeneMeldungen(funk), [funk]);
 
-  return (
-    <div>
-      <h2>Einsätze</h2>
-      {triggerTestIncident && (
-        <div style={{ marginBottom: 12 }}>
-          <button className="btn btn--secondary" type="button" onClick={() => void triggerTestIncident()}>🧪 Test-Einsatz erzeugen</button>
-        </div>
-      )}
-
-      <div style={{ marginBottom: 16, display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: 8 }}>
-        <div style={{ background: 'var(--color-surface)', padding: 10, borderRadius: 8, border: '1px solid var(--color-border)' }}>
-          <div style={{ fontSize: 12, color: 'var(--color-text-muted)' }}>Abgeschlossen</div>
-          <strong>{stats.total}</strong>
-        </div>
-        <div style={{ background: 'var(--color-surface)', padding: 10, borderRadius: 8, border: '1px solid var(--color-border)' }}>
-          <div style={{ fontSize: 12, color: 'var(--color-text-muted)' }}>RD</div>
-          <strong>{stats.rettungsdienst}</strong>
-        </div>
-        <div style={{ background: 'var(--color-surface)', padding: 10, borderRadius: 8, border: '1px solid var(--color-border)' }}>
-          <div style={{ fontSize: 12, color: 'var(--color-text-muted)' }}>FW</div>
-          <strong>{stats.feuerwehr}</strong>
-        </div>
-        <div style={{ background: 'var(--color-surface)', padding: 10, borderRadius: 8, border: '1px solid var(--color-border)' }}>
-          <div style={{ fontSize: 12, color: 'var(--color-text-muted)' }}>Verdient</div>
-          <strong>{stats.earned} €</strong>
-        </div>
-      </div>
-
-      {!locations.some((location) => location.type === 'station') && (
-        <div className="leerzustand">
-          <strong>Noch keine Wache – noch keine Notrufe</strong>
-          Baue zuerst auf der Karte deine erste Wache. Danach gehen die Notrufe aus der Umgebung bei dir ein.
-        </div>
-      )}
-      <div className="einsatz-layout" data-tour="einsatz-liste">
-        <div>
-          <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
-            <button type="button" className={`btn ${activeTab === 'Aktive' ? 'btn--primary' : ''}`} onClick={() => setActiveTab('Aktive')}>
-              Aktive Einsätze ({visibleIncidents.length})
-            </button>
-            <button type="button" className={`btn ${activeTab === 'Abgeschlossen' ? 'btn--primary' : ''}`} onClick={() => setActiveTab('Abgeschlossen')}>Abgeschlossen</button>
-          </div>
-
-          {activeTab === 'Aktive' ? (
-            <>
-              {visibleIncidents.length === 0 && (
-                <div className="leerzustand">
-                  <strong>Keine aktiven Einsätze</strong>
-                  Neue Einsätze gehen automatisch ein – du hörst einen Gong und siehst eine Einblendung.
-                </div>
-              )}
-              <ul className="einsatz-liste">
-                {visibleIncidents.map((incident) => {
-                  const { abdeckung } = getEinsatzVersorgung(incident, vehicles, nowMs);
-                  return (
-                    <li key={incident.id}>
-                      <button
-                        type="button"
-                        className={`einsatz-eintrag einsatz-eintrag--${incident.status} ${selectedIncident?.id === incident.id ? 'einsatz-eintrag--aktiv' : ''}`}
-                        onClick={() => setSelectedIncidentId(incident.id)}
-                      >
-                        <span className="einsatz-eintrag__kopf">
-                          <strong className="mit-kennzeichen"><Kennzeichen art="einsatz" einsatz={incident} groesse={24} />{formatEinsatzTitel(incident)}</strong>
-                          <span className={`status-badge status-badge--${incident.status}`}>{EINSATZ_STATUS_LABELS[incident.status]}</span>
-                        </span>
-                        {incident.neueMeldung && <span className="neue-meldung-badge" style={{ marginLeft: 0, width: 'fit-content' }}>⚠ Neue Meldung</span>}
-                        <span className="einsatz-eintrag__zeile">📍 {incident.address}</span>
-                        <span className="einsatz-eintrag__zeile einsatz-eintrag__bedarf">
-                          <span>{incident.reward} €</span>
-                          {abdeckung.map((eintrag, index) => {
-                            const zustand = eintrag.vorOrt >= eintrag.amount ? 'erfuellt' : eintrag.alarmiert >= eintrag.amount ? 'unterwegs' : 'fehlt';
-                            return (
-                              <span key={`${eintrag.category}-${index}`} className={`bedarf-chip bedarf-chip--klein bedarf-chip--${zustand}`}>
-                                {zustand === 'erfuellt' ? '✓' : zustand === 'unterwegs' ? '🚨' : '✗'} {eintrag.amount}× {getBedarfsLabel(eintrag.category)}
-                              </span>
-                            );
-                          })}
-                        </span>
-                      </button>
-                    </li>
-                  );
-                })}
-              </ul>
-            </>
-          ) : (
-            <>
-              {completedList.length === 0 && (
-                <div className="leerzustand">
-                  <strong>Noch keine abgeschlossenen Einsätze</strong>
-                  Abgeschlossene Einsätze und deine Einnahmen erscheinen hier.
-                </div>
-              )}
-              <ul className="einsatz-liste">
-                {completedList.map((incident) => (
-                  <li key={incident.id}>
-                    <button
-                      type="button"
-                      className={`einsatz-eintrag einsatz-eintrag--abgeschlossen ${selectedIncident?.id === incident.id ? 'einsatz-eintrag--aktiv' : ''}`}
-                      onClick={() => setSelectedIncidentId(incident.id)}
-                    >
-                      <span className="einsatz-eintrag__kopf">
-                        <strong className="mit-kennzeichen"><Kennzeichen art="einsatz" einsatz={incident} groesse={24} />{formatEinsatzTitel(incident)}</strong>
-                        <span className="status-badge status-badge--abgeschlossen">Abgeschlossen</span>
-                      </span>
-                      <span className="einsatz-eintrag__zeile">📍 {incident.address}</span>
-                      <span className="einsatz-eintrag__zeile">{incident.organization} · {incident.reward} €{incident.bewertung?.bonus ? ` + ${incident.bewertung.bonus} € Bonus` : ''} · {formatDateTime(incident.completedAt)}</span>
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            </>
-          )}
-        </div>
-
-        <div>
-          {selectedIncident ? (
+  // Details des gewählten Einsatzes – breit: rechte Spalte, schmal (Handy): aufgeklappt direkt unter dem Einsatz
+  const details = selectedIncident && (
             <div className="einsatz-details">
               <div className="einsatz-details__kopf">
                 <div>
@@ -534,13 +429,146 @@ export default function EinsaetzeView({
               </dl>
               )}
             </div>
+  );
+
+  /** Auf dem Handy: antippen klappt auf, nochmal antippen klappt zu */
+  const waehleEinsatz = (incidentId: string) => {
+    setSelectedIncidentId(istSchmal && selectedIncidentId === incidentId ? null : incidentId);
+  };
+  // Auf dem Handy nur aufklappen, was ausdrücklich angetippt wurde (nicht automatisch den ersten Einsatz)
+  const istAufgeklappt = (incidentId: string) => istSchmal && selectedIncidentId === incidentId && selectedIncident?.id === incidentId;
+
+  return (
+    <div>
+      <h2>Einsätze</h2>
+      {triggerTestIncident && (
+        <div style={{ marginBottom: 12 }}>
+          <button className="btn btn--secondary" type="button" onClick={() => void triggerTestIncident()}>🧪 Test-Einsatz erzeugen</button>
+        </div>
+      )}
+
+      <div style={{ marginBottom: 16, display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: 8 }}>
+        <div style={{ background: 'var(--color-surface)', padding: 10, borderRadius: 8, border: '1px solid var(--color-border)' }}>
+          <div style={{ fontSize: 12, color: 'var(--color-text-muted)' }}>Abgeschlossen</div>
+          <strong>{stats.total}</strong>
+        </div>
+        <div style={{ background: 'var(--color-surface)', padding: 10, borderRadius: 8, border: '1px solid var(--color-border)' }}>
+          <div style={{ fontSize: 12, color: 'var(--color-text-muted)' }}>RD</div>
+          <strong>{stats.rettungsdienst}</strong>
+        </div>
+        <div style={{ background: 'var(--color-surface)', padding: 10, borderRadius: 8, border: '1px solid var(--color-border)' }}>
+          <div style={{ fontSize: 12, color: 'var(--color-text-muted)' }}>FW</div>
+          <strong>{stats.feuerwehr}</strong>
+        </div>
+        <div style={{ background: 'var(--color-surface)', padding: 10, borderRadius: 8, border: '1px solid var(--color-border)' }}>
+          <div style={{ fontSize: 12, color: 'var(--color-text-muted)' }}>Verdient</div>
+          <strong>{stats.earned} €</strong>
+        </div>
+      </div>
+
+      {!locations.some((location) => location.type === 'station') && (
+        <div className="leerzustand">
+          <strong>Noch keine Wache – noch keine Notrufe</strong>
+          Baue zuerst auf der Karte deine erste Wache. Danach gehen die Notrufe aus der Umgebung bei dir ein.
+        </div>
+      )}
+      <div className="einsatz-layout" data-tour="einsatz-liste">
+        <div>
+          <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+            <button type="button" className={`btn ${activeTab === 'Aktive' ? 'btn--primary' : ''}`} onClick={() => setActiveTab('Aktive')}>
+              Aktive Einsätze ({visibleIncidents.length})
+            </button>
+            <button type="button" className={`btn ${activeTab === 'Abgeschlossen' ? 'btn--primary' : ''}`} onClick={() => setActiveTab('Abgeschlossen')}>Abgeschlossen</button>
+          </div>
+
+          {activeTab === 'Aktive' ? (
+            <>
+              {visibleIncidents.length === 0 && (
+                <div className="leerzustand">
+                  <strong>Keine aktiven Einsätze</strong>
+                  Neue Einsätze gehen automatisch ein – du hörst einen Gong und siehst eine Einblendung.
+                </div>
+              )}
+              <ul className="einsatz-liste">
+                {visibleIncidents.map((incident) => {
+                  const { abdeckung } = getEinsatzVersorgung(incident, vehicles, nowMs);
+                  return (
+                    <li key={incident.id} id={`einsatz-${incident.id}`} className="einsatz-liste__eintrag">
+                      <button
+                        type="button"
+                        className={`einsatz-eintrag einsatz-eintrag--${incident.status} ${selectedIncident?.id === incident.id ? 'einsatz-eintrag--aktiv' : ''}`}
+                        onClick={() => waehleEinsatz(incident.id)}
+                        aria-expanded={istSchmal ? istAufgeklappt(incident.id) : undefined}
+                      >
+                        <span className="einsatz-eintrag__kopf">
+                          <strong className="mit-kennzeichen"><Kennzeichen art="einsatz" einsatz={incident} groesse={24} />{formatEinsatzTitel(incident)}</strong>
+                          <span className={`status-badge status-badge--${incident.status}`}>{EINSATZ_STATUS_LABELS[incident.status]}</span>
+                        </span>
+                        {incident.neueMeldung && <span className="neue-meldung-badge" style={{ marginLeft: 0, width: 'fit-content' }}>⚠ Neue Meldung</span>}
+                        <span className="einsatz-eintrag__zeile">📍 {incident.address}</span>
+                        <span className="einsatz-eintrag__zeile einsatz-eintrag__bedarf">
+                          <span>{incident.reward} €</span>
+                          {abdeckung.map((eintrag, index) => {
+                            const zustand = eintrag.vorOrt >= eintrag.amount ? 'erfuellt' : eintrag.alarmiert >= eintrag.amount ? 'unterwegs' : 'fehlt';
+                            return (
+                              <span key={`${eintrag.category}-${index}`} className={`bedarf-chip bedarf-chip--klein bedarf-chip--${zustand}`}>
+                                {zustand === 'erfuellt' ? '✓' : zustand === 'unterwegs' ? '🚨' : '✗'} {eintrag.amount}× {getBedarfsLabel(eintrag.category)}
+                              </span>
+                            );
+                          })}
+                        </span>
+                      </button>
+                      {istAufgeklappt(incident.id) && <div className="einsatz-aufgeklappt">{details}</div>}
+                    </li>
+                  );
+                })}
+              </ul>
+            </>
           ) : (
-            <div className="leerzustand">
-              <strong>Kein Einsatz ausgewählt</strong>
-              Wähle links einen Einsatz aus, um Details zu sehen und Fahrzeuge zu alarmieren.
-            </div>
+            <>
+              {completedList.length === 0 && (
+                <div className="leerzustand">
+                  <strong>Noch keine abgeschlossenen Einsätze</strong>
+                  Abgeschlossene Einsätze und deine Einnahmen erscheinen hier.
+                </div>
+              )}
+              <ul className="einsatz-liste">
+                {completedList.map((incident) => (
+                  <li key={incident.id} id={`einsatz-${incident.id}`} className="einsatz-liste__eintrag">
+                    <button
+                      type="button"
+                      className={`einsatz-eintrag einsatz-eintrag--abgeschlossen ${selectedIncident?.id === incident.id ? 'einsatz-eintrag--aktiv' : ''}`}
+                      onClick={() => waehleEinsatz(incident.id)}
+                      aria-expanded={istSchmal ? istAufgeklappt(incident.id) : undefined}
+                    >
+                      <span className="einsatz-eintrag__kopf">
+                        <strong className="mit-kennzeichen"><Kennzeichen art="einsatz" einsatz={incident} groesse={24} />{formatEinsatzTitel(incident)}</strong>
+                        <span className="status-badge status-badge--abgeschlossen">Abgeschlossen</span>
+                      </span>
+                      <span className="einsatz-eintrag__zeile">📍 {incident.address}</span>
+                      <span className="einsatz-eintrag__zeile">{incident.organization} · {incident.reward} €{incident.bewertung?.bonus ? ` + ${incident.bewertung.bonus} € Bonus` : ''} · {formatDateTime(incident.completedAt)}</span>
+                    </button>
+                    {istAufgeklappt(incident.id) && <div className="einsatz-aufgeklappt">{details}</div>}
+                  </li>
+                ))}
+              </ul>
+            </>
           )}
         </div>
+
+        {/* Auf dem Handy stehen die Details aufgeklappt in der Liste */}
+        {!istSchmal && (
+          <div>
+            {selectedIncident ? (
+              details
+            ) : (
+              <div className="leerzustand">
+                <strong>Kein Einsatz ausgewählt</strong>
+                Wähle links einen Einsatz aus, um Details zu sehen und Fahrzeuge zu alarmieren.
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );

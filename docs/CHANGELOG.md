@@ -29,6 +29,8 @@ Format basiert auf [Keep a Changelog](https://keepachangelog.com/).
   alle weiteren Bereiche bleiben im Menü oben rechts
 
 ### Geändert
+- **Einsätze auf dem Handy**: Die Details klappen direkt unter dem angetippten Einsatz auf (nochmal antippen = zu),
+  statt ganz unten unter der Liste; am PC bleibt die zweispaltige Ansicht
 - **Rückalarmieren statt Nachbarleitstelle**: Der Knopf „An Nachbarleitstelle abgeben“ entfällt; stattdessen holt
   „Rückalarmieren“ alle Fahrzeuge eines Einsatzes zurück (ohne Abzug). Der Einsatz bleibt offen und verfällt wie jeder andere
 - **Team-Rechte**: Admins moderieren (ansehen, sperren, Notizen, Passwort-Link). Konto löschen, Spielstand

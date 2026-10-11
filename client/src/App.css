@@ -2649,3 +2649,19 @@ a.anmeldung__link { text-align: center; }
 .statistik-verlauf > span > span { display: block; width: 100%; border-radius: 3px 3px 0 0; background: var(--color-primary); }
 .statistik-verlauf > span:hover > span { background: var(--color-primary-text); }
 .website-statistik .ausbau-karte .btn { justify-self: start; }
+
+/* Handy: Details klappen direkt unter dem gewählten Einsatz auf (Abstand zur Kopfzeile beim Hinscrollen) */
+.einsatz-liste__eintrag { scroll-margin-top: 72px; }
+.einsatz-aufgeklappt {
+  margin: 6px 0 10px;
+  scroll-margin-top: 72px;
+}
+.einsatz-aufgeklappt .einsatz-details {
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+}
+/* Titel und Adresse stehen schon im Listeneintrag darüber – nicht doppelt zeigen */
+.einsatz-aufgeklappt .einsatz-details__kopf h3,
+.einsatz-aufgeklappt .einsatz-details__kopf h3 + div {
+  display: none;
+}
