@@ -20,7 +20,7 @@ import {
   type SpielEinsatz,
   getBearbeitungsMs,
 } from '@leitstellendispo/shared';
-import EinsatzAbgabe from './EinsatzAbgabe';
+import FehlendeKraefte from './FehlendeKraefte';
 import Rueckalarmierung from './Rueckalarmierung';
 import type { MapLocation, Vehicle } from '../types';
 import { Kennzeichen } from '../Kennzeichen';
@@ -67,8 +67,8 @@ export default function EinsaetzeView({
   selectedIncidentId,
   setSelectedIncidentId,
   alarmIncidentVehicles,
-  gibEinsatzAb,
   rueckalarmieren,
+  rueckalarmiereAlleFahrzeuge,
   markiereMeldungGelesen,
   triggerTestIncident,
   nowMs,
@@ -85,8 +85,8 @@ export default function EinsaetzeView({
   selectedIncidentId: string | null;
   setSelectedIncidentId: (id: string | null) => void;
   alarmIncidentVehicles: (incidentId: string, selectedVehicleIds: string[]) => void;
-  gibEinsatzAb: (incidentId: string) => void;
   rueckalarmieren: (incidentId: string, vehicleId: string) => void;
+  rueckalarmiereAlleFahrzeuge: (incidentId: string) => void;
   markiereMeldungGelesen: (incidentId: string) => void;
   /** Nur für Team-Rollen gesetzt – ohne wird der Test-Knopf nicht angezeigt */
   triggerTestIncident?: () => void | Promise<void>;
@@ -461,7 +461,7 @@ export default function EinsaetzeView({
                       {selectedVehicleIds.length > 0 ? ` (${selectedVehicleIds.length})` : ''}
                     </button>
                   </div>
-                  <EinsatzAbgabe incident={selectedIncident} vehicles={vehicles} onAbgeben={() => gibEinsatzAb(selectedIncident.id)} />
+                  <FehlendeKraefte incident={selectedIncident} vehicles={vehicles} />
                 </section>
               ) : null}
 
@@ -492,6 +492,7 @@ export default function EinsaetzeView({
                   locations={locations}
                   nowMs={nowMs}
                   onRueckalarmieren={(vehicleId) => rueckalarmieren(selectedIncident.id, vehicleId)}
+                  onAlleRueckalarmieren={() => rueckalarmiereAlleFahrzeuge(selectedIncident.id)}
                 />
               </section>
               )}

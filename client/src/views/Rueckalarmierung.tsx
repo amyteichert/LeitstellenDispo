@@ -9,6 +9,9 @@ import {
 } from '@leitstellendispo/shared';
 import type { Vehicle } from '../types';
 
+/** Merker für den Knopf „alle zurückholen“ (statt einer Fahrzeug-ID) */
+const ALLE = '__alle__';
+
 /** Ab dieser Wartezeit vor Ort weisen wir auf die Rückalarmierung hin */
 const HINWEIS_AB_MS = 2 * 60_000;
 
@@ -26,6 +29,7 @@ export default function Rueckalarmierung({
   locations,
   nowMs,
   onRueckalarmieren,
+  onAlleRueckalarmieren,
 }: {
   incident: SpielEinsatz;
   incidents: SpielEinsatz[];
@@ -33,6 +37,8 @@ export default function Rueckalarmierung({
   locations: MapLocation[];
   nowMs: number;
   onRueckalarmieren: (vehicleId: string) => void;
+  /** Alle Fahrzeuge auf einmal zurückholen */
+  onAlleRueckalarmieren: () => void;
 }) {
   // Zweistufig: erster Tipp merkt das Fahrzeug vor, zweiter bestätigt (kein Popup)
   const [vorgemerkt, setVorgemerkt] = useState<string | null>(null);
@@ -86,7 +92,21 @@ export default function Rueckalarmierung({
         </div>
       )}
 
-      {!empfohlen && (
+      <button
+        type="button"
+        className={`btn ${vorgemerkt === ALLE ? 'btn--danger' : 'btn--secondary'} rueckalarmierung__alle`}
+        onClick={() => {
+          if (vorgemerkt !== ALLE) return setVorgemerkt(ALLE);
+          setVorgemerkt(null);
+          onAlleRueckalarmieren();
+        }}
+      >
+        {vorgemerkt === ALLE
+          ? `Sicher? ${aktiv.length === 1 ? name(aktiv[0].vehicleId) : `Alle ${aktiv.length} Fahrzeuge`} zurückholen`
+          : `↩ ${aktiv.length === 1 ? 'Rückalarmieren' : `Alle ${aktiv.length} Fahrzeuge rückalarmieren`}`}
+      </button>
+
+      {!empfohlen && aktiv.length > 1 && (
         <>
           <button type="button" className="rueckalarmierung__aufklapper" aria-expanded={offen} onClick={() => setOffen((o) => !o)}>
             ↩ Fahrzeug zurückholen {offen ? '▴' : '▾'}

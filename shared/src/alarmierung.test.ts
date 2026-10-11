@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { GAME_CONFIG } from './konfig.js';
-import { alarmiereFahrzeuge, getWarteLage, rueckalarmiereFahrzeug } from './alarmierung.js';
+import { alarmiereFahrzeuge, getWarteLage, rueckalarmiereAlle, rueckalarmiereFahrzeug } from './alarmierung.js';
 import { getAktiveZuteilungen } from './daten.js';
 import { getFahrzeugGeschwindigkeit } from './fahrzeuge.js';
 import { getFahrzeitSekunden } from './geo.js';
@@ -102,6 +102,17 @@ describe('rueckalarmiereFahrzeug', () => {
     const wieder = alarmiereFahrzeuge({ ...zurueck, locations }, e.id, ['rtw'], T0 + 20_000);
     expect(getAktiveZuteilungen(wieder.incidents[0])).toHaveLength(1);
     expect(wieder.vehicles[0].status).toBe('Alarmiert / auf Anfahrt');
+  });
+
+  it('rueckalarmiereAlle holt alle Fahrzeuge in einem Schritt zurück, der Einsatz bleibt offen', () => {
+    const e = einsatz('sturz');
+    const fahrzeuge = [fahrzeug('rtw', 'RTW'), fahrzeug('nef', 'NEF')];
+    const alarmiert = alarmiereFahrzeuge({ incidents: [e], vehicles: fahrzeuge, locations }, e.id, ['rtw', 'nef'], T0);
+    const zurueck = rueckalarmiereAlle({ ...alarmiert, locations }, e.id, T0 + 10_000);
+    expect(getAktiveZuteilungen(zurueck.incidents[0])).toHaveLength(0);
+    expect(zurueck.incidents[0].status).toBe('offen');
+    expect(zurueck.incidents).toHaveLength(1);
+    expect(zurueck.vehicles.map((v) => v.status)).toEqual(['Rückfahrt', 'Rückfahrt']);
   });
 
   it('meldet wartende Fahrzeuge, wenn Bedarf fehlt und nichts frei ist', () => {

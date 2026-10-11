@@ -148,6 +148,16 @@ export const rueckalarmiereFahrzeug = (
   };
 };
 
+/** Holt alle Fahrzeuge vom Einsatz zurück (z. B. weil er gerade nicht zu schaffen ist). Der Einsatz bleibt offen. */
+export const rueckalarmiereAlle = (zustand: AlarmierungsZustand, incidentId: string, jetzt: number = Date.now()): AlarmierungErgebnis => {
+  const einsatz = zustand.incidents.find((entry) => entry.id === incidentId);
+  if (!einsatz) return { incidents: zustand.incidents, vehicles: zustand.vehicles };
+  return getAktiveZuteilungen(einsatz).reduce<AlarmierungErgebnis>(
+    (ergebnis, assignment) => rueckalarmiereFahrzeug({ ...zustand, ...ergebnis }, incidentId, assignment.vehicleId, jetzt),
+    { incidents: zustand.incidents, vehicles: zustand.vehicles },
+  );
+};
+
 export interface WartendesFahrzeug {
   vehicleId: string;
   /** Seit wann es vor Ort steht, ohne dass die Bearbeitung beginnen kann */

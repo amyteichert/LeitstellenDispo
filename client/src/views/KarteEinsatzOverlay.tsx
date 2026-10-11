@@ -16,7 +16,7 @@ import {
   type SpielEinsatz,
 } from '@leitstellendispo/shared';
 import type { MapLocation, Vehicle } from '../types';
-import EinsatzAbgabe from './EinsatzAbgabe';
+import FehlendeKraefte from './FehlendeKraefte';
 import Rueckalarmierung from './Rueckalarmierung';
 import { Kennzeichen } from '../Kennzeichen';
 
@@ -68,13 +68,14 @@ export function KarteEinsatzPanel({
   onClose,
   onOpenInEinsaetze,
   onAlarmieren,
-  onAbgeben,
   onRueckalarmieren,
+  onAlleRueckalarmieren,
   funk,
   onSprechaufforderung,
 }: {
   /** Fahrzeug vom Einsatz zurückholen */
   onRueckalarmieren: (vehicleId: string) => void;
+  onAlleRueckalarmieren: () => void;
   funk: FunkSpruch[];
   onSprechaufforderung: (sprechwunschId: string) => void;
   incident: SpielEinsatz;
@@ -86,8 +87,6 @@ export function KarteEinsatzPanel({
   onOpenInEinsaetze: () => void;
   /** Alarmiert die übergebenen Fahrzeuge direkt von der Karte aus */
   onAlarmieren: (vehicleIds: string[]) => void;
-  /** Einsatz an die Nachbarleitstelle abgeben */
-  onAbgeben: () => void;
 }) {
   const { abdeckung } = getEinsatzVersorgung(incident, vehicles, nowMs);
   const vorschlag = erstelleAlarmVorschlag(incident, { incidents, vehicles, locations });
@@ -202,8 +201,9 @@ export function KarteEinsatzPanel({
         locations={locations}
         nowMs={nowMs}
         onRueckalarmieren={onRueckalarmieren}
+        onAlleRueckalarmieren={onAlleRueckalarmieren}
       />
-      <EinsatzAbgabe incident={incident} vehicles={vehicles} onAbgeben={onAbgeben} />
+      <FehlendeKraefte incident={incident} vehicles={vehicles} />
 
 
       {incident.patienten && incident.patienten.length > 0 && (

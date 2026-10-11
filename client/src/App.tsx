@@ -827,8 +827,8 @@ Dein Guthaben: ${balance.toLocaleString('de-DE')} €`)) return;
                   locations={locations}
                   nowMs={nowMs}
                   onAlarmieren={(vehicleIds) => spiel.alarmieren(mapIncident.id, vehicleIds)}
-                  onAbgeben={() => spiel.gibEinsatzAb(mapIncident.id)}
                   onRueckalarmieren={(vehicleId) => spiel.rueckalarmieren(mapIncident.id, vehicleId)}
+                  onAlleRueckalarmieren={() => spiel.rueckalarmiereAlleFahrzeuge(mapIncident.id)}
                   funk={spiel.funk}
                   onSprechaufforderung={spiel.gibSprechaufforderung}
                   onClose={() => setMapIncidentId(null)}
@@ -1021,8 +1021,8 @@ Dein Guthaben: ${balance.toLocaleString('de-DE')} €`)) return;
                 selectedIncidentId={selectedIncidentId}
                 setSelectedIncidentId={setSelectedIncidentId}
                 alarmIncidentVehicles={alarmIncidentVehicles}
-                gibEinsatzAb={spiel.gibEinsatzAb}
                 rueckalarmieren={spiel.rueckalarmieren}
+                rueckalarmiereAlleFahrzeuge={spiel.rueckalarmiereAlleFahrzeuge}
                 markiereMeldungGelesen={markiereMeldungGelesen}
                 triggerTestIncident={istTeamRolle(konto.rolle) ? triggerTestIncident : undefined}
                 nowMs={nowMs}

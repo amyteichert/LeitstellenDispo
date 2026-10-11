@@ -58,6 +58,7 @@ import {
   type Mitarbeiter,
   type Qualifikation,
   alarmiereFahrzeuge,
+  rueckalarmiereAlle,
   rueckalarmiereFahrzeug,
   zaehleRettungswachen,
   berechneSpielTick,
@@ -780,14 +781,11 @@ export function useSpiel(optionen: UseSpielOptionen = {}) {
     setVehicles(ergebnis.vehicles);
   };
 
-  /** Gibt einen Einsatz an die Nachbarleitstelle ab – der nächste Tick lässt die Fahrzeuge einrücken und entfernt ihn. */
-  const gibEinsatzAb = (incidentId: string) => {
-    const jetzt = Date.now();
-    setIncidents((current) => current.map((incident) => (
-      incident.id === incidentId && (incident.status === 'offen' || incident.status === 'alarmiert')
-        ? { ...incident, abgegebenAt: jetzt }
-        : incident
-    )));
+  /** Holt alle Fahrzeuge vom Einsatz zurück – ohne Abzug; der Einsatz bleibt offen und verfällt wie jeder andere. */
+  const rueckalarmiereAlleFahrzeuge = (incidentId: string) => {
+    const ergebnis = rueckalarmiereAlle({ incidents, vehicles, locations }, incidentId, Date.now());
+    setIncidents(ergebnis.incidents);
+    setVehicles(ergebnis.vehicles);
   };
 
   const markiereMeldungGelesen = (incidentId: string) => {
@@ -870,7 +868,7 @@ export function useSpiel(optionen: UseSpielOptionen = {}) {
     devRufSetzen,
     devLehrgaengeBeenden,
     alarmieren,
-    gibEinsatzAb,
+    rueckalarmiereAlleFahrzeuge,
     rueckalarmieren,
     markiereMeldungGelesen,
     neuesSpiel,

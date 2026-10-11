@@ -21,11 +21,12 @@ Format basiert auf [Keep a Changelog](https://keepachangelog.com/).
   (`client/src/Kennzeichen.tsx`, Zuordnung der Einsätze in `shared/src/symbole.ts`)
 - Symbole von Flaticon für Feuerwache, Rettungswache, Krankenhaus, RTW, KTW und Löschfahrzeug (`client/public/symbole`),
   Bildnachweis im Impressum
-
 - **Tab-Leiste unten** (links): Schnellzugriff auf Karte, Einsätze (mit Zahl wartender Einsätze) und Einstellungen;
   alle weiteren Bereiche bleiben im Menü oben rechts
 
 ### Geändert
+- **Rückalarmieren statt Nachbarleitstelle**: Der Knopf „An Nachbarleitstelle abgeben“ entfällt; stattdessen holt
+  „Rückalarmieren“ alle Fahrzeuge eines Einsatzes zurück (ohne Abzug). Der Einsatz bleibt offen und verfällt wie jeder andere
 - **Team-Rechte**: Admins moderieren (ansehen, sperren, Notizen, Passwort-Link). Konto löschen, Spielstand
   zurücksetzen, Guthaben/Ruf korrigieren und Ankündigungen erst ab Co-Owner; fremde Notizen löschen erst ab Co-Owner
 - **Design**: schlichte Kopfzeile mit Signet statt Banner, neutrale Statusanzeigen mit Linien-Symbolen,
