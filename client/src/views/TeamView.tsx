@@ -20,9 +20,10 @@ import {
   type UserRole,
 } from '@leitstellendispo/shared';
 import { ladeAnkuendigung, teamApi } from '../konto';
+import WebsiteStatistikView from './WebsiteStatistikView';
 
-type Reiter = 'Übersicht' | 'Konten' | 'Ankündigung' | 'Protokoll' | 'Dev-Werkzeuge';
-const REITER: Reiter[] = ['Übersicht', 'Konten', 'Ankündigung', 'Protokoll', 'Dev-Werkzeuge'];
+type Reiter = 'Übersicht' | 'Konten' | 'Ankündigung' | 'Protokoll' | 'Website' | 'Dev-Werkzeuge';
+const REITER: Reiter[] = ['Übersicht', 'Konten', 'Ankündigung', 'Protokoll', 'Website', 'Dev-Werkzeuge'];
 
 const datum = (iso: string | null) => (iso
   ? new Date(iso).toLocaleString('de-DE', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' })
@@ -58,7 +59,7 @@ export default function TeamView({ konto, dev }: { konto: Konto; dev: DevAktione
       </div>
 
       <div className="verwalten-reiter" role="tablist">
-        {REITER.map((name) => (
+        {REITER.filter((name) => name !== 'Website' || hatTeamRecht(konto.rolle, 'website_statistik')).map((name) => (
           <button key={name} type="button" role="tab" aria-selected={reiter === name} className={`btn ${reiter === name ? 'btn--primary' : ''}`} onClick={() => setReiter(name)}>
             {name}
           </button>
@@ -73,6 +74,7 @@ export default function TeamView({ konto, dev }: { konto: Konto; dev: DevAktione
       {reiter === 'Konten' && <Konten ich={konto} melde={melde} />}
       {reiter === 'Ankündigung' && <AnkuendigungVerwalten ich={konto} melde={melde} />}
       {reiter === 'Protokoll' && <Protokoll melde={melde} />}
+      {reiter === 'Website' && hatTeamRecht(konto.rolle, 'website_statistik') && <WebsiteStatistikView />}
       {reiter === 'Dev-Werkzeuge' && <DevWerkzeuge dev={dev} melde={melde} />}
     </div>
   );

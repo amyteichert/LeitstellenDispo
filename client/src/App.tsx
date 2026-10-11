@@ -35,6 +35,7 @@ import { useWetter } from './useWetter';
 import { ladeStartansicht, sichtbareAnsichten, type Ansicht } from './startansicht';
 import TeamView from './views/TeamView';
 import { Marke, Piktogramm, type SymbolName } from './Symbole';
+import { merkeBesuchsZiel } from './besuchsMessung';
 import { einsatzMarkerHtml, fahrzeugSymbolHtml, krankenhausMarkerHtml, wachenMarkerHtml } from './Kennzeichen';
 import Tour, { tourGesehen } from './Tour';
 import { teamApi } from './konto';
@@ -222,6 +223,8 @@ function MapStyleToggle({
   );
 }
 function App({ konto, onAbmelden }: { konto: Konto; onAbmelden: () => Promise<void> }) {
+  // Besucherstatistik: Dieser Besuch hat das Spiel mit Konto erreicht
+  useEffect(() => merkeBesuchsZiel('gespielt'), []);
   // Navigation: startet mit der in den Einstellungen gewählten Ansicht (Standard: Karte)
   const [currentView, setCurrentView] = useState<Ansicht>(ladeStartansicht);
   // Geführte Tour: beim ersten Spielstart automatisch, später über die Einstellungen

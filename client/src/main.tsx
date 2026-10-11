@@ -6,9 +6,12 @@ import PasswortZuruecksetzen, { PASSWORT_SEITE } from './PasswortZuruecksetzen';
 import Rechtliches, { istRechtlicheSeite } from './Rechtliches';
 import './index.css';
 import { richteTonFreischaltungEin } from './ton';
+import { starteBesuchsMessung } from './besuchsMessung';
 
 // Handy-Browser erlauben Töne erst nach einer Berührung: die erste Berührung schaltet den Gong frei
 richteTonFreischaltungEin();
+// Anonyme Besucherstatistik (nur auf spiel.leitstellendispo.de)
+starteBesuchsMessung();
 
 const pfad = window.location.pathname.replace(/\/+$/, '');
 

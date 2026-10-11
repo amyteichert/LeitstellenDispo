@@ -2609,3 +2609,43 @@ a.anmeldung__link { text-align: center; }
   .tab-leiste { padding-left: 6px; padding-right: 6px; }
   .tab-leiste__tab { flex: 1; min-width: 0; }
 }
+
+/* Website-Statistik (Team-Bereich) */
+.statistik-raster {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 12px;
+  margin-top: 16px;
+}
+.statistik-raster .einsatz-abschnitt {
+  align-content: start;
+  padding: 14px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  background: var(--color-surface);
+}
+.statistik-liste { list-style: none; display: grid; gap: 8px; margin: 8px 0; }
+.statistik-liste--klein { padding-top: 10px; border-top: 1px solid var(--color-border); font-size: 0.85rem; }
+.statistik-balken {
+  display: grid;
+  grid-template-columns: minmax(130px, 1.3fr) 2fr auto;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.88rem;
+}
+.statistik-balken__label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.statistik-balken__spur { height: 8px; border-radius: 4px; background: var(--color-surface-raised); overflow: hidden; }
+.statistik-balken__spur > span { display: block; height: 100%; border-radius: inherit; background: var(--color-primary); }
+.statistik-balken__wert { font-variant-numeric: tabular-nums; font-weight: 600; text-align: right; white-space: nowrap; }
+.statistik-balken__wert small { color: var(--color-text-muted); font-weight: 400; }
+.statistik-verlauf {
+  display: flex;
+  align-items: flex-end;
+  gap: 3px;
+  height: 120px;
+  margin: 10px 0 6px;
+}
+.statistik-verlauf > span { flex: 1; max-width: 28px; height: 100%; display: flex; align-items: flex-end; }
+.statistik-verlauf > span > span { display: block; width: 100%; border-radius: 3px 3px 0 0; background: var(--color-primary); }
+.statistik-verlauf > span:hover > span { background: var(--color-primary-text); }
+.website-statistik .ausbau-karte .btn { justify-self: start; }

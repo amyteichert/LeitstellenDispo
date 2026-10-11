@@ -141,6 +141,16 @@ function Datenschutz() {
         Fortschritt der „Ersten Schritte“. Diese Speicherung ist für die von dir gewünschte Funktion unbedingt erforderlich
         (§ 25 Abs. 2 Nr. 2 TDDDG). Tracking- oder Werbe-Cookies verwenden wir nicht.
       </p>
+      <p>
+        <strong>Anonyme Besucherstatistik:</strong> Beim Öffnen des Spiels übermittelt dein Browser an unseren Server die
+        aufgerufene Seite, die Seite, von der du kommst (Referrer), einen optionalen Kennzeichen-Parameter aus dem Link
+        (<code>?von=…</code>), die aktive Verweildauer, ob du etwas angeklickt hast und ob du dich registriert oder angemeldet hast.
+        Dafür werden weder Cookies gesetzt noch Daten in deinem Browser gespeichert, und die IP-Adresse wird nicht gespeichert.
+        Um verschiedene Besucher zählen zu können, bildet der Server aus IP-Adresse, Browser-Kennung und einem täglich neu erzeugten
+        Zufallswert einen kurzen, nicht umkehrbaren Code; er ist nicht mit deinem Benutzerkonto verknüpft und am nächsten Tag nicht
+        mehr zuordenbar. Die Einträge werden nach etwa 13 Monaten gelöscht (Art. 6 Abs. 1 lit. f DSGVO – berechtigtes Interesse an
+        einer datensparsamen Reichweitenmessung).
+      </p>
 
       <h2>6. Karten und Adresssuche</h2>
       <p>

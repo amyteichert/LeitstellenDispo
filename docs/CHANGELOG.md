@@ -21,6 +21,10 @@ Format basiert auf [Keep a Changelog](https://keepachangelog.com/).
   (`client/src/Kennzeichen.tsx`, Zuordnung der Einsätze in `shared/src/symbole.ts`)
 - Symbole von Flaticon für Feuerwache, Rettungswache, Krankenhaus, RTW, KTW und Löschfahrzeug (`client/public/symbole`),
   Bildnachweis im Impressum
+- **Besucherstatistik der Website** (nur Owner, Team-Bereich → „Website“): Besucher, Seitenaufrufe, Verhalten
+  (kurz / gelesen / interagiert), Herkunft (Suchmaschine, andere Website, geteilter Link mit `?von=…`, direkt),
+  beliebte Seiten und Klicks aufs Spiel. Anonym ohne Cookies und ohne IP-Speicherung (`server/src/website.ts`).
+  Zählt Info-Website und Spiel (inkl. Registrierungen/Anmeldungen) – einzeln oder zusammen auswertbar
 - **Tab-Leiste unten** (links): Schnellzugriff auf Karte, Einsätze (mit Zahl wartender Einsätze) und Einstellungen;
   alle weiteren Bereiche bleiben im Menü oben rechts
 

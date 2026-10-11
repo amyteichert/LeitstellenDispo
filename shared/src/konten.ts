@@ -120,7 +120,13 @@ export const getVergebbareRollen = (handelnd: Pick<Konto, 'rolle'>): UserRole[] 
  * Kritische Team-Aktionen – endgültig, wirken aufs Spielgeschehen oder auf alle Spieler.
  * Admins moderieren (ansehen, sperren, Notizen, Passwort-Link); alles hier erst ab der angegebenen Rolle.
  */
-export type TeamRecht = 'konto_loeschen' | 'spielstand_zuruecksetzen' | 'spielstand_korrigieren' | 'ankuendigung' | 'fremde_notizen_loeschen';
+export type TeamRecht =
+  | 'konto_loeschen'
+  | 'spielstand_zuruecksetzen'
+  | 'spielstand_korrigieren'
+  | 'ankuendigung'
+  | 'fremde_notizen_loeschen'
+  | 'website_statistik';
 
 export const TEAM_RECHT_AB: Record<TeamRecht, UserRole> = {
   konto_loeschen: 'co_owner',
@@ -128,6 +134,8 @@ export const TEAM_RECHT_AB: Record<TeamRecht, UserRole> = {
   spielstand_korrigieren: 'co_owner',
   ankuendigung: 'co_owner',
   fremde_notizen_loeschen: 'co_owner',
+  /** Besucherstatistik der Website – nur für den Owner */
+  website_statistik: 'owner',
 };
 
 export const hatTeamRecht = (rolle: UserRole, recht: TeamRecht): boolean =>

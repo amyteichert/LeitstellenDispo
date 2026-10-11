@@ -9,6 +9,8 @@ import type {
   TeamProtokollEintrag,
   TeamUebersicht,
   UserRole,
+  WebsiteBereich,
+  WebsiteStatistik,
 } from '@leitstellendispo/shared';
 
 /** Wird ausgelöst, wenn der Server eine Anfrage mit 401 ablehnt (Sitzung abgelaufen oder Konto gesperrt). */
@@ -120,6 +122,8 @@ export const teamApi = {
   devMarkierung: () => team<null>('POST', '/dev-markierung'),
   passwortLink: (id: number) => team<{ link: string; laeuftAb: number }>('POST', `/konten/${id}/passwort-link`),
   protokoll: () => team<{ eintraege: TeamProtokollEintrag[] }>('GET', '/protokoll').then((d) => d.eintraege),
+  website: (tage: number | 'alle', bereich: WebsiteBereich | 'beide') =>
+    team<{ statistik: WebsiteStatistik }>('GET', `/website?tage=${tage}&bereich=${bereich}`).then((d) => d.statistik),
   notizen: (id: number) => team<{ notizen: KontoNotiz[] }>('GET', `/konten/${id}/notizen`).then((d) => d.notizen),
   notizAnlegen: (id: number, text: string) => team<{ notizen: KontoNotiz[] }>('POST', `/konten/${id}/notizen`, { text }).then((d) => d.notizen),
   notizLoeschen: (notizId: number) => team<null>('DELETE', `/notizen/${notizId}`),

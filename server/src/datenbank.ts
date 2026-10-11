@@ -96,6 +96,27 @@ const MIGRATIONEN: string[] = [
   );
   CREATE INDEX spielstand_korrekturen_offen ON spielstand_korrekturen(benutzer_id, eingebucht);
   `,
+  // Besucherstatistik der Website: anonym, ohne IP – besucher ist ein täglich wechselnder Code
+  `
+  CREATE TABLE website_aufrufe (
+    id          TEXT    PRIMARY KEY,
+    zeit        TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+    tag         TEXT    NOT NULL,
+    besucher    TEXT    NOT NULL,
+    seite       TEXT    NOT NULL,
+    quelle_art  TEXT    NOT NULL,
+    quelle_name TEXT,
+    dauer_s     INTEGER NOT NULL DEFAULT 0,
+    scroll      INTEGER NOT NULL DEFAULT 0,
+    interaktion INTEGER NOT NULL DEFAULT 0,
+    ziel        TEXT
+  );
+  CREATE INDEX website_aufrufe_tag ON website_aufrufe(tag);
+  `,
+  // Auch Aufrufe des Spiels zählen: info = leitstellendispo.de, spiel = spiel.leitstellendispo.de
+  `
+  ALTER TABLE website_aufrufe ADD COLUMN bereich TEXT NOT NULL DEFAULT 'info';
+  `,
 ];
 
 /** Öffnet (bzw. erstellt) die Datenbank und bringt das Schema auf den neuesten Stand. */

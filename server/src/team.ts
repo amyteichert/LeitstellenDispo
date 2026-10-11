@@ -25,6 +25,7 @@ import {
 import type { Datenbank } from './datenbank.js';
 import { ladeKonto, nurAngemeldet, passwortLink, spielBasisUrl, type AuthOptionen } from './auth.js';
 import type { KontenDienst } from './konten.js';
+import { werteWebsiteAus } from './website.js';
 
 interface TeamKontoZeile {
   id: number;
@@ -210,6 +211,13 @@ export function erstelleTeamRouter(db: Datenbank, konten: KontenDienst, optionen
     sql.loeschen.run(ziel.id); // Sitzungen und Spielstand fallen per ON DELETE CASCADE mit weg
     protokolliere(ich(res), 'Konto gelöscht', ziel);
     res.status(204).end();
+  });
+
+  // ---- Besucherstatistik der Website (nur Owner) ----
+  router.get('/website', nurMitRecht('website_statistik'), (req, res) => {
+    const tage = req.query.tage === 'alle' ? null : [7, 30, 90, 365].includes(Number(req.query.tage)) ? Number(req.query.tage) : 30;
+    const bereich = req.query.bereich === 'info' || req.query.bereich === 'spiel' ? req.query.bereich : null;
+    res.json({ statistik: werteWebsiteAus(db, tage, bereich) });
   });
 
   // ---- Aktivitäts-Protokoll ----

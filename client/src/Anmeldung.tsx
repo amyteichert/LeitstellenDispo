@@ -17,6 +17,7 @@ import { KontoFehler, SITZUNG_ABGELAUFEN, abmelden, anmelden, holeFunktionen, ho
 import { serverSpeicher, uebernimmBrowserSpielstand } from './spielstand';
 import { RechtlicheLinks } from './Rechtliches';
 import { Marke, Piktogramm, type SymbolName } from './Symbole';
+import { merkeBesuchsZiel } from './besuchsMessung';
 import './App.css';
 
 type Zustand =
@@ -203,6 +204,7 @@ function AnmeldeFormular({ hinweis, onErfolg }: { hinweis?: string; onErfolg: (k
     setFehler(null);
     try {
       const konto = istRegistrierung ? await registrieren(name.trim(), email.trim(), passwort) : await anmelden(name.trim(), passwort);
+      merkeBesuchsZiel(istRegistrierung ? 'registriert' : 'angemeldet');
       await onErfolg(konto);
     } catch (error) {
       setFehler(error instanceof KontoFehler ? error.message : 'Unerwarteter Fehler. Bitte erneut versuchen.');

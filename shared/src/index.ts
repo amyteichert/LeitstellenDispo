@@ -21,3 +21,4 @@ export * from './ersteSchritte.js';
 export * from './aufkommen.js';
 export * from './kosten.js';
 export * from './symbole.js';
+export * from './websiteStatistik.js';

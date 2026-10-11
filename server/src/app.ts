@@ -8,6 +8,7 @@ import type { Datenbank } from './datenbank.js';
 import { erstelleKontenDienst } from './konten.js';
 import { erstelleSpielstandRouter } from './spielstand.js';
 import { erstelleTeamRouter, ladeAnkuendigung } from './team.js';
+import { erstelleWebsiteRouter } from './website.js';
 
 // Feste Beispieldaten für den ersten Durchstich – wird später durch echte Einsatzlogik ersetzt.
 const beispielEinsaetze: Einsatz[] = [
@@ -29,6 +30,8 @@ export function erstelleApp(db: Datenbank, optionen: { bcryptRunden?: number } &
   app.use(cookieParser());
   // Vor dem allgemeinen JSON-Parser einhängen: braucht ein größeres Limit für den Spielstand
   app.use('/api/spielstand', erstelleSpielstandRouter(db, konten));
+  // Besucherstatistik: Die Website (andere Domain) meldet Aufrufe als Text – eigener Parser im Router
+  app.use('/api/website', erstelleWebsiteRouter(db));
   app.use(express.json());
 
   app.use('/api/auth', erstelleAuthRouter(konten, optionen));
