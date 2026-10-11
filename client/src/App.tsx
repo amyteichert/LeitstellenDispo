@@ -331,6 +331,27 @@ function App({ konto, onAbmelden }: { konto: Konto; onAbmelden: () => Promise<vo
   // Einsätze, die auf den Disponenten warten: noch nicht alarmiert oder mit neuer Lagemeldung
   const wartendeEinsaetze = incidents.filter((incident) => incident.status === 'offen' || incident.neueMeldung).length;
 
+  /** Schnellzugriff auf Karte, Einsätze, Einstellungen – `kopf`: Reiter in der Kopfzeile (PC), `unten`: Leiste (Handy) */
+  const schnellzugriff = (lage: 'kopf' | 'unten') => (
+    <nav className={`tab-leiste tab-leiste--${lage}`} aria-label="Schnellzugriff">
+      {SCHNELLZUGRIFF.map(({ ansicht, symbol }) => (
+        <button
+          key={ansicht}
+          type="button"
+          className={`tab-leiste__tab ${currentView === ansicht ? 'tab-leiste__tab--aktiv' : ''}`}
+          aria-current={currentView === ansicht ? 'page' : undefined}
+          onClick={() => selectView(ansicht)}
+        >
+          <span className="tab-leiste__symbol">
+            <Piktogramm name={symbol} groesse={lage === 'kopf' ? 18 : 20} />
+            {ansicht === 'Einsätze' && wartendeEinsaetze > 0 && <span className="tab-leiste__zahl">{wartendeEinsaetze}</span>}
+          </span>
+          <span>{ansicht}</span>
+        </button>
+      ))}
+    </nav>
+  );
+
   const selectView = (v: typeof currentView) => {
     setCurrentView(v);
   };
@@ -645,6 +666,7 @@ Dein Guthaben: ${balance.toLocaleString('de-DE')} €`)) return;
         <div className="brand">
           <Marke />
           <span className="chip chip--version" title="Spielversion">V{APP_VERSION}</span>
+          {schnellzugriff('kopf')}
         </div>
 
         <div className="topbar__meta">
@@ -1082,24 +1104,8 @@ Dein Guthaben: ${balance.toLocaleString('de-DE')} €`)) return;
         )}
       </main>
 
-      {/* Schnellzugriff unten links – alle weiteren Bereiche über das Menü oben rechts */}
-      <nav className="tab-leiste" aria-label="Schnellzugriff">
-        {SCHNELLZUGRIFF.map(({ ansicht, symbol }) => (
-          <button
-            key={ansicht}
-            type="button"
-            className={`tab-leiste__tab ${currentView === ansicht ? 'tab-leiste__tab--aktiv' : ''}`}
-            aria-current={currentView === ansicht ? 'page' : undefined}
-            onClick={() => selectView(ansicht)}
-          >
-            <span className="tab-leiste__symbol">
-              <Piktogramm name={symbol} groesse={20} />
-              {ansicht === 'Einsätze' && wartendeEinsaetze > 0 && <span className="tab-leiste__zahl">{wartendeEinsaetze}</span>}
-            </span>
-            <span>{ansicht}</span>
-          </button>
-        ))}
-      </nav>
+      {/* Schnellzugriff am Handy unten – am PC steht er oben in der Kopfzeile */}
+      {schnellzugriff('unten')}
     </div>
   );
 }

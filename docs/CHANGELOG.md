@@ -25,8 +25,8 @@ Format basiert auf [Keep a Changelog](https://keepachangelog.com/).
   (kurz / gelesen / interagiert), Herkunft (Suchmaschine, andere Website, geteilter Link mit `?von=…`, direkt),
   beliebte Seiten und Klicks aufs Spiel. Anonym ohne Cookies und ohne IP-Speicherung (`server/src/website.ts`).
   Zählt Info-Website und Spiel (inkl. Registrierungen/Anmeldungen) – einzeln oder zusammen auswertbar
-- **Tab-Leiste unten** (links): Schnellzugriff auf Karte, Einsätze (mit Zahl wartender Einsätze) und Einstellungen;
-  alle weiteren Bereiche bleiben im Menü oben rechts
+- **Schnellzugriff** auf Karte, Einsätze (mit Zahl wartender Einsätze) und Einstellungen: am PC als Reiter oben in der
+  Kopfzeile, am Handy als Leiste unten; alle weiteren Bereiche bleiben im Menü oben rechts
 
 ### Geändert
 - **Einsätze auf dem Handy**: Die Details klappen direkt unter dem angetippten Einsatz auf (nochmal antippen = zu),

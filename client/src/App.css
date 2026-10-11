@@ -2665,3 +2665,78 @@ a.anmeldung__link { text-align: center; }
 .einsatz-aufgeklappt .einsatz-details__kopf h3 + div {
   display: none;
 }
+
+/* Schnellzugriff am PC: Segment-Leiste in der Kopfzeile – der aktive Bereich sitzt als erhabene Kachel darin */
+.tab-leiste--kopf {
+  position: static;
+  min-height: 0;
+  margin-left: 16px;
+  padding: 3px;
+  gap: 2px;
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  background: var(--color-bg);
+}
+.tab-leiste--kopf .tab-leiste__tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  min-height: 32px;
+  padding: 0 14px;
+  border-radius: 7px;
+  font-size: 0.88rem;
+  font-weight: 500;
+}
+.tab-leiste--kopf .tab-leiste__tab:hover { background: rgba(255, 255, 255, 0.04); }
+.tab-leiste--kopf .tab-leiste__tab--aktiv,
+.tab-leiste--kopf .tab-leiste__tab--aktiv:hover {
+  background: var(--color-surface-raised);
+  color: var(--color-text);
+  font-weight: 600;
+  box-shadow: inset 0 0 0 1px var(--color-border-strong), 0 1px 3px rgba(0, 0, 0, 0.35);
+}
+.tab-leiste--kopf .tab-leiste__tab--aktiv .symbol { color: var(--color-primary-text); }
+
+/* Zahl wartender Einsätze hinter dem Wort statt über dem Symbol */
+.tab-leiste--kopf .tab-leiste__symbol { display: contents; }
+.tab-leiste--kopf .tab-leiste__tab > span:last-child { order: 1; }
+.tab-leiste--kopf .tab-leiste__zahl { position: static; order: 2; margin-left: -2px; box-shadow: none; }
+
+/* Handy-Leiste: aktiver Tab mit Leuchtstreifen oben und farbigem Symbol */
+.tab-leiste--unten .tab-leiste__tab { position: relative; }
+.tab-leiste--unten .tab-leiste__tab--aktiv,
+.tab-leiste--unten .tab-leiste__tab--aktiv:hover {
+  background: transparent;
+  color: var(--color-text);
+  font-weight: 600;
+}
+.tab-leiste--unten .tab-leiste__tab--aktiv .symbol { color: var(--color-primary-text); }
+.tab-leiste--unten .tab-leiste__tab--aktiv::before {
+  content: '';
+  position: absolute;
+  top: -6px;
+  left: 50%;
+  width: 32px;
+  height: 3px;
+  border-radius: 0 0 3px 3px;
+  background: var(--color-primary);
+  transform: translateX(-50%);
+}
+.tab-leiste--unten .tab-leiste__zahl { box-shadow: 0 0 0 2px var(--color-surface); }
+
+/* Kleinere Laptops: Platz schaffen – Schriftzug, Version und Zusatztexte der Anzeigen ausblenden */
+@media (max-width: 1280px) {
+  .topbar .marke__text,
+  .topbar .chip--version,
+  .topbar .nur-breit { display: none; }
+  .tab-leiste--kopf { margin-left: 8px; }
+}
+
+@media (min-width: 901px) {
+  :root { --tab-leiste-hoehe: 0px; }
+  .tab-leiste--unten { display: none; }
+}
+@media (max-width: 900px) {
+  .tab-leiste--kopf { display: none; }
+}
