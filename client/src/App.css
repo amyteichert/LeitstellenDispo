@@ -2116,6 +2116,16 @@
 .rechtliches__karte p {
   margin: 0 0 10px;
 }
+.rechtliches__email-offline {
+  color: var(--color-text-muted);
+  opacity: 0.6;
+}
+.rechtliches__email-hinweis {
+  display: block;
+  color: var(--color-text-muted);
+  font-size: 0.85rem;
+  font-style: italic;
+}
 .rechtliches__stand {
   color: var(--color-text-muted);
   font-size: 0.85rem;

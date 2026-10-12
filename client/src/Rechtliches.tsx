@@ -12,6 +12,8 @@ const BETREIBER = {
   strasse: '',
   ort: '14770 Brandenburg an der Havel',
   email: 'kontakt@leitstellendispo.de',
+  // Auf true setzen, sobald das Postfach eingerichtet ist – dann wird die Adresse wieder normal angezeigt
+  emailErreichbar: false,
 };
 
 /** Hosting / Auftragsverarbeitung (Server von UPVYRA, Standort Deutschland, Auslieferung über Cloudflare) */
@@ -38,6 +40,17 @@ function Seite({ titel, children }: { titel: string; children: ReactNode }) {
   );
 }
 
+/** E-Mail der Betreiberin – ausgegraut mit Hinweis, solange das Postfach noch nicht erreichbar ist */
+function BetreiberEmail() {
+  if (BETREIBER.emailErreichbar) return <>E-Mail: {BETREIBER.email}</>;
+  return (
+    <>
+      E-Mail: <span className="rechtliches__email-offline">{BETREIBER.email}</span>
+      <span className="rechtliches__email-hinweis">Die E-Mail-Adresse ist aktuell noch nicht erreichbar.</span>
+    </>
+  );
+}
+
 /** Links zu Impressum und Datenschutz – für Anmeldeseite, Spiel und die Seiten selbst */
 export function RechtlicheLinks() {
   return (
@@ -59,7 +72,7 @@ function Impressum() {
         {BETREIBER.ort}
       </p>
       <h2>Kontakt</h2>
-      <p>E-Mail: {BETREIBER.email}</p>
+      <p><BetreiberEmail /></p>
       <h2>Verantwortlich für den Inhalt nach § 18 Abs. 2 MStV</h2>
       <p>{BETREIBER.name}, Anschrift wie oben</p>
       <h2>Hosting</h2>
@@ -88,7 +101,7 @@ function Datenschutz() {
       <h2>1. Verantwortliche</h2>
       <p>
         {[BETREIBER.name, BETREIBER.strasse, BETREIBER.ort].filter(Boolean).join(', ')}<br />
-        E-Mail: {BETREIBER.email}
+        <BetreiberEmail />
       </p>
 
       <h2>2. Hosting</h2>
