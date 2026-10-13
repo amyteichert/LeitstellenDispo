@@ -28,9 +28,7 @@ import WachenView from './views/WachenView';
 import EinsaetzeView from './views/EinsaetzeView';
 import { KarteEinsatzLeiste, KarteEinsatzPanel } from './views/KarteEinsatzOverlay';
 import FinanzenView from './views/FinanzenView';
-import BotView from './views/BotView';
 import EinstellungenView from './views/EinstellungenView';
-import { useBot } from './useBot';
 
 const createMarkerIcon = (color: string) =>
   L.divIcon({
@@ -166,10 +164,11 @@ function App() {
     markiereMeldungGelesen,
   } = spiel;
 
-  // Bot läuft auf App-Ebene weiter, auch wenn man die Ansicht wechselt (eigener Spielstand)
-  const bot = useBot();
-
   const { hinweise, schliesseHinweis, tonAn, setTonAn } = useEinsatzHinweise(incidents, spiel.spielstandGeladen);
+
+  // Der Bot läuft auf einer eigenen Seite (/bot.html) in einem separaten Tab.
+  const BOT_SEITE = '/bot.html';
+  const oeffneBot = () => window.open(BOT_SEITE, '_blank', 'noopener');
   const oeffneHinweis = (einsatzId: string, hinweisId: string) => {
     schliesseHinweis(hinweisId);
     setSelectedIncidentId(einsatzId);
@@ -411,6 +410,11 @@ function App() {
               onClose={() => setDropdownOpen(false)}
               currentView={currentView}
               onSelect={(v) => {
+                // „Bot“ ist eine eigene Seite in einem neuen Tab, kein normaler Ansichtswechsel
+                if (v === 'Bot') {
+                  oeffneBot();
+                  return;
+                }
                 selectView(v as any);
               }}
             />
@@ -751,10 +755,6 @@ function App() {
 
             {currentView === 'Finanzen' && (
               <FinanzenView balance={balance} locations={locations} vehicles={vehicles} transactions={transactions} />
-            )}
-
-            {currentView === 'Bot' && (
-              <BotView bot={bot} />
             )}
 
             {currentView === 'Einstellungen' && (
