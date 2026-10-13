@@ -28,7 +28,9 @@ import WachenView from './views/WachenView';
 import EinsaetzeView from './views/EinsaetzeView';
 import { KarteEinsatzLeiste, KarteEinsatzPanel } from './views/KarteEinsatzOverlay';
 import FinanzenView from './views/FinanzenView';
+import BotView from './views/BotView';
 import EinstellungenView from './views/EinstellungenView';
+import { useBot } from './useBot';
 
 const createMarkerIcon = (color: string) =>
   L.divIcon({
@@ -131,7 +133,7 @@ function MapStyleToggle({
 }
 function App() {
   // Navigation / view state (default: Karte)
-  const [currentView, setCurrentView] = useState<'Karte'|'Wachen'|'Fahrzeuge'|'Einsätze'|'Finanzen'|'Einstellungen'>('Karte');
+  const [currentView, setCurrentView] = useState<'Karte'|'Wachen'|'Fahrzeuge'|'Einsätze'|'Finanzen'|'Bot'|'Einstellungen'>('Karte');
   const [selectedId, setSelectedId] = useState<string>('rettungswache-zentrum');
   const [selectedIncidentId, setSelectedIncidentId] = useState<string | null>(null);
   // Einsatz, dessen Kurzinfo gerade als schwebendes Fenster auf der Karte angezeigt wird
@@ -163,6 +165,9 @@ function App() {
     addVehicle,
     markiereMeldungGelesen,
   } = spiel;
+
+  // Bot läuft auf App-Ebene weiter, auch wenn man die Ansicht wechselt (eigener Spielstand)
+  const bot = useBot();
 
   const { hinweise, schliesseHinweis, tonAn, setTonAn } = useEinsatzHinweise(incidents, spiel.spielstandGeladen);
   const oeffneHinweis = (einsatzId: string, hinweisId: string) => {
@@ -746,6 +751,10 @@ function App() {
 
             {currentView === 'Finanzen' && (
               <FinanzenView balance={balance} locations={locations} vehicles={vehicles} transactions={transactions} />
+            )}
+
+            {currentView === 'Bot' && (
+              <BotView bot={bot} />
             )}
 
             {currentView === 'Einstellungen' && (

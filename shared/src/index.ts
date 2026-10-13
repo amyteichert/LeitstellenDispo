@@ -10,3 +10,6 @@ export * from './einsatzErzeugung.js';
 export * from './alarmierung.js';
 export * from './spielTick.js';
 export * from './spielstand.js';
+export * from './zufall.js';
+export * from './aktionen.js';
+export * from './bot/index.js';

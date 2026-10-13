@@ -4,6 +4,7 @@
  */
 import { erzeugeAdresse, ermittleOrtFuerWache, formatAdresse } from './adressen.js';
 import {
+  EINSATZ_STATUS_LABELS,
   START_GUTHABEN,
   findeEinsatzVorlage,
   type AbgeschlossenerSpielEinsatz,
@@ -113,19 +114,55 @@ const migriereV2 = (alt: Omit<Spielstand, 'krankenhaeuser'>): Spielstand => {
   };
 };
 
+const istKoordinaten = (wert: unknown): wert is [number, number] =>
+  Array.isArray(wert) && wert.length === 2 && Number.isFinite(wert[0]) && Number.isFinite(wert[1]);
+
+/** Hat ein Fahrzeug die Mindeststruktur, damit die Spiellogik damit rechnen kann? */
+const istGueltigesFahrzeug = (wert: unknown): boolean => {
+  if (!wert || typeof wert !== 'object') return false;
+  const v = wert as Record<string, unknown>;
+  return typeof v.id === 'string' && Number.isFinite(v.price);
+};
+
+/** Hat ein Einsatz die Mindeststruktur, damit Tick und Alarmierung nicht abstürzen? */
+const istGueltigerEinsatz = (wert: unknown): boolean => {
+  if (!wert || typeof wert !== 'object') return false;
+  const e = wert as Record<string, unknown>;
+  return typeof e.id === 'string'
+    && typeof e.status === 'string' && e.status in EINSATZ_STATUS_LABELS
+    && istKoordinaten(e.coords)
+    && Array.isArray(e.alarmedVehicles)
+    && Array.isArray(e.requiredVehicles)
+    && Array.isArray(e.meldungen)
+    && Number.isFinite(e.createdAt);
+};
+
 /**
  * Prüft und migriert einen geladenen Spielstand.
- * Liefert null, wenn er unbrauchbar oder von einer unbekannten Version ist.
+ * Liefert null, wenn er unbrauchbar, strukturell beschädigt oder von einer unbekannten Version ist.
+ *
+ * Wichtig als Sicherheitsgrenze: Was hier durchkommt, muss die Spiellogik (Tick, Alarmierung)
+ * ohne Absturz verarbeiten können – auch wenn die Rohdaten von außen (z. B. einem Server) stammen.
  */
 export function migriereSpielstand(roh: unknown): Spielstand | null {
   if (!roh || typeof roh !== 'object') return null;
   const spielstand = roh as Spielstand;
   if (!Array.isArray(spielstand.locations) || !Array.isArray(spielstand.vehicles) || !Array.isArray(spielstand.incidents)) return null;
+  if (!Number.isFinite(spielstand.balance)) return null;
 
-  if (spielstand.version === 2) return migriereV2(spielstand);
-  if (spielstand.version !== SPIELSTAND_VERSION) return null;
-  return {
-    ...spielstand,
-    krankenhaeuser: Array.isArray(spielstand.krankenhaeuser) ? spielstand.krankenhaeuser : STANDARD_KRANKENHAEUSER,
-  };
+  const migriert = spielstand.version === 2
+    ? migriereV2(spielstand)
+    : spielstand.version === SPIELSTAND_VERSION
+      ? {
+          ...spielstand,
+          krankenhaeuser: Array.isArray(spielstand.krankenhaeuser) ? spielstand.krankenhaeuser : STANDARD_KRANKENHAEUSER,
+        }
+      : null;
+  if (!migriert) return null;
+
+  // Struktur der Einträge prüfen – ein einziger beschädigter Eintrag macht den Spielstand unbrauchbar
+  if (!migriert.vehicles.every(istGueltigesFahrzeug)) return null;
+  if (!migriert.incidents.every(istGueltigerEinsatz)) return null;
+
+  return migriert;
 }

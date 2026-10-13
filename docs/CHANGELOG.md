@@ -6,6 +6,28 @@ Format basiert auf [Keep a Changelog](https://keepachangelog.com/).
 
 ---
 
+## [Unreleased] – Bot, Simulation & Härtetest
+
+### Hinzugefügt
+- **Bot** (`shared/src/bot/`): spielt automatisch – alarmiert passende Fahrzeuge, kauft nach Bedarf, baut (je nach Ziel) Wachen.
+  Ziele: Einsätze abarbeiten, Geld maximieren, Leitstelle ausbauen, schnellste Anfahrt, Chaos-Test
+- **Simulation im Zeitraffer** (`simuliere` / schrittweiser `simulationsSchritt`): spielt Stunden/Tage ohne Browser durch
+- **Fehlerwächter** (`pruefeSpielstand`): prüft Invarianten (Kontostand, doppelte Alarmierung, hängende Einsätze …) und meldet Probleme
+- **Härtetest** (`haerteTest`): wirft den Spielfunktionen bösartige/kaputte Daten hin und prüft, ob etwas abstürzt
+  (Robustheits-/Sicherheitstest für einen späteren Server)
+- **Bot-Panel im Client** (Ansicht „Bot“): grüner Start/Stopp-Knopf, Geschwindigkeit, Ziel-Auswahl, Live-Protokoll,
+  Besitz-Dashboard und Härtetest-Knopf – läuft auf einem **eigenen Spielstand** (dein Spiel bleibt unberührt)
+- **CLI-Bot**: `npm run bot -- --tage 7 --ziel geld` bzw. `npm run bot:haertetest`
+- **Spieleraktionen als reine Funktionen** in `shared/src/aktionen.ts` (Kaufen, Wache bauen/löschen, Alarmieren) –
+  von Spieler-UI und Bot gemeinsam genutzt (keine doppelte Logik mehr)
+- **Deterministischer Zufallsgenerator** (`shared/src/zufall.ts`) für reproduzierbare Bot-Läufe
+
+### Geändert / Gehärtet
+- `migriereSpielstand` prüft jetzt die Struktur jedes Einsatzes/Fahrzeugs: beschädigte oder manipulierte Spielstände
+  werden sauber abgewiesen, statt später den Spiel-Tick zum Absturz zu bringen (Sicherheitsgrenze zum Server hin)
+
+---
+
 ## [Unreleased] – Einsatzorte, Fahrzeugbedarf, Rettungsdienst
 
 ### Hinzugefügt

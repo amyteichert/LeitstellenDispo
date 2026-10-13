@@ -1,33 +1,26 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   GAME_CONFIG,
-  WACHEN_PREISE,
-  alarmiereFahrzeuge,
+  alarmiere,
   berechneSpielTick,
   createNeuesSpiel,
-  ergaenzeKrankenhaeuser,
+  erstelleWache as erstelleWacheAktion,
   erzeugeZufallsEinsatz,
   formatEinsatzTitel,
   getFahrzeugTyp,
+  kaufeFahrzeug,
+  loescheWache as loescheWacheAktion,
+  markiereMeldungGelesen as markiereMeldungGelesenAktion,
   type AbgeschlossenerSpielEinsatz,
-  type Adresse,
   type Krankenhaus,
+  type NeueWacheEingabe,
   type SpielEinsatz,
-  type StationKind,
 } from '@leitstellendispo/shared';
 import type { FinanceTransaction, MapLocation, Vehicle } from './types';
 import { SPIELSTAND_VERSION, spielstandSpeicher, type Spielstand } from './spielstand';
 
-export interface NeueWache {
-  name: string;
-  stationKind: StationKind;
-  coords: [number, number];
-  details: string;
-  startFahrzeugTyp: string;
-  funkrufname: string;
-  /** Strukturierte Adresse aus der Adresssuche (fehlt bei Klick auf die Karte) */
-  adresse?: Adresse;
-}
+/** Eingaben zum Bau einer neuen Wache (liegt jetzt in shared, hier nur als Alias für die Views). */
+export type NeueWache = NeueWacheEingabe;
 
 interface UseSpielOptionen {
   /** Wird aufgerufen, nachdem ein Spielstand geladen oder ein neues Spiel gestartet wurde */
@@ -75,7 +68,21 @@ export function useSpiel(optionen: UseSpielOptionen = {}) {
     setVehicles((cur) => [...cur, { ...v, id, besatzung, status: v.status ?? 'Einsatzbereit' }]);
   };
 
-  const spielstandAnwenden = (spielstand: Spielstand) => {
+  /** Aktuellen Spielzustand als ein zusammenhängendes Spielstand-Objekt (für die shared-Aktionen). */
+  const aktuellerSpielstand = (): Spielstand => ({
+    version: SPIELSTAND_VERSION,
+    gespeichertAm: new Date().toISOString(),
+    balance,
+    transactions,
+    locations,
+    vehicles,
+    incidents,
+    completedIncidentHistory,
+    krankenhaeuser,
+  });
+
+  /** Schreibt alle Teilzustände aus einem Spielstand zurück (ohne die Lade-Callbacks). */
+  const setzeSpielstand = (spielstand: Spielstand) => {
     setBalance(spielstand.balance);
     setTransactions(spielstand.transactions);
     setLocations(spielstand.locations);
@@ -83,6 +90,10 @@ export function useSpiel(optionen: UseSpielOptionen = {}) {
     setIncidents(spielstand.incidents);
     setCompletedIncidentHistory(spielstand.completedIncidentHistory);
     setKrankenhaeuser(spielstand.krankenhaeuser);
+  };
+
+  const spielstandAnwenden = (spielstand: Spielstand) => {
+    setzeSpielstand(spielstand);
     optionenRef.current.onSpielstandAngewendet?.(spielstand);
   };
 
@@ -174,79 +185,28 @@ export function useSpiel(optionen: UseSpielOptionen = {}) {
   }, [completedIncidentHistory]);
 
   // ---- Aktionen ----
-
-  /** Funkrufname nach Schema „LF10-2“ (fortlaufend je Fahrzeugtyp) */
-  const naechsterFunkrufname = (typ: string) => `${typ.replace(/\s+/g, '')}-${vehicles.filter((vehicle) => vehicle.type === typ).length + 1}`;
+  // Die eigentliche Logik liegt in reinen Funktionen in `@leitstellendispo/shared`
+  // (geteilt mit dem Bot und später dem Server). Der Hook liest den aktuellen Spielstand,
+  // wendet die Aktion an und schreibt das Ergebnis zurück.
 
   /** Kauft ein Fahrzeug für eine Wache. Gibt eine Fehlermeldung zurück oder null bei Erfolg. */
   const buyVehicle = (stationId: string, typ: string): string | null => {
-    const station = locations.find((location) => location.id === stationId && location.type === 'station');
-    const fahrzeugTyp = getFahrzeugTyp(typ);
-    if (!station || !fahrzeugTyp) return 'Wache oder Fahrzeugtyp nicht gefunden.';
-    if (fahrzeugTyp.wachenArt !== (station.stationKind ?? 'Rettungswache')) {
-      return `${typ} passt nicht zu einer ${station.stationKind ?? 'Rettungswache'}.`;
-    }
-    if (balance < fahrzeugTyp.preis) {
-      return `Nicht genügend Guthaben. Benötigt: ${fahrzeugTyp.preis} €, verfügbar: ${balance} €.`;
-    }
-
-    setBalance((cur) => cur - fahrzeugTyp.preis);
-    addTransaction('Ausgabe', `${typ} für ${station.name} gekauft`, fahrzeugTyp.preis);
-    addVehicle({
-      name: typ,
-      type: typ,
-      stationId,
-      price: fahrzeugTyp.preis,
-      callsign: naechsterFunkrufname(typ),
-    });
+    const ergebnis = kaufeFahrzeug(aktuellerSpielstand(), stationId, typ);
+    if ('fehler' in ergebnis) return ergebnis.fehler;
+    setzeSpielstand(ergebnis.spielstand);
     return null;
   };
 
   /** Baut eine neue Wache mit Startfahrzeug. Gibt die neue Wachen-ID oder eine Fehlermeldung zurück. */
   const erstelleWache = (wache: NeueWache): { id: string } | { fehler: string } => {
-    const stationPrice = WACHEN_PREISE[wache.stationKind] ?? 0;
-    const vehiclePrice = getFahrzeugTyp(wache.startFahrzeugTyp)?.preis ?? 0;
-    const totalCost = stationPrice + vehiclePrice;
-
-    if (balance < totalCost) {
-      return { fehler: `Nicht genügend Guthaben für die Erstellung. Benötigt: ${totalCost} €, verfügbar: ${balance} €.` };
-    }
-
-    const name = wache.name.trim() || 'Neuer Standort';
-    const locationId = `${name.toLowerCase().replace(/\s+/g, '-')}-${Date.now()}`;
-
-    const neueWache: MapLocation = {
-      id: locationId,
-      name,
-      type: 'station',
-      stationKind: wache.stationKind,
-      coords: wache.coords,
-      description: wache.stationKind === 'Feuerwache' ? 'Feuerwehr' : 'Rettungsdienst',
-      details: wache.details.trim() || `Frei platzierbare ${wache.stationKind}`,
-      price: stationPrice,
-      adresse: wache.adresse,
-    };
-    setLocations((current) => [...current, neueWache]);
-    // Patienten brauchen ein Krankenhaus in erreichbarer Nähe
-    setKrankenhaeuser((current) => ergaenzeKrankenhaeuser(current, neueWache));
-    setBalance((cur) => cur - totalCost);
-    addTransaction('Ausgabe', `${wache.stationKind} mit ${wache.startFahrzeugTyp} erstellt`, totalCost);
-
-    if (wache.startFahrzeugTyp) {
-      addVehicle({
-        name: wache.startFahrzeugTyp,
-        type: wache.startFahrzeugTyp,
-        stationId: locationId,
-        price: vehiclePrice,
-        callsign: wache.funkrufname.trim() || naechsterFunkrufname(wache.startFahrzeugTyp),
-      });
-    }
-
-    return { id: locationId };
+    const ergebnis = erstelleWacheAktion(aktuellerSpielstand(), wache);
+    if ('fehler' in ergebnis) return { fehler: ergebnis.fehler };
+    setzeSpielstand(ergebnis.spielstand);
+    return { id: ergebnis.id };
   };
 
   const loescheWache = (id: string) => {
-    setLocations((current) => current.filter((location) => location.id !== id));
+    setzeSpielstand(loescheWacheAktion(aktuellerSpielstand(), id));
   };
 
   /** Erzeugt sofort einen Test-Einsatz. Gibt die Einsatz-ID oder eine Fehlermeldung zurück. */
@@ -264,15 +224,11 @@ export function useSpiel(optionen: UseSpielOptionen = {}) {
   };
 
   const alarmieren = (incidentId: string, vehicleIds: string[]) => {
-    const ergebnis = alarmiereFahrzeuge({ incidents, vehicles, locations }, incidentId, vehicleIds);
-    setIncidents(ergebnis.incidents);
-    setVehicles(ergebnis.vehicles);
+    setzeSpielstand(alarmiere(aktuellerSpielstand(), incidentId, vehicleIds));
   };
 
   const markiereMeldungGelesen = (incidentId: string) => {
-    setIncidents((current) => current.map((incident) => (
-      incident.id === incidentId ? { ...incident, neueMeldung: false } : incident
-    )));
+    setzeSpielstand(markiereMeldungGelesenAktion(aktuellerSpielstand(), incidentId));
   };
 
   const neuesSpiel = () => {
