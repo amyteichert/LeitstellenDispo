@@ -6,6 +6,28 @@ Format basiert auf [Keep a Changelog](https://keepachangelog.com/).
 
 ---
 
+## [Unreleased] – Bot & Härtetest (Dev-Werkzeuge)
+
+### Hinzugefügt
+- **Bot** (`shared/src/bot/`): spielt automatisch auf einem eigenen Sandbox-Spielstand – baut die erste
+  Wache, kauft und besetzt Fahrzeuge, alarmiert passende Fahrzeuge zu Einsätzen. Ziele: Einsätze abarbeiten,
+  Geld maximieren, Leitstelle ausbauen, schnellste Anfahrt, Chaos-Test
+- **Simulation im Zeitraffer** (`simuliere` / schrittweiser `simulationsSchritt`) mit Ruf-abhängigen Einnahmen
+  und laufenden Kosten – spielt Stunden/Tage ohne Browser durch
+- **Fehlerwächter** (`pruefeSpielstand`): prüft Invarianten (Kontostand, Ruf, doppelte Alarmierung,
+  hängende Einsätze, verwaistes Personal …)
+- **Härtetest** (`haerteTest`): wirft den Spielfunktionen bösartige/kaputte Daten hin und prüft auf Abstürze
+  (Robustheits-/Sicherheitstest – der Server nimmt hochgeladene Spielstände über `migriereSpielstand` an)
+- **Bot-Werkzeug im Team-Bereich „Dev-Werkzeuge“** (nur für Team-Rollen sichtbar): Start/Stopp,
+  Geschwindigkeit, Ziel-Auswahl, Live-Protokoll, Besitz-Dashboard, Fehlerwächter und Härtetest
+
+### Gehärtet (Sicherheit)
+- `migriereSpielstand` prüft jetzt die Struktur jedes Einsatzes/Fahrzeugs und den Kontostand: ein beschädigter
+  oder manipulierter Spielstand (z. B. ein Einsatz mit kaputtem `alarmedVehicles`) wird abgewiesen, statt
+  später den Spiel-Tick zum Absturz zu bringen. Der Härtetest hatte genau diese Lücke aufgedeckt.
+
+---
+
 ## [Unreleased] – Laufende Kosten, Team-Rechte, ruhigeres Design
 
 ### Hinzugefügt

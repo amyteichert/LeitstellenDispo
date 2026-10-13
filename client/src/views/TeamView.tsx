@@ -21,9 +21,10 @@ import {
 } from '@leitstellendispo/shared';
 import { ladeAnkuendigung, teamApi } from '../konto';
 import WebsiteStatistikView from './WebsiteStatistikView';
+import BotWerkzeug from './BotWerkzeug';
 
-type Reiter = 'Übersicht' | 'Konten' | 'Ankündigung' | 'Protokoll' | 'Website' | 'Dev-Werkzeuge';
-const REITER: Reiter[] = ['Übersicht', 'Konten', 'Ankündigung', 'Protokoll', 'Website', 'Dev-Werkzeuge'];
+type Reiter = 'Übersicht' | 'Konten' | 'Ankündigung' | 'Protokoll' | 'Website' | 'Dev-Werkzeuge' | 'Bot';
+const REITER: Reiter[] = ['Übersicht', 'Konten', 'Ankündigung', 'Protokoll', 'Website', 'Dev-Werkzeuge', 'Bot'];
 
 const datum = (iso: string | null) => (iso
   ? new Date(iso).toLocaleString('de-DE', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' })
@@ -76,6 +77,7 @@ export default function TeamView({ konto, dev }: { konto: Konto; dev: DevAktione
       {reiter === 'Protokoll' && <Protokoll melde={melde} />}
       {reiter === 'Website' && hatTeamRecht(konto.rolle, 'website_statistik') && <WebsiteStatistikView />}
       {reiter === 'Dev-Werkzeuge' && <DevWerkzeuge dev={dev} melde={melde} />}
+      {reiter === 'Bot' && <BotWerkzeug />}
     </div>
   );
 }

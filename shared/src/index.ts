@@ -22,3 +22,4 @@ export * from './aufkommen.js';
 export * from './kosten.js';
 export * from './symbole.js';
 export * from './websiteStatistik.js';
+export * from './bot/index.js';

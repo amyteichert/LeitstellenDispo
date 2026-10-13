@@ -157,9 +157,45 @@ const migriereV2 = (alt: Omit<Spielstand, 'krankenhaeuser'>): Spielstand => {
 const nurEigene = (krankenhaeuser: unknown): Krankenhaus[] =>
   (Array.isArray(krankenhaeuser) ? (krankenhaeuser as Krankenhaus[]) : []).filter((krankenhaus) => krankenhaus.eigen);
 
+const istKoordinaten = (wert: unknown): wert is [number, number] =>
+  Array.isArray(wert) && wert.length === 2 && Number.isFinite(wert[0]) && Number.isFinite(wert[1]);
+
+/** Hat ein Fahrzeug die Mindeststruktur, damit die Spiellogik damit rechnen kann? */
+const istGueltigesFahrzeug = (wert: unknown): boolean => {
+  if (!wert || typeof wert !== 'object') return false;
+  const v = wert as Record<string, unknown>;
+  return typeof v.id === 'string' && Number.isFinite(v.price);
+};
+
+/** Hat ein Einsatz die Mindeststruktur, damit Tick und Alarmierung nicht abstürzen? */
+const istGueltigerEinsatz = (wert: unknown): boolean => {
+  if (!wert || typeof wert !== 'object') return false;
+  const e = wert as Record<string, unknown>;
+  return typeof e.id === 'string'
+    && typeof e.status === 'string'
+    && istKoordinaten(e.coords)
+    && Array.isArray(e.alarmedVehicles)
+    && Array.isArray(e.requiredVehicles)
+    && Array.isArray(e.meldungen)
+    && Number.isFinite(e.createdAt);
+};
+
+/**
+ * Letzte Sicherheitsprüfung an der Lade-/Speichergrenze: Ein strukturell beschädigter oder
+ * manipulierter Spielstand (der sonst später den Spiel-Tick zum Absturz brächte) wird verworfen.
+ * Wichtig, weil der Server hochgeladene Spielstände über genau diese Funktion annimmt.
+ */
+function pruefeStruktur(spielstand: Spielstand | null): Spielstand | null {
+  if (!spielstand) return null;
+  if (!Number.isFinite(spielstand.balance)) return null;
+  if (!spielstand.vehicles.every(istGueltigesFahrzeug)) return null;
+  if (!spielstand.incidents.every(istGueltigerEinsatz)) return null;
+  return spielstand;
+}
+
 /**
  * Prüft und migriert einen geladenen Spielstand.
- * Liefert null, wenn er unbrauchbar oder von einer unbekannten Version ist.
+ * Liefert null, wenn er unbrauchbar, strukturell beschädigt oder von einer unbekannten Version ist.
  */
 export function migriereSpielstand(roh: unknown): Spielstand | null {
   if (!roh || typeof roh !== 'object') return null;
@@ -167,22 +203,22 @@ export function migriereSpielstand(roh: unknown): Spielstand | null {
   if (!Array.isArray(spielstand.locations) || !Array.isArray(spielstand.vehicles) || !Array.isArray(spielstand.incidents)) return null;
 
   const ruf = typeof spielstand.ruf === 'number' ? spielstand.ruf : RUF_CONFIG.start;
-  if (spielstand.version === 2) return gibNeuePflichtQualifikationen(ergaenzePersonal(entferneStartwachen({ ...migriereV2(spielstand), ruf })));
-  if (spielstand.version === 3) return gibNeuePflichtQualifikationen(ergaenzePersonal(entferneStartwachen({ ...spielstand, version: SPIELSTAND_VERSION, ruf, krankenhaeuser: nurEigene(spielstand.krankenhaeuser) })));
+  if (spielstand.version === 2) return pruefeStruktur(gibNeuePflichtQualifikationen(ergaenzePersonal(entferneStartwachen({ ...migriereV2(spielstand), ruf }))));
+  if (spielstand.version === 3) return pruefeStruktur(gibNeuePflichtQualifikationen(ergaenzePersonal(entferneStartwachen({ ...spielstand, version: SPIELSTAND_VERSION, ruf, krankenhaeuser: nurEigene(spielstand.krankenhaeuser) }))));
   if (spielstand.version === 4) {
-    return gibNeuePflichtQualifikationen(ergaenzePersonal({
+    return pruefeStruktur(gibNeuePflichtQualifikationen(ergaenzePersonal({
       ...spielstand,
       version: SPIELSTAND_VERSION,
       krankenhaeuser: nurEigene(spielstand.krankenhaeuser),
       ruf,
-    }));
+    })));
   }
   if (spielstand.version !== SPIELSTAND_VERSION) return null;
-  return ergaenzePersonal({
+  return pruefeStruktur(ergaenzePersonal({
     ...spielstand,
     krankenhaeuser: nurEigene(spielstand.krankenhaeuser),
     ruf,
-  });
+  }));
 }
 
 /**
