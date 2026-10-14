@@ -60,7 +60,10 @@ export default function TeamView({ konto, dev }: { konto: Konto; dev: DevAktione
       </div>
 
       <div className="verwalten-reiter" role="tablist">
-        {REITER.filter((name) => name !== 'Website' || hatTeamRecht(konto.rolle, 'website_statistik')).map((name) => (
+        {REITER
+          .filter((name) => name !== 'Website' || hatTeamRecht(konto.rolle, 'website_statistik'))
+          .filter((name) => name !== 'Bot' || hatTeamRecht(konto.rolle, 'bot'))
+          .map((name) => (
           <button key={name} type="button" role="tab" aria-selected={reiter === name} className={`btn ${reiter === name ? 'btn--primary' : ''}`} onClick={() => setReiter(name)}>
             {name}
           </button>
@@ -77,7 +80,7 @@ export default function TeamView({ konto, dev }: { konto: Konto; dev: DevAktione
       {reiter === 'Protokoll' && <Protokoll melde={melde} />}
       {reiter === 'Website' && hatTeamRecht(konto.rolle, 'website_statistik') && <WebsiteStatistikView />}
       {reiter === 'Dev-Werkzeuge' && <DevWerkzeuge dev={dev} melde={melde} />}
-      {reiter === 'Bot' && <BotWerkzeug />}
+      {reiter === 'Bot' && hatTeamRecht(konto.rolle, 'bot') && <BotWerkzeug />}
     </div>
   );
 }

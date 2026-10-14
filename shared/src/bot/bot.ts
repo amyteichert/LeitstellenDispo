@@ -12,6 +12,7 @@ import { alarmiereFahrzeuge, erstelleAlarmVorschlag } from '../alarmierung.js';
 import { formatEinsatzTitel, getWachenPreis, type SpielEinsatz } from '../daten.js';
 import { FAHRZEUG_TYPEN, fahrzeugErfuelltBedarf, type BedarfsKlasse, type FahrzeugTyp } from '../fahrzeuge.js';
 import { erzeugeBesatzungFuer, synchronisiereBesatzung } from '../personal.js';
+import { getLaufendeKosten } from '../kosten.js';
 import { getStellplatzPreis, hatFreienStellplatz, mitStellplatzErweiterung } from '../wachen.js';
 import type { Spielstand } from '../spielstand.js';
 import type { FinanceTransaction, MapLocation, StationKind, Vehicle } from '../typen.js';
@@ -73,6 +74,16 @@ const kaufTypFuer = (klasse: BedarfsKlasse): FahrzeugTyp | undefined =>
     .sort((a, b) => a.preis - b.preis)[0];
 
 const START_COORDS: [number, number] = [48.775, 9.1771];
+
+/** Laufende Kosten (€/Stunde) des aktuellen Spielstands. */
+const kostenProStunde = (s: Spielstand): number =>
+  getLaufendeKosten({ locations: s.locations, vehicles: s.vehicles, personal: s.personal ?? [], krankenhaeuser: s.krankenhaeuser }).gesamt;
+
+/** Einnahmen der letzten Stunde Spielzeit (≈ Einkommen pro Stunde) – Grundlage für „lohnt sich Ausbau?“. */
+const einkommenProStunde = (s: Spielstand, jetzt: number): number =>
+  (s.completedIncidentHistory ?? [])
+    .filter((e) => typeof e.completedAt === 'number' && e.completedAt > jetzt - 3_600_000)
+    .reduce((summe, e) => summe + (e.reward ?? 0) + (e.bewertung?.bonus ?? 0), 0);
 
 const mitTransaktion = (transactions: FinanceTransaction[], label: string, amount: number, jetzt: number): FinanceTransaction[] => [
   { id: `txn-${jetzt}-${Math.round(Math.random() * 1e6)}`, kind: 'Ausgabe', label, amount, createdAt: new Date(jetzt).toISOString() },
@@ -183,8 +194,16 @@ export function botSchritt(spielstand: Spielstand, ziel: BotZiel, jetzt: number 
     }
   }
 
-  // 3a. Ausbau-Ziele: bei deutlichem Geldüberschuss proaktiv das Netz vergrößern
-  if (regel.baut && stationen().length < regel.maxWachen && aktuell.balance > regel.reserve + 40000) {
+  // 3. Wirtschaftlich handeln: immer einen Puffer (mehrere Stunden laufende Kosten) behalten,
+  //    und nur ausbauen, wenn es sich rechnet (Einnahmen ≥ Kosten). Das verhindert, dass sich
+  //    der Bot durch zu viele Fahrzeuge/Wachen ins Minus wirtschaftet.
+  const kostenH = kostenProStunde(aktuell);
+  const einkommenH = einkommenProStunde(aktuell, jetzt);
+  const puffer = regel.reserve + kostenH * 6;
+  const profitabel = einkommenH >= kostenH;
+
+  // 3a. Ausbau-Ziele: proaktiv das Netz vergrößern – nur wenn profitabel und deutlich im Plus
+  if (regel.baut && profitabel && stationen().length < regel.maxWachen && aktuell.balance > puffer + 50000) {
     const basis = stationen()[0];
     const coords: [number, number] = [basis.coords[0] + (zufall() - 0.5) * 0.1, basis.coords[1] + (zufall() - 0.5) * 0.1];
     const bau = baueWache(aktuell, 'Rettungswache', jetzt, zufall, coords);
@@ -193,8 +212,8 @@ export function botSchritt(spielstand: Spielstand, ziel: BotZiel, jetzt: number 
     }
   }
 
-  // 3b. Gegen Unterdeckung kaufen / ausbauen (eine Maßnahme pro Runde)
-  const kauf = verbessere(aktuell, regel, jetzt, zufall);
+  // 3b. Gegen Unterdeckung kaufen / ausbauen (eine Maßnahme pro Runde, immer mit Puffer)
+  const kauf = verbessere(aktuell, regel, puffer, profitabel, jetzt, zufall);
   aktuell = kauf.spielstand;
   aktionen.push(...kauf.aktionen);
 
@@ -202,7 +221,10 @@ export function botSchritt(spielstand: Spielstand, ziel: BotZiel, jetzt: number 
 }
 
 /** Deckt die dringendste Unterdeckung – durch Kauf, neue Wache oder Stellplatz-Ausbau. */
-function verbessere(spielstand: Spielstand, regel: ZielRegel, jetzt: number, zufall: Zufall): BotSchrittErgebnis {
+function verbessere(spielstand: Spielstand, regel: ZielRegel, puffer: number, profitabel: boolean, jetzt: number, zufall: Zufall): BotSchrittErgebnis {
+  // Kein Geld-Spielraum über dem Puffer? Dann nichts kaufen (schützt vor dem Minus).
+  if (spielstand.balance <= puffer) return { spielstand, aktionen: [] };
+
   const fehlende = new Map<BedarfsKlasse, number>();
   for (const incident of spielstand.incidents.filter(istOffen)) {
     const vorschlag = erstelleAlarmVorschlag(incident, { incidents: spielstand.incidents, vehicles: spielstand.vehicles, locations: spielstand.locations });
@@ -217,32 +239,30 @@ function verbessere(spielstand: Spielstand, regel: ZielRegel, jetzt: number, zuf
   const stationen = spielstand.locations.filter((location) => location.type === 'station');
   const anzahlWachen = stationen.length;
 
-  // Ausbau-Ziele erweitern bei anhaltendem Bedarf lieber das Netz
-  if (regel.baut && anzahlWachen < regel.maxWachen && spielstand.balance > regel.reserve + 30000) {
-    const basis = stationen[0];
-    const coords: [number, number] = [basis.coords[0] + (zufall() - 0.5) * 0.08, basis.coords[1] + (zufall() - 0.5) * 0.08];
-    return baueWache(spielstand, typ.wachenArt, jetzt, zufall, coords);
-  }
+  // Zusätzliche Fahrzeuge (über ein kleines Grundaufgebot hinaus) nur kaufen, wenn es sich rechnet –
+  // sonst fressen die Gehälter die Einnahmen auf.
+  const grundaufgebot = spielstand.vehicles.length < 2;
+  if (!grundaufgebot && !profitabel) return { spielstand, aktionen: [] };
 
-  // Passende Wache mit freiem Stellplatz?
+  // Passende Wache mit freiem Stellplatz? Fahrzeug kaufen (nur mit Puffer).
   const mitPlatz = stationen.find((s) => (s.stationKind ?? 'Rettungswache') === typ.wachenArt && hatFreienStellplatz(s, spielstand.vehicles));
   if (mitPlatz) {
-    if (spielstand.balance - typ.preis < regel.reserve) return { spielstand, aktionen: [] };
+    if (spielstand.balance - typ.preis < puffer) return { spielstand, aktionen: [] };
     return kaufeFahrzeug(spielstand, mitPlatz, typ, jetzt, zufall);
   }
 
-  // Keine passende Wache? Bauen, falls erlaubt.
+  // Keine passende Wache? Nur bauen, wenn erlaubt UND es sich rechnet.
   const passendeWache = stationen.find((s) => (s.stationKind ?? 'Rettungswache') === typ.wachenArt);
   if (!passendeWache) {
-    if (!regel.baut || anzahlWachen >= regel.maxWachen || spielstand.balance <= regel.reserve + 30000) return { spielstand, aktionen: [] };
+    if (!regel.baut || !profitabel || anzahlWachen >= regel.maxWachen || spielstand.balance <= puffer + 20000) return { spielstand, aktionen: [] };
     const basis = stationen[0];
     const coords: [number, number] = [basis.coords[0] + (zufall() - 0.5) * 0.08, basis.coords[1] + (zufall() - 0.5) * 0.08];
     return baueWache(spielstand, typ.wachenArt, jetzt, zufall, coords);
   }
 
-  // Wache voll → Stellplatz erweitern, wenn bezahlbar
+  // Wache voll → Stellplatz erweitern, wenn bezahlbar (Puffer bleibt erhalten)
   const preis = getStellplatzPreis(passendeWache);
-  if (preis !== null && spielstand.balance - preis >= regel.reserve) {
+  if (preis !== null && spielstand.balance - preis >= puffer) {
     return {
       spielstand: {
         ...spielstand,

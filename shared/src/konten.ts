@@ -126,7 +126,8 @@ export type TeamRecht =
   | 'spielstand_korrigieren'
   | 'ankuendigung'
   | 'fremde_notizen_loeschen'
-  | 'website_statistik';
+  | 'website_statistik'
+  | 'bot';
 
 export const TEAM_RECHT_AB: Record<TeamRecht, UserRole> = {
   konto_loeschen: 'co_owner',
@@ -136,6 +137,8 @@ export const TEAM_RECHT_AB: Record<TeamRecht, UserRole> = {
   fremde_notizen_loeschen: 'co_owner',
   /** Besucherstatistik der Website – nur für den Owner */
   website_statistik: 'owner',
+  /** Bot-Werkzeug – ab Co-Owner (Admins ausgenommen) */
+  bot: 'co_owner',
 };
 
 export const hatTeamRecht = (rolle: UserRole, recht: TeamRecht): boolean =>

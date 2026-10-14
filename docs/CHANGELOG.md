@@ -18,8 +18,13 @@ Format basiert auf [Keep a Changelog](https://keepachangelog.com/).
   hängende Einsätze, verwaistes Personal …)
 - **Härtetest** (`haerteTest`): wirft den Spielfunktionen bösartige/kaputte Daten hin und prüft auf Abstürze
   (Robustheits-/Sicherheitstest – der Server nimmt hochgeladene Spielstände über `migriereSpielstand` an)
-- **Bot-Werkzeug im Team-Bereich „Dev-Werkzeuge“** (nur für Team-Rollen sichtbar): Start/Stopp,
-  Geschwindigkeit, Ziel-Auswahl, Live-Protokoll, Besitz-Dashboard, Fehlerwächter und Härtetest
+- **Bot-Werkzeug als eigener Team-Reiter „Bot“** (neben „Dev-Werkzeuge“, nur für Owner & Co-Owner –
+  eigenes Team-Recht `bot`): Start/Stopp, Geschwindigkeit, Ziel-Auswahl, Live-Protokoll,
+  Besitz-Dashboard, Fehlerwächter und Härtetest
+- Bot wirtschaftet **kostenbewusst**: behält immer einen Puffer (mehrere Stunden laufende Kosten) und
+  baut nur aus, wenn es sich rechnet (Einnahmen ≥ Kosten) – statt sich durch zu viele Fahrzeuge/Wachen
+  ins Minus zu bauen. (Hinweis: Die frühe Rettungsdienst-Phase ist aktuell knapp defizitär – ein
+  Balancing-Thema, kein Bot-Fehler.)
 
 ### Gehärtet (Sicherheit)
 - `migriereSpielstand` prüft jetzt die Struktur jedes Einsatzes/Fahrzeugs und den Kontostand: ein beschädigter
