@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useId, useState, type FormEvent, type ReactNode } from 'react';
+import { useCallback, useEffect, useId, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import {
   ALLE_EINSATZ_VORLAGEN,
   APP_SUBTITLE,
@@ -14,7 +14,7 @@ import {
   type Konto,
 } from '@leitstellendispo/shared';
 import { KontoFehler, SITZUNG_ABGELAUFEN, abmelden, anmelden, holeFunktionen, holeKonto, passwortVergessen, registrieren } from './konto';
-import { serverSpeicher, uebernimmBrowserSpielstand } from './spielstand';
+import { serverSpeicher, setzeGastmodus, uebernimmBrowserSpielstand } from './spielstand';
 import { RechtlicheLinks } from './Rechtliches';
 import { Marke, Piktogramm, type SymbolName } from './Symbole';
 import { merkeBesuchsZiel } from './besuchsMessung';
@@ -24,18 +24,31 @@ type Zustand =
   | { art: 'pruefen' }
   | { art: 'abgemeldet'; hinweis?: string }
   | { art: 'fehler'; meldung: string }
-  | { art: 'angemeldet'; konto: Konto };
+  | { art: 'angemeldet'; konto: Konto; gast: boolean };
+
+/** Platzhalter-Konto für den Gastmodus – existiert nicht auf dem Server */
+const gastKonto = (): Konto => ({ id: 0, name: 'Gast', rolle: 'player', erstellt: new Date().toISOString() });
 
 /**
  * Zeigt das Spiel erst nach der Anmeldung. Prüft beim Start, ob noch eine Sitzung besteht,
  * und kehrt zur Anmeldeseite zurück, wenn die Sitzung abläuft.
  */
-export default function Anmeldung({ children }: { children: (konto: Konto, onAbmelden: () => Promise<void>) => ReactNode }) {
+export default function Anmeldung({ children }: { children: (konto: Konto, onAbmelden: () => Promise<void>, gast: boolean) => ReactNode }) {
   const [zustand, setZustand] = useState<Zustand>({ art: 'pruefen' });
+  const istGast = useRef(false);
 
   const angemeldet = useCallback(async (konto: Konto) => {
+    istGast.current = false;
+    setzeGastmodus(false);
     await uebernimmBrowserSpielstand();
-    setZustand({ art: 'angemeldet', konto });
+    setZustand({ art: 'angemeldet', konto, gast: false });
+  }, []);
+
+  /** Ohne Konto spielen: nichts wird gespeichert, nach Neuladen ist alles weg */
+  const alsGast = useCallback(() => {
+    istGast.current = true;
+    setzeGastmodus(true);
+    setZustand({ art: 'angemeldet', konto: gastKonto(), gast: true });
   }, []);
 
   const pruefeSitzung = useCallback(() => {
@@ -49,18 +62,24 @@ export default function Anmeldung({ children }: { children: (konto: Konto, onAbm
   useEffect(pruefeSitzung, [pruefeSitzung]);
 
   useEffect(() => {
-    const abgelaufen = () => setZustand({ art: 'abgemeldet', hinweis: 'Deine Sitzung ist abgelaufen. Bitte melde dich erneut an.' });
+    const abgelaufen = () => !istGast.current && setZustand({ art: 'abgemeldet', hinweis: 'Deine Sitzung ist abgelaufen. Bitte melde dich erneut an.' });
     window.addEventListener(SITZUNG_ABGELAUFEN, abgelaufen);
     return () => window.removeEventListener(SITZUNG_ABGELAUFEN, abgelaufen);
   }, []);
 
   const onAbmelden = useCallback(async () => {
+    if (istGast.current) {
+      // Gast: zurück zur Anmeldung, das Gast-Spiel verfällt
+      istGast.current = false;
+      setzeGastmodus(false);
+      return setZustand({ art: 'abgemeldet' });
+    }
     await serverSpeicher.sofortSpeichern();
     await abmelden();
     setZustand({ art: 'abgemeldet' });
   }, []);
 
-  if (zustand.art === 'angemeldet') return <>{children(zustand.konto, onAbmelden)}</>;
+  if (zustand.art === 'angemeldet') return <>{children(zustand.konto, onAbmelden, zustand.gast)}</>;
 
   return (
     <div className="anmeldung">
@@ -87,7 +106,7 @@ export default function Anmeldung({ children }: { children: (konto: Konto, onAbm
               <button type="button" className="btn btn--primary anmeldung__absenden" onClick={pruefeSitzung}>Erneut versuchen</button>
             </div>
           )}
-          {zustand.art === 'abgemeldet' && <AnmeldeFormular hinweis={zustand.hinweis} onErfolg={angemeldet} />}
+          {zustand.art === 'abgemeldet' && <AnmeldeFormular hinweis={zustand.hinweis} onErfolg={angemeldet} onGast={alsGast} />}
         </main>
 
         <aside className="anmeldung__seite">
@@ -172,7 +191,7 @@ function EinsatzTicker() {
   );
 }
 
-function AnmeldeFormular({ hinweis, onErfolg }: { hinweis?: string; onErfolg: (konto: Konto) => Promise<void> }) {
+function AnmeldeFormular({ hinweis, onErfolg, onGast }: { hinweis?: string; onErfolg: (konto: Konto) => Promise<void>; onGast: () => void }) {
   const [modus, setModus] = useState<'anmelden' | 'registrieren' | 'vergessen'>('anmelden');
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -345,6 +364,15 @@ function AnmeldeFormular({ hinweis, onErfolg }: { hinweis?: string; onErfolg: (k
         <button type="button" className="anmeldung__link" onClick={() => setModus('vergessen')} disabled={sendet}>
           Passwort vergessen?
         </button>
+      )}
+      {!istRegistrierung && (
+        <div className="anmeldung__gast">
+          <span>Unsicher?</span>
+          <button type="button" className="anmeldung__link" onClick={onGast} disabled={sendet}>
+            Als Gast spielen
+          </button>
+          <small>Ohne Konto ausprobieren – es wird nichts gespeichert. Beim Neuladen oder Schließen der Seite ist alles zurückgesetzt.</small>
+        </div>
       )}
     </form>
   );

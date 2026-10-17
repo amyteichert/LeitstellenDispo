@@ -2750,3 +2750,56 @@ a.anmeldung__link { text-align: center; }
 @media (max-width: 900px) {
   .tab-leiste--kopf { display: none; }
 }
+
+/* Spielername mit Abzeichen (Team, später Gruppen) */
+.spieler-name {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.abzeichen {
+  font-size: 0.95em;
+  line-height: 1;
+  cursor: help;
+}
+
+/* „Unsicher? Als Gast spielen“ unter der Anmeldung */
+.anmeldung__gast {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: center;
+  gap: 2px 6px;
+  margin-top: 4px;
+  padding-top: 12px;
+  border-top: 1px solid var(--color-border);
+  font-size: 0.9rem;
+  color: var(--color-text-muted);
+  text-align: center;
+}
+
+.anmeldung__gast .anmeldung__link {
+  color: var(--color-text);
+  font-weight: 600;
+}
+
+.anmeldung__gast small {
+  flex-basis: 100%;
+  font-size: 0.8rem;
+}
+
+/* Hinweisleiste im Gastmodus */
+.gast-leiste {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 6px 12px;
+  padding: 8px 16px;
+  background: var(--color-surface-2, rgba(255, 255, 255, 0.04));
+  border-bottom: 1px solid var(--color-border);
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+  text-align: center;
+}

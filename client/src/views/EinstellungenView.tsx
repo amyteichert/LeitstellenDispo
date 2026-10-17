@@ -39,7 +39,10 @@ export default function EinstellungenView({
   email,
   onEmailGeaendert,
   onTourStarten,
+  gast = false,
 }: {
+  /** Gastmodus: kein Konto, nichts wird gespeichert */
+  gast?: boolean;
   email: string | null;
   onEmailGeaendert: (email: string) => void;
   /** Startet die geführte Tour erneut */
@@ -166,24 +169,34 @@ export default function EinstellungenView({
 
         <section className="ausbau-karte">
           <span className="ausbau-karte__kategorie">👤 Konto</span>
-          <p>Angemeldet als <strong>{konto.name}</strong> ({ROLLEN_LABELS[konto.rolle]})</p>
-          <KontoEinstellungen email={email} onEmailGeaendert={onEmailGeaendert} />
+          {gast ? (
+            <p>Du spielst als <strong>Gast</strong>. Mit einem Konto wird dein Spielstand gespeichert und du bekommst als Gründungs-Spieler ein Abzeichen.</p>
+          ) : (
+            <>
+              <p>Angemeldet als <strong>{konto.name}</strong> ({ROLLEN_LABELS[konto.rolle]})</p>
+              <KontoEinstellungen email={email} onEmailGeaendert={onEmailGeaendert} />
+            </>
+          )}
           <button
             className="btn btn--secondary"
             type="button"
             disabled={meldetAb}
             onClick={() => {
-              setMeldetAb(true);
+              if (!gast) setMeldetAb(true);
               void onAbmelden();
             }}
           >
-            {meldetAb ? 'Speichere und melde ab …' : 'Abmelden'}
+            {gast ? 'Anmelden / Registrieren' : meldetAb ? 'Speichere und melde ab …' : 'Abmelden'}
           </button>
         </section>
 
         <section className="ausbau-karte">
           <span className="ausbau-karte__kategorie">💾 Spielstand</span>
-          <p>Dein Spiel wird automatisch in deinem Konto gespeichert – so kannst du auf jedem Gerät weiterspielen. Ein neues Spiel löscht den aktuellen Spielstand.</p>
+          <p>
+            {gast
+              ? 'Als Gast wird nichts gespeichert – beim Neuladen oder Schließen der Seite beginnt alles von vorn.'
+              : 'Dein Spiel wird automatisch in deinem Konto gespeichert – so kannst du auf jedem Gerät weiterspielen. Ein neues Spiel löscht den aktuellen Spielstand.'}
+          </p>
           <button className="btn btn--danger" type="button" onClick={onNeuesSpiel}>Neues Spiel starten</button>
         </section>
       </div>

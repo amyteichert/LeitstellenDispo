@@ -10,9 +10,11 @@ type Props = {
   onSelect: (view: string) => void;
   /** Sichtbare Menüpunkte (Standard: alle) */
   ansichten?: readonly string[];
+  /** Zusätzlicher Menüpunkt unter den Ansichten (z. B. „Anmelden / Registrieren“ im Gastmodus) */
+  zusatz?: { label: string; onClick: () => void };
 };
 
-export default function ViewDropdown({ anchorRef, isOpen, onClose, currentView, onSelect, ansichten = ANSICHTEN }: Props) {
+export default function ViewDropdown({ anchorRef, isOpen, onClose, currentView, onSelect, ansichten = ANSICHTEN, zusatz }: Props) {
   const [pos, setPos] = useState<{ top: number; left: number; width: number } | null>(null);
   const menuRef = useRef<HTMLDivElement | null>(null);
 
@@ -79,6 +81,20 @@ export default function ViewDropdown({ anchorRef, isOpen, onClose, currentView, 
             </button>
           </li>
         ))}
+        {zusatz && (
+          <li>
+            <button
+              type="button"
+              className="view-menu-item"
+              onClick={() => {
+                zusatz.onClick();
+                onClose();
+              }}
+            >
+              {zusatz.label}
+            </button>
+          </li>
+        )}
       </ul>
     </div>,
     document.body,

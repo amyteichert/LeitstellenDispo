@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import SpielerName from '../SpielerName';
 import {
   ANKUENDIGUNG_MAX_LAENGE,
   NOTIZ_MAX_LAENGE,
@@ -56,7 +57,7 @@ export default function TeamView({ konto, dev }: { konto: Konto; dev: DevAktione
     <div>
       <div className="wachen-kopf">
         <h2>🛠 Team</h2>
-        <small className="einsatz-eintrag__zeile">Angemeldet als <strong>{konto.name}</strong> ({ROLLEN_LABELS[konto.rolle]})</small>
+        <small className="einsatz-eintrag__zeile">Angemeldet als <SpielerName konto={konto} /> ({ROLLEN_LABELS[konto.rolle]})</small>
       </div>
 
       <div className="verwalten-reiter" role="tablist">
@@ -193,7 +194,7 @@ function KontoZeile({ konto, ich, offen, umschalten, melde, ersetze, entferne }:
   return (
     <li className={`team-konto ${konto.gesperrt ? 'team-konto--gesperrt' : ''}`}>
       <button type="button" className="team-konto__kopf" onClick={umschalten} aria-expanded={offen}>
-        <strong>{konto.name}</strong>
+        <SpielerName konto={konto} />
         {konto.id === ich.id && <span className="quali-chip">Du</span>}
         <span className="quali-chip">{ROLLEN_LABELS[konto.rolle]}</span>
         {konto.gesperrt && <span className="quali-chip team-chip--warnung">Gesperrt</span>}

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { istTeamRolle, pruefeBenutzername, pruefePasswort } from './konten.js';
+import { istGruendungsSpieler, istTeamRolle, pruefeBenutzername, pruefePasswort } from './konten.js';
 
 describe('pruefeBenutzername', () => {
   it('akzeptiert normale Namen inkl. Umlaute', () => {
@@ -42,5 +42,17 @@ describe('istTeamRolle', () => {
     expect(istTeamRolle('co_owner')).toBe(true);
     expect(istTeamRolle('admin')).toBe(true);
     expect(istTeamRolle('player')).toBe(false);
+  });
+});
+
+describe('istGruendungsSpieler', () => {
+  it('gibt das Abzeichen allen, solange die Alpha läuft', () => {
+    expect(istGruendungsSpieler({ erstellt: '2030-01-01T00:00:00Z' }, null)).toBe(true);
+  });
+
+  it('nach dem Alpha-Ende nur Konten von davor', () => {
+    const ende = '2027-01-01T00:00:00Z';
+    expect(istGruendungsSpieler({ erstellt: '2026-10-17T12:00:00Z' }, ende)).toBe(true);
+    expect(istGruendungsSpieler({ erstellt: '2027-01-02T12:00:00Z' }, ende)).toBe(false);
   });
 });

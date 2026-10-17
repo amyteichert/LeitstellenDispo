@@ -96,6 +96,16 @@ export const ROLLEN_RANG: Record<UserRole, number> = { owner: 3, co_owner: 2, ad
 /** Rollen, die der Owner vergeben kann (Owner selbst bleibt einmalig). */
 export const VERGEBBARE_ROLLEN: UserRole[] = ['player', 'admin', 'co_owner'];
 
+/**
+ * Ende der Alpha (ISO-Zeitpunkt). Wer sich vorher registriert, ist Gründungs-Spieler und bekommt das Abzeichen.
+ * `null`: Alpha läuft noch – alle Konten bekommen es. Zum Alpha-Ende hier den Zeitpunkt eintragen, z. B. '2027-01-01T00:00:00Z'.
+ */
+export const ALPHA_ENDE: string | null = null;
+
+/** Gründungs-Spieler: Konto aus der Alpha-Zeit */
+export const istGruendungsSpieler = (konto: Pick<Konto, 'erstellt'>, alphaEnde: string | null = ALPHA_ENDE): boolean =>
+  alphaEnde === null || Date.parse(konto.erstellt) < Date.parse(alphaEnde);
+
 /** Darf `handelnd` das Konto `ziel` sperren, löschen oder zurücksetzen? Nie sich selbst, nur niedrigere Ränge. */
 export function darfKontoVerwalten(handelnd: Pick<Konto, 'id' | 'rolle'>, ziel: Pick<Konto, 'id' | 'rolle'>): boolean {
   return handelnd.id !== ziel.id && istTeamRolle(handelnd.rolle) && ROLLEN_RANG[handelnd.rolle] > ROLLEN_RANG[ziel.rolle];

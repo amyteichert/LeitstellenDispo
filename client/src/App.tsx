@@ -222,7 +222,11 @@ function MapStyleToggle({
     container,
   );
 }
-function App({ konto, onAbmelden }: { konto: Konto; onAbmelden: () => Promise<void> }) {
+function App({ konto, onAbmelden, gast = false }: { konto: Konto; onAbmelden: () => Promise<void>; /** Gastmodus: nichts wird gespeichert */ gast?: boolean }) {
+  /** Gast verlässt das Spiel Richtung Anmeldung – das Gast-Spiel verfällt */
+  const zurAnmeldung = () => {
+    if (window.confirm('Zur Anmeldung wechseln? Dein Gast-Spiel wird dabei nicht gespeichert und geht verloren.')) void onAbmelden();
+  };
   // Besucherstatistik: Dieser Besuch hat das Spiel mit Konto erreicht
   useEffect(() => merkeBesuchsZiel('gespielt'), []);
   // Navigation: startet mit der in den Einstellungen gewählten Ansicht (Standard: Karte)
@@ -656,7 +660,7 @@ Dein Guthaben: ${balance.toLocaleString('de-DE')} €`)) return;
           onEnde={() => setTourOffen(false)}
         />
       )}
-      {!email && currentView !== 'Einstellungen' && (
+      {!gast && !email && currentView !== 'Einstellungen' && (
         <div className="lade-fehler" role="status">
           ✉️ Für dein Konto ist noch keine E-Mail-Adresse hinterlegt – ohne sie kannst du ein vergessenes Passwort nicht zurücksetzen.{' '}
           <button type="button" className="btn" onClick={() => setCurrentView('Einstellungen')}>Jetzt nachtragen</button>
@@ -736,6 +740,7 @@ Dein Guthaben: ${balance.toLocaleString('de-DE')} €`)) return;
               onClose={() => setDropdownOpen(false)}
               currentView={currentView}
               ansichten={sichtbareAnsichten(istTeamRolle(konto.rolle))}
+              zusatz={gast ? { label: 'Anmelden / Registrieren', onClick: zurAnmeldung } : undefined}
               onSelect={(v) => {
                 selectView(v as any);
               }}
@@ -746,6 +751,13 @@ Dein Guthaben: ${balance.toLocaleString('de-DE')} €`)) return;
       </header>
 
       <AnkuendigungsBanner />
+
+      {gast && (
+        <div className="gast-leiste" role="status">
+          <span>👤 Du spielst als Gast – nichts wird gespeichert. Beim Neuladen oder Schließen ist alles zurückgesetzt.</span>
+          <button type="button" className="btn btn--secondary" onClick={zurAnmeldung}>Anmelden / Registrieren</button>
+        </div>
+      )}
 
       {wetterFensterOffen && <WetterFenster wetter={wetter} onClose={() => setWetterFensterOffen(false)} />}
 
@@ -1094,7 +1106,8 @@ Dein Guthaben: ${balance.toLocaleString('de-DE')} €`)) return;
               <EinstellungenView
                 onNeuesSpiel={neuesSpiel}
                 konto={konto}
-                onAbmelden={onAbmelden}
+                onAbmelden={gast ? async () => zurAnmeldung() : onAbmelden}
+                gast={gast}
                 email={email}
                 onEmailGeaendert={setEmail}
                 onTourStarten={() => setTourOffen(true)}

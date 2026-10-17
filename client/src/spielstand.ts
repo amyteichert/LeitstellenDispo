@@ -130,8 +130,29 @@ function erstelleServerSpeicher() {
 
 export const serverSpeicher = erstelleServerSpeicher();
 
-/** Aktuell verwendeter Speicher: das Konto auf dem Server */
-export const spielstandSpeicher: SpielstandSpeicher = serverSpeicher;
+/** Gastmodus: Der Spielstand lebt nur im Arbeitsspeicher – nach Neuladen oder Schließen ist er weg. */
+const gastSpeicher: SpielstandSpeicher = {
+  async laden() {
+    return null;
+  },
+  async speichern() {},
+  async loeschen() {},
+};
+
+let aktiverSpeicher: SpielstandSpeicher = serverSpeicher;
+
+/** Schaltet zwischen Konto (Server) und Gastmodus (nichts wird gespeichert) um */
+export function setzeGastmodus(gast: boolean): void {
+  aktiverSpeicher = gast ? gastSpeicher : serverSpeicher;
+}
+
+/** Aktuell verwendeter Speicher: das Konto auf dem Server, im Gastmodus nichts */
+export const spielstandSpeicher: SpielstandSpeicher = {
+  laden: () => aktiverSpeicher.laden(),
+  speichern: (spielstand) => aktiverSpeicher.speichern(spielstand),
+  loeschen: () => aktiverSpeicher.loeschen(),
+  sofortSpeichern: () => aktiverSpeicher.sofortSpeichern?.() ?? Promise.resolve(),
+};
 
 /** Hierhin wird die alte Browser-Kopie nach der Prüfung verschoben – nicht gelöscht, aber nie wieder übernommen */
 const ALT_KEY = 'leitstellendispo.spielstand.alt';
