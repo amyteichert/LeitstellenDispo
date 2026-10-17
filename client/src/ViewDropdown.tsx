@@ -11,7 +11,7 @@ type Props = {
   /** Sichtbare Menüpunkte (Standard: alle) */
   ansichten?: readonly string[];
   /** Zusätzlicher Menüpunkt unter den Ansichten (z. B. „Anmelden / Registrieren“ im Gastmodus) */
-  zusatz?: { label: string; onClick: () => void };
+  zusatz?: Array<{ label: string; onClick: () => void }>;
 };
 
 export default function ViewDropdown({ anchorRef, isOpen, onClose, currentView, onSelect, ansichten = ANSICHTEN, zusatz }: Props) {
@@ -81,20 +81,20 @@ export default function ViewDropdown({ anchorRef, isOpen, onClose, currentView, 
             </button>
           </li>
         ))}
-        {zusatz && (
-          <li>
+        {zusatz?.map((eintrag) => (
+          <li key={eintrag.label}>
             <button
               type="button"
               className="view-menu-item"
               onClick={() => {
-                zusatz.onClick();
+                eintrag.onClick();
                 onClose();
               }}
             >
-              {zusatz.label}
+              {eintrag.label}
             </button>
           </li>
-        )}
+        ))}
       </ul>
     </div>,
     document.body,

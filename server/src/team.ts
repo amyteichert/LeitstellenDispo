@@ -26,6 +26,8 @@ import type { Datenbank } from './datenbank.js';
 import { ladeKonto, nurAngemeldet, passwortLink, spielBasisUrl, type AuthOptionen } from './auth.js';
 import type { KontenDienst } from './konten.js';
 import { werteWebsiteAus } from './website.js';
+import { legeSicherungAn } from './sicherung.js';
+import { ladeFehlermeldungen } from './fehlermeldungen.js';
 
 interface TeamKontoZeile {
   id: number;
@@ -71,7 +73,7 @@ const KONTO_SPALTEN = `
   b.id, b.name, b.rolle, b.gesperrt, b.erstellt, b.dev_markiert, b.email, s.aktualisiert AS zuletzt
   FROM benutzer b LEFT JOIN spielstaende s ON s.benutzer_id = b.id`;
 
-export function erstelleTeamRouter(db: Datenbank, konten: KontenDienst, optionen: AuthOptionen = {}): Router {
+export function erstelleTeamRouter(db: Datenbank, konten: KontenDienst, optionen: AuthOptionen & { sicherungsOrdner?: string } = {}): Router {
   const router = Router();
   const sql = {
     konto: db.prepare(`SELECT ${KONTO_SPALTEN} WHERE b.id = ?`),
@@ -214,6 +216,18 @@ export function erstelleTeamRouter(db: Datenbank, konten: KontenDienst, optionen
   });
 
   // ---- Besucherstatistik der Website (nur Owner) ----
+  // Datenbank-Sicherung zum Herunterladen: wird frisch angelegt (zählt zu den aufbewahrten Sicherungen)
+  router.get('/sicherung', nurMitRecht('sicherung'), async (_req, res, next) => {
+    if (!optionen.sicherungsOrdner) return void res.status(503).json({ fehler: 'Sicherungen sind auf diesem Server nicht eingerichtet.' });
+    try {
+      const pfad = await legeSicherungAn(db, optionen.sicherungsOrdner);
+      protokolliere(ich(res), 'Sicherung heruntergeladen');
+      res.download(pfad);
+    } catch (e) {
+      next(e);
+    }
+  });
+
   router.get('/website', nurMitRecht('website_statistik'), (req, res) => {
     const tage = req.query.tage === 'alle' ? null : [7, 30, 90, 365].includes(Number(req.query.tage)) ? Number(req.query.tage) : 30;
     const bereich = req.query.bereich === 'info' || req.query.bereich === 'spiel' ? req.query.bereich : null;
@@ -221,6 +235,16 @@ export function erstelleTeamRouter(db: Datenbank, konten: KontenDienst, optionen
   });
 
   // ---- Aktivitäts-Protokoll ----
+  // ---- Fehlermeldungen der Spieler ----
+  router.get('/fehlermeldungen', (_req, res) => {
+    res.json({ meldungen: ladeFehlermeldungen(db) });
+  });
+
+  router.post('/fehlermeldungen/:id/erledigt', (req, res) => {
+    db.prepare('UPDATE fehlermeldungen SET erledigt = ? WHERE id = ?').run(req.body?.erledigt === false ? 0 : 1, Number(req.params.id));
+    res.json({ meldungen: ladeFehlermeldungen(db) });
+  });
+
   router.get('/protokoll', (_req, res) => {
     res.json({ eintraege: sql.protokoll.all() as TeamProtokollEintrag[] });
   });
@@ -309,6 +333,6 @@ export function ladeAnkuendigung(db: Datenbank): Ankuendigung | null {
 /** Offene (noch nicht eingebuchte) Korrekturen eines Spielers */
 export function ladeOffeneKorrekturen(db: Datenbank, benutzerId: number): SpielstandKorrektur[] {
   return db.prepare(`
-    SELECT id, guthaben_aenderung AS guthabenAenderung, ruf_neu AS rufNeu, grund, zeit
+    SELECT id, guthaben_aenderung AS guthabenAenderung, ruf_neu AS rufNeu, grund, zeit, art
     FROM spielstand_korrekturen WHERE benutzer_id = ? AND eingebucht = 0 ORDER BY id`).all(benutzerId) as SpielstandKorrektur[];
 }

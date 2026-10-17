@@ -117,6 +117,28 @@ const MIGRATIONEN: string[] = [
   `
   ALTER TABLE website_aufrufe ADD COLUMN bereich TEXT NOT NULL DEFAULT 'info';
   `,
+  // Schichtzulage (täglicher Bonus): letzter Tag und Serie pro Konto; Korrekturen bekommen eine Art (Team oder System)
+  `
+  CREATE TABLE schichtzulage (
+    benutzer_id INTEGER PRIMARY KEY REFERENCES benutzer(id) ON DELETE CASCADE,
+    letzter_tag TEXT    NOT NULL,
+    serie       INTEGER NOT NULL
+  );
+  ALTER TABLE spielstand_korrekturen ADD COLUMN art TEXT NOT NULL DEFAULT 'team';
+  `,
+  // Fehlermeldungen der Spieler („Fehler melden“) – mit Kontext für das Team
+  `
+  CREATE TABLE fehlermeldungen (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    benutzer_id INTEGER REFERENCES benutzer(id) ON DELETE SET NULL,
+    name        TEXT    NOT NULL,
+    text        TEXT    NOT NULL,
+    kontext     TEXT    NOT NULL,
+    zeit        TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+    erledigt    INTEGER NOT NULL DEFAULT 0
+  );
+  CREATE INDEX fehlermeldungen_offen ON fehlermeldungen(erledigt, id);
+  `,
 ];
 
 /** Öffnet (bzw. erstellt) die Datenbank und bringt das Schema auf den neuesten Stand. */

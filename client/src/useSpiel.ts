@@ -93,7 +93,7 @@ import {
   type StationKind,
 } from '@leitstellendispo/shared';
 import { getEinstellungen } from './einstellungen';
-import { bestaetigeKorrekturen, ladeKorrekturen } from './konto';
+import { bestaetigeKorrekturen, holeSchichtzulage, ladeKorrekturen } from './konto';
 import type { FinanceTransaction, MapLocation, Vehicle } from './types';
 import { SPIELSTAND_VERSION, spielstandSpeicher, type Spielstand } from './spielstand';
 
@@ -207,18 +207,24 @@ export function useSpiel(optionen: UseSpielOptionen = {}) {
 
   // Korrekturen des Teams (z. B. nach einem Bug): abholen, einbuchen, bestätigen – beim Laden und jede Minute.
   // Bereits eingebuchte IDs werden gemerkt, damit nichts doppelt gebucht wird, falls die Bestätigung hängt.
+  // Die Schichtzulage kommt auf demselben Weg: der Server legt sie höchstens einmal pro Tag als Korrektur an.
   const eingebuchteKorrekturen = useRef(new Set<number>());
+  const [schichtzulage, setSchichtzulage] = useState<{ betrag: number; serie: number; morgen: number } | null>(null);
+  const [willkommen, setWillkommen] = useState(false);
   useEffect(() => {
     if (!spielstandGeladen) return;
     let abgebrochen = false;
     const holen = async () => {
+      const zulage = await holeSchichtzulage();
+      if (!abgebrochen && zulage?.erhalten) setSchichtzulage({ betrag: zulage.betrag, serie: zulage.serie, morgen: zulage.morgen });
       const korrekturen = (await ladeKorrekturen()).filter((k) => !eingebuchteKorrekturen.current.has(k.id));
       if (abgebrochen || korrekturen.length === 0) return;
       for (const korrektur of korrekturen) {
         eingebuchteKorrekturen.current.add(korrektur.id);
         if (korrektur.guthabenAenderung !== 0) {
           setBalance((cur) => cur + korrektur.guthabenAenderung);
-          addTransaction(korrektur.guthabenAenderung > 0 ? 'Einnahme' : 'Ausgabe', `Korrektur durch das Team – ${korrektur.grund}`, Math.abs(korrektur.guthabenAenderung));
+          const label = korrektur.art === 'schichtzulage' ? korrektur.grund : `Korrektur durch das Team – ${korrektur.grund}`;
+          addTransaction(korrektur.guthabenAenderung > 0 ? 'Einnahme' : 'Ausgabe', label, Math.abs(korrektur.guthabenAenderung));
         }
         if (korrektur.rufNeu !== null) setRuf(korrektur.rufNeu);
       }
@@ -325,6 +331,7 @@ export function useSpiel(optionen: UseSpielOptionen = {}) {
       (spielstand) => {
         if (abgebrochen) return;
         if (spielstand) spielstandAnwenden(spielstand);
+        else setWillkommen(true); // Erstes Spiel: Startguthaben begrüßen
         setSpielstandGeladen(true);
       },
       (error: unknown) => {
@@ -823,6 +830,10 @@ export function useSpiel(optionen: UseSpielOptionen = {}) {
   };
 
   return {
+    schichtzulage,
+    schichtzulageGesehen: () => setSchichtzulage(null),
+    willkommen,
+    willkommenGesehen: () => setWillkommen(false),
     spielstandGeladen,
     ladeFehler,
     locations,

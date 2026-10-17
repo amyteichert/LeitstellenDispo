@@ -2977,3 +2977,48 @@ a.anmeldung__link { text-align: center; }
   .topbar__meta::-webkit-scrollbar { display: none; }
   .topbar .chip { min-height: 30px; padding: 0 6px; }
 }
+
+/* Meldungen über dem Spiel (Willkommen, Schichtzulage): wie die Gast-Leiste, mit Randmarkierung */
+.gast-leiste--meldung {
+  border-left: 3px solid var(--color-success);
+  color: var(--color-text);
+}
+.gast-leiste--sonder { border-left-color: var(--status-offen); }
+
+/* Willkommen: Startstadt wählen */
+.start-stadt { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.start-stadt input {
+  width: 160px;
+  padding: 5px 8px;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius);
+  background: var(--color-input);
+  color: var(--color-text);
+  font: inherit;
+}
+
+/* Profil */
+.profil-name { font-size: 1.15rem; }
+.profil-zahlen {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 8px 16px;
+  margin: 4px 0 0;
+}
+.profil-zahlen dt { color: var(--color-text-muted); font-size: 0.78rem; }
+.profil-zahlen dd { margin: 0; font-weight: 600; font-variant-numeric: tabular-nums; }
+
+/* Fehler melden */
+.fehler-melden { display: grid; gap: 8px; }
+.fehler-melden textarea {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius);
+  background: var(--color-input);
+  color: var(--color-text);
+  font: inherit;
+  resize: vertical;
+}
+.profil { display: grid; gap: 12px; max-width: 760px; }
+a.btn { text-decoration: none; }

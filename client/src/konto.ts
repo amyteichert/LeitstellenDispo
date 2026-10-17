@@ -3,6 +3,9 @@ import type {
   AnkuendigungsArt,
   Konto,
   KontoNotiz,
+  Fehlermeldung,
+  FehlermeldungKontext,
+  SchichtzulageAntwort,
   SpielstandKorrektur,
   SpielstandZusammenfassung,
   TeamKonto,
@@ -112,6 +115,9 @@ async function team<T>(methode: string, pfad: string, body?: unknown): Promise<T
 }
 
 export const teamApi = {
+  fehlermeldungen: () => team<{ meldungen: Fehlermeldung[] }>('GET', '/fehlermeldungen').then((d) => d.meldungen),
+  fehlermeldungErledigt: (id: number, erledigt: boolean) =>
+    team<{ meldungen: Fehlermeldung[] }>('POST', `/fehlermeldungen/${id}/erledigt`, { erledigt }).then((d) => d.meldungen),
   uebersicht: () => team<{ uebersicht: TeamUebersicht }>('GET', '/uebersicht').then((d) => d.uebersicht),
   konten: (suche = '') => team<{ konten: TeamKonto[] }>('GET', `/konten?suche=${encodeURIComponent(suche)}`).then((d) => d.konten),
   spielstand: (id: number) => team<{ zusammenfassung: SpielstandZusammenfassung | null }>('GET', `/konten/${id}/spielstand`).then((d) => d.zusammenfassung),
@@ -159,6 +165,28 @@ export async function ladeKorrekturen(): Promise<SpielstandKorrektur[]> {
     return ((await res.json()) as { korrekturen: SpielstandKorrektur[] }).korrekturen;
   } catch {
     return [];
+  }
+}
+
+/** Schickt eine Fehlermeldung ans Team. Wirft mit verständlicher Meldung, wenn es nicht klappt. */
+export async function sendeFehlermeldung(text: string, kontext: FehlermeldungKontext): Promise<void> {
+  let res: Response;
+  try {
+    res = await fetch('/api/fehlermeldung', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text, kontext }) });
+  } catch {
+    throw new KontoFehler(SERVER_NICHT_ERREICHBAR);
+  }
+  if (!res.ok) throw new KontoFehler(fehlerText(res, await res.json().catch(() => null)));
+}
+
+/** Holt die heutige Schichtzulage ab (legt sie als Korrektur an) – `null` ohne Konto oder Server. */
+export async function holeSchichtzulage(): Promise<SchichtzulageAntwort | null> {
+  try {
+    const res = await fetch('/api/spielstand/schichtzulage', { method: 'POST' });
+    if (!res.ok) return null;
+    return (await res.json()) as SchichtzulageAntwort;
+  } catch {
+    return null;
   }
 }
 

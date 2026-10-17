@@ -137,7 +137,8 @@ export type TeamRecht =
   | 'ankuendigung'
   | 'fremde_notizen_loeschen'
   | 'website_statistik'
-  | 'bot';
+  | 'bot'
+  | 'sicherung';
 
 export const TEAM_RECHT_AB: Record<TeamRecht, UserRole> = {
   konto_loeschen: 'co_owner',
@@ -149,6 +150,8 @@ export const TEAM_RECHT_AB: Record<TeamRecht, UserRole> = {
   website_statistik: 'owner',
   /** Bot-Werkzeug – ab Co-Owner (Admins ausgenommen) */
   bot: 'co_owner',
+  /** Datenbank-Sicherung herunterladen (alle Konten inkl. E-Mail-Adressen) – nur für den Owner */
+  sicherung: 'owner',
 };
 
 export const hatTeamRecht = (rolle: UserRole, recht: TeamRecht): boolean =>
@@ -220,6 +223,8 @@ export interface SpielstandKorrektur {
   rufNeu: number | null;
   grund: string;
   zeit: string;
+  /** 'team': vom Team angelegt, 'schichtzulage': täglicher Bonus vom Server */
+  art: 'team' | 'schichtzulage';
 }
 
 export interface SpielstandZusammenfassung {
@@ -249,4 +254,24 @@ export function fasseSpielstandZusammen(roh: unknown): SpielstandZusammenfassung
     abgeschlosseneEinsaetze: anzahl(s.completedIncidentHistory),
     gespeichertAm: typeof s.gespeichertAm === 'string' ? s.gespeichertAm : null,
   };
+}
+
+export const FEHLERMELDUNG_MAX_LAENGE = 2000;
+
+/** Was das Spiel zu einer Fehlermeldung automatisch mitschickt */
+export interface FehlermeldungKontext {
+  version: string;
+  ansicht: string;
+  geraet: string;
+  bildschirm: string;
+}
+
+/** Fehlermeldung, wie das Team sie sieht */
+export interface Fehlermeldung {
+  id: number;
+  name: string;
+  text: string;
+  kontext: FehlermeldungKontext & { spielstand?: SpielstandZusammenfassung | null };
+  zeit: string;
+  erledigt: boolean;
 }

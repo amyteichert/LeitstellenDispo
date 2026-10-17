@@ -40,3 +40,6 @@ server/data/game-state.json
 .cache/
 .parcel-cache/
 .vite/
+
+# Datenbank-Sicherungen (enthalten Konten und E-Mail-Adressen)
+server/data/sicherungen/

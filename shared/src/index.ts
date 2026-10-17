@@ -17,6 +17,8 @@ export * from './ausbildung.js';
 export * from './zufriedenheit.js';
 export * from './funk.js';
 export * from './konten.js';
+export * from './schichtzulage.js';
+export * from './plausibilitaet.js';
 export * from './ersteSchritte.js';
 export * from './aufkommen.js';
 export * from './kosten.js';

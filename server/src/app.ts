@@ -9,6 +9,7 @@ import { erstelleKontenDienst } from './konten.js';
 import { erstelleSpielstandRouter } from './spielstand.js';
 import { erstelleTeamRouter, ladeAnkuendigung } from './team.js';
 import { erstelleWebsiteRouter } from './website.js';
+import { erstelleFehlermeldungRouter } from './fehlermeldungen.js';
 
 // Feste Beispieldaten für den ersten Durchstich – wird später durch echte Einsatzlogik ersetzt.
 const beispielEinsaetze: Einsatz[] = [
@@ -18,7 +19,7 @@ const beispielEinsaetze: Einsatz[] = [
 ];
 
 /** Baut die Express-App. Getrennt vom Serverstart, damit Tests sie mit einer eigenen Datenbank nutzen können. */
-export function erstelleApp(db: Datenbank, optionen: { bcryptRunden?: number } & AuthOptionen = {}) {
+export function erstelleApp(db: Datenbank, optionen: { bcryptRunden?: number; sicherungsOrdner?: string } & AuthOptionen = {}) {
   const app = express();
   const konten = erstelleKontenDienst(db, optionen);
 
@@ -36,6 +37,7 @@ export function erstelleApp(db: Datenbank, optionen: { bcryptRunden?: number } &
 
   app.use('/api/auth', erstelleAuthRouter(konten, optionen));
   app.use('/api/team', erstelleTeamRouter(db, konten, optionen));
+  app.use('/api/fehlermeldung', erstelleFehlermeldungRouter(db, konten));
 
   // Ankündigung des Teams – für alle sichtbar (auch auf der Anmeldeseite möglich)
   app.get('/api/ankuendigung', (_req, res) => {

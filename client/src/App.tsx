@@ -24,6 +24,8 @@ import {
   type Konto,
   type MapLocation,
   type SpielEinsatz,
+  SCHICHTZULAGE,
+  START_GUTHABEN,
 } from '@leitstellendispo/shared';
 import 'leaflet/dist/leaflet.css';
 import './App.css';
@@ -54,6 +56,8 @@ import FinanzenView from './views/FinanzenView';
 import StatistikView from './views/StatistikView';
 import AnkuendigungsBanner from './AnkuendigungsBanner';
 import EinstellungenView from './views/EinstellungenView';
+import ProfilView from './views/ProfilView';
+import FehlerMelden from './FehlerMelden';
 import ErsteSchritte from './ErsteSchritte';
 
 const createMarkerIcon = (color: string) =>
@@ -120,6 +124,34 @@ const createVehicleMarkerIcon = (label: string, art: FahrzeugFahrt['art'], organ
     iconSize: undefined,
     iconAnchor: [0, 0],
   });
+
+/** Neue Spieler: Karte auf die eigene Stadt setzen statt auf den Standard-Ausschnitt */
+function StartStadt({ onGefunden }: { onGefunden: (coords: [number, number]) => void }) {
+  const [stadt, setStadt] = useState('');
+  const [status, setStatus] = useState<'bereit' | 'sucht' | 'nicht_gefunden' | 'gefunden'>('bereit');
+  const suchen = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!stadt.trim()) return;
+    setStatus('sucht');
+    try {
+      const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&countrycodes=de&limit=1&q=${encodeURIComponent(stadt.trim())}`);
+      const treffer = res.ok ? ((await res.json()) as Array<{ lat: string; lon: string }>)[0] : undefined;
+      if (!treffer) return setStatus('nicht_gefunden');
+      onGefunden([parseFloat(treffer.lat), parseFloat(treffer.lon)]);
+      setStatus('gefunden');
+    } catch {
+      setStatus('nicht_gefunden');
+    }
+  };
+  return (
+    <form className="start-stadt" onSubmit={suchen}>
+      <label htmlFor="start-stadt">In welcher Stadt willst du starten?</label>
+      <input id="start-stadt" value={stadt} onChange={(e) => { setStadt(e.target.value); setStatus('bereit'); }} placeholder="z. B. Hamburg" />
+      <button type="submit" className="btn btn--primary" disabled={status === 'sucht'}>Zur Stadt</button>
+      {status === 'nicht_gefunden' && <small>Nicht gefunden – anderer Name?</small>}
+    </form>
+  );
+}
 
 /** Kleine Karte folgt der gesuchten Position */
 function KarteFolgt({ coords }: { coords: [number, number] | null }) {
@@ -231,6 +263,7 @@ function App({ konto, onAbmelden, gast = false }: { konto: Konto; onAbmelden: ()
   useEffect(() => merkeBesuchsZiel('gespielt'), []);
   // Navigation: startet mit der in den Einstellungen gewählten Ansicht (Standard: Karte)
   const [currentView, setCurrentView] = useState<Ansicht>(ladeStartansicht);
+  const [fehlerMeldenOffen, setFehlerMeldenOffen] = useState(false);
   // Geführte Tour: beim ersten Spielstart automatisch, später über die Einstellungen
   const [tourOffen, setTourOffen] = useState(() => !tourGesehen(konto.id));
   // E-Mail kann in den Einstellungen nachgetragen werden – ohne Neuladen aktuell halten
@@ -740,7 +773,10 @@ Dein Guthaben: ${balance.toLocaleString('de-DE')} €`)) return;
               onClose={() => setDropdownOpen(false)}
               currentView={currentView}
               ansichten={sichtbareAnsichten(istTeamRolle(konto.rolle))}
-              zusatz={gast ? { label: 'Anmelden / Registrieren', onClick: zurAnmeldung } : undefined}
+              zusatz={[
+                ...(gast ? [] : [{ label: 'Fehler melden', onClick: () => setFehlerMeldenOffen(true) }]),
+                ...(gast ? [{ label: 'Anmelden / Registrieren', onClick: zurAnmeldung }] : []),
+              ]}
               onSelect={(v) => {
                 selectView(v as any);
               }}
@@ -752,12 +788,44 @@ Dein Guthaben: ${balance.toLocaleString('de-DE')} €`)) return;
 
       <AnkuendigungsBanner />
 
+      {spiel.willkommen && (
+        <div className="gast-leiste gast-leiste--meldung" role="status">
+          <span><strong>Willkommen in deiner Leitstelle!</strong> Zum Start bekommst du {START_GUTHABEN.toLocaleString('de-DE')} € – bau damit deine erste Wache.</span>
+          <StartStadt
+            onGefunden={(coords) => {
+              setCurrentView('Karte');
+              mapRef.current?.setView(coords, 13);
+            }}
+          />
+          <button type="button" className="btn btn--secondary" onClick={spiel.willkommenGesehen}>Verstanden</button>
+        </div>
+      )}
+
+      {spiel.schichtzulage && (
+        <div className={`gast-leiste gast-leiste--meldung${spiel.schichtzulage.betrag === SCHICHTZULAGE.sonderBetrag ? ' gast-leiste--sonder' : ''}`} role="status">
+          {spiel.schichtzulage.betrag === SCHICHTZULAGE.sonderBetrag ? (
+            <span>
+              <strong>Sonderzulage:</strong> {spiel.schichtzulage.serie} Tage in Folge im Dienst – +{spiel.schichtzulage.betrag.toLocaleString('de-DE')} € gutgeschrieben.
+            </span>
+          ) : (
+            <span>
+              <strong>Schichtzulage:</strong> +{spiel.schichtzulage.betrag.toLocaleString('de-DE')} € gutgeschrieben
+              {' '}(Tag {spiel.schichtzulage.serie} in Folge). Morgen: +{spiel.schichtzulage.morgen.toLocaleString('de-DE')} €
+              {spiel.schichtzulage.morgen === SCHICHTZULAGE.sonderBetrag && ' Sonderzulage'}.
+            </span>
+          )}
+          <button type="button" className="btn btn--secondary" onClick={spiel.schichtzulageGesehen}>Schließen</button>
+        </div>
+      )}
+
       {gast && (
         <div className="gast-leiste" role="status">
           <span>Du spielst als Gast – nichts wird gespeichert. Beim Neuladen oder Schließen ist alles zurückgesetzt.</span>
           <button type="button" className="btn btn--secondary" onClick={zurAnmeldung}>Anmelden / Registrieren</button>
         </div>
       )}
+
+      {fehlerMeldenOffen && <FehlerMelden ansicht={currentView} onClose={() => setFehlerMeldenOffen(false)} />}
 
       {wetterFensterOffen && <WetterFenster wetter={wetter} onClose={() => setWetterFensterOffen(false)} />}
 
@@ -1101,6 +1169,25 @@ Dein Guthaben: ${balance.toLocaleString('de-DE')} €`)) return;
             )}
 
             {currentView === 'Statistik' && <StatistikView verlauf={completedIncidentHistory} ruf={spiel.ruf} />}
+
+            {currentView === 'Profil' && (
+              <ProfilView
+                konto={konto}
+                gast={gast}
+                stand={{
+                  wachen: locations.filter((location) => location.type === 'station').length,
+                  fahrzeuge: vehicles.length,
+                  personal: spiel.personal.length,
+                  einsaetze: spiel.completedIncidentStats.total,
+                  rd: spiel.completedIncidentStats.rettungsdienst,
+                  fw: spiel.completedIncidentStats.feuerwehr,
+                  guthaben: balance,
+                  ruf: spiel.ruf,
+                }}
+                onFehlerMelden={() => setFehlerMeldenOffen(true)}
+                onZurAnmeldung={zurAnmeldung}
+              />
+            )}
 
             {currentView === 'Einstellungen' && (
               <EinstellungenView

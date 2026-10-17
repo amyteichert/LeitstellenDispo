@@ -1,6 +1,6 @@
 // Ansicht, mit der das Spiel startet – pro Gerät im Browser gemerkt (z. B. Karte am PC, Einsätze am Tablet)
 
-export const ANSICHTEN = ['Karte', 'Wachen', 'Krankenhäuser', 'Fahrzeuge', 'Einsätze', 'Funk', 'Finanzen', 'Statistik', 'Einstellungen', 'Team'] as const;
+export const ANSICHTEN = ['Karte', 'Wachen', 'Krankenhäuser', 'Fahrzeuge', 'Einsätze', 'Funk', 'Finanzen', 'Statistik', 'Profil', 'Einstellungen', 'Team'] as const;
 export type Ansicht = (typeof ANSICHTEN)[number];
 
 /** Nur für Team-Rollen sichtbar */
@@ -12,7 +12,7 @@ export const sichtbareAnsichten = (team: boolean): readonly Ansicht[] =>
 
 /** Als Startansicht sinnvoll (Einstellungen und Team ausgenommen) */
 export const STARTANSICHTEN: readonly Ansicht[] = ANSICHTEN.filter(
-  (ansicht) => ansicht !== 'Einstellungen' && !TEAM_ANSICHTEN.includes(ansicht),
+  (ansicht) => ansicht !== 'Einstellungen' && ansicht !== 'Profil' && !TEAM_ANSICHTEN.includes(ansicht),
 );
 
 const STARTANSICHT_KEY = 'leitstellendispo.startansicht';

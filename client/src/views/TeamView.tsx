@@ -17,6 +17,7 @@ import {
   type SpielstandZusammenfassung,
   type TeamProtokollEintrag,
   type TeamKonto,
+  type Fehlermeldung,
   type TeamUebersicht,
   type UserRole,
 } from '@leitstellendispo/shared';
@@ -24,8 +25,8 @@ import { ladeAnkuendigung, teamApi } from '../konto';
 import WebsiteStatistikView from './WebsiteStatistikView';
 import BotWerkzeug from './BotWerkzeug';
 
-type Reiter = 'Übersicht' | 'Konten' | 'Ankündigung' | 'Protokoll' | 'Website' | 'Dev-Werkzeuge' | 'Bot';
-const REITER: Reiter[] = ['Übersicht', 'Konten', 'Ankündigung', 'Protokoll', 'Website', 'Dev-Werkzeuge', 'Bot'];
+type Reiter = 'Übersicht' | 'Konten' | 'Meldungen' | 'Ankündigung' | 'Protokoll' | 'Website' | 'Dev-Werkzeuge' | 'Bot';
+const REITER: Reiter[] = ['Übersicht', 'Konten', 'Meldungen', 'Ankündigung', 'Protokoll', 'Website', 'Dev-Werkzeuge', 'Bot'];
 
 const datum = (iso: string | null) => (iso
   ? new Date(iso).toLocaleString('de-DE', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' })
@@ -60,6 +61,18 @@ export default function TeamView({ konto, dev }: { konto: Konto; dev: DevAktione
         <small className="einsatz-eintrag__zeile">Angemeldet als <SpielerName konto={konto} /> ({ROLLEN_LABELS[konto.rolle]})</small>
       </div>
 
+      {hatTeamRecht(konto.rolle, 'sicherung') && (
+        <section className="ausbau-karte">
+          <span className="ausbau-karte__kategorie">Sicherung</span>
+          <p>
+            Der Server sichert alle Konten und Spielstände alle 6 Stunden selbst (die letzten 14 bleiben).
+            Lade dir ab und zu – z. B. einmal pro Woche – eine Kopie herunter, damit sie auch bei einem Serverausfall erhalten bleibt.
+            Die Datei enthält E-Mail-Adressen: nicht weitergeben.
+          </p>
+          <a className="btn btn--secondary" href="/api/team/sicherung" download>Sicherung herunterladen</a>
+        </section>
+      )}
+
       <div className="verwalten-reiter" role="tablist">
         {REITER
           .filter((name) => name !== 'Website' || hatTeamRecht(konto.rolle, 'website_statistik'))
@@ -78,6 +91,7 @@ export default function TeamView({ konto, dev }: { konto: Konto; dev: DevAktione
       {reiter === 'Übersicht' && <Uebersicht melde={melde} />}
       {reiter === 'Konten' && <Konten ich={konto} melde={melde} />}
       {reiter === 'Ankündigung' && <AnkuendigungVerwalten ich={konto} melde={melde} />}
+      {reiter === 'Meldungen' && <Fehlermeldungen melde={melde} />}
       {reiter === 'Protokoll' && <Protokoll melde={melde} />}
       {reiter === 'Website' && hatTeamRecht(konto.rolle, 'website_statistik') && <WebsiteStatistikView />}
       {reiter === 'Dev-Werkzeuge' && <DevWerkzeuge dev={dev} melde={melde} />}
@@ -379,6 +393,44 @@ function AnkuendigungVerwalten({ ich, melde }: { ich: Konto; melde: Melde }) {
 }
 
 /** Wer hat wann was gemacht – die letzten 200 Team-Aktionen. */
+/** Fehlermeldungen der Spieler – offene zuerst */
+function Fehlermeldungen({ melde }: { melde: Melde }) {
+  const [meldungen, setMeldungen] = useState<Fehlermeldung[] | null>(null);
+  const laden = useCallback(() => {
+    teamApi.fehlermeldungen().then(setMeldungen).catch((e) => melde('fehler', fehlerText(e)));
+  }, []);
+  useEffect(laden, [laden]);
+  const umschalten = (m: Fehlermeldung) =>
+    teamApi.fehlermeldungErledigt(m.id, !m.erledigt).then(setMeldungen).catch((e) => melde('fehler', fehlerText(e)));
+
+  if (!meldungen) return <p className="einsatz-eintrag__zeile">Lade …</p>;
+  return (
+    <>
+      <button type="button" className="btn" style={{ marginBottom: 8 }} onClick={laden}>↻ Aktualisieren</button>
+      {meldungen.length === 0 ? (
+        <div className="leerzustand">Noch keine Fehlermeldungen.</div>
+      ) : (
+        <ul className="team-protokoll">
+          {meldungen.map((m) => (
+            <li key={m.id} style={m.erledigt ? { opacity: 0.55 } : undefined}>
+              <small>{datum(m.zeit)} · <strong>{m.name}</strong>{m.erledigt && ' · erledigt'}</small>
+              <span style={{ whiteSpace: 'pre-wrap' }}>{m.text}</span>
+              <small>
+                V{m.kontext.version} · Ansicht {m.kontext.ansicht} · {m.kontext.bildschirm}
+                {m.kontext.spielstand && ` · ${m.kontext.spielstand.wachen} Wachen, ${m.kontext.spielstand.fahrzeuge} Fahrzeuge, ${m.kontext.spielstand.guthaben.toLocaleString('de-DE')} €`}
+              </small>
+              <small title={m.kontext.geraet}>{m.kontext.geraet.slice(0, 90)}</small>
+              <button type="button" className="btn btn--klein" style={{ justifySelf: 'start' }} onClick={() => void umschalten(m)}>
+                {m.erledigt ? 'Wieder öffnen' : 'Erledigt'}
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </>
+  );
+}
+
 function Protokoll({ melde }: { melde: Melde }) {
   const [eintraege, setEintraege] = useState<TeamProtokollEintrag[] | null>(null);
   const laden = useCallback(() => {
