@@ -144,7 +144,7 @@ export default function FahrzeugBearbeiten({
 
       <section className="einsatz-abschnitt">
         <h4>Ausbau</h4>
-        <small className="einsatz-eintrag__zeile">🔧 Kommt bald: Fahrzeuge verbessern, z. B. größerer Wassertank für Löschfahrzeuge.</small>
+        <small className="einsatz-eintrag__zeile">Kommt bald: Fahrzeuge verbessern, z. B. größerer Wassertank für Löschfahrzeuge.</small>
       </section>
     </div>
   );

@@ -47,7 +47,7 @@ export function useEinsatzHinweise(incidents: SpielEinsatz[], aktiv: boolean) {
           id: `${incident.id}-m${meldungen.length}`,
           einsatzId: incident.id,
           art: 'meldung',
-          titel: sprechwunsch ? `📻 Sprechwunsch – ${formatEinsatzTitel(incident)}` : `Neue Meldung – ${formatEinsatzTitel(incident)}`,
+          titel: sprechwunsch ? `Sprechwunsch – ${formatEinsatzTitel(incident)}` : `Neue Meldung – ${formatEinsatzTitel(incident)}`,
           text: sprechwunsch ? 'Ein Fahrzeug an der Einsatzstelle möchte dich sprechen (Status 5).' : meldungen[meldungen.length - 1].text,
         });
       }

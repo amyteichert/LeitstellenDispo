@@ -56,7 +56,7 @@ export default function TeamView({ konto, dev }: { konto: Konto; dev: DevAktione
   return (
     <div>
       <div className="wachen-kopf">
-        <h2>🛠 Team</h2>
+        <h2>Team</h2>
         <small className="einsatz-eintrag__zeile">Angemeldet als <SpielerName konto={konto} /> ({ROLLEN_LABELS[konto.rolle]})</small>
       </div>
 
@@ -350,15 +350,15 @@ function AnkuendigungVerwalten({ ich, melde }: { ich: Konto; melde: Melde }) {
   return (
     <div className="einstellungen-raster">
       <section className="ausbau-karte">
-        <span className="ausbau-karte__kategorie">📢 Ankündigung an alle</span>
+        <span className="ausbau-karte__kategorie">Ankündigung an alle</span>
         <p>Erscheint bei allen Spielern oben im Spiel (z. B. Wartung, neue Version). Jeder kann sie für sich wegklicken.</p>
         {!darf && <small className="einsatz-eintrag__zeile">Ankündigungen veröffentlichen Co-Owner und Owner. Du siehst hier die aktuelle.</small>}
         <label className="field">
           <span>Art</span>
           <select disabled={!darf} value={art} onChange={(e) => setArt(e.target.value as AnkuendigungsArt)}>
-            <option value="info">ℹ️ Info</option>
-            <option value="wartung">🛠️ Wartung</option>
-            <option value="wichtig">⚠️ Wichtig</option>
+            <option value="info">Info</option>
+            <option value="wartung">Wartung</option>
+            <option value="wichtig">⚠ Wichtig</option>
           </select>
         </label>
         <label className="field">
@@ -437,7 +437,7 @@ function Notizen({ konto, ich, melde }: { konto: TeamKonto; ich: Konto; melde: M
 
   return (
     <section className="einsatz-abschnitt">
-      <h4>📝 Team-Notizen</h4>
+      <h4>Team-Notizen</h4>
       {notizen?.length === 0 && <small className="einsatz-eintrag__zeile">Noch keine Notizen.</small>}
       <ul className="team-protokoll">
         {notizen?.map((n) => (
@@ -445,7 +445,7 @@ function Notizen({ konto, ich, melde }: { konto: TeamKonto; ich: Konto; melde: M
             <small>{datum(n.zeit)} · {n.vonName}</small>
             <span>{n.text}</span>
             {darfNotizLoeschen(ich, n) && (
-              <button type="button" className="btn btn--klein" onClick={() => void loeschen(n)} aria-label="Notiz löschen">🗑️</button>
+              <button type="button" className="btn btn--klein" onClick={() => void loeschen(n)} aria-label="Notiz löschen">✕</button>
             )}
           </li>
         ))}
@@ -489,7 +489,7 @@ function KorrekturFormular({ konto, melde }: { konto: TeamKonto; melde: Melde })
 
   return (
     <section className="einsatz-abschnitt">
-      <h4>🧾 Spielstand korrigieren</h4>
+      <h4>Spielstand korrigieren</h4>
       <small className="einsatz-eintrag__zeile">Z. B. nach einem Bug. Wird automatisch eingebucht, sobald die Person (wieder) spielt – erscheint bei ihr unter Finanzen.</small>
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'flex-end' }}>
         <label className="field" style={{ flex: '1 1 140px', margin: 0 }}>
@@ -512,7 +512,7 @@ function KorrekturFormular({ konto, melde }: { konto: TeamKonto; melde: Melde })
         <ul className="team-protokoll">
           {liste.slice(0, 5).map((k) => (
             <li key={k.id}>
-              <small>{datum(k.zeit)} · {k.eingebucht ? '✓ eingebucht' : '⏳ wartet auf den Spieler'}</small>
+              <small>{datum(k.zeit)} · {k.eingebucht ? '✓ eingebucht' : 'wartet auf den Spieler'}</small>
               <span>
                 {k.guthabenAenderung !== 0 && `${k.guthabenAenderung > 0 ? '+' : ''}${euro(k.guthabenAenderung)}`}
                 {k.guthabenAenderung !== 0 && k.rufNeu !== null && ' · '}

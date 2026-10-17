@@ -37,7 +37,7 @@ export default function BotWerkzeug() {
   return (
     <article className="ausbau-karte" style={{ gridColumn: '1 / -1' }}>
       <span className="ausbau-karte__kategorie">Automatik</span>
-      <h3>🤖 Bot</h3>
+      <h3>Bot</h3>
       <p>
         Spielt automatisch auf einem <strong>eigenen Sandbox-Spielstand</strong> – dein echtes Spiel bleibt unberührt.
         Baut Wachen, kauft &amp; besetzt Fahrzeuge, alarmiert Einsätze. Läuft, solange dieser Reiter offen ist (Fortschritt wird gemerkt).
@@ -108,7 +108,7 @@ export default function BotWerkzeug() {
                 <span style={{ opacity: 0.8 }}>[{aktion.art}]</span> {aktion.text}
               </li>
             ))}
-            {log.length === 0 && <li style={{ color: 'var(--color-text-muted)' }}>Noch nichts – drück auf Start. 🚦</li>}
+            {log.length === 0 && <li style={{ color: 'var(--color-text-muted)' }}>Noch nichts – drück auf Start. </li>}
           </ul>
         </div>
       </div>
@@ -116,9 +116,9 @@ export default function BotWerkzeug() {
       {/* Fehlerwächter */}
       <div style={{ marginTop: 12 }}>
         <strong>Fehlerwächter</strong>{' '}
-        {fehler.length === 0 && warnungen.length === 0 && <span style={{ color: '#16a34a' }}>✅ alles sauber</span>}
+        {fehler.length === 0 && warnungen.length === 0 && <span style={{ color: '#16a34a' }}>✓ alles sauber</span>}
         {fehler.map((problem, index) => (
-          <div key={`f-${index}`} style={{ color: '#dc2626', fontSize: 13 }}>❌ [{problem.code}] {problem.text}</div>
+          <div key={`f-${index}`} style={{ color: '#dc2626', fontSize: 13 }}>✗ [{problem.code}] {problem.text}</div>
         ))}
         {warnungen.slice(0, 15).map((problem, index) => (
           <div key={`w-${index}`} style={{ color: '#d97706', fontSize: 13 }}>⚠ [{problem.code}] {problem.text}</div>
@@ -127,7 +127,7 @@ export default function BotWerkzeug() {
 
       {/* Härtetest */}
       <div style={{ marginTop: 12, paddingTop: 12, borderTop: '1px solid var(--color-border, rgba(255,255,255,0.1))' }}>
-        <strong>🛡️ Härtetest</strong>
+        <strong>Härtetest</strong>
         <p style={{ color: 'var(--color-text-muted)', fontSize: 13, margin: '4px 0 8px' }}>
           Wirft dem Spiel kaputte/bösartige Daten hin (wie ein manipulierter Client gegen den Server) und prüft, ob etwas abstürzt. Rein lokal, ändert nichts.
         </p>
@@ -135,10 +135,10 @@ export default function BotWerkzeug() {
         {haertetest && (
           <div style={{ marginTop: 8, fontSize: 14 }}>
             {haertetest.abstuerze.length === 0 ? (
-              <span style={{ color: '#16a34a' }}>✅ {haertetest.sauberVerarbeitet} Eingaben sauber verarbeitet, kein Absturz.</span>
+              <span style={{ color: '#16a34a' }}>✓ {haertetest.sauberVerarbeitet} Eingaben sauber verarbeitet, kein Absturz.</span>
             ) : (
               <div style={{ color: '#dc2626' }}>
-                ❌ {haertetest.abstuerze.length} Absturz/Abstürze:
+                ✗ {haertetest.abstuerze.length} Absturz/Abstürze:
                 <ul style={{ margin: '4px 0 0' }}>
                   {haertetest.abstuerze.slice(0, 8).map((fund, index) => (
                     <li key={index} style={{ fontSize: 12 }}>{fund.bereich}: {fund.eingabe} → {fund.fehler}</li>

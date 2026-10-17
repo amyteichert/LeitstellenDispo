@@ -90,10 +90,6 @@ export function KarteEinsatzPanel({
 }) {
   const { abdeckung } = getEinsatzVersorgung(incident, vehicles, nowMs);
   const vorschlag = erstelleAlarmVorschlag(incident, { incidents, vehicles, locations });
-  const vorschlagNamen = vorschlag.fahrzeugIds.map((id) => {
-    const vehicle = vehicles.find((item) => item.id === id);
-    return vehicle?.callsign ?? vehicle?.name ?? 'Fahrzeug';
-  });
   const [rueckmeldung, setRueckmeldung] = useState<string | null>(null);
   const letzteMeldung = incident.meldungen[incident.meldungen.length - 1];
   const letzterSprechwunsch = letzteMeldung ? getVerborgeneMeldungen(funk).get(getMeldungKey(incident.id, letzteMeldung)) : undefined;
@@ -124,7 +120,7 @@ export function KarteEinsatzPanel({
 
       {letzteMeldung && (letzterSprechwunsch ? (
         <div className="einsatz-meldungen">
-          📻 <strong>{letzterSprechwunsch.von}</strong> hat Sprechwunsch (Status 5).{' '}
+          <strong>{letzterSprechwunsch.von}</strong> hat Sprechwunsch (Status 5).{' '}
           <button type="button" className="btn btn--primary" onClick={() => onSprechaufforderung(letzterSprechwunsch.id)}>Sprechaufforderung</button>
         </div>
       ) : (
@@ -148,12 +144,6 @@ export function KarteEinsatzPanel({
         })}
       </ul>
 
-      {/* Vorschlag ist nur ein Hinweis – die Fahrzeuge wählt der Disponent selbst aus */}
-      {kannAlarmieren && vorschlag.fahrzeugIds.length > 0 && (
-        <div className="versorgung-hinweis versorgung-hinweis--unterwegs">
-          <strong>Vorschlag:</strong> {vorschlagNamen.join(', ')}
-        </div>
-      )}
       {kannAlarmieren && passende.length > 0 && (
         <>
           <ul className="fahrzeug-auswahl">

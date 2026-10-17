@@ -303,7 +303,7 @@ function AnmeldeFormular({ hinweis, onErfolg, onGast }: { hinweis?: string; onEr
         </div>
         {istRegistrierung && (
           <small id={`${id}-name-hinweis`} className="anmeldung__feldhinweis">
-            ⚠️ <strong>Dein Benutzername ist öffentlich sichtbar</strong> (z. B. in der Bestenliste). Bitte nicht deine
+            ⚠ <strong>Dein Benutzername ist öffentlich sichtbar</strong> (z. B. in der Bestenliste). Bitte nicht deine
             E-Mail-Adresse oder deinen vollen Namen verwenden.
           </small>
         )}

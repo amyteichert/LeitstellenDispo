@@ -39,7 +39,7 @@ export default function ErsteSchritte({ kontoId, stand }: { kontoId: number; sta
   if (anzeige === 'zu') {
     return (
       <button type="button" className="erste-schritte erste-schritte--zu" onClick={() => setAnzeige('offen')}>
-        🎓 Erste Schritte {erledigt}/{schritte.length}
+        Erste Schritte {erledigt}/{schritte.length}
       </button>
     );
   }
@@ -47,18 +47,18 @@ export default function ErsteSchritte({ kontoId, stand }: { kontoId: number; sta
   return (
     <section className="erste-schritte" aria-label="Erste Schritte">
       <header className="erste-schritte__kopf">
-        <strong>🎓 Erste Schritte</strong>
+        <strong>Erste Schritte</strong>
         <span>{erledigt}/{schritte.length}</span>
         <button type="button" onClick={() => setAnzeige('zu')} aria-label="Einklappen" title="Einklappen">▾</button>
       </header>
 
       {alleErledigt ? (
-        <p className="erste-schritte__fertig">Geschafft! 🎉 Du kennst jetzt die Grundlagen. Viel Erfolg in deiner Leitstelle!</p>
+        <p className="erste-schritte__fertig">Geschafft! Du kennst jetzt die Grundlagen. Viel Erfolg in deiner Leitstelle!</p>
       ) : (
         <ol className="erste-schritte__liste">
           {schritte.map((schritt) => (
             <li key={schritt.id} className={schritt.erledigt ? 'erledigt' : schritt === naechster ? 'aktuell' : undefined}>
-              <span aria-hidden>{schritt.erledigt ? '✅' : '⬜'}</span>
+              <span aria-hidden>{schritt.erledigt ? '✓' : '○'}</span>
               <div>
                 <strong>{schritt.titel}</strong>
                 {/* Nur beim nächsten offenen Schritt die Anleitung zeigen – sonst wird es zu viel Text */}

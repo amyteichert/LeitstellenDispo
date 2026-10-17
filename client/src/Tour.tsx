@@ -27,7 +27,7 @@ interface TourSchritt {
 const euro = (betrag: number) => `${betrag.toLocaleString('de-DE')} €`;
 
 export const TOUR_SCHRITTE: TourSchritt[] = [
-  { titel: 'Willkommen in deiner Leitstelle! 🚨', text: 'In ein paar Schritten zeige ich dir, wie alles funktioniert. Du kannst die Tour jederzeit beenden und später in den Einstellungen wiederholen.' },
+  { titel: 'Willkommen in deiner Leitstelle! ', text: 'In ein paar Schritten zeige ich dir, wie alles funktioniert. Du kannst die Tour jederzeit beenden und später in den Einstellungen wiederholen.' },
   { ziel: '[data-tour="ruf"]', titel: 'Dein Ruf', text: 'Schnelle, richtige Alarmierungen verbessern deinen Ruf – und je besser er ist, desto höher der Leistungsbonus. Später kannst du hier antippen und sehen, was gut lief und was nicht.' },
   {
     ansicht: 'Karte',
@@ -62,7 +62,7 @@ export const TOUR_SCHRITTE: TourSchritt[] = [
   { ansicht: 'Karte', ziel: '.map-view', titel: 'Die Karte', text: 'Hier siehst du Wachen, Einsätze und Fahrzeuge in Echtzeit. Tippe einen Einsatz an, um direkt von der Karte zu alarmieren.' },
   { ansicht: 'Finanzen', ziel: '[data-tour="finanzen"]', titel: 'Finanzen', text: 'Jeder Einsatz bringt eine Grundvergütung plus Bonus je nach Ruf. Hier siehst du alle Einnahmen und Ausgaben.' },
   { ansicht: 'Wachen', ziel: '[data-tour="wache-kaufen"]', titel: 'Weitere Wachen kaufen', text: 'Wird dein Gebiet zu groß oder die Anfahrt zu lang? Unter „Wachen“ öffnet „＋ Wache kaufen“ ein Fenster mit kleiner Karte. Vor dem Kauf siehst du den Preis und musst ihn bestätigen.' },
-  { titel: 'Bereit für deine Schicht! ✅', text: 'Das war die Tour. Viel Erfolg in der Leitstelle! Du findest sie jederzeit unter Einstellungen → „Tour starten“.' },
+  { titel: 'Bereit für deine Schicht! ✓', text: 'Das war die Tour. Viel Erfolg in der Leitstelle! Du findest sie jederzeit unter Einstellungen → „Tour starten“.' },
 ];
 
 const tourKey = (kontoId: number) => `leitstellendispo.tour.${kontoId}`;
@@ -237,7 +237,7 @@ export default function Tour({ kontoId, hatWache, onAnsicht, onStandorteOeffnen,
           {wartetAufZiel ? (
             fehlt && <button type="button" className="btn btn--primary" onClick={weiter}>Überspringen</button>
           ) : schritt.tippen ? (
-            <span className="tour__tipp">👆 Tippe auf das Hervorgehobene</span>
+            <span className="tour__tipp">Tippe auf das Hervorgehobene</span>
           ) : (
             <button type="button" className="btn btn--primary" onClick={weiter} autoFocus>{letzter ? 'Los geht’s!' : 'Weiter'}</button>
           )}

@@ -5,7 +5,7 @@ import { ladeAnkuendigung } from './konto';
 const AUSGEBLENDET_KEY = 'leitstellendispo.ankuendigung-ausgeblendet';
 const NEU_LADEN_MS = 2 * 60 * 1000;
 
-const SYMBOL: Record<Ankuendigung['art'], string> = { info: 'ℹ️', wartung: '🛠️', wichtig: '⚠️' };
+const SYMBOL: Record<Ankuendigung['art'], string> = { info: 'i', wartung: '!', wichtig: '⚠' };
 
 const istAusgeblendet = (ankuendigung: Ankuendigung) => {
   try {

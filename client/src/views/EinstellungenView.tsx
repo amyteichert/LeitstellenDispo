@@ -65,7 +65,7 @@ export default function EinstellungenView({
 
       <div className="einstellungen-raster">
         <section className="ausbau-karte">
-          <span className="ausbau-karte__kategorie">🔔 Ton & Hinweise</span>
+          <span className="ausbau-karte__kategorie">Ton & Hinweise</span>
           <Schalter text="Alarmgong" info="Bei neuen Einsätzen und Lagemeldungen" an={einstellungen.ton} onChange={(ton) => setEinstellungen({ ton })} />
           <label className="einstellung-regler">
             <span>Lautstärke <small>{Math.round(einstellungen.lautstaerke * 100)} %</small></span>
@@ -79,7 +79,7 @@ export default function EinstellungenView({
               onChange={(e) => setEinstellungen({ lautstaerke: Number(e.target.value) })}
             />
           </label>
-          <button type="button" className="btn btn--secondary" onClick={testeTon}>🔊 Ton testen</button>
+          <button type="button" className="btn btn--secondary" onClick={testeTon}>Ton testen</button>
           <p>Am Handy: einmal „Ton testen“ antippen, dann hörst du den Gong auch bei neuen Einsätzen. Ist das Handy stumm geschaltet, bleibt es eventuell still.</p>
           <Schalter
             text="Vibration"
@@ -90,7 +90,7 @@ export default function EinstellungenView({
         </section>
 
         <section className="ausbau-karte">
-          <span className="ausbau-karte__kategorie">💬 Einblendungen</span>
+          <span className="ausbau-karte__kategorie">Einblendungen</span>
           <label className="field">
             <span>Einblenden bei</span>
             <select value={einstellungen.hinweise} onChange={(e) => setEinstellungen({ hinweise: e.target.value as GeraeteEinstellungen['hinweise'] })}>
@@ -113,7 +113,7 @@ export default function EinstellungenView({
         </section>
 
         <section className="ausbau-karte">
-          <span className="ausbau-karte__kategorie">🖥️ Ansicht</span>
+          <span className="ausbau-karte__kategorie">Ansicht</span>
           <label className="field">
             <span>Ansicht beim Start</span>
             <select
@@ -132,7 +132,7 @@ export default function EinstellungenView({
         </section>
 
         <section className="ausbau-karte">
-          <span className="ausbau-karte__kategorie">🚨 Einsatztempo</span>
+          <span className="ausbau-karte__kategorie">Einsatztempo</span>
           <p>Wie oft neue Einsätze reinkommen. Uhrzeit, Wochentag und Wetter wirken zusätzlich.</p>
           <div className="einsatztempo">
             {EINSATZ_TEMPI.map((tempo) => (
@@ -151,7 +151,7 @@ export default function EinstellungenView({
         </section>
 
         <section className="ausbau-karte">
-          <span className="ausbau-karte__kategorie">ℹ️ Gut zu wissen</span>
+          <span className="ausbau-karte__kategorie">Gut zu wissen</span>
           <p>
             <strong>Anfahrtszeiten:</strong> Die Fahrzeiten sind realistisch angelegt – mit Ausrückzeit, typischen Geschwindigkeiten
             bei Einsatzfahrten und dem Umweg über die Straße. Auf der Karte fahren die Fahrzeuge aber vorerst auf direktem Weg.
@@ -162,13 +162,13 @@ export default function EinstellungenView({
         </section>
 
         <section className="ausbau-karte">
-          <span className="ausbau-karte__kategorie">🎓 Tour durchs Spiel</span>
+          <span className="ausbau-karte__kategorie">Tour durchs Spiel</span>
           <p>Zeigt dir Schritt für Schritt die wichtigsten Bereiche – jederzeit wiederholbar.</p>
           <button className="btn btn--secondary" type="button" onClick={onTourStarten}>Tour starten</button>
         </section>
 
         <section className="ausbau-karte">
-          <span className="ausbau-karte__kategorie">👤 Konto</span>
+          <span className="ausbau-karte__kategorie">Konto</span>
           {gast ? (
             <p>Du spielst als <strong>Gast</strong>. Mit einem Konto wird dein Spielstand gespeichert und du bekommst als Gründungs-Spieler ein Abzeichen.</p>
           ) : (
@@ -191,7 +191,7 @@ export default function EinstellungenView({
         </section>
 
         <section className="ausbau-karte">
-          <span className="ausbau-karte__kategorie">💾 Spielstand</span>
+          <span className="ausbau-karte__kategorie">Spielstand</span>
           <p>
             {gast
               ? 'Als Gast wird nichts gespeichert – beim Neuladen oder Schließen der Seite beginnt alles von vorn.'

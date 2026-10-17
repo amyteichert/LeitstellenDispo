@@ -28,7 +28,7 @@ export default function FunkView({
 
   return (
     <div data-tour="funk">
-      <h2>📻 Funk</h2>
+      <h2>Funk</h2>
 
       {offen.length > 0 && (
         <section className="einsatz-abschnitt">
@@ -66,7 +66,7 @@ export default function FunkView({
           {liste.map((spruch) => (
             <li key={spruch.id} className={`funk-zeile funk-zeile--${spruch.art} ${spruch.von === LEITSTELLE ? 'funk-zeile--leitstelle' : ''}`}>
               <span className="funk-zeile__zeit">{uhrzeit(spruch.zeit)}</span>
-              {spruch.status !== undefined ? <span className={`funk-status funk-status--${spruch.status}`}>S{spruch.status}</span> : <span className="funk-status funk-status--leer">📻</span>}
+              {spruch.status !== undefined ? <span className={`funk-status funk-status--${spruch.status}`}>S{spruch.status}</span> : <span className="funk-status funk-status--leer"></span>}
               <span className="funk-zeile__text">
                 <strong>{spruch.von}</strong> → {spruch.an}: {spruch.art === 'sprechwunsch' && !spruch.offen ? `${spruch.text} – beantwortet` : spruch.text}
               </span>

@@ -81,7 +81,7 @@ export default function Rueckalarmierung({
     <div className="rueckalarmierung">
       {zeigeHinweis && (
         <div className={`versorgung-hinweis ${empfohlen ? 'versorgung-hinweis--fehlt' : 'versorgung-hinweis--unterwegs'}`}>
-          ⏳ <strong>{lage.wartende.map((w) => name(w.vehicleId)).join(', ')}</strong>{' '}
+          <strong>{lage.wartende.map((w) => name(w.vehicleId)).join(', ')}</strong>{' '}
           {lage.wartende.length > 1 ? 'warten' : 'wartet'} seit {minuten(laengsteWartezeit)} Min. vor Ort
           {lage.fehlt.length > 0 && <> auf <strong>{formatBedarfsListe(lage.fehlt)}</strong></>}.
           {' '}

@@ -216,7 +216,7 @@ export default function EinsaetzeView({
                       return sprechwunsch ? (
                         <li key={`${meldung.zeit}-${index}`} data-art="sprechwunsch">
                           <span className="meldung-zeit">{formatUhrzeit(meldung.zeit)}</span>
-                          📻 <strong>{sprechwunsch.von}</strong> hat Sprechwunsch (Status 5).{' '}
+                          <strong>{sprechwunsch.von}</strong> hat Sprechwunsch (Status 5).{' '}
                           <button type="button" className="btn btn--primary" onClick={() => onSprechaufforderung(sprechwunsch.id)}>
                             Sprechaufforderung
                           </button>
@@ -252,7 +252,7 @@ export default function EinsaetzeView({
                   <>
                     <h4>Empfohlene Kräfte</h4>
                     <div className="versorgung-hinweis versorgung-hinweis--unterwegs">
-                      ❓ <strong>Meldung unklar.</strong> Die Lage kann sich vor Ort als größer oder kleiner herausstellen.
+                      <strong>Meldung unklar.</strong> Die Lage kann sich vor Ort als größer oder kleiner herausstellen.
                     </div>
                   </>
                 ) : (
@@ -331,17 +331,6 @@ export default function EinsaetzeView({
                   {alarmVorschlag.nichtVerfuegbar.length > 0 && (
                     <div className="versorgung-hinweis versorgung-hinweis--fehlt">
                       Kein freies Fahrzeug für: {formatBedarfsListe(alarmVorschlag.nichtVerfuegbar)}.
-                    </div>
-                  )}
-
-                  {/* Nur ein Hinweis – auswählen muss der Disponent selbst */}
-                  {alarmVorschlag.fahrzeugIds.length > 0 && (
-                    <div className="versorgung-hinweis versorgung-hinweis--unterwegs">
-                      <strong>Vorschlag:</strong>{' '}
-                      {alarmVorschlag.fahrzeugIds
-                        .map((id) => vehicles.find((vehicle) => vehicle.id === id))
-                        .map((vehicle) => vehicle?.callsign ?? vehicle?.name ?? 'Fahrzeug')
-                        .join(', ')}
                     </div>
                   )}
 
@@ -443,7 +432,7 @@ export default function EinsaetzeView({
       <h2>Einsätze</h2>
       {triggerTestIncident && (
         <div style={{ marginBottom: 12 }}>
-          <button className="btn btn--secondary" type="button" onClick={() => void triggerTestIncident()}>🧪 Test-Einsatz erzeugen</button>
+          <button className="btn btn--secondary" type="button" onClick={() => void triggerTestIncident()}>Test-Einsatz erzeugen</button>
         </div>
       )}
 

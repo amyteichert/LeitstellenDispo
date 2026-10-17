@@ -7,11 +7,11 @@ import { GAME_CONFIG } from './konfig.js';
 export type Wetter = 'klar' | 'regen' | 'glaette' | 'hitze' | 'sturm';
 
 export const WETTER_LABELS: Record<Wetter, string> = {
-  klar: '☀️ Ruhiges Wetter',
-  regen: '🌧️ Regen',
-  glaette: '❄️ Glätte',
-  hitze: '🔥 Hitze',
-  sturm: '🌪️ Sturm',
+  klar: 'Ruhiges Wetter',
+  regen: 'Regen',
+  glaette: 'Glätte',
+  hitze: 'Hitze',
+  sturm: 'Sturm',
 };
 
 /** Kurze Erklärung für Spieler: Was bewirkt das Wetter? (passt zu vorlagenGewicht) */

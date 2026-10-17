@@ -217,7 +217,7 @@ function MapStyleToggle({
 
   return createPortal(
     <button type="button" className="map-style-toggle" onClick={onToggle}>
-      {mapStyle === 'karte' ? '🛰️ Satellit' : '🗺️ Karte'}
+      {mapStyle === 'karte' ? 'Satellit' : 'Karte'}
     </button>,
     container,
   );
@@ -461,7 +461,7 @@ Dein Guthaben: ${balance.toLocaleString('de-DE')} €`)) return;
 
     setSelectedId(ergebnis.id);
     setWacheKaufenOffen(false);
-    setKaufMeldung(`✅ „${name}“ gekauft – ${kosten.toLocaleString('de-DE')} € bezahlt. Startfahrzeug und Besatzung sind bereit.`);
+    setKaufMeldung(`✓ „${name}“ gekauft – ${kosten.toLocaleString('de-DE')} € bezahlt. Startfahrzeug und Besatzung sind bereit.`);
     setTimeout(() => setKaufMeldung(null), 6000);
     setDraftStartVehicleCallsign('');
     // clear temp preview and address/choices
@@ -662,7 +662,7 @@ Dein Guthaben: ${balance.toLocaleString('de-DE')} €`)) return;
       )}
       {!gast && !email && currentView !== 'Einstellungen' && (
         <div className="lade-fehler" role="status">
-          ✉️ Für dein Konto ist noch keine E-Mail-Adresse hinterlegt – ohne sie kannst du ein vergessenes Passwort nicht zurücksetzen.{' '}
+          Für dein Konto ist noch keine E-Mail-Adresse hinterlegt – ohne sie kannst du ein vergessenes Passwort nicht zurücksetzen.{' '}
           <button type="button" className="btn" onClick={() => setCurrentView('Einstellungen')}>Jetzt nachtragen</button>
         </div>
       )}
@@ -754,7 +754,7 @@ Dein Guthaben: ${balance.toLocaleString('de-DE')} €`)) return;
 
       {gast && (
         <div className="gast-leiste" role="status">
-          <span>👤 Du spielst als Gast – nichts wird gespeichert. Beim Neuladen oder Schließen ist alles zurückgesetzt.</span>
+          <span>Du spielst als Gast – nichts wird gespeichert. Beim Neuladen oder Schließen ist alles zurückgesetzt.</span>
           <button type="button" className="btn btn--secondary" onClick={zurAnmeldung}>Anmelden / Registrieren</button>
         </div>
       )}
@@ -1005,7 +1005,7 @@ Dein Guthaben: ${balance.toLocaleString('de-DE')} €`)) return;
               <div className="ruf-fenster__hintergrund" onClick={() => setWacheKaufenOffen(false)}>
                 <div className="ruf-fenster wache-kaufen" role="dialog" aria-modal="true" aria-label="Wache kaufen" onClick={(event) => event.stopPropagation()}>
                   <div className="ruf-fenster__kopf">
-                    <h3>🏗️ Neue Wache kaufen</h3>
+                    <h3>Neue Wache kaufen</h3>
                     <button type="button" className="btn" onClick={() => setWacheKaufenOffen(false)} aria-label="Schließen">✕</button>
                   </div>
                   <MapContainer

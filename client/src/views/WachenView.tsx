@@ -314,7 +314,7 @@ function WacheVerwalten({
                         <strong className="mit-kennzeichen"><Kennzeichen art="fahrzeug" typ={v.type} groesse={24} />{v.callsign ?? v.name}</strong> – {v.type ?? '–'} · S{FMS_STATUS[v.status ?? 'Einsatzbereit']} {v.status ?? 'Einsatzbereit'}
                         {!istAusreichendBesetzt(v) && <span className="ruf-minus"> · nicht besetzt</span>}
                       </span>
-                      <span aria-hidden>{offenesFahrzeug === v.id ? '▴' : '✏️'}</span>
+                      <span aria-hidden>{offenesFahrzeug === v.id ? '▴' : '✎'}</span>
                     </button>
                     {offenesFahrzeug === v.id && (
                       <FahrzeugBearbeiten

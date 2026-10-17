@@ -126,7 +126,7 @@ export default function AusbildungReiter({
           <h4>Zuletzt abgeschlossen</h4>
           <ul className="besatzung-liste">
             {eigeneAbschluesse.map((a, index) => (
-              <li key={`${a.qualifikation}-${index}`}>🎓 {QUALIFIKATION_LABELS[a.qualifikation]}: {a.namen.join(', ')} – jetzt ohne Fahrzeug, bitte neu einteilen</li>
+              <li key={`${a.qualifikation}-${index}`}>{QUALIFIKATION_LABELS[a.qualifikation]}: {a.namen.join(', ')} – jetzt ohne Fahrzeug, bitte neu einteilen</li>
             ))}
           </ul>
         </section>
@@ -186,7 +186,7 @@ function RaumKarte({
     return (
       <article className="besatzung-karte">
         {kopf}
-        <strong>📚 {QUALIFIKATION_LABELS[qualifikation]}</strong>
+        <strong>{QUALIFIKATION_LABELS[qualifikation]}</strong>
         <small>Noch {formatDauer(endeAt - nowMs)} · fertig am {new Date(endeAt).toLocaleString('de-DE', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</small>
         <div className="bearbeitung-fortschritt__balken"><span style={{ width: `${anteil}%` }} /></div>
         <small>Teilnehmer: {teilnehmerIds.map((id) => personal.find((p) => p.id === id)?.name ?? '?').join(', ')}</small>

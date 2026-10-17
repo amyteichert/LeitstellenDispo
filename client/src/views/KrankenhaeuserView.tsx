@@ -75,7 +75,7 @@ export default function KrankenhaeuserView({ krankenhaeuser, wachen, ruf, balanc
     const titel = name.trim() || 'Eigenes Krankenhaus';
     if (!window.confirm(`„${titel}“ für ${euro(EIGENES_KRANKENHAUS.preis)} bauen?\n\nDein Guthaben: ${euro(balance)}`)) return;
     const grund = aktionen.baueKrankenhaus(titel, coords);
-    ergebnis(grund, `✅ „${titel}“ gebaut – ${euro(EIGENES_KRANKENHAUS.preis)} bezahlt.`);
+    ergebnis(grund, `✓ „${titel}“ gebaut – ${euro(EIGENES_KRANKENHAUS.preis)} bezahlt.`);
     if (!grund) {
       setBauOffen(false);
       setName('');
@@ -95,7 +95,7 @@ export default function KrankenhaeuserView({ krankenhaeuser, wachen, ruf, balanc
         Patienten mit Fachbedarf (Herzinfarkt, Schlaganfall, Unfall) fahren ins nächste passende Haus – bis 40 km.
         Ohne Krankenhaus im Umkreis von 50 km werden Patienten vor Ort versorgt. Eigene Häuser bringen
         {' '}extra Geld je Patient – je besser ihr Ruf, desto mehr.
-        {' '}ℹ️ Für den Bau zählen nur <strong>Rettungswachen</strong>, Feuerwachen nicht.
+        {' '}Für den Bau zählen nur <strong>Rettungswachen</strong>, Feuerwachen nicht.
         {bauGrund && <> <strong>Bauen: {bauGrund}</strong> (ab {EIGENES_KRANKENHAUS.abWachen} Rettungswachen, Ruf {EIGENES_KRANKENHAUS.abRuf}, {euro(EIGENES_KRANKENHAUS.preis)})</>}
       </p>
 
@@ -140,7 +140,7 @@ export default function KrankenhaeuserView({ krankenhaeuser, wachen, ruf, balanc
           const fach = getFachrichtungen(kh);
           return (
             <li key={kh.id} className="ausbau-karte">
-              <span className="ausbau-karte__kategorie">{kh.eigen ? '⭐ Eigenes Haus' : 'Krankenhaus'}</span>
+              <span className="ausbau-karte__kategorie">{kh.eigen ? 'Eigenes Haus' : 'Krankenhaus'}</span>
               <h3 className="mit-kennzeichen"><Kennzeichen art="krankenhaus" groesse={28} />{kh.name}</h3>
               <div className="notruf-chips" style={{ display: 'flex', flexWrap: 'wrap', gap: 6, margin: '6px 0' }}>
                 {fach.map((f) => <span key={f} className="chip">{FACHRICHTUNGEN[f].kurz}</span>)}
@@ -163,7 +163,7 @@ export default function KrankenhaeuserView({ krankenhaeuser, wachen, ruf, balanc
                       </div>
                       <div className="verwalten-kachel">
                         <small>Ruf des Hauses</small>
-                        <strong>⭐ {hausRuf}</strong>
+                        <strong>{hausRuf}</strong>
                         <small>{euro(getVerguetungJePatient(kh))} je Patient</small>
                       </div>
                       <div className="verwalten-kachel">
@@ -174,7 +174,7 @@ export default function KrankenhaeuserView({ krankenhaeuser, wachen, ruf, balanc
                       <div className="verwalten-kachel">
                         <small>Betten belegt</small>
                         <strong>{belegt} / {betten}</strong>
-                        <small>👩‍⚕️ {getPflegekraefte(kh)} Pflegekräfte</small>
+                        <small>{getPflegekraefte(kh)} Pflegekräfte</small>
                       </div>
                     </div>
                     <ul className="team-protokoll">
@@ -185,7 +185,7 @@ export default function KrankenhaeuserView({ krankenhaeuser, wachen, ruf, balanc
                             <span>
                               <strong>{FACHRICHTUNGEN[station].kurz}</strong> · {getBelegteStationsBetten(kh, station, nowMs)} / {getStationsBetten(kh, station)} Betten
                             </span>
-                            <small>👩‍⚕️ {getStationsPflegekraefte(kh, station)} Pflegekräfte</small>
+                            <small>{getStationsPflegekraefte(kh, station)} Pflegekräfte</small>
                             <button
                               type="button"
                               className="btn btn--klein"
@@ -193,10 +193,10 @@ export default function KrankenhaeuserView({ krankenhaeuser, wachen, ruf, balanc
                               title={grund ?? `Pflegekraft einstellen (+${EIGENES_KRANKENHAUS.bettenJePflegekraft} Betten) · ${euro(EIGENES_KRANKENHAUS.pflegekraftPreis)}`}
                               onClick={() => {
                                 if (!window.confirm(`Pflegekraft für ${FACHRICHTUNGEN[station].label} einstellen (+${EIGENES_KRANKENHAUS.bettenJePflegekraft} Betten) für ${euro(EIGENES_KRANKENHAUS.pflegekraftPreis)}?`)) return;
-                                ergebnis(aktionen.stellePflegekraftEin(kh.id, station), `✅ Pflegekraft eingestellt – +${EIGENES_KRANKENHAUS.bettenJePflegekraft} Betten.`);
+                                ergebnis(aktionen.stellePflegekraftEin(kh.id, station), `✓ Pflegekraft eingestellt – +${EIGENES_KRANKENHAUS.bettenJePflegekraft} Betten.`);
                               }}
                             >
-                              👩‍⚕️ +{EIGENES_KRANKENHAUS.bettenJePflegekraft}
+                              +{EIGENES_KRANKENHAUS.bettenJePflegekraft}
                             </button>
                           </li>
                         );
@@ -212,10 +212,10 @@ export default function KrankenhaeuserView({ krankenhaeuser, wachen, ruf, balanc
                         className={kh.aufnahme ? 'btn' : 'btn btn--primary'}
                         onClick={() => {
                           if (kh.aufnahme && !window.confirm(`Notaufnahme von „${kh.name}“ abmelden? Der Rettungsdienst fährt dann andere Häuser an – das kostet ${-KRANKENHAUS_RUF.abmeldung} Ruf.`)) return;
-                          ergebnis(aktionen.meldeNotaufnahme(kh.id, !kh.aufnahme), kh.aufnahme ? '🚫 Notaufnahme abgemeldet.' : '✅ Notaufnahme wieder angemeldet.');
+                          ergebnis(aktionen.meldeNotaufnahme(kh.id, !kh.aufnahme), kh.aufnahme ? 'Notaufnahme abgemeldet.' : '✓ Notaufnahme wieder angemeldet.');
                         }}
                       >
-                        {kh.aufnahme ? '🚫 Notaufnahme abmelden' : '✅ Notaufnahme anmelden'}
+                        {kh.aufnahme ? 'Notaufnahme abmelden' : '✓ Notaufnahme anmelden'}
                       </button>
                       <button
                         type="button"
@@ -224,10 +224,10 @@ export default function KrankenhaeuserView({ krankenhaeuser, wachen, ruf, balanc
                         title={platzGrund ?? undefined}
                         onClick={() => {
                           if (!window.confirm(`Weiteren Platz in der Notaufnahme für ${euro(NOTAUFNAHME.platzPreis)} bauen?`)) return;
-                          ergebnis(aktionen.erweitereNotaufnahme(kh.id), '✅ Notaufnahme hat einen Platz mehr.');
+                          ergebnis(aktionen.erweitereNotaufnahme(kh.id), '✓ Notaufnahme hat einen Platz mehr.');
                         }}
                       >
-                        🚑 Notaufnahme +1 Platz · {euro(NOTAUFNAHME.platzPreis)}
+                        Notaufnahme +1 Platz · {euro(NOTAUFNAHME.platzPreis)}
                       </button>
                       {(Object.keys(FACHRICHTUNGEN) as Fachrichtung[]).filter((f) => !fach.includes(f)).map((f) => {
                         const grund = pruefeFachrichtung(kh, f, ruf, balance);
@@ -240,7 +240,7 @@ export default function KrankenhaeuserView({ krankenhaeuser, wachen, ruf, balanc
                             title={grund ?? undefined}
                             onClick={() => {
                               if (!window.confirm(`${FACHRICHTUNGEN[f].label} für ${euro(FACHRICHTUNGEN[f].preis)} freischalten?`)) return;
-                              ergebnis(aktionen.schalteFachrichtungFrei(kh.id, f), `✅ ${FACHRICHTUNGEN[f].label} freigeschaltet.`);
+                              ergebnis(aktionen.schalteFachrichtungFrei(kh.id, f), `✓ ${FACHRICHTUNGEN[f].label} freigeschaltet.`);
                             }}
                           >
                             {FACHRICHTUNGEN[f].kurz} · {euro(FACHRICHTUNGEN[f].preis)}{grund && grund.startsWith('Erst') ? ` (${grund.replace('Erst ab ', 'ab ').replace('.', '')})` : ''}

@@ -12,10 +12,10 @@ export type Fachrichtung = 'innere' | 'unfallchirurgie' | 'kardiologie' | 'neuro
 
 /** Fachrichtungen für eigene Häuser: Preis und nötiger Ruf */
 export const FACHRICHTUNGEN: Record<Fachrichtung, { label: string; kurz: string; preis: number; abRuf: number }> = {
-  innere: { label: 'Innere Medizin', kurz: '🩺 Innere', preis: 0, abRuf: 0 },
-  unfallchirurgie: { label: 'Unfallchirurgie', kurz: '🦴 Unfall', preis: 150_000, abRuf: 50 },
-  kardiologie: { label: 'Herzkatheter (Kardiologie)', kurz: '❤️ Herz', preis: 300_000, abRuf: 65 },
-  neurologie: { label: 'Stroke Unit (Neurologie)', kurz: '🧠 Stroke', preis: 400_000, abRuf: 80 },
+  innere: { label: 'Innere Medizin', kurz: 'Innere', preis: 0, abRuf: 0 },
+  unfallchirurgie: { label: 'Unfallchirurgie', kurz: 'Unfall', preis: 150_000, abRuf: 50 },
+  kardiologie: { label: 'Herzkatheter (Kardiologie)', kurz: 'Herz', preis: 300_000, abRuf: 65 },
+  neurologie: { label: 'Stroke Unit (Neurologie)', kurz: 'Stroke', preis: 400_000, abRuf: 80 },
 };
 
 export const GRUNDVERSORGUNG: Fachrichtung[] = ['innere', 'unfallchirurgie'];

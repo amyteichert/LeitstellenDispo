@@ -150,8 +150,8 @@ export default function PersonalReiter({
                   <span className="personal-liste__rechts">
                     <span className="personal-liste__ort">
                       {lehrgang
-                        ? `📚 Lehrgang bis ${formatZeitpunkt(person.inAusbildungBis!)}`
-                        : fahrzeug ? `🚒 ${fahrzeug.callsign ?? fahrzeug.name}${kannUmbesetzen(fahrzeug) ? '' : ' (unterwegs)'}` : '🛋️ Ohne Fahrzeug'}
+                        ? `Lehrgang bis ${formatZeitpunkt(person.inAusbildungBis!)}`
+                        : fahrzeug ? `${fahrzeug.callsign ?? fahrzeug.name}${kannUmbesetzen(fahrzeug) ? '' : ' (unterwegs)'}` : 'Ohne Fahrzeug'}
                     </span>
                     <span className="personal-liste__aktionen">
                       <label className="field" style={{ margin: 0 }}>
@@ -184,7 +184,7 @@ export default function PersonalReiter({
                           }
                         }}
                       >
-                        🗑️
+                        ✕
                       </button>
                     </span>
                   </span>

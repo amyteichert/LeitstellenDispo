@@ -75,7 +75,7 @@ export default function PasswortZuruecksetzen() {
         <main className="anmeldung__karte">
           {!token ? (
             <div className="anmeldung__formular">
-              <h2>🔗 Link unvollständig</h2>
+              <h2>Link unvollständig</h2>
               <p className="anmeldung__info">
                 Dieser Link funktioniert leider nicht. Fordere auf der Anmeldeseite über „Passwort vergessen?“ einfach einen neuen an.
               </p>
@@ -83,7 +83,7 @@ export default function PasswortZuruecksetzen() {
             </div>
           ) : fertig ? (
             <div className="anmeldung__formular">
-              <h2>✅ Passwort geändert</h2>
+              <h2>✓ Passwort geändert</h2>
               <p className="anmeldung__hinweis" role="status">
                 Das Passwort für <strong>{fertig}</strong> ist jetzt neu. Aus Sicherheitsgründen wurden alle bisherigen Anmeldungen beendet.
               </p>
@@ -91,7 +91,7 @@ export default function PasswortZuruecksetzen() {
             </div>
           ) : (
             <form className="anmeldung__formular" onSubmit={absenden} noValidate>
-              <h2>🔑 Neues Passwort</h2>
+              <h2>Neues Passwort</h2>
               <p className="anmeldung__info">Leg ein neues Passwort für dein Konto fest – danach meldest du dich ganz normal an.</p>
               {passwortFeld(`${id}-pw`, 'Neues Passwort', passwort, setPasswort, true)}
               {passwortFeld(`${id}-wdh`, 'Passwort wiederholen', wiederholt, setWiederholt)}

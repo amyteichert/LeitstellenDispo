@@ -76,7 +76,7 @@ export default function StatistikView({ verlauf, ruf }: { verlauf: Abgeschlossen
       ) : (
         <>
           <div className="finanz-kacheln" style={{ marginTop: 12 }}>
-            <Kachel titel="Einsätze abgeschlossen" wert={String(verlauf.length)} hinweis={`🚑 ${rd} Rettungsdienst · 🚒 ${fw} Feuerwehr`} />
+            <Kachel titel="Einsätze abgeschlossen" wert={String(verlauf.length)} hinweis={`${rd} Rettungsdienst · ${fw} Feuerwehr`} />
             <Kachel titel="Ruf" wert={String(ruf)} hinweis={getRufLabel(ruf)} />
             <Kachel titel="Ø Bewertung" wert={punkte === null ? '–' : `${Math.round(punkte)} / 100`} />
             <Kachel titel="Ø Anfahrt" wert={anfahrt === null ? '–' : `${Math.floor(anfahrt / 60)}:${String(Math.round(anfahrt % 60)).padStart(2, '0')} min`} hinweis="Erstes Fahrzeug vor Ort" />
@@ -84,12 +84,12 @@ export default function StatistikView({ verlauf, ruf }: { verlauf: Abgeschlossen
           </div>
 
           <section className="ausbau-karte" style={{ marginTop: 12 }}>
-            <span className="ausbau-karte__kategorie">⭐ Ruf-Verlauf</span>
+            <span className="ausbau-karte__kategorie">Ruf-Verlauf</span>
             <RufVerlauf punkte={rufPunkte} />
           </section>
 
           <section className="ausbau-karte" style={{ marginTop: 12 }}>
-            <span className="ausbau-karte__kategorie">📋 Häufigste Einsatzarten</span>
+            <span className="ausbau-karte__kategorie">Häufigste Einsatzarten</span>
             <ul className="statistik-balken">
               {top.map(([titel, anzahl]) => (
                 <li key={titel} title={`${titel}: ${anzahl}×`}>

@@ -47,7 +47,7 @@ export default function RufFenster({
     <div className="ruf-fenster__hintergrund" onClick={onClose}>
       <div className="ruf-fenster" role="dialog" aria-modal="true" aria-label="Ruf der Leitstelle" onClick={(event) => event.stopPropagation()}>
         <div className="ruf-fenster__kopf">
-          <h3>⭐ Ruf {ruf} · {getRufLabel(ruf)}</h3>
+          <h3>Ruf {ruf} · {getRufLabel(ruf)}</h3>
           <button type="button" className="btn" onClick={onClose} aria-label="Schließen">✕</button>
         </div>
 
