@@ -464,6 +464,13 @@
   margin-right: 4px;
   vertical-align: -3px;
 }
+/* Leaflet hebt in Markern max-width/max-height für Bilder auf – sonst erscheint die Grafik in voller Größe */
+.kennzeichen-inline > img,
+.kennzeichen-inline > svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
 
 /* Einblendungen bei neuen Einsätzen und Lagemeldungen */
 .einsatz-hinweise {
