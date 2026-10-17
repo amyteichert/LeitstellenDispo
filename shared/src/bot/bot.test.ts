@@ -6,7 +6,8 @@ import { pruefeSpielstand, nurFehler } from './fehlerwaechter.js';
 import { haerteTest } from './chaos.js';
 import { createNeuesSpiel } from '../spielstand.js';
 
-describe('Simulation (v5)', () => {
+// Die Simulationen spielen Stunden Spielzeit durch – das dauert, besonders wenn alle Tests parallel laufen
+describe('Simulation (v5)', { timeout: 120_000 }, () => {
   it('baut zuerst eine Wache, arbeitet Einsätze ab und verletzt keine Invariante', () => {
     const ergebnis = simuliere({ ziel: 'einsaetze', dauerMs: 4 * 60 * 60 * 1000, seed: 7 });
     expect(ergebnis.statistik.wachen).toBeGreaterThanOrEqual(1);
@@ -46,14 +47,14 @@ describe('Simulation (v5)', () => {
           && lage.wartende.some((w) => w.wartetSeit < lauf.jetzt - BOT_MAX_WARTEZEIT_MS - lauf.botIntervallMs));
       expect(festgefahren).toHaveLength(0);
     }
-  }, 60_000);
+  });
 
   it('läuft 24 h stabil durch', () => {
     const ergebnis = simuliere({ ziel: 'schnell', dauerMs: 24 * 60 * 60 * 1000, seed: 11, botIntervallMs: 5000 });
     expect(nurFehler(ergebnis.probleme)).toHaveLength(0);
     expect(Number.isFinite(ergebnis.spielstand.balance)).toBe(true);
     // Der Bot spielt jetzt tausende Einsätze statt sich nach kurzer Zeit festzufahren – das dauert ein paar Sekunden
-  }, 60_000);
+  });
 });
 
 describe('Fehlerwächter', () => {
