@@ -8,7 +8,7 @@
  * Bewusst NICHT nachgebildet (Sandbox-Vereinfachung): Zufriedenheit, Bewerber-Wechsel,
  * Kündigungen, Ausbildung und Funk. Fahrzeuge werden beim Kauf voll (qualifiziert) besetzt.
  */
-import { alarmiereFahrzeuge, erstelleAlarmVorschlag } from '../alarmierung.js';
+import { alarmiereFahrzeuge, erstelleAlarmVorschlag, getWarteLage, rueckalarmiereAlle } from '../alarmierung.js';
 import { formatEinsatzTitel, getWachenPreis, type SpielEinsatz } from '../daten.js';
 import { FAHRZEUG_TYPEN, fahrzeugErfuelltBedarf, type BedarfsKlasse, type FahrzeugTyp } from '../fahrzeuge.js';
 import { erzeugeBesatzungFuer, synchronisiereBesatzung } from '../personal.js';
@@ -53,6 +53,9 @@ const ZIEL_REGELN: Record<Exclude<BotZiel, 'chaos'>, ZielRegel> = {
 };
 
 const istOffen = (incident: SpielEinsatz) => incident.status === 'offen' || incident.status === 'alarmiert';
+
+/** So lange darf ein Fahrzeug vor Ort auf fehlende Kräfte warten, bevor der Bot es zurückholt. */
+export const BOT_MAX_WARTEZEIT_MS = 5 * 60 * 1000;
 
 /**
  * Sinnvolles Startfahrzeug einer Wachenart: für die Rettungswache ein RTW (kann als Einziger
@@ -184,10 +187,27 @@ export function botSchritt(spielstand: Spielstand, ziel: BotZiel, jetzt: number 
     return { spielstand: aktuell, aktionen }; // nächste Runde: alarmieren
   }
 
-  // 2. Alarmieren
+  // 2a. Festgefahrene Einsätze lösen: Fahrzeuge warten vor Ort auf Kräfte, die nicht frei sind.
+  //     Ohne das blockieren sich z. B. zwei „2× RTW“-Einsätze mit je einem RTW gegenseitig für immer
+  //     – es kommt kein Geld mehr rein, nur die laufenden Kosten laufen weiter (→ Minus).
+  //     Pro Runde nur ein Einsatz (der zuletzt angefahrene), damit die frei gewordenen Fahrzeuge
+  //     einen anderen Einsatz vervollständigen können.
+  const festgefahren = aktuell.incidents
+    .map((incident) => ({ incident, lage: getWarteLage(incident, { incidents: aktuell.incidents, vehicles: aktuell.vehicles, locations: aktuell.locations }, jetzt) }))
+    .filter(({ lage }) => lage && lage.fehlt.length > 0 && !lage.freiesFahrzeugFuerFehlendes
+      && Math.min(...lage.wartende.map((w) => w.wartetSeit)) <= jetzt - BOT_MAX_WARTEZEIT_MS)
+    .sort((a, b) => Math.max(...b.lage!.wartende.map((w) => w.wartetSeit)) - Math.max(...a.lage!.wartende.map((w) => w.wartetSeit)))[0];
+  if (festgefahren) {
+    const ergebnis = rueckalarmiereAlle({ incidents: aktuell.incidents, vehicles: aktuell.vehicles, locations: aktuell.locations }, festgefahren.incident.id, jetzt);
+    aktuell = { ...aktuell, incidents: ergebnis.incidents, vehicles: ergebnis.vehicles };
+    aktionen.push({ jetzt, art: 'info', text: `Rückalarmiert von „${formatEinsatzTitel(festgefahren.incident)}“ – fehlende Kräfte nicht verfügbar` });
+  }
+
+  // 2b. Alarmieren – nur, wenn der komplette Bedarf gedeckt werden kann. Halbe Alarmierungen
+  //     binden Fahrzeuge, die dann vor Ort auf Kräfte warten, die es gerade nicht gibt.
   for (const incident of aktuell.incidents.filter(istOffen)) {
     const vorschlag = erstelleAlarmVorschlag(incident, { incidents: aktuell.incidents, vehicles: aktuell.vehicles, locations: aktuell.locations });
-    if (vorschlag.fahrzeugIds.length > 0) {
+    if (vorschlag.fahrzeugIds.length > 0 && vorschlag.nichtVerfuegbar.length === 0) {
       const ergebnis = alarmiereFahrzeuge({ incidents: aktuell.incidents, vehicles: aktuell.vehicles, locations: aktuell.locations }, incident.id, vorschlag.fahrzeugIds, jetzt);
       aktuell = { ...aktuell, incidents: ergebnis.incidents, vehicles: ergebnis.vehicles };
       aktionen.push({ jetzt, art: 'alarm', text: `${vorschlag.fahrzeugIds.length}× alarmiert zu „${formatEinsatzTitel(incident)}“ (${incident.address})` });
