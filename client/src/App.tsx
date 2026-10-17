@@ -65,11 +65,11 @@ const createMarkerIcon = (color: string) =>
   });
 
 const INCIDENT_MARKER_COLORS: Record<SpielEinsatz['status'], string> = {
-  offen: '#f59e0b',
-  alarmiert: '#3b82f6',
-  in_bearbeitung: '#c41e3a',
-  transport: '#8b5cf6',
-  abgeschlossen: '#6b7280',
+  offen: 'var(--status-offen)',
+  alarmiert: 'var(--status-alarmiert)',
+  in_bearbeitung: 'var(--status-bearbeitung)',
+  transport: 'var(--status-transport)',
+  abgeschlossen: 'var(--status-abgeschlossen)',
 };
 
 /**

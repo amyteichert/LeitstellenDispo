@@ -120,7 +120,7 @@ export function KarteEinsatzPanel({
         <button type="button" className="map-incident-panel__close" onClick={onClose} aria-label="Schließen">✕</button>
       </div>
 
-      <p><strong>📍 {incident.address}</strong></p>
+      <p><strong>{incident.address}</strong></p>
 
       {letzteMeldung && (letzterSprechwunsch ? (
         <div className="einsatz-meldungen">
@@ -141,7 +141,7 @@ export function KarteEinsatzPanel({
           const zustand = eintrag.vorOrt >= eintrag.amount ? 'erfuellt' : eintrag.alarmiert >= eintrag.amount ? 'unterwegs' : 'fehlt';
           return (
             <li key={`${eintrag.category}-${index}`} className={`bedarf-chip bedarf-chip--${zustand}`} title={`${eintrag.alarmiert} alarmiert, ${eintrag.vorOrt} vor Ort`}>
-              {zustand === 'erfuellt' ? '✓' : zustand === 'unterwegs' ? '🚨' : '✗'} {eintrag.amount}× {getBedarfsLabel(eintrag.category)}
+              {zustand === 'erfuellt' ? '✓' : zustand === 'unterwegs' ? '→' : '✗'} {eintrag.amount}× {getBedarfsLabel(eintrag.category)}
               {zustand !== 'erfuellt' && eintrag.alarmiert > 0 && <small> · {eintrag.vorOrt}/{eintrag.amount} vor Ort</small>}
             </li>
           );
@@ -151,7 +151,7 @@ export function KarteEinsatzPanel({
       {/* Vorschlag ist nur ein Hinweis – die Fahrzeuge wählt der Disponent selbst aus */}
       {kannAlarmieren && vorschlag.fahrzeugIds.length > 0 && (
         <div className="versorgung-hinweis versorgung-hinweis--unterwegs">
-          💡 <strong>Vorschlag:</strong> {vorschlagNamen.join(', ')}
+          <strong>Vorschlag:</strong> {vorschlagNamen.join(', ')}
         </div>
       )}
       {kannAlarmieren && passende.length > 0 && (
@@ -164,7 +164,7 @@ export function KarteEinsatzPanel({
                   <span>
                     <strong className="mit-kennzeichen"><Kennzeichen art="fahrzeug" typ={vehicle.type} groesse={20} />{vehicle.callsign ?? vehicle.name}</strong> · {vehicle.type}
                     <small>
-                      <span title="Realistische Anfahrtszeit (Ausrückzeit + Straßenweg). Auf der Karte vorerst auf direktem Weg – echte Routenführung ist für später angedacht.">⏱ {formatAnfahrt(anfahrtSekunden)}</span> · 🏠 {locations.find((l) => l.id === vehicle.stationId)?.name ?? '–'} · {distanzKm.toFixed(1)} km
+                      <span title="Realistische Anfahrtszeit (Ausrückzeit + Straßenweg). Auf der Karte vorerst auf direktem Weg – echte Routenführung ist für später angedacht.">Anfahrt {formatAnfahrt(anfahrtSekunden)}</span> · {locations.find((l) => l.id === vehicle.stationId)?.name ?? '–'} · {distanzKm.toFixed(1)} km
                       {!passend && ' · zählt nicht zum Bedarf'}
                     </small>
                   </span>
@@ -186,7 +186,7 @@ export function KarteEinsatzPanel({
               setRueckmeldung(`✓ ${namen.join(', ')} alarmiert.`);
             }}
           >
-            🚨 {incident.status === 'alarmiert' ? 'Nachalarmieren' : 'Alarmieren'}{auswahl.length > 0 ? ` (${auswahl.length})` : ''}
+            {incident.status === 'alarmiert' ? 'Nachalarmieren' : 'Alarmieren'}{auswahl.length > 0 ? ` (${auswahl.length})` : ''}
           </button>
         </>
       )}

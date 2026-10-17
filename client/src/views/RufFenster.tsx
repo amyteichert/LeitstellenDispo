@@ -87,7 +87,7 @@ export default function RufFenster({
                         {b.punkte} Pkt · Ruf {b.rufAenderung > 0 ? '+' : ''}{b.rufAenderung}
                       </span>
                     </span>
-                    <small>📍 {einsatz.address} · {new Date(einsatz.completedAt).toLocaleString('de-DE', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</small>
+                    <small>{einsatz.address} · {new Date(einsatz.completedAt).toLocaleString('de-DE', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</small>
                     <ul>
                       {hinweise.map((hinweis) => (
                         <li key={hinweis.text} className={`ruf-hinweis ruf-hinweis--${hinweis.art}`}>

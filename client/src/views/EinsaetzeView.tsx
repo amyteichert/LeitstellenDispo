@@ -40,10 +40,10 @@ const formatUhrzeit = (zeit: number) => new Date(zeit).toLocaleTimeString('de-DE
 
 const MELDUNG_SYMBOL: Record<NonNullable<EinsatzMeldung['art']>, string> = {
   eskalation: '⚠',
-  nachforderung: '📣',
+  nachforderung: '+',
   entwarnung: '↩',
-  lage: '📍',
-  patient: '🩺',
+  lage: '›',
+  patient: '·',
   abschluss: '✓',
 };
 
@@ -199,9 +199,9 @@ export default function EinsaetzeView({
               <div className="einsatz-details__kopf">
                 <div>
                   <h3 className="mit-kennzeichen"><Kennzeichen art="einsatz" einsatz={selectedIncident} groesse={30} />{formatEinsatzTitel(selectedIncident)}</h3>
-                  <div className="einsatz-eintrag__zeile" style={{ fontSize: '0.95rem', marginTop: 2 }}>📍 {selectedIncident.address}</div>
+                  <div className="einsatz-eintrag__zeile" style={{ fontSize: '0.95rem', marginTop: 2 }}>{selectedIncident.address}</div>
                   <div className="einsatz-eintrag__zeile">
-                    {selectedIncident.organization} · {selectedIncident.reward} € · eingegangen {formatUhrzeit(selectedIncident.createdAt)} · 🏠 {selectedIncident.generatedByStationName}
+                    {selectedIncident.organization} · {selectedIncident.reward} € · eingegangen {formatUhrzeit(selectedIncident.createdAt)} · {selectedIncident.generatedByStationName}
                   </div>
                 </div>
                 <span className={`status-badge status-badge--${selectedIncident.status}`}>{EINSATZ_STATUS_LABELS[selectedIncident.status]}</span>
@@ -266,7 +266,7 @@ export default function EinsaetzeView({
                       : eintrag.alarmiert >= eintrag.amount ? 'bedarf-chip--unterwegs' : 'bedarf-chip--fehlt';
                     return (
                       <li key={`${eintrag.category}-${index}`} className={`bedarf-chip ${klasse}`}>
-                        {klasse === 'bedarf-chip--erfuellt' ? '✓' : klasse === 'bedarf-chip--unterwegs' ? '🚨' : '✗'} {eintrag.amount}× {getBedarfsLabel(eintrag.category)}
+                        {klasse === 'bedarf-chip--erfuellt' ? '✓' : klasse === 'bedarf-chip--unterwegs' ? '→' : '✗'} {eintrag.amount}× {getBedarfsLabel(eintrag.category)}
                         {!fertig && eintrag.alarmiert > 0 && klasse !== 'bedarf-chip--erfuellt' && <small> · {eintrag.vorOrt}/{eintrag.amount} vor Ort</small>}
                       </li>
                     );
@@ -312,7 +312,7 @@ export default function EinsaetzeView({
                             <span>
                               <strong className="mit-kennzeichen"><Kennzeichen art="fahrzeug" typ={vehicle.type} groesse={22} />{vehicle.callsign ?? vehicle.name}</strong> · {vehicle.type}
                               <small>
-                                <span title="Realistische Anfahrtszeit (Ausrückzeit + Straßenweg). Auf der Karte vorerst auf direktem Weg – echte Routenführung ist für später angedacht.">⏱ ca. {formatEtaLabel(anfahrtSekunden)}</span> · 🏠 {station?.name ?? '–'} · {distanzKm.toFixed(1)} km
+                                <span title="Realistische Anfahrtszeit (Ausrückzeit + Straßenweg). Auf der Karte vorerst auf direktem Weg – echte Routenführung ist für später angedacht.">Anfahrt ca. {formatEtaLabel(anfahrtSekunden)}</span> · {station?.name ?? '–'} · {distanzKm.toFixed(1)} km
                                 {!passend && ' · zählt nicht zum Bedarf'}
                               </small>
                             </span>
@@ -337,7 +337,7 @@ export default function EinsaetzeView({
                   {/* Nur ein Hinweis – auswählen muss der Disponent selbst */}
                   {alarmVorschlag.fahrzeugIds.length > 0 && (
                     <div className="versorgung-hinweis versorgung-hinweis--unterwegs">
-                      💡 <strong>Vorschlag:</strong>{' '}
+                      <strong>Vorschlag:</strong>{' '}
                       {alarmVorschlag.fahrzeugIds
                         .map((id) => vehicles.find((vehicle) => vehicle.id === id))
                         .map((vehicle) => vehicle?.callsign ?? vehicle?.name ?? 'Fahrzeug')
@@ -504,15 +504,15 @@ export default function EinsaetzeView({
                           <strong className="mit-kennzeichen"><Kennzeichen art="einsatz" einsatz={incident} groesse={24} />{formatEinsatzTitel(incident)}</strong>
                           <span className={`status-badge status-badge--${incident.status}`}>{EINSATZ_STATUS_LABELS[incident.status]}</span>
                         </span>
-                        {incident.neueMeldung && <span className="neue-meldung-badge" style={{ marginLeft: 0, width: 'fit-content' }}>⚠ Neue Meldung</span>}
-                        <span className="einsatz-eintrag__zeile">📍 {incident.address}</span>
+                        {incident.neueMeldung && <span className="neue-meldung-badge" style={{ marginLeft: 0, width: 'fit-content' }}>Neue Meldung</span>}
+                        <span className="einsatz-eintrag__zeile">{incident.address}</span>
                         <span className="einsatz-eintrag__zeile einsatz-eintrag__bedarf">
                           <span>{incident.reward} €</span>
                           {abdeckung.map((eintrag, index) => {
                             const zustand = eintrag.vorOrt >= eintrag.amount ? 'erfuellt' : eintrag.alarmiert >= eintrag.amount ? 'unterwegs' : 'fehlt';
                             return (
                               <span key={`${eintrag.category}-${index}`} className={`bedarf-chip bedarf-chip--klein bedarf-chip--${zustand}`}>
-                                {zustand === 'erfuellt' ? '✓' : zustand === 'unterwegs' ? '🚨' : '✗'} {eintrag.amount}× {getBedarfsLabel(eintrag.category)}
+                                {zustand === 'erfuellt' ? '✓' : zustand === 'unterwegs' ? '→' : '✗'} {eintrag.amount}× {getBedarfsLabel(eintrag.category)}
                               </span>
                             );
                           })}
@@ -545,7 +545,7 @@ export default function EinsaetzeView({
                         <strong className="mit-kennzeichen"><Kennzeichen art="einsatz" einsatz={incident} groesse={24} />{formatEinsatzTitel(incident)}</strong>
                         <span className="status-badge status-badge--abgeschlossen">Abgeschlossen</span>
                       </span>
-                      <span className="einsatz-eintrag__zeile">📍 {incident.address}</span>
+                      <span className="einsatz-eintrag__zeile">{incident.address}</span>
                       <span className="einsatz-eintrag__zeile">{incident.organization} · {incident.reward} €{incident.bewertung?.bonus ? ` + ${incident.bewertung.bonus} € Bonus` : ''} · {formatDateTime(incident.completedAt)}</span>
                     </button>
                     {istAufgeklappt(incident.id) && <div className="einsatz-aufgeklappt">{details}</div>}

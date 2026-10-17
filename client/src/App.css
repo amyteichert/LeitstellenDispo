@@ -1127,11 +1127,11 @@
 
 .einsatz-eintrag:hover { background: var(--color-surface-raised); }
 .einsatz-eintrag--aktiv { background: var(--color-surface-raised); border-color: var(--color-primary); border-left-color: var(--status-farbe, var(--color-primary)); }
-.einsatz-eintrag--offen { --status-farbe: #f59e0b; }
-.einsatz-eintrag--alarmiert { --status-farbe: #3b82f6; }
-.einsatz-eintrag--in_bearbeitung { --status-farbe: #c41e3a; }
-.einsatz-eintrag--transport { --status-farbe: #8b5cf6; }
-.einsatz-eintrag--abgeschlossen { --status-farbe: #6b7280; }
+.einsatz-eintrag--offen { --status-farbe: var(--status-offen); }
+.einsatz-eintrag--alarmiert { --status-farbe: var(--status-alarmiert); }
+.einsatz-eintrag--in_bearbeitung { --status-farbe: var(--status-bearbeitung); }
+.einsatz-eintrag--transport { --status-farbe: var(--status-transport); }
+.einsatz-eintrag--abgeschlossen { --status-farbe: var(--status-abgeschlossen); }
 
 .einsatz-eintrag__kopf {
   display: flex;
@@ -2809,4 +2809,171 @@ a.anmeldung__link { text-align: center; }
   font-size: 0.85rem;
   color: var(--color-text-muted);
   text-align: center;
+}
+
+
+/* ==========================================================================
+   Leitstellen-Look: nüchtern, dicht, wenig Farbe – angelehnt an einen
+   Einsatzleitrechner. Farbe nur für den Status, keine Leucht- und Blinkeffekte.
+   ========================================================================== */
+
+/* Kopfzeile und Chips: flacher und kleiner */
+.topbar { min-height: 52px; padding: 6px 16px; }
+.chip { min-height: 30px; padding: 0 8px; border-radius: var(--radius); font-size: 0.8rem; }
+.btn { border-radius: var(--radius); }
+.view-menu-item { border-radius: var(--radius); }
+
+/* Status: kleiner farbiger Punkt + Text, keine farbigen Flächen */
+.status-badge {
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: none !important;
+  color: var(--color-text-muted) !important;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.status-badge::before { width: 8px; height: 8px; border-radius: 2px; }
+.status-badge--offen::before { background: var(--status-offen); }
+.status-badge--alarmiert::before { background: var(--status-alarmiert); }
+.status-badge--in_bearbeitung::before { background: var(--status-bearbeitung); }
+.status-badge--transport::before { background: var(--status-transport); }
+.status-badge--abgeschlossen::before { background: var(--status-abgeschlossen); }
+
+/* Einsatzliste: Zeilen statt Karten */
+.einsatz-liste { gap: 4px; }
+.einsatz-eintrag {
+  min-height: 0;
+  gap: 2px;
+  padding: 7px 10px;
+  border-radius: var(--radius);
+  border-left-width: 3px;
+}
+.einsatz-eintrag__zeile { font-size: 0.8rem; }
+
+/* Symbole in Listen und Details neutral – Farbe zeigt nur die Statusleiste */
+.einsatz-eintrag .kennzeichen,
+.einsatz-details .kennzeichen,
+.einsatz-aufgeklappt .kennzeichen {
+  background: var(--color-surface-raised) !important;
+  border: 1px solid var(--color-border-strong);
+}
+
+/* Fahrzeugbedarf: sachliche Kästchen, fehlende Kräfte nur als Textfarbe */
+.bedarf-chip,
+.bedarf-chip--klein {
+  padding: 1px 6px;
+  border-radius: 3px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  background: none !important;
+  border-color: var(--color-border-strong) !important;
+  color: var(--color-text) !important;
+}
+.bedarf-chip--fehlt { color: #e08b86 !important; border-color: rgba(194, 69, 63, 0.55) !important; }
+.bedarf-chip--erfuellt { color: var(--color-text-muted) !important; }
+.bedarf-chip--unterwegs { color: #9db8e8 !important; }
+
+/* Versorgungslage: Hinweiszeile mit Randmarkierung statt farbiger Fläche */
+.versorgung-hinweis {
+  padding: 6px 10px;
+  border: 0;
+  border-left: 3px solid;
+  border-radius: 0;
+  background: var(--color-surface-raised) !important;
+  color: var(--color-text) !important;
+  font-size: 0.85rem;
+}
+.versorgung-hinweis--fehlt { border-left-color: var(--status-bearbeitung) !important; }
+.versorgung-hinweis--unterwegs { border-left-color: var(--status-alarmiert) !important; }
+.versorgung-hinweis--ok { border-left-color: var(--color-success) !important; }
+
+.patienten-liste li,
+.einsatz-meldungen { border-radius: var(--radius); }
+
+/* Einblendungen: schmal und kompakt */
+.einsatz-hinweise { top: 64px; width: min(300px, calc(100vw - 32px)); gap: 6px; }
+.einsatz-hinweis {
+  border-radius: var(--radius);
+  border-left-width: 3px;
+  border-left-color: var(--status-offen);
+  box-shadow: var(--shadow-md);
+  font-size: 0.82rem;
+}
+.einsatz-hinweis--meldung { border-left-color: var(--status-alarmiert); }
+
+/* Einsatzleiste auf der Karte: flache Kästchen statt Pillen */
+.map-incident-chip {
+  min-height: 28px;
+  padding: 0 8px;
+  border-radius: var(--radius);
+  background: var(--color-surface);
+  font-size: 0.78rem;
+  box-shadow: var(--shadow-sm);
+}
+
+/* Karte: keine pulsierenden Marker, Eskalation als schlichter Ring */
+.incident-marker--offen .kennzeichen { animation: none; }
+.incident-marker--fw .kennzeichen { border-radius: 3px; }
+.incident-marker--eskaliert .kennzeichen { outline: 2px solid var(--status-bearbeitung); }
+.incident-marker--eskaliert::after { background: var(--status-bearbeitung); box-shadow: none; }
+
+/* Fahrzeugschilder auf der Karte: kleiner, ohne Leuchtrand */
+.vehicle-marker span {
+  padding: 1px 5px;
+  border-radius: 3px;
+  border-color: rgba(255, 255, 255, 0.35);
+  background: var(--status-alarmiert);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+}
+.vehicle-marker--rueckfahrt span { background: var(--status-abgeschlossen); }
+.vehicle-marker--transport span,
+.vehicle-marker--krankenhaus span { background: var(--status-transport); }
+.vehicle-marker--fw span { border-color: rgba(255, 255, 255, 0.35); }
+
+/* Kein Blinken */
+.funk-chip,
+.neue-meldung-badge { animation: none; }
+
+/* Karten, Kacheln, Listen: kleinere Rundungen */
+.ausbau-karte,
+.wachen-karte,
+.finanz-kachel,
+.verwalten-kachel,
+.besatzung-karte,
+.quali-chip,
+.erste-schritte,
+.tab-leiste__tab { border-radius: var(--radius); }
+
+/* „Neue Meldung“: schlichtes Etikett statt blinkender Pille */
+.neue-meldung-badge {
+  margin-left: 6px;
+  padding: 0 5px;
+  border-radius: 3px;
+  background: none;
+  border: 1px solid var(--status-alarmiert);
+  color: #9db8e8;
+  font-size: 0.68rem;
+  font-weight: 600;
+}
+
+/* Runde Pillen und Kanten der Kartenfläche angleichen */
+.map-incident-bar__count,
+.sidebar-toggle { border-radius: var(--radius); }
+.map-panel,
+.map-panel .leaflet-container { border-radius: var(--radius); }
+
+/* Handy: Logo nicht von den Chips überdecken lassen – Chips rücken zusammen und scrollen notfalls */
+@media (max-width: 600px) {
+  .topbar { gap: 8px; padding: 6px 10px; }
+  .topbar .brand { flex: 0 0 auto; }
+  .topbar__meta {
+    min-width: 0;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .topbar__meta::-webkit-scrollbar { display: none; }
+  .topbar .chip { min-height: 30px; padding: 0 6px; }
 }
