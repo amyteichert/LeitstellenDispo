@@ -11,9 +11,9 @@ const BETREIBER = {
   // TODO: Straße und Hausnummer eintragen (leer = wird nicht angezeigt)
   strasse: '',
   ort: '14770 Brandenburg an der Havel',
-  email: 'kontakt@leitstellendispo.de',
-  // Auf true setzen, sobald das Postfach eingerichtet ist – dann wird die Adresse wieder normal angezeigt
-  emailErreichbar: false,
+  // Vorübergehend die private Adresse, bis die Projekt-Postfächer @leitstellendispo.de eingerichtet sind
+  email: 'amy.t.06@icloud.com',
+  emailVoruebergehend: true,
 };
 
 /** Hosting / Auftragsverarbeitung (Server von UPVYRA, Standort Deutschland, Auslieferung über Cloudflare) */
@@ -40,13 +40,14 @@ function Seite({ titel, children }: { titel: string; children: ReactNode }) {
   );
 }
 
-/** E-Mail der Betreiberin – ausgegraut mit Hinweis, solange das Postfach noch nicht erreichbar ist */
+/** E-Mail der Betreiberin – mit Hinweis, solange es die private Übergangsadresse ist */
 function BetreiberEmail() {
-  if (BETREIBER.emailErreichbar) return <>E-Mail: {BETREIBER.email}</>;
   return (
     <>
-      E-Mail: <span className="rechtliches__email-offline">{BETREIBER.email}</span>
-      <span className="rechtliches__email-hinweis">Die E-Mail-Adresse ist aktuell noch nicht erreichbar.</span>
+      E-Mail: <a href={`mailto:${BETREIBER.email}`}>{BETREIBER.email}</a>
+      {BETREIBER.emailVoruebergehend && (
+        <span className="rechtliches__email-hinweis">Vorübergehend private Adresse – eigene Projekt-Adressen folgen.</span>
+      )}
     </>
   );
 }
