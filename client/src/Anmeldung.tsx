@@ -410,10 +410,14 @@ function LadeBalken({ geschafft, registrierung }: { geschafft: boolean; registri
 
   return (
     <div className={`anmeldung__ladebalken${geschafft ? ' fertig' : ''}`} role="status" aria-live="polite">
+      <div className="anmeldung__ladebalken-kopf">
+        {/* key: Text blendet bei jedem Wechsel neu ein */}
+        <span key={text} className="anmeldung__ladebalken-text">{text}</span>
+        <span className="anmeldung__ladebalken-prozent">{Math.round(prozent)} %</span>
+      </div>
       <div className="anmeldung__ladebalken-spur">
         <div className="anmeldung__ladebalken-fuellung" style={{ width: `${prozent}%` }} />
       </div>
-      <span>{text}</span>
     </div>
   );
 }

@@ -1863,43 +1863,88 @@
 .anmeldung__ladebalken {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: 0.55rem;
   min-height: 46px;
   justify-content: center;
   font-weight: 600;
-  text-align: center;
+}
+
+.anmeldung__ladebalken-kopf {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 1rem;
+}
+
+.anmeldung__ladebalken-text {
+  animation: ladebalken-text-ein 0.35s ease-out;
+}
+
+.anmeldung__ladebalken-prozent {
+  font-variant-numeric: tabular-nums;
+  color: var(--color-primary-text);
 }
 
 .anmeldung__ladebalken-spur {
   position: relative;
-  height: 8px;
+  height: 12px;
   border-radius: 999px;
-  background: var(--color-primary-light);
+  background: var(--color-input);
+  border: 1px solid var(--color-border-strong);
   overflow: hidden;
 }
 
 .anmeldung__ladebalken-fuellung {
+  position: relative;
   height: 100%;
   border-radius: inherit;
-  background: var(--color-primary);
+  background-color: var(--color-primary);
+  /* Schräge Streifen, die nach rechts wandern */
+  background-image: repeating-linear-gradient(-45deg, rgba(255, 255, 255, 0.18) 0 8px, transparent 8px 16px);
+  background-size: 22.6px 100%;
   box-shadow: var(--glow-primary);
-  transition: width 0.25s ease-out;
-  background-image: linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.35) 50%, transparent 100%);
-  background-size: 60px 100%;
-  background-repeat: no-repeat;
-  animation: ladebalken-glanz 1.1s linear infinite;
+  transition: width 0.25s ease-out, background-color 0.3s;
+  animation: ladebalken-streifen 0.6s linear infinite;
+}
+
+/* Leuchtende Spitze vorne am Balken */
+.anmeldung__ladebalken-fuellung::after {
+  content: '';
+  position: absolute;
+  right: 0;
+  top: 50%;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  transform: translate(40%, -50%);
+  background: #fff;
+  box-shadow: 0 0 10px 4px var(--color-primary), 0 0 20px 6px rgba(10, 124, 255, 0.5);
+  animation: ladebalken-puls 0.9s ease-in-out infinite alternate;
 }
 
 .anmeldung__ladebalken.fertig .anmeldung__ladebalken-fuellung {
-  background-color: var(--color-success, #2e9e5b);
+  background-color: var(--color-success);
+  box-shadow: 0 0 14px rgba(46, 160, 67, 0.6);
   transition-duration: 0.4s;
 }
 
-.anmeldung__ladebalken.fertig span { color: var(--color-success, #2e9e5b); }
+.anmeldung__ladebalken.fertig .anmeldung__ladebalken-fuellung::after { display: none; }
+.anmeldung__ladebalken.fertig .anmeldung__ladebalken-text,
+.anmeldung__ladebalken.fertig .anmeldung__ladebalken-prozent { color: var(--color-success); }
 
-@keyframes ladebalken-glanz {
-  from { background-position: -60px 0; }
-  to { background-position: calc(100% + 60px) 0; }
+@keyframes ladebalken-streifen {
+  from { background-position: 0 0; }
+  to { background-position: 22.6px 0; }
+}
+
+@keyframes ladebalken-puls {
+  from { opacity: 0.6; }
+  to { opacity: 1; }
+}
+
+@keyframes ladebalken-text-ein {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: none; }
 }
 
 .anmeldung__verbinde {
@@ -1946,7 +1991,9 @@
 
 @media (prefers-reduced-motion: reduce) {
   .anmeldung__spinner { animation: none; }
-  .anmeldung__ladebalken-fuellung { animation: none; }
+  .anmeldung__ladebalken-fuellung,
+  .anmeldung__ladebalken-fuellung::after,
+  .anmeldung__ladebalken-text { animation: none; }
 }
 
 .lade-fehler {
