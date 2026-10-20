@@ -1,12 +1,12 @@
 :root {
-  /* LeitstellenDispo Design – ruhig und sachlich: neutrale Flächen, ein Neonblau als Akzent, Rot nur für Einsätze/Warnungen */
+  /* LeitstellenDispo Design – ruhig und sachlich: neutrale Flächen, ein Neon-Dunkelblau als Akzent, Rot nur für Einsätze/Warnungen */
   color-scheme: dark;
-  --color-primary: #00c8ff;
-  --color-primary-dark: #00a6d6;
-  --color-primary-light: rgba(0, 200, 255, 0.14);
-  --color-primary-text: #6fe3ff; /* Akzent für Text auf dunklem Grund */
-  --color-on-primary: #04121a; /* Text auf Neonblau – Weiß wäre zu kontrastarm */
-  --glow-primary: 0 0 12px rgba(0, 200, 255, 0.45);
+  --color-primary: #0a7cff;
+  --color-primary-dark: #0066e0;
+  --color-primary-light: rgba(10, 124, 255, 0.16);
+  --color-primary-text: #5aa9ff; /* Akzent für Text auf dunklem Grund */
+  --color-on-primary: #fff;
+  --glow-primary: 0 0 12px rgba(10, 124, 255, 0.55);
   --color-bg: #0d1117;
   --color-surface: #151b23;
   --color-surface-raised: #1c232d;
