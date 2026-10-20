@@ -199,6 +199,7 @@ function AnmeldeFormular({ hinweis, onErfolg, onGast }: { hinweis?: string; onEr
   const [passwortWiederholt, setPasswortWiederholt] = useState('');
   const [fehler, setFehler] = useState<string | null>(null);
   const [sendet, setSendet] = useState(false);
+  const [geschafft, setGeschafft] = useState(false);
   const [passwortSichtbar, setPasswortSichtbar] = useState(false);
   const id = useId();
   const istRegistrierung = modus === 'registrieren';
@@ -224,10 +225,13 @@ function AnmeldeFormular({ hinweis, onErfolg, onGast }: { hinweis?: string; onEr
     try {
       const konto = istRegistrierung ? await registrieren(name.trim(), email.trim(), passwort) : await anmelden(name.trim(), passwort);
       merkeBesuchsZiel(istRegistrierung ? 'registriert' : 'angemeldet');
-      await onErfolg(konto);
+      // Kurz „Du bist gleich drin“ zeigen, während der Spielstand geladen wird
+      setGeschafft(true);
+      await Promise.all([onErfolg(konto), new Promise((fertig) => setTimeout(fertig, 900))]);
     } catch (error) {
       setFehler(error instanceof KontoFehler ? error.message : 'Unerwarteter Fehler. Bitte erneut versuchen.');
       setSendet(false);
+      setGeschafft(false);
     }
   };
 
@@ -357,9 +361,13 @@ function AnmeldeFormular({ hinweis, onErfolg, onGast }: { hinweis?: string; onEr
 
       {fehler && <p className="anmeldung__fehler" role="alert">{fehler}</p>}
 
-      <button type="submit" className="btn btn--primary anmeldung__absenden" disabled={sendet}>
-        {sendet ? <><span className="anmeldung__spinner" aria-hidden /> Bitte warten …</> : istRegistrierung ? 'Konto erstellen' : 'Anmelden'}
-      </button>
+      {sendet ? (
+        <LadeBalken geschafft={geschafft} registrierung={istRegistrierung} />
+      ) : (
+        <button type="submit" className="btn btn--primary anmeldung__absenden">
+          {istRegistrierung ? 'Konto erstellen' : 'Anmelden'}
+        </button>
+      )}
       {!istRegistrierung && (
         <button type="button" className="anmeldung__link" onClick={() => setModus('vergessen')} disabled={sendet}>
           Passwort vergessen?
@@ -375,6 +383,38 @@ function AnmeldeFormular({ hinweis, onErfolg, onGast }: { hinweis?: string; onEr
         </div>
       )}
     </form>
+  );
+}
+
+/**
+ * Ladebalken beim Anmelden: läuft von links nach rechts und nähert sich 90 %, bis der Server antwortet –
+ * dann füllt er sich ganz. Der Text wechselt je nach Fortschritt.
+ */
+function LadeBalken({ geschafft, registrierung }: { geschafft: boolean; registrierung: boolean }) {
+  const [vergangen, setVergangen] = useState(0);
+
+  useEffect(() => {
+    const start = performance.now();
+    const takt = window.setInterval(() => setVergangen(performance.now() - start), 80);
+    return () => window.clearInterval(takt);
+  }, []);
+
+  const prozent = geschafft ? 100 : 90 * (1 - Math.exp(-vergangen / 1400));
+  const text = geschafft
+    ? 'Du bist gleich drin – mach dich bereit!'
+    : prozent < 35
+      ? 'Informationen werden geprüft …'
+      : prozent < 70
+        ? registrierung ? 'Konto wird angelegt …' : 'Passwort wird geprüft …'
+        : 'Gleich geschafft …';
+
+  return (
+    <div className={`anmeldung__ladebalken${geschafft ? ' fertig' : ''}`} role="status" aria-live="polite">
+      <div className="anmeldung__ladebalken-spur">
+        <div className="anmeldung__ladebalken-fuellung" style={{ width: `${prozent}%` }} />
+      </div>
+      <span>{text}</span>
+    </div>
   );
 }
 

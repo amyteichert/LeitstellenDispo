@@ -1859,6 +1859,47 @@
   font-size: 1rem;
 }
 
+.anmeldung__ladebalken {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  min-height: 46px;
+  justify-content: center;
+  font-weight: 600;
+  text-align: center;
+}
+
+.anmeldung__ladebalken-spur {
+  position: relative;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--color-primary-light);
+  overflow: hidden;
+}
+
+.anmeldung__ladebalken-fuellung {
+  height: 100%;
+  border-radius: inherit;
+  background: var(--color-primary);
+  transition: width 0.25s ease-out;
+  background-image: linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.35) 50%, transparent 100%);
+  background-size: 60px 100%;
+  background-repeat: no-repeat;
+  animation: ladebalken-glanz 1.1s linear infinite;
+}
+
+.anmeldung__ladebalken.fertig .anmeldung__ladebalken-fuellung {
+  background-color: var(--color-success, #2e9e5b);
+  transition-duration: 0.4s;
+}
+
+.anmeldung__ladebalken.fertig span { color: var(--color-success, #2e9e5b); }
+
+@keyframes ladebalken-glanz {
+  from { background-position: -60px 0; }
+  to { background-position: calc(100% + 60px) 0; }
+}
+
 .anmeldung__verbinde {
   display: flex;
   align-items: center;
@@ -1903,6 +1944,7 @@
 
 @media (prefers-reduced-motion: reduce) {
   .anmeldung__spinner { animation: none; }
+  .anmeldung__ladebalken-fuellung { animation: none; }
 }
 
 .lade-fehler {
