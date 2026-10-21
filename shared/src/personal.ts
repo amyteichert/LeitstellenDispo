@@ -84,9 +84,9 @@ export const ohneBewerber = (wache: MapLocation, bewerberId: string): MapLocatio
 /** Ausbau „Ruheräume“: mehr Personal-Plätze auf der Wache */
 export const RUHERAUM_CONFIG = {
   plaetzeJeStufe: { Rettungswache: 3, Feuerwache: 6 } as Record<WachenArt, number>,
-  maxStufe: 5,
+  maxStufe: 10,
   erstePreis: 15000,
-  preisFaktor: 1.6,
+  preisFaktor: 1.4,
 } as const;
 
 const wachenArt = (wache: Pick<MapLocation, 'stationKind'>): WachenArt => wache.stationKind ?? 'Rettungswache';
