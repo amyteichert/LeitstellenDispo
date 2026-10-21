@@ -110,7 +110,8 @@ export const getRandomCoordsAroundStation = (station: MapLocation, stationCount:
   const latShift = (distanceKm / 111.32) * Math.cos(angle);
   const lngShift = (distanceKm / (111.32 * Math.cos((station.coords[0] * Math.PI) / 180))) * Math.sin(angle);
 
-  return [clamp(station.coords[0] + latShift, 47.5, 55.2), clamp(station.coords[1] + lngShift, 7.5, 14.9)];
+  // Grenzen Deutschlands (früher 7,5° Ost: Wachen im Westen wie Wegberg bekamen Einsätze ~80 km weiter östlich)
+  return [clamp(station.coords[0] + latShift, 47.2, 55.1), clamp(station.coords[1] + lngShift, 5.8, 15.1)];
 };
 
 /** Einsatzort rund um eine Wache: Koordinaten und eine dazu passende Adresse im Ort der Wache. */

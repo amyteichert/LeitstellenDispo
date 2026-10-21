@@ -96,6 +96,7 @@ import { getEinstellungen } from './einstellungen';
 import { bestaetigeKorrekturen, holeSchichtzulage, ladeKorrekturen } from './konto';
 import type { FinanceTransaction, MapLocation, Vehicle } from './types';
 import { SPIELSTAND_VERSION, spielstandSpeicher, type Spielstand } from './spielstand';
+import { aufStrasseSetzen } from './strassenSnap';
 
 export interface NeueWache {
   name: string;
@@ -380,6 +381,17 @@ export function useSpiel(optionen: UseSpielOptionen = {}) {
   const eigenesKrankenhaus = hatEigenesKrankenhaus(krankenhaeuser);
   const erzeugungRef = useRef({ locations, vehicles, wetter: 'klar' as Wetter, krankenhaeuser });
   erzeugungRef.current = { locations, vehicles, wetter: optionen.wetter ?? 'klar', krankenhaeuser };
+  /** Einsatzort auf die nächste Straße verschieben (nicht im Wasser/Wald), solange noch niemand alarmiert ist. */
+  const strasseNachziehen = (einsatz: SpielEinsatz) => {
+    if (einsatz.verlegung) return;
+    void aufStrasseSetzen(einsatz.coords).then((coords) => {
+      if (coords === einsatz.coords) return;
+      setIncidents((current) => current.map((incident) => (incident.id === einsatz.id && incident.alarmedVehicles.length === 0
+        ? { ...incident, coords }
+        : incident)));
+    });
+  };
+
   useEffect(() => {
     if (!spielstandGeladen) return;
     let zuletzt = Date.now();
@@ -393,11 +405,16 @@ export function useSpiel(optionen: UseSpielOptionen = {}) {
       const kontext: AufkommenKontext = { ...deutscheZeit(jetzt), wachen, wetter };
       // Einsatztempo aus den Einstellungen: kürzerer Abstand = mehr Einsätze
       if (!entstehtEinsatz(Math.min(vergangen, 5000), einsatzIntervallMs(kontext) / getEinstellungen().einsatzTempo)) return;
+      let neuerEinsatz: SpielEinsatz | undefined;
       setIncidents((current) => {
         if (current.filter((incident) => incident.status !== 'abgeschlossen').length >= maxOffeneEinsaetze(wachen)) return current;
         const ergebnis = erzeugeZufallsEinsatz(orte, fahrzeuge, jetzt, kontext, kliniken);
-        return 'einsatz' in ergebnis ? [ergebnis.einsatz, ...current] : current;
+        if (!('einsatz' in ergebnis)) return current;
+        neuerEinsatz = ergebnis.einsatz;
+        return [ergebnis.einsatz, ...current];
       });
+      const erzeugt = neuerEinsatz as SpielEinsatz | undefined;
+      if (erzeugt) strasseNachziehen(erzeugt);
     }, 1000);
     return () => clearInterval(interval);
   }, [spielstandGeladen]);
@@ -762,6 +779,7 @@ export function useSpiel(optionen: UseSpielOptionen = {}) {
       };
     }
     setIncidents((current) => [ergebnis.einsatz, ...current]);
+    strasseNachziehen(ergebnis.einsatz);
     return { id: ergebnis.einsatz.id };
   };
 
