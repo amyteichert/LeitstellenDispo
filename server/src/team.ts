@@ -10,6 +10,7 @@ import {
   darfRolleVergeben,
   fasseSpielstandZusammen,
   hatTeamRecht,
+  darfDevWerkzeuge,
   istTeamRolle,
   type Ankuendigung,
   type AnkuendigungsArt,
@@ -137,7 +138,13 @@ export function erstelleTeamRouter(db: Datenbank, konten: KontenDienst, optionen
   router.use(ladeKonto(konten), nurAngemeldet);
 
   // Dev-Markierung fürs eigene Konto: wird gesetzt, bevor ein Dev-Werkzeug benutzt wird
-  router.post('/dev-markierung', nurTeam, (_req, res) => {
+  router.post('/dev-markierung', (_req, res, next) => {
+    if (!darfDevWerkzeuge(ich(res).rolle)) {
+      res.status(403).json({ fehler: 'Nur für das Team.' });
+      return;
+    }
+    next();
+  }, (_req, res) => {
     sql.devMarkieren.run(ich(res).id);
     res.status(204).end();
   });

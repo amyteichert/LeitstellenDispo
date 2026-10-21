@@ -16,7 +16,7 @@ export const APP_NAME = 'LeitstellenDispo';
 export const APP_SUBTITLE = 'Deine Leitstelle. Deine Einsätze. Deine Entscheidungen.';
 export const APP_VERSION = '0.1.0-alpha';
 
-export type UserRole = 'player' | 'admin' | 'co_owner' | 'owner';
+export type UserRole = 'player' | 'tester' | 'admin' | 'co_owner' | 'owner';
 
 export interface AppInfo {
   name: string;

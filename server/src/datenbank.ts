@@ -12,7 +12,7 @@ export const STANDARD_DATENBANK_PFAD = fileURLToPath(new URL('../data/leitstelle
  * Schema-Migrationen in fester Reihenfolge. Der Stand wird in `PRAGMA user_version` gemerkt;
  * neue Änderungen kommen immer als weiterer Eintrag hinten dazu, alte Einträge bleiben unverändert.
  */
-const MIGRATIONEN: string[] = [
+const MIGRATIONEN: Array<string | ((db: Datenbank) => void)> = [
   `
   CREATE TABLE benutzer (
     id            INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -139,6 +139,16 @@ const MIGRATIONEN: string[] = [
   );
   CREATE INDEX fehlermeldungen_offen ON fehlermeldungen(erledigt, id);
   `,
+  // Rolle „Tester“ erlauben. SQLite kann CHECK-Bedingungen nicht ändern, und ein Neuaufbau der Tabelle würde über
+  // ON DELETE CASCADE Spielstände löschen. Daher nur die gespeicherte Tabellendefinition anpassen (SQLite-Doku, ALTER TABLE, Abschnitt 7).
+  (db) => {
+    const version = db.pragma('schema_version', { simple: true }) as number;
+    db.pragma('writable_schema = ON');
+    db.prepare(`UPDATE sqlite_schema SET sql = replace(sql, '''co_owner'', ''owner''))', '''co_owner'', ''owner'', ''tester''))')
+      WHERE type = 'table' AND name = 'benutzer'`).run();
+    db.pragma(`schema_version = ${version + 1}`);
+    db.pragma('writable_schema = OFF');
+  },
 ];
 
 /** Öffnet (bzw. erstellt) die Datenbank und bringt das Schema auf den neuesten Stand. */
@@ -151,10 +161,18 @@ export function oeffneDatenbank(pfad: string = STANDARD_DATENBANK_PFAD): Datenba
 
   const version = db.pragma('user_version', { simple: true }) as number;
   for (let i = version; i < MIGRATIONEN.length; i++) {
-    db.transaction(() => {
-      db.exec(MIGRATIONEN[i]);
-      db.pragma(`user_version = ${i + 1}`);
-    })();
+    const migration = MIGRATIONEN[i];
+    // Änderungen an der Tabellendefinition brauchen den „unsicheren“ Modus von better-sqlite3
+    if (typeof migration !== 'string') db.unsafeMode(true);
+    try {
+      db.transaction(() => {
+        if (typeof migration === 'string') db.exec(migration);
+        else migration(db);
+        db.pragma(`user_version = ${i + 1}`);
+      })();
+    } finally {
+      if (typeof migration !== 'string') db.unsafeMode(false);
+    }
   }
   return db;
 }

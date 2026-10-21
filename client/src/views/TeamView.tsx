@@ -9,6 +9,7 @@ import {
   darfRolleVergeben,
   getVergebbareRollen,
   hatTeamRecht,
+  istTeamRolle,
   type Ankuendigung,
   type AnkuendigungsArt,
   type Konto,
@@ -41,9 +42,10 @@ export interface DevAktionen {
   ruf: number;
 }
 
-/** Team-Bereich: nur für Owner, Co-Owner und Admin sichtbar. Jede Aktion prüft zusätzlich der Server. */
+/** Team-Bereich: für Owner, Co-Owner und Admin; Tester sehen nur die Dev-Werkzeuge. Jede Aktion prüft zusätzlich der Server. */
 export default function TeamView({ konto, dev }: { konto: Konto; dev: DevAktionen }) {
-  const [reiter, setReiter] = useState<Reiter>('Übersicht');
+  const nurDev = !istTeamRolle(konto.rolle);
+  const [reiter, setReiter] = useState<Reiter>(nurDev ? 'Dev-Werkzeuge' : 'Übersicht');
   const [meldung, setMeldung] = useState<{ art: 'ok' | 'fehler'; text: string } | null>(null);
 
   useEffect(() => {
@@ -75,6 +77,7 @@ export default function TeamView({ konto, dev }: { konto: Konto; dev: DevAktione
 
       <div className="verwalten-reiter" role="tablist">
         {REITER
+          .filter((name) => !nurDev || name === 'Dev-Werkzeuge')
           .filter((name) => name !== 'Website' || hatTeamRecht(konto.rolle, 'website_statistik'))
           .filter((name) => name !== 'Bot' || hatTeamRecht(konto.rolle, 'bot'))
           .map((name) => (

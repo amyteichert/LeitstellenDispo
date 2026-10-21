@@ -14,7 +14,7 @@ import {
   getStartfahrzeugTypen,
   FUNKRUFNAME_MAX_LAENGE,
   getFunkKurzname,
-  istTeamRolle,
+  darfDevWerkzeuge,
   getWachenPreis,
   WETTER_LABELS,
   type Wetter,
@@ -772,7 +772,7 @@ Dein Guthaben: ${balance.toLocaleString('de-DE')} €`)) return;
               isOpen={dropdownOpen}
               onClose={() => setDropdownOpen(false)}
               currentView={currentView}
-              ansichten={sichtbareAnsichten(istTeamRolle(konto.rolle))}
+              ansichten={sichtbareAnsichten(darfDevWerkzeuge(konto.rolle))}
               zusatz={[
                 ...(gast ? [] : [{ label: 'Fehler melden', onClick: () => setFehlerMeldenOffen(true) }]),
                 ...(gast ? [{ label: 'Anmelden / Registrieren', onClick: zurAnmeldung }] : []),
@@ -1129,7 +1129,7 @@ Dein Guthaben: ${balance.toLocaleString('de-DE')} €`)) return;
                 rueckalarmieren={spiel.rueckalarmieren}
                 rueckalarmiereAlleFahrzeuge={spiel.rueckalarmiereAlleFahrzeuge}
                 markiereMeldungGelesen={markiereMeldungGelesen}
-                triggerTestIncident={istTeamRolle(konto.rolle) ? triggerTestIncident : undefined}
+                triggerTestIncident={darfDevWerkzeuge(konto.rolle) ? triggerTestIncident : undefined}
                 nowMs={nowMs}
                 stats={completedIncidentStats}
                 funk={spiel.funk}
@@ -1137,7 +1137,7 @@ Dein Guthaben: ${balance.toLocaleString('de-DE')} €`)) return;
               />
             )}
 
-            {currentView === 'Team' && istTeamRolle(konto.rolle) && (
+            {currentView === 'Team' && darfDevWerkzeuge(konto.rolle) && (
               <TeamView
                 konto={konto}
                 dev={{

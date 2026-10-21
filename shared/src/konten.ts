@@ -79,6 +79,9 @@ export function istTeamRolle(rolle: UserRole): boolean {
   return rolle === 'owner' || rolle === 'co_owner' || rolle === 'admin';
 }
 
+/** Dev-Werkzeuge (Test-Einsatz, Geld, Ruf …): Team-Rollen und Tester. Tester sehen sonst nichts vom Team-Bereich. */
+export const darfDevWerkzeuge = (rolle: UserRole): boolean => istTeamRolle(rolle) || rolle === 'tester';
+
 // ---------------------------------------------------------------------------
 // Team-Bereich: Rangordnung und Verwaltung
 // ---------------------------------------------------------------------------
@@ -87,14 +90,15 @@ export const ROLLEN_LABELS: Record<UserRole, string> = {
   owner: 'Owner',
   co_owner: 'Co-Owner',
   admin: 'Admin',
+  tester: 'Tester',
   player: 'Spieler',
 };
 
 /** Rang einer Rolle – man darf nur Konten mit niedrigerem Rang verwalten. */
-export const ROLLEN_RANG: Record<UserRole, number> = { owner: 3, co_owner: 2, admin: 1, player: 0 };
+export const ROLLEN_RANG: Record<UserRole, number> = { owner: 4, co_owner: 3, admin: 2, tester: 1, player: 0 };
 
 /** Rollen, die der Owner vergeben kann (Owner selbst bleibt einmalig). */
-export const VERGEBBARE_ROLLEN: UserRole[] = ['player', 'admin', 'co_owner'];
+export const VERGEBBARE_ROLLEN: UserRole[] = ['player', 'tester', 'admin', 'co_owner'];
 
 /**
  * Ende der Alpha (ISO-Zeitpunkt). Wer sich vorher registriert, ist Gründungs-Spieler und bekommt das Abzeichen.

@@ -10,6 +10,7 @@ const ROLLEN_LABELS: Record<UserRole, string> = {
   owner: 'Owner',
   co_owner: 'Co-Owner',
   admin: 'Admin',
+  tester: 'Tester',
   player: 'Spieler',
 };
 

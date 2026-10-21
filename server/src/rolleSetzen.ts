@@ -8,7 +8,7 @@ import { fileURLToPath } from 'node:url';
 import type { UserRole } from '@leitstellendispo/shared';
 import { STANDARD_DATENBANK_PFAD, oeffneDatenbank, type Datenbank } from './datenbank.js';
 
-const ROLLEN: UserRole[] = ['owner', 'co_owner', 'admin', 'player'];
+const ROLLEN: UserRole[] = ['owner', 'co_owner', 'admin', 'tester', 'player'];
 
 export function setzeRolle(db: Datenbank, name: string, rolle: UserRole): { name: string; rolle: UserRole; herabgestuft: string[] } {
   if (!ROLLEN.includes(rolle)) throw new Error(`Unbekannte Rolle „${rolle}“. Erlaubt: ${ROLLEN.join(', ')}`);
@@ -29,7 +29,7 @@ export function setzeRolle(db: Datenbank, name: string, rolle: UserRole): { name
 if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
   const [name, rolle] = process.argv.slice(2);
   if (!name || !rolle) {
-    console.error('Aufruf: node server/dist/rolleSetzen.js <Benutzername> <owner|co_owner|admin|player>');
+    console.error('Aufruf: node server/dist/rolleSetzen.js <Benutzername> <owner|co_owner|admin|tester|player>');
     process.exit(1);
   }
   const db = oeffneDatenbank(process.env.DATENBANK_PFAD ?? STANDARD_DATENBANK_PFAD);
