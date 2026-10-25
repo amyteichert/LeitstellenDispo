@@ -3,7 +3,7 @@ import type { Ankuendigung } from '@leitstellendispo/shared';
 import { ladeAnkuendigung } from './konto';
 
 const AUSGEBLENDET_KEY = 'leitstellendispo.ankuendigung-ausgeblendet';
-const NEU_LADEN_MS = 2 * 60 * 1000;
+const NEU_LADEN_MS = 20 * 1000; // kurz, damit z. B. „Neustart in 1 Minute“ rechtzeitig ankommt
 
 const SYMBOL: Record<Ankuendigung['art'], string> = { info: 'i', wartung: '!', wichtig: '⚠' };
 

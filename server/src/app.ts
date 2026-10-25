@@ -20,7 +20,7 @@ const beispielEinsaetze: Einsatz[] = [
 ];
 
 /** Baut die Express-App. Getrennt vom Serverstart, damit Tests sie mit einer eigenen Datenbank nutzen können. */
-export function erstelleApp(db: Datenbank, optionen: { bcryptRunden?: number; sicherungsOrdner?: string; osrmUrl?: string } & AuthOptionen = {}) {
+export function erstelleApp(db: Datenbank, optionen: { bcryptRunden?: number; sicherungsOrdner?: string; osrmUrl?: string; einsaetzeAufraeumenBis?: number } & AuthOptionen = {}) {
   const app = express();
   const konten = erstelleKontenDienst(db, optionen);
 
@@ -31,7 +31,7 @@ export function erstelleApp(db: Datenbank, optionen: { bcryptRunden?: number; si
   app.use(cors());
   app.use(cookieParser());
   // Vor dem allgemeinen JSON-Parser einhängen: braucht ein größeres Limit für den Spielstand
-  app.use('/api/spielstand', erstelleSpielstandRouter(db, konten));
+  app.use('/api/spielstand', erstelleSpielstandRouter(db, konten, optionen.einsaetzeAufraeumenBis));
   // Besucherstatistik: Die Website (andere Domain) meldet Aufrufe als Text – eigener Parser im Router
   app.use('/api/website', erstelleWebsiteRouter(db));
   app.use(express.json());

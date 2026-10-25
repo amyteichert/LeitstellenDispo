@@ -85,6 +85,8 @@ function erstelleServerSpeicher() {
       });
       if (res.status === 401) return meldeSitzungAbgelaufen();
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      // Das Team hat die Einsätze aufgeräumt: aufgeräumten Stand vom Server laden
+      if (res.status === 200 && ((await res.json()) as { neuLaden?: boolean }).neuLaden) window.location.reload();
     } catch (error) {
       console.error('Spielstand konnte nicht gespeichert werden, neuer Versuch folgt:', error);
       ausstehend ??= spielstand; // nur wiederholen, wenn inzwischen nichts Neueres ansteht

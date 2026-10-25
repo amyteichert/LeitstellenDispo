@@ -13,10 +13,14 @@ const sicherungsOrdner = process.env.SICHERUNGS_ORDNER ?? join(dirname(datenbank
 starteAutomatischeSicherung(db, sicherungsOrdner);
 // SPIEL_URL: Basisadresse für Links in Mails, z. B. https://spiel.leitstellendispo.de
 // OSRM_URL: eigener Routing-Server für Fahrten auf echten Straßen, z. B. http://127.0.0.1:5000 (ohne: Luftlinie)
-const app = erstelleApp(db, { mailversand: mailversandAusUmgebung(), spielUrl: process.env.SPIEL_URL || undefined, sicherungsOrdner, osrmUrl: process.env.OSRM_URL || undefined });
+const app = erstelleApp(db, { mailversand: mailversandAusUmgebung(), spielUrl: process.env.SPIEL_URL || undefined, sicherungsOrdner, osrmUrl: process.env.OSRM_URL || undefined,
+  // EINSAETZE_AUFRAEUMEN_BIS: z. B. 2026-10-26T01:00:00+01:00 – alle Einsätze, die vorher entstanden sind, verschwinden bei allen Spielern
+  einsaetzeAufraeumenBis: Date.parse(process.env.EINSAETZE_AUFRAEUMEN_BIS ?? '') || undefined,
+});
 
 app.listen(PORT, () => {
   console.log(`LeitstellenDispo Server läuft auf http://localhost:${PORT}`);
   console.log(`Mailversand: ${process.env.MAIL_VERSAND || 'aus'}`);
+  if (process.env.EINSAETZE_AUFRAEUMEN_BIS) console.log(`Einsätze aufräumen bis: ${process.env.EINSAETZE_AUFRAEUMEN_BIS}`);
   console.log(`Straßen-Routing: ${process.env.OSRM_URL || 'aus (Luftlinie)'}`);
 });

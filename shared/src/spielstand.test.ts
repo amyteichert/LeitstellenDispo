@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { alarmiereFahrzeuge } from './alarmierung.js';
 import { findeZielKrankenhaus } from './krankenhaeuser.js';
 import { berechneSpielTick } from './spielTick.js';
-import { SPIELSTAND_VERSION, createNeuesSpiel, entferneWache, migriereSpielstand, type Spielstand } from './spielstand.js';
+import { SPIELSTAND_VERSION, createNeuesSpiel, entferneAlteEinsaetze, entferneWache, migriereSpielstand, type Spielstand } from './spielstand.js';
 import { T0, einsatz, fahrzeug, krankenhaus, wache } from './testHilfen.js';
 import { haversineKm } from './geo.js';
 import { erzeugeBesatzungFuer, synchronisiereBesatzung } from './personal.js';
@@ -147,5 +147,19 @@ describe('Wache löschen', () => {
     const geladen = migriereSpielstand(JSON.parse(JSON.stringify(alt)))!;
     expect(geladen.vehicles.map((v) => v.id)).toEqual(['rtw-b']);
     expect(geladen.incidents[0].alarmedVehicles).toHaveLength(0);
+  });
+});
+
+describe('Einsätze aufräumen (Team)', () => {
+  it('nimmt alte Einsätze weg, Fahrzeuge wieder frei, alles andere bleibt', () => {
+    const e = einsatz('sturz');
+    const alarmiert = alarmiereFahrzeuge({ incidents: [e], vehicles: [fahrzeug('rtw', 'RTW')], locations: [wache()] }, e.id, ['rtw'], T0);
+    const stand: Spielstand = { ...createNeuesSpiel(), locations: [wache()], vehicles: alarmiert.vehicles, incidents: alarmiert.incidents, balance: 1234 };
+    expect(entferneAlteEinsaetze(stand, e.createdAt)).toBeNull();
+    const neu = entferneAlteEinsaetze(stand, e.createdAt + 1)!;
+    expect(neu.incidents).toEqual([]);
+    expect(neu.vehicles[0].status).toBe('Einsatzbereit');
+    expect(neu.balance).toBe(1234);
+    expect(neu.locations).toEqual(stand.locations);
   });
 });

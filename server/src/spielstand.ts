@@ -1,6 +1,6 @@
 // Spielstand pro Konto: laden, speichern, löschen
 import express, { Router, type Request, type Response } from 'express';
-import { deutscherTag, einnahmenAuffaellig, migriereSpielstand, pruefeGuthaben, naechsteSerie, schichtzulageBetrag, type Konto, type SchichtzulageAntwort, type Spielstand } from '@leitstellendispo/shared';
+import { deutscherTag, einnahmenAuffaellig, entferneAlteEinsaetze, migriereSpielstand, pruefeGuthaben, naechsteSerie, schichtzulageBetrag, type Konto, type SchichtzulageAntwort, type Spielstand } from '@leitstellendispo/shared';
 import type { Datenbank } from './datenbank.js';
 import { ladeKonto, nurAngemeldet } from './auth.js';
 import type { KontenDienst } from './konten.js';
@@ -9,7 +9,7 @@ import { ladeOffeneKorrekturen } from './team.js';
 /** Ein Spielstand mit langer Einsatzhistorie und Funkverkehr kann deutlich über das Express-Standardlimit (100 kB) wachsen */
 export const SPIELSTAND_MAX_GROESSE = '5mb';
 
-export function erstelleSpielstandRouter(db: Datenbank, konten: KontenDienst): Router {
+export function erstelleSpielstandRouter(db: Datenbank, konten: KontenDienst, einsaetzeAufraeumenBis?: number): Router {
   const router = Router();
   const sql = {
     laden: db.prepare('SELECT daten FROM spielstaende WHERE benutzer_id = ?'),
@@ -53,9 +53,15 @@ export function erstelleSpielstandRouter(db: Datenbank, konten: KontenDienst): R
 
   router.use(express.json({ limit: SPIELSTAND_MAX_GROESSE }), ladeKonto(konten), nurAngemeldet);
 
+  /** Team-Aufräumen: alte Einsätze raus (null = nichts zu tun) */
+  const aufgeraeumt = (stand: Spielstand) => (einsaetzeAufraeumenBis ? entferneAlteEinsaetze(stand, einsaetzeAufraeumenBis) : null);
+
   router.get('/', (_req, res) => {
     const zeile = sql.laden.get(kontoId(res)) as { daten: string } | undefined;
-    res.json({ spielstand: zeile ? JSON.parse(zeile.daten) : null });
+    const stand = zeile ? JSON.parse(zeile.daten) as Spielstand : null;
+    const neu = stand && aufgeraeumt(stand);
+    if (neu) sql.speichern.run(kontoId(res), JSON.stringify(neu));
+    res.json({ spielstand: neu ?? stand });
   });
 
   router.put('/', (req: Request, res) => {
@@ -65,7 +71,10 @@ export function erstelleSpielstandRouter(db: Datenbank, konten: KontenDienst): R
     }
     const neu = req.body as Spielstand;
     pruefePlausibilitaet(res.locals.konto as Konto, neu);
-    sql.speichern.run(kontoId(res), JSON.stringify(neu));
+    // Offenes Spiel mit alten Einsätzen: aufgeräumt speichern und das Spiel neu laden lassen
+    const ohneAlte = aufgeraeumt(neu);
+    sql.speichern.run(kontoId(res), JSON.stringify(ohneAlte ?? neu));
+    if (ohneAlte) return void res.json({ neuLaden: true });
     res.status(204).end();
   });
 

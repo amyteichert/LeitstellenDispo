@@ -274,3 +274,24 @@ export function entferneStartwachen(spielstand: Spielstand): Spielstand {
       .filter((e) => !ids.has(e.generatedByStationId) && !e.alarmedVehicles.some((a) => fahrzeugIds.has(a.vehicleId))),
   };
 }
+
+/**
+ * Vom Team ausgelöstes Aufräumen (EINSAETZE_AUFRAEUMEN_BIS auf dem Server): Einsätze, die vor `bis` entstanden sind,
+ * fallen weg, ihre Fahrzeuge stehen wieder einsatzbereit an der Wache. Wachen, Personal, Geld und Statistik bleiben.
+ * Liefert null, wenn es nichts aufzuräumen gibt.
+ */
+export function entferneAlteEinsaetze(spielstand: Spielstand, bis: number): Spielstand | null {
+  const weg = new Set(spielstand.incidents.filter((einsatz) => einsatz.createdAt < bis).map((einsatz) => einsatz.id));
+  if (weg.size === 0) return null;
+  const incidents = spielstand.incidents.filter((einsatz) => !weg.has(einsatz.id));
+  const nochImEinsatz = new Set(incidents.flatMap((einsatz) =>
+    einsatz.alarmedVehicles.filter((a) => a.freigegebenAt === undefined).map((a) => a.vehicleId)));
+  return {
+    ...spielstand,
+    incidents,
+    vehicles: spielstand.vehicles.map((vehicle) => (
+      nochImEinsatz.has(vehicle.id) ? vehicle : { ...vehicle, status: 'Einsatzbereit', rueckfahrt: undefined }
+    )),
+    funk: spielstand.funk?.filter((spruch) => !spruch.einsatzId || !weg.has(spruch.einsatzId)),
+  };
+}
