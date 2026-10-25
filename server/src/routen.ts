@@ -21,8 +21,9 @@ export function erstelleRoutenRouter(osrmUrl: string | undefined): Router {
   async function frageOsrm({ von, nach }: RoutenAnfrage): Promise<Route | null> {
     const schluessel = routenSchluessel(von, nach);
     if (speicher.has(schluessel)) return speicher.get(schluessel)!;
+    // Ohne Fähren, sonst fahren Fahrzeuge übers Wasser
     const res = await fetch(
-      `${osrmUrl}/route/v1/driving/${von[1]},${von[0]};${nach[1]},${nach[0]}?overview=full&geometries=geojson`,
+      `${osrmUrl}/route/v1/driving/${von[1]},${von[0]};${nach[1]},${nach[0]}?overview=full&geometries=geojson&exclude=ferry`,
       { signal: AbortSignal.timeout(ZEITLIMIT_MS) },
     );
     if (!res.ok && res.status !== 400) throw new Error(`OSRM antwortet mit ${res.status}`);
