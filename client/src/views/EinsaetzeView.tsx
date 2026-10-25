@@ -25,16 +25,7 @@ import Rueckalarmierung from './Rueckalarmierung';
 import type { MapLocation, Vehicle } from '../types';
 import { Kennzeichen } from '../Kennzeichen';
 import { useIstSchmal } from '../useIstSchmal';
-
-const formatEtaLabel = (seconds: number) => {
-  const totalSeconds = Math.max(0, Math.ceil(seconds));
-  if (totalSeconds >= 60) {
-    const minutes = Math.floor(totalSeconds / 60);
-    const remainingSeconds = totalSeconds % 60;
-    return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
-  }
-  return `${totalSeconds} Sek.`;
-};
+import { formatDauer } from '../zeitformat';
 
 const formatUhrzeit = (zeit: number) => new Date(zeit).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
 
@@ -53,10 +44,10 @@ const beschreibeZuteilung = (incident: SpielEinsatz, assignment: SpielEinsatz['a
   const transport = incident.patienten?.find((p) => p.transport?.fahrzeugId === assignment.vehicleId)?.transport;
   if (transport && nowMs >= transport.startAt) {
     return nowMs < transport.ankunftAt
-      ? `Transport → ${transport.krankenhausName} (Ankunft in ${formatEtaLabel((transport.ankunftAt - nowMs) / 1000)})`
+      ? `Transport → ${transport.krankenhausName} (Ankunft in ${formatDauer((transport.ankunftAt - nowMs) / 1000)})`
       : `Übergabe in ${transport.krankenhausName}`;
   }
-  if (assignment.arrivalAt > nowMs) return `${assignment.distanceKm.toFixed(1)} km – Ankunft in ${formatEtaLabel((assignment.arrivalAt - nowMs) / 1000)}`;
+  if (assignment.arrivalAt > nowMs) return `${assignment.distanceKm.toFixed(1)} km – Ankunft in ${formatDauer((assignment.arrivalAt - nowMs) / 1000)}`;
   return 'vor Ort';
 };
 
@@ -239,7 +230,7 @@ export default function EinsaetzeView({
                 <div className="bearbeitung-fortschritt">
                   <span>
                     <strong>{selectedIncident.organization === 'Rettungsdienst' || selectedIncident.patienten?.length ? 'Patientenversorgung vor Ort' : 'Einsatz wird abgearbeitet'}</strong>
-                    {' '}– noch {formatEtaLabel((selectedIncident.processingEndsAt - nowMs) / 1000)}
+                    {' '}– noch {formatDauer((selectedIncident.processingEndsAt - nowMs) / 1000)}
                   </span>
                   <div className="bearbeitung-fortschritt__balken">
                     <span style={{ width: `${Math.min(100, Math.max(0, ((nowMs - selectedIncident.processingStartedAt) / (selectedIncident.processingEndsAt - selectedIncident.processingStartedAt)) * 100))}%` }} />
@@ -287,7 +278,7 @@ export default function EinsaetzeView({
                         <small>
                           {PATIENTEN_STATUS_LABELS[patient.status]}
                           {patient.transport ? ` · Ziel: ${patient.transport.krankenhausName}` : ''}
-                          {patient.status === 'transport' && patient.transport ? ` · Ankunft in ${formatEtaLabel((patient.transport.ankunftAt - nowMs) / 1000)}` : ''}
+                          {patient.status === 'transport' && patient.transport ? ` · Ankunft in ${formatDauer((patient.transport.ankunftAt - nowMs) / 1000)}` : ''}
                         </small>
                       </li>
                     ))}
@@ -312,7 +303,7 @@ export default function EinsaetzeView({
                             <span>
                               <strong className="mit-kennzeichen"><Kennzeichen art="fahrzeug" typ={vehicle.type} groesse={22} />{vehicle.callsign ?? vehicle.name}</strong> · {vehicle.type}
                               <small>
-                                <span title="Realistische Anfahrtszeit (Ausrückzeit + Straßenweg). Auf der Karte vorerst auf direktem Weg – echte Routenführung ist für später angedacht.">Anfahrt ca. {formatEtaLabel(anfahrtSekunden)}</span> · {station?.name ?? '–'} · {distanzKm.toFixed(1)} km
+                                <span title="Realistische Anfahrtszeit (Ausrückzeit + Straßenweg). Auf der Karte vorerst auf direktem Weg – echte Routenführung ist für später angedacht.">Anfahrt ca. {formatDauer(anfahrtSekunden)}</span> · {station?.name ?? '–'} · {distanzKm.toFixed(1)} km
                                 {!passend && ' · zählt nicht zum Bedarf'}
                               </small>
                             </span>
@@ -392,12 +383,12 @@ export default function EinsaetzeView({
                       <dd>
                         {selectedIncident.bewertung.wahlPunkte ?? '–'} / 50
                         {selectedIncident.bewertung.besteAnfahrtSekunden !== undefined
-                          && ` (bestes freies Fahrzeug: ${formatEtaLabel(selectedIncident.bewertung.besteAnfahrtSekunden)})`}
+                          && ` (bestes freies Fahrzeug: ${formatDauer(selectedIncident.bewertung.besteAnfahrtSekunden)})`}
                       </dd>
                     </div>
                     <div>
                       <dt>Hilfsfrist</dt>
-                      <dd>{selectedIncident.bewertung.fristPunkte ?? '–'} / 50 (Anfahrt {formatEtaLabel(selectedIncident.bewertung.anfahrtSekunden)})</dd>
+                      <dd>{selectedIncident.bewertung.fristPunkte ?? '–'} / 50 (Anfahrt {formatDauer(selectedIncident.bewertung.anfahrtSekunden)})</dd>
                     </div>
                     <div><dt>Leistungsbonus</dt><dd>+{selectedIncident.bewertung.bonus} €</dd></div>
                     <div>
@@ -412,7 +403,7 @@ export default function EinsaetzeView({
                 {selectedIncident.status === 'abgeschlossen' && (
                   <>
                     <div><dt>Abschlusszeit</dt><dd>{formatDateTime(selectedIncident.completedAt ?? nowMs)}</dd></div>
-                    <div><dt>Einsatzdauer</dt><dd>{formatEtaLabel(selectedIncident.totalDurationSeconds ?? getBearbeitungsMs(selectedIncident) / 1000)}</dd></div>
+                    <div><dt>Einsatzdauer</dt><dd>{formatDauer(selectedIncident.totalDurationSeconds ?? getBearbeitungsMs(selectedIncident) / 1000)}</dd></div>
                   </>
                 )}
               </dl>

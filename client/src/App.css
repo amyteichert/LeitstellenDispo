@@ -403,35 +403,6 @@
   transition: none; /* beim Zoomen nicht nachziehen */
 }
 
-.vehicle-marker span {
-  display: inline-block;
-  transform: translate(-50%, calc(-100% - 12px)); /* Schild über der Position, damit der Einsatz-Marker sichtbar bleibt */
-  padding: 2px 6px;
-  border-radius: 6px;
-  background: #3b82f6;
-  color: #fff;
-  font-size: 0.7rem;
-  font-weight: 700;
-  white-space: nowrap;
-  border: 1px solid rgba(255, 255, 255, 0.8);
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
-}
-
-.vehicle-marker--rueckfahrt span {
-  background: #6b7280;
-}
-
-/* Patiententransport und Übergabe im Krankenhaus */
-.vehicle-marker--transport span,
-.vehicle-marker--krankenhaus span {
-  background: #7c3aed;
-}
-
-/* Feuerwehr-Fahrzeuge mit rotem Rand – später leicht unterscheidbar */
-.vehicle-marker--fw span {
-  border-color: #ff8a9b;
-}
-
 /* Symbole für Wachen, Krankenhäuser, Fahrzeuge und Einsätze (Grafiken in Kennzeichen.tsx) */
 .kennzeichen {
   display: inline-grid;
@@ -3011,18 +2982,34 @@ a.anmeldung__link { text-align: center; }
 .incident-marker--eskaliert .kennzeichen { outline: 2px solid var(--status-bearbeitung); }
 .incident-marker--eskaliert::after { background: var(--status-bearbeitung); box-shadow: none; }
 
-/* Fahrzeugschilder auf der Karte: kleiner, ohne Leuchtrand */
+/* Fahrzeugschilder auf der Karte: kleiner, ohne Leuchtrand.
+   Farbe = Organisation (Feuerwehr rot, Rettungsdienst gelb), der Punkt rechts = Fahrtstatus */
 .vehicle-marker span {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  transform: translate(-50%, calc(-100% - 12px)); /* Schild über der Position, damit der Einsatz-Marker sichtbar bleibt */
   padding: 1px 5px;
   border-radius: 3px;
-  border-color: rgba(255, 255, 255, 0.35);
-  background: var(--status-alarmiert);
+  font-size: 0.7rem;
+  font-weight: 700;
+  white-space: nowrap;
+  border: 1px solid rgba(255, 255, 255, 0.35);
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
 }
-.vehicle-marker--rueckfahrt span { background: var(--status-abgeschlossen); }
-.vehicle-marker--transport span,
-.vehicle-marker--krankenhaus span { background: var(--status-transport); }
-.vehicle-marker--fw span { border-color: rgba(255, 255, 255, 0.35); }
+.vehicle-marker--fw span { background: #c62828; color: #fff; }
+.vehicle-marker--rd span { background: #f5c400; color: #1a1a1a; border-color: rgba(0, 0, 0, 0.3); }
+.vehicle-marker span::after {
+  content: '';
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--status-alarmiert);
+  border: 1px solid rgba(255, 255, 255, 0.9);
+}
+.vehicle-marker--rueckfahrt span::after { background: var(--status-abgeschlossen); }
+.vehicle-marker--transport span::after,
+.vehicle-marker--krankenhaus span::after { background: var(--status-transport); }
 
 /* Kein Blinken */
 .funk-chip,

@@ -63,6 +63,7 @@ import {
   zaehleRettungswachen,
   berechneSpielTick,
   createNeuesSpiel,
+  entferneWache,
   erzeugeZufallsEinsatz,
   hatEigenesKrankenhaus,
   EIGENES_KRANKENHAUS,
@@ -629,8 +630,11 @@ export function useSpiel(optionen: UseSpielOptionen = {}) {
   };
 
   const loescheWache = (id: string) => {
-    setLocations((current) => current.filter((location) => location.id !== id));
-    setPersonal((current) => current.filter((person) => person.wacheId !== id));
+    const ergebnis = entferneWache({ locations, vehicles, incidents, personal }, id);
+    setLocations(ergebnis.locations);
+    setVehicles(ergebnis.vehicles);
+    setIncidents(ergebnis.incidents);
+    setPersonal(ergebnis.personal ?? []);
   };
 
   // ---- Personal ----

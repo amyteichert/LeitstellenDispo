@@ -190,7 +190,40 @@ function pruefeStruktur(spielstand: Spielstand | null): Spielstand | null {
   if (!Number.isFinite(spielstand.balance)) return null;
   if (!spielstand.vehicles.every(istGueltigesFahrzeug)) return null;
   if (!spielstand.incidents.every(istGueltigerEinsatz)) return null;
-  return spielstand;
+  return entferneVerwaisteFahrzeuge(spielstand);
+}
+
+type WachenZustand = Pick<Spielstand, 'locations' | 'vehicles' | 'incidents'> & { personal?: Mitarbeiter[] };
+
+/** Nimmt Fahrzeuge aus dem Spiel und trägt sie aus laufenden Einsätzen aus (ohne Fahrzeug fällt der Einsatz auf „offen“ zurück). */
+function ohneFahrzeuge<T extends WachenZustand>(zustand: T, fahrzeugIds: Set<string>): T {
+  if (fahrzeugIds.size === 0) return zustand;
+  return {
+    ...zustand,
+    vehicles: zustand.vehicles.filter((v) => !fahrzeugIds.has(v.id)),
+    incidents: zustand.incidents.map((einsatz) => {
+      if (!einsatz.alarmedVehicles.some((a) => fahrzeugIds.has(a.vehicleId))) return einsatz;
+      const alarmedVehicles = einsatz.alarmedVehicles.filter((a) => !fahrzeugIds.has(a.vehicleId));
+      const nochZugeteilt = alarmedVehicles.some((a) => a.freigegebenAt === undefined);
+      return { ...einsatz, alarmedVehicles, status: nochZugeteilt ? einsatz.status : 'offen' };
+    }),
+  };
+}
+
+/** Löscht eine Wache samt ihren Fahrzeugen und ihrem Personal. */
+export function entferneWache<T extends WachenZustand>(zustand: T, wacheId: string): T {
+  const fahrzeugIds = new Set(zustand.vehicles.filter((v) => v.stationId === wacheId).map((v) => v.id));
+  return ohneFahrzeuge({
+    ...zustand,
+    locations: zustand.locations.filter((location) => location.id !== wacheId),
+    personal: zustand.personal?.filter((p) => p.wacheId !== wacheId),
+  }, fahrzeugIds);
+}
+
+/** Alte Spielstände: Fahrzeuge, deren Wache früher gelöscht wurde, aufräumen. */
+export function entferneVerwaisteFahrzeuge<T extends WachenZustand>(zustand: T): T {
+  const wachenIds = new Set(zustand.locations.map((location) => location.id));
+  return ohneFahrzeuge(zustand, new Set(zustand.vehicles.filter((v) => v.stationId && !wachenIds.has(v.stationId)).map((v) => v.id)));
 }
 
 /**

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { alarmiereFahrzeuge } from './alarmierung.js';
 import { findeZielKrankenhaus } from './krankenhaeuser.js';
 import { berechneSpielTick } from './spielTick.js';
-import { SPIELSTAND_VERSION, createNeuesSpiel, migriereSpielstand, type Spielstand } from './spielstand.js';
+import { SPIELSTAND_VERSION, createNeuesSpiel, entferneWache, migriereSpielstand, type Spielstand } from './spielstand.js';
 import { T0, einsatz, fahrzeug, krankenhaus, wache } from './testHilfen.js';
 import { haversineKm } from './geo.js';
 import { erzeugeBesatzungFuer, synchronisiereBesatzung } from './personal.js';
@@ -119,5 +119,33 @@ describe('Version 4: alte Start-Wachen verschwinden', () => {
     expect(geladen.vehicles.map((v) => v.id)).toEqual(['neu']);
     expect(geladen.personal!.every((p) => p.wacheId === 'meine-wache')).toBe(true);
     expect(geladen.balance).toBe(777);
+  });
+});
+
+describe('Wache löschen', () => {
+  const zustand = () => {
+    const a = wache('rw-1');
+    const b = wache('rw-2');
+    const vehicles = [fahrzeug('rtw-a', 'RTW', 'rw-1'), fahrzeug('rtw-b', 'RTW', 'rw-2')];
+    const e = einsatz('sturz');
+    const alarmiert = alarmiereFahrzeuge({ incidents: [e], vehicles, locations: [a, b] }, e.id, ['rtw-a'], T0);
+    return { locations: [a, b], vehicles: alarmiert.vehicles, incidents: alarmiert.incidents, personal: [] };
+  };
+
+  it('nimmt die Fahrzeuge der Wache mit und trägt sie aus laufenden Einsätzen aus', () => {
+    const nach = entferneWache(zustand(), 'rw-1');
+    expect(nach.locations.map((l) => l.id)).toEqual(['rw-2']);
+    expect(nach.vehicles.filter((v) => v.stationId === 'rw-1')).toHaveLength(0);
+    expect(nach.vehicles.map((v) => v.id)).toEqual(['rtw-b']);
+    expect(nach.incidents[0].alarmedVehicles).toHaveLength(0);
+    expect(nach.incidents[0].status).toBe('offen');
+  });
+
+  it('räumt beim Laden verwaiste Fahrzeuge alter Spielstände auf', () => {
+    const z = zustand();
+    const alt = { ...createNeuesSpiel(), locations: [z.locations[1]], vehicles: z.vehicles, incidents: z.incidents };
+    const geladen = migriereSpielstand(JSON.parse(JSON.stringify(alt)))!;
+    expect(geladen.vehicles.map((v) => v.id)).toEqual(['rtw-b']);
+    expect(geladen.incidents[0].alarmedVehicles).toHaveLength(0);
   });
 });
