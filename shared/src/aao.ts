@@ -27,7 +27,11 @@ export const AAO_KATEGORIEN: FahrzeugKategorie[] = [...new Set(FAHRZEUG_TYPEN.ma
 export const getAaoFahrzeugLabel = (schluessel: string) =>
   schluessel.startsWith(AAO_KATEGORIE) ? `${schluessel.slice(AAO_KATEGORIE.length)} (beliebig)` : schluessel;
 
-export const STANDARD_AAO: AaoEintrag[] = [
+/**
+ * Startknöpfe, die es kurz gab – jetzt legt jeder seine AAO selbst an.
+ * Unverändert gespeicherte Startknöpfe werden beim Laden entfernt.
+ */
+const FRUEHERE_STARTKNOEPFE: AaoEintrag[] = [
   {
     id: 'aao-loeschzug', name: 'Löschzug', farbe: '#dc2626', reiter: 'Feuerwehr', wachen: [],
     fahrzeuge: { [`${AAO_KATEGORIE}Einsatzleitwagen`]: 1, [`${AAO_KATEGORIE}Löschfahrzeug`]: 2, [`${AAO_KATEGORIE}Drehleiter`]: 1 },
@@ -36,6 +40,8 @@ export const STANDARD_AAO: AaoEintrag[] = [
   { id: 'aao-rtw', name: 'RTW', farbe: '#ca8a04', reiter: 'Rettungsdienst', wachen: [], fahrzeuge: { RTW: 1 } },
   { id: 'aao-rtw-nef', name: 'RTW + NEF', farbe: '#d97706', reiter: 'Rettungsdienst', wachen: [], fahrzeuge: { RTW: 1, NEF: 1 } },
 ];
+const istFruehererStartknopf = (eintrag: AaoEintrag) =>
+  FRUEHERE_STARTKNOEPFE.some((start) => JSON.stringify(start) === JSON.stringify(eintrag));
 
 const passtZu = (schluessel: string, vehicle: Vehicle) =>
   schluessel.startsWith(AAO_KATEGORIE)
@@ -79,9 +85,9 @@ export function waehleAaoFahrzeuge(
   return { fahrzeugIds, fehlt };
 }
 
-/** Geladene AAO prüfen – fehlt sie (alter Spielstand), gibt es die Standard-Knöpfe */
+/** Geladene AAO prüfen – ohne AAO (neues oder altes Spiel) gibt es noch keine Knöpfe */
 export const ladeAao = (roh: unknown): AaoEintrag[] =>
   Array.isArray(roh)
     ? roh.filter((e): e is AaoEintrag => Boolean(e) && typeof e.id === 'string' && typeof e.name === 'string'
-      && typeof e.fahrzeuge === 'object' && e.fahrzeuge !== null && Array.isArray(e.wachen))
-    : STANDARD_AAO;
+      && typeof e.fahrzeuge === 'object' && e.fahrzeuge !== null && Array.isArray(e.wachen) && !istFruehererStartknopf(e))
+    : [];

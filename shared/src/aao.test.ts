@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { AAO_KATEGORIE, STANDARD_AAO, ladeAao, waehleAaoFahrzeuge, type AaoEintrag } from './aao.js';
+import { AAO_KATEGORIE, ladeAao, waehleAaoFahrzeuge, type AaoEintrag } from './aao.js';
 import { fahrzeug } from './testHilfen.js';
 
 const eintrag = (id: string, type: string, anfahrtSekunden: number, stationId = 'fw-1') =>
@@ -17,7 +17,10 @@ describe('AAO', () => {
   ];
 
   it('Löschzug: schnellste Fahrzeuge je Kategorie, fehlender ELW wird gemeldet', () => {
-    const ergebnis = waehleAaoFahrzeuge(STANDARD_AAO[0], frei);
+    const loeschzug = aao({ fahrzeuge: {
+      [`${AAO_KATEGORIE}Einsatzleitwagen`]: 1, [`${AAO_KATEGORIE}Löschfahrzeug`]: 2, [`${AAO_KATEGORIE}Drehleiter`]: 1,
+    } });
+    const ergebnis = waehleAaoFahrzeuge(loeschzug, frei);
     expect(ergebnis.fahrzeugIds).toEqual(['hlf', 'lf', 'dlk']);
     expect(ergebnis.fehlt).toEqual(['1× Einsatzleitwagen (beliebig)']);
   });
@@ -37,8 +40,10 @@ describe('AAO', () => {
     expect(waehleAaoFahrzeuge(lf, frei, ['hlf']).fahrzeugIds).toEqual(['lf']);
   });
 
-  it('alte Spielstände bekommen die Standard-Knöpfe', () => {
-    expect(ladeAao(undefined)).toBe(STANDARD_AAO);
-    expect(ladeAao([])).toEqual([]);
+  it('ohne AAO gibt es keine Knöpfe, unveränderte frühere Startknöpfe fallen weg', () => {
+    expect(ladeAao(undefined)).toEqual([]);
+    const start = { id: 'aao-rtw', name: 'RTW', farbe: '#ca8a04', reiter: 'Rettungsdienst', wachen: [], fahrzeuge: { RTW: 1 } };
+    const eigener = { ...start, name: 'Mein RTW' };
+    expect(ladeAao([start, eigener])).toEqual([eigener]);
   });
 });

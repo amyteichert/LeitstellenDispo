@@ -65,7 +65,16 @@ export default function AaoKnoepfe({
   const reiterListe = [...new Set(aao.map((e) => e.reiter.trim() || 'Allgemein'))];
   const [reiter, setReiter] = useState(reiterListe[0] ?? '');
   const aktiv = reiterListe.includes(reiter) ? reiter : reiterListe[0];
-  if (aao.length === 0) return null;
+  if (aao.length === 0) {
+    return (
+      <div className="aao">
+        <div className="aao__kopf">
+          <small className="einsatz-eintrag__zeile" style={{ flex: 1 }}>Noch keine AAO-Knöpfe – im Menü unter „AAO“ eigene Züge anlegen.</small>
+          <AaoHilfe />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="aao">
