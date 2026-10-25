@@ -1,6 +1,7 @@
 import { GAME_CONFIG } from './konfig.js';
 import type { Koordinaten, MapLocation, Vehicle } from './typen.js';
 import type { AlarmiertesFahrzeug, SpielEinsatz } from './daten.js';
+import { getRoute, punktAufLinie, restLinie } from './routen.js';
 
 export const clamp = (value: number, min: number, max: number) => Math.min(Math.max(value, min), max);
 
@@ -18,11 +19,16 @@ export const haversineKm = (from: Koordinaten, to: Koordinaten) => {
 };
 
 /**
- * Fahrzeit in Sekunden. Straßen sind im Schnitt deutlich länger als die Luftlinie – daher der Umwegfaktor
- * (später durch echtes Straßen-Routing ersetzbar). Ohne Geschwindigkeit gilt der Durchschnittswert.
+ * Fahrzeit in Sekunden. Mit Straßenroute: Navi-Zeit, schnellere Fahrzeugtypen kürzer, langsamere länger
+ * (gemessen an der Durchschnittsgeschwindigkeit). Ohne Route: Luftlinie mal Umwegfaktor.
  */
-export const getFahrzeitSekunden = (from: Koordinaten, to: Koordinaten, geschwindigkeitKmh: number = GAME_CONFIG.averageSpeedKmh) =>
-  Math.max(1, Math.round(((haversineKm(from, to) * GAME_CONFIG.strassenUmwegFaktor) / geschwindigkeitKmh) * 3600));
+export const getFahrzeitSekunden = (from: Koordinaten, to: Koordinaten, geschwindigkeitKmh: number = GAME_CONFIG.averageSpeedKmh) => {
+  const route = getRoute(from, to);
+  const sekunden = route
+    ? route.dauerSekunden * (GAME_CONFIG.averageSpeedKmh / geschwindigkeitKmh)
+    : ((haversineKm(from, to) * GAME_CONFIG.strassenUmwegFaktor) / geschwindigkeitKmh) * 3600;
+  return Math.max(1, Math.round(sekunden));
+};
 
 export const getStationCoords = (stationId: string | undefined, locations: MapLocation[]): Koordinaten | null => {
   if (!stationId) return null;
@@ -30,10 +36,19 @@ export const getStationCoords = (stationId: string | undefined, locations: MapLo
   return found ? found.coords : null;
 };
 
-/** Punkt zwischen zwei Koordinaten zum Zeitpunkt `jetzt` einer Fahrt von `startAt` bis `ankunftAt`. */
-export const interpoliereFahrt = (von: Koordinaten, nach: Koordinaten, startAt: number, ankunftAt: number, jetzt: number): Koordinaten => {
+/** Punkt einer Fahrt von `startAt` bis `ankunftAt` zum Zeitpunkt `jetzt` – auf der Straße, wenn die Route bekannt ist. */
+export const interpoliereFahrt = (von: Koordinaten, nach: Koordinaten, startAt: number, ankunftAt: number, jetzt: number): Koordinaten =>
+  getFahrtVerlauf(von, nach, startAt, ankunftAt, jetzt).position;
+
+/** Position und restliche Strecke (für die Linie auf der Karte) einer Fahrt. */
+export const getFahrtVerlauf = (von: Koordinaten, nach: Koordinaten, startAt: number, ankunftAt: number, jetzt: number) => {
   const anteil = clamp((jetzt - startAt) / Math.max(1, ankunftAt - startAt), 0, 1);
-  return [von[0] + (nach[0] - von[0]) * anteil, von[1] + (nach[1] - von[1]) * anteil];
+  const route = getRoute(von, nach);
+  if (route && route.punkte.length >= 2) {
+    return { position: punktAufLinie(route.punkte, anteil), linie: restLinie(route.punkte, anteil) };
+  }
+  const position: Koordinaten = [von[0] + (nach[0] - von[0]) * anteil, von[1] + (nach[1] - von[1]) * anteil];
+  return { position, linie: [position, nach] };
 };
 
 /** Position eines Fahrzeugs auf der Anfahrt (Wache bzw. Startpunkt → Einsatzort) zu einem Zeitpunkt. */
@@ -46,6 +61,8 @@ export const getPositionAufAnfahrt = (
 
 export interface FahrzeugFahrt {
   position: Koordinaten;
+  /** Restliche Strecke bis zum Ziel (Straßenverlauf oder Luftlinie) */
+  linie: Koordinaten[];
   ziel: Koordinaten;
   unterwegs: boolean;
   /** Was das Fahrzeug gerade tut – für Farbe/Linie auf der Karte */
@@ -72,7 +89,7 @@ export const getFahrzeugPosition = (
 
   if (vehicle.rueckfahrt) {
     const { von, startAt, ankunftAt } = vehicle.rueckfahrt;
-    return { position: interpoliereFahrt(von, wache, startAt, ankunftAt, nowMs), ziel: wache, unterwegs: nowMs < ankunftAt, art: 'rueckfahrt' };
+    return { ...getFahrtVerlauf(von, wache, startAt, ankunftAt, nowMs), ziel: wache, unterwegs: nowMs < ankunftAt, art: 'rueckfahrt' };
   }
 
   for (const incident of incidents) {
@@ -84,7 +101,7 @@ export const getFahrzeugPosition = (
     const transport = incident.patienten?.find((patient) => patient.transport?.fahrzeugId === vehicle.id)?.transport;
     if (transport && nowMs >= transport.startAt) {
       return {
-        position: interpoliereFahrt(incident.coords, transport.ziel, transport.startAt, transport.ankunftAt, nowMs),
+        ...getFahrtVerlauf(incident.coords, transport.ziel, transport.startAt, transport.ankunftAt, nowMs),
         ziel: transport.ziel,
         unterwegs: nowMs < transport.ankunftAt,
         art: nowMs < transport.ankunftAt ? 'transport' : 'krankenhaus',
@@ -92,7 +109,7 @@ export const getFahrzeugPosition = (
     }
 
     return {
-      position: getPositionAufAnfahrt(wache, incident.coords, assignment, nowMs),
+      ...getFahrtVerlauf(assignment.startCoords ?? wache, incident.coords, assignment.arrivalAt - assignment.etaSeconds * 1000, assignment.arrivalAt, nowMs),
       ziel: incident.coords,
       unterwegs: nowMs < assignment.arrivalAt,
       art: nowMs < assignment.arrivalAt ? 'anfahrt' : 'einsatzstelle',

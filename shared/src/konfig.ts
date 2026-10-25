@@ -19,7 +19,7 @@ export const GAME_CONFIG = {
   /** Bis die Besatzung im Fahrzeug sitzt und losfährt (Sekunden) */
   ausrueckzeitSekunden: { Rettungsdienst: 30, Feuerwehr: 60 },
   /** Straßenweg ≈ Luftlinie × Faktor (typischer Wert für Stadt und Land) */
-  strassenUmwegFaktor: 1.35,
+  strassenUmwegFaktor: 1.35, // nur ohne Straßen-Routing (OSRM), siehe docs/OSRM.md
   /** Die Arbeit vor Ort dauert so viel länger als die Vorlage angibt (realistischeres Tempo) */
   bearbeitungsFaktor: 4,
 };

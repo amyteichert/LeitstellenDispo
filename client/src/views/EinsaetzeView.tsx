@@ -303,7 +303,7 @@ export default function EinsaetzeView({
                             <span>
                               <strong className="mit-kennzeichen"><Kennzeichen art="fahrzeug" typ={vehicle.type} groesse={22} />{vehicle.callsign ?? vehicle.name}</strong> · {vehicle.type}
                               <small>
-                                <span title="Realistische Anfahrtszeit (Ausrückzeit + Straßenweg). Auf der Karte vorerst auf direktem Weg – echte Routenführung ist für später angedacht.">Anfahrt ca. {formatDauer(anfahrtSekunden)}</span> · {station?.name ?? '–'} · {distanzKm.toFixed(1)} km
+                                <span title="Realistische Anfahrtszeit (Ausrückzeit + Straßenweg). Mit Straßen-Routing: Navi-Zeit, je nach Fahrzeugtyp etwas schneller oder langsamer.">Anfahrt ca. {formatDauer(anfahrtSekunden)}</span> · {station?.name ?? '–'} · {distanzKm.toFixed(1)} km
                                 {!passend && ' · zählt nicht zum Bedarf'}
                               </small>
                             </span>

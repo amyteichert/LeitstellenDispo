@@ -25,3 +25,4 @@ export * from './kosten.js';
 export * from './symbole.js';
 export * from './websiteStatistik.js';
 export * from './bot/index.js';
+export * from './routen.js';

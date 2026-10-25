@@ -59,6 +59,7 @@ import EinstellungenView from './views/EinstellungenView';
 import ProfilView from './views/ProfilView';
 import FehlerMelden from './FehlerMelden';
 import ErsteSchritte from './ErsteSchritte';
+import { useRouten } from './useRouten';
 
 const createMarkerIcon = (color: string) =>
   L.divIcon({
@@ -310,6 +311,7 @@ function App({ konto, onAbmelden, gast = false }: { konto: Konto; onAbmelden: ()
   } = spiel;
 
   const { hinweise, schliesseHinweis } = useEinsatzHinweise(incidents, spiel.spielstandGeladen);
+  useRouten(locations, incidents, spiel.krankenhaeuser);
   const einstellungen = useEinstellungen();
   // Kompakte Ansicht: kleinere Grundschrift – alle rem-Abstände schrumpfen mit
   useEffect(() => {
@@ -1025,7 +1027,7 @@ Dein Guthaben: ${balance.toLocaleString('de-DE')} €`)) return;
                   />
                 ))}
 
-              {/* Fahrzeuge unterwegs: gerade Linie (Luftlinie) zum Ziel */}
+              {/* Fahrzeuge unterwegs: restliche Strecke zum Ziel (Straße, sonst Luftlinie) */}
               {vehicles.map((vehicle) => {
                 const fahrt = getFahrzeugPosition(vehicle, incidents, locations, nowMs);
                 if (!fahrt) return null;
@@ -1034,7 +1036,7 @@ Dein Guthaben: ${balance.toLocaleString('de-DE')} €`)) return;
                   <Fragment key={vehicle.id}>
                     {fahrt.unterwegs && (
                       <Polyline
-                        positions={[fahrt.position, fahrt.ziel]}
+                        positions={fahrt.linie}
                         pathOptions={{ color: FAHRT_LINIEN_FARBEN[fahrt.art], weight: 2, dashArray: '6 6', opacity: 0.8 }}
                       />
                     )}

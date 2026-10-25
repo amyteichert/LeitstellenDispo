@@ -12,9 +12,11 @@ const db = oeffneDatenbank(datenbankPfad);
 const sicherungsOrdner = process.env.SICHERUNGS_ORDNER ?? join(dirname(datenbankPfad), 'sicherungen');
 starteAutomatischeSicherung(db, sicherungsOrdner);
 // SPIEL_URL: Basisadresse für Links in Mails, z. B. https://spiel.leitstellendispo.de
-const app = erstelleApp(db, { mailversand: mailversandAusUmgebung(), spielUrl: process.env.SPIEL_URL || undefined, sicherungsOrdner });
+// OSRM_URL: eigener Routing-Server für Fahrten auf echten Straßen, z. B. http://127.0.0.1:5000 (ohne: Luftlinie)
+const app = erstelleApp(db, { mailversand: mailversandAusUmgebung(), spielUrl: process.env.SPIEL_URL || undefined, sicherungsOrdner, osrmUrl: process.env.OSRM_URL || undefined });
 
 app.listen(PORT, () => {
   console.log(`LeitstellenDispo Server läuft auf http://localhost:${PORT}`);
   console.log(`Mailversand: ${process.env.MAIL_VERSAND || 'aus'}`);
+  console.log(`Straßen-Routing: ${process.env.OSRM_URL || 'aus (Luftlinie)'}`);
 });
