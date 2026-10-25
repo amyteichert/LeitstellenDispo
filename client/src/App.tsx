@@ -270,6 +270,8 @@ function App({ konto, onAbmelden, gast = false }: { konto: Konto; onAbmelden: ()
   // E-Mail kann in den Einstellungen nachgetragen werden – ohne Neuladen aktuell halten
   const [email, setEmail] = useState<string | null>(konto.email ?? null);
   const [selectedId, setSelectedId] = useState<string>('');
+  // Wache, deren Verwaltung offen ist (auch direkt von der Karte aus)
+  const [verwaltenId, setVerwaltenId] = useState<string | null>(null);
   const [selectedIncidentId, setSelectedIncidentId] = useState<string | null>(null);
   // Einsatz, dessen Kurzinfo gerade als schwebendes Fenster auf der Karte angezeigt wird
   const [mapIncidentId, setMapIncidentId] = useState<string | null>(null);
@@ -392,6 +394,8 @@ function App({ konto, onAbmelden, gast = false }: { konto: Konto; onAbmelden: ()
   );
 
   const selectView = (v: typeof currentView) => {
+    // Über das Menü immer zur Wachen-Liste, nicht in die zuletzt offene Wache
+    setVerwaltenId(null);
     setCurrentView(v);
   };
 
@@ -997,6 +1001,22 @@ Dein Guthaben: ${balance.toLocaleString('de-DE')} €`)) return;
                       <strong>{location.name}</strong>
                       <br />
                       {location.adresse ? formatAdresse(location.adresse) : location.details}
+                      {location.type === 'station' && (
+                        <>
+                          <br />
+                          <button
+                            type="button"
+                            className="btn btn--primary btn--klein"
+                            style={{ marginTop: 6 }}
+                            onClick={() => {
+                              setVerwaltenId(location.id);
+                              setCurrentView('Wachen');
+                            }}
+                          >
+                            Wache verwalten
+                          </button>
+                        </>
+                      )}
                     </Popup>
                   </Marker>
                 );
@@ -1068,6 +1088,8 @@ Dein Guthaben: ${balance.toLocaleString('de-DE')} €`)) return;
                 erweitereStellplaetze={spiel.erweitereStellplaetze}
                 personalAktionen={spiel}
                 onWacheKaufen={() => setWacheKaufenOffen(true)}
+                verwaltenId={verwaltenId}
+                setVerwaltenId={setVerwaltenId}
               />
             )}
 

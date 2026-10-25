@@ -75,7 +75,24 @@ export default function PersonalReiter({
   const voll = personal.length >= limit;
   const reserve = personal.filter((person) => !person.fahrzeugId && !istInAusbildung(person));
   const [filter, setFilter] = useState<Filter>('alle');
-  const gefiltert = personal.filter(FILTER.find((f) => f.id === filter)!.passt);
+  const [suche, setSuche] = useState('');
+  const [quali, setQuali] = useState<Qualifikation | 'keine' | ''>('');
+  const [fahrzeugFilter, setFahrzeugFilter] = useState('');
+  const [sortierung, setSortierung] = useState<'name' | 'fahrzeug' | 'quali'>('name');
+  // Nur Qualifikationen, die an dieser Wache auch jemand hat
+  const vorhandeneQualis = [...new Set(personal.flatMap((p) => p.qualifikationen))];
+  const fahrzeugName = (person: Mitarbeiter) => {
+    const f = fahrzeuge.find((eintrag) => eintrag.id === person.fahrzeugId);
+    return f ? f.callsign ?? f.name : '￿';
+  };
+  const gefiltert = personal
+    .filter(FILTER.find((f) => f.id === filter)!.passt)
+    .filter((p) => p.name.toLowerCase().includes(suche.trim().toLowerCase()))
+    .filter((p) => !quali || (quali === 'keine' ? p.qualifikationen.length === 0 : p.qualifikationen.includes(quali)))
+    .filter((p) => !fahrzeugFilter || p.fahrzeugId === fahrzeugFilter)
+    .sort((a, b) => (sortierung === 'fahrzeug' ? fahrzeugName(a).localeCompare(fahrzeugName(b), 'de') : 0)
+      || (sortierung === 'quali' ? b.qualifikationen.length - a.qualifikationen.length : 0)
+      || a.name.localeCompare(b.name, 'de'));
 
   const melde = (fehler: string | null, ok: string) => onMeldung(fehler ? { art: 'fehler', text: fehler } : { art: 'ok', text: ok });
 
@@ -133,6 +150,31 @@ export default function PersonalReiter({
             </button>
           ))}
         </div>
+        <div className="personal-filter">
+          <label className="field">
+            <input type="search" value={suche} placeholder="Name suchen …" aria-label="Personal nach Name suchen" onChange={(e) => setSuche(e.target.value)} />
+          </label>
+          <label className="field">
+            <select value={quali} aria-label="Nach Qualifikation filtern" onChange={(e) => setQuali(e.target.value as Qualifikation | 'keine' | '')}>
+              <option value="">Alle Qualifikationen</option>
+              <option value="keine">Nur Grundausbildung</option>
+              {vorhandeneQualis.map((q) => <option key={q} value={q}>{QUALIFIKATION_LABELS[q]}</option>)}
+            </select>
+          </label>
+          <label className="field">
+            <select value={fahrzeugFilter} aria-label="Nach Fahrzeug filtern" onChange={(e) => setFahrzeugFilter(e.target.value)}>
+              <option value="">Alle Fahrzeuge</option>
+              {fahrzeuge.map((f) => <option key={f.id} value={f.id}>{f.callsign ?? f.name}</option>)}
+            </select>
+          </label>
+          <label className="field">
+            <select value={sortierung} aria-label="Sortierung" onChange={(e) => setSortierung(e.target.value as typeof sortierung)}>
+              <option value="name">Sortiert nach Name</option>
+              <option value="fahrzeug">Sortiert nach Fahrzeug</option>
+              <option value="quali">Sortiert nach Qualifikation</option>
+            </select>
+          </label>
+        </div>
         {gefiltert.length === 0 ? (
           <p className="einsatz-eintrag__zeile">Hier ist gerade niemand.</p>
         ) : (
@@ -165,11 +207,18 @@ export default function PersonalReiter({
                           }}
                         >
                           <option value="">Ohne Fahrzeug</option>
-                          {fahrzeuge.map((f) => (
-                            <option key={f.id} value={f.id}>
-                              {f.callsign ?? f.name} ({personal.filter((p) => p.fahrzeugId === f.id).length}/{getFahrzeugTyp(f.type)?.besatzung ?? 0})
-                            </option>
-                          ))}
+                          {fahrzeuge.map((f) => {
+                            const besetzt = personal.filter((p) => p.fahrzeugId === f.id).length;
+                            const soll = getFahrzeugTyp(f.type)?.besatzung ?? 0;
+                            const eigenes = f.id === person.fahrzeugId;
+                            // Unterwegs (auch auf Rückfahrt) oder voll: nicht wählbar, mit Grund dahinter
+                            const grund = !kannUmbesetzen(f) ? ` – ${f.status ?? 'unterwegs'}` : besetzt >= soll && !eigenes ? ' – voll' : '';
+                            return (
+                              <option key={f.id} value={f.id} disabled={!eigenes && grund !== ''}>
+                                {f.callsign ?? f.name} ({besetzt}/{soll}){grund}
+                              </option>
+                            );
+                          })}
                         </select>
                       </label>
                       <button

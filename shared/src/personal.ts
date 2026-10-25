@@ -220,3 +220,18 @@ export function besetzeAutomatisch(vehicle: Vehicle, personal: Mitarbeiter[]): M
     return person;
   });
 }
+
+/**
+ * Repariert Personal, das nicht zu seiner Wache passt: Wer auf einem Fahrzeug sitzt, gehört zu dessen Wache.
+ * Ändert sich nichts, kommt dasselbe Array zurück (wichtig für React-Effekte).
+ */
+export function bereinigePersonal(personal: Mitarbeiter[], vehicles: Vehicle[]): Mitarbeiter[] {
+  let geaendert = false;
+  const ergebnis = personal.map((person) => {
+    const wacheId = person.fahrzeugId ? vehicles.find((vehicle) => vehicle.id === person.fahrzeugId)?.stationId : undefined;
+    if (!wacheId || wacheId === person.wacheId) return person;
+    geaendert = true;
+    return { ...person, wacheId };
+  });
+  return geaendert ? ergebnis : personal;
+}

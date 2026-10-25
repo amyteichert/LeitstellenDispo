@@ -10,6 +10,8 @@ import {
   getBedarfsLabel,
   getEinsatzVersorgung,
   getVerfuegbareFahrzeugeFuerEinsatz,
+  stelleLoeschzugZusammen,
+  getFahrzeugTyp,
   istAusreichendBesetzt,
   getMeldungKey,
   getVerborgeneMeldungen,
@@ -335,6 +337,22 @@ export default function EinsaetzeView({
                       {selectedIncident.status === 'alarmiert' ? 'Nachalarmieren' : 'Alarmieren'}
                       {selectedVehicleIds.length > 0 ? ` (${selectedVehicleIds.length})` : ''}
                     </button>
+                    {passendeFahrzeuge.some(({ vehicle }) => getFahrzeugTyp(vehicle.type)?.organisation === 'Feuerwehr') && (
+                      <button
+                        className="btn"
+                        type="button"
+                        title="ELW, zwei Löschfahrzeuge und eine Drehleiter – die schnellsten freien, egal von welcher Wache"
+                        onClick={() => {
+                          const zug = stelleLoeschzugZusammen(passendeFahrzeuge);
+                          setSelectedVehicleIds((current) => [...new Set([...current, ...zug.fahrzeugIds])]);
+                          setRueckmeldung(zug.fehlt.length > 0
+                            ? `Löschzug ausgewählt – nicht frei: ${zug.fehlt.map((f) => `${f.anzahl}× ${f.kategorie}`).join(', ')}.`
+                            : '✓ Löschzug ausgewählt – jetzt alarmieren.');
+                        }}
+                      >
+                        Löschzug auswählen
+                      </button>
+                    )}
                   </div>
                   <FehlendeKraefte incident={selectedIncident} vehicles={vehicles} />
                 </section>

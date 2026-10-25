@@ -3,6 +3,7 @@ import { istFahrzeugVerfuegbar } from './alarmierung.js';
 import { istAusreichendBesetzt } from './fahrzeuge.js';
 import {
   besetzeAutomatisch,
+  bereinigePersonal,
   brauchtNeueBewerber,
   getNeuWuerfelnAb,
   mitNeuenBewerbern,
@@ -182,5 +183,22 @@ describe('Bewerber: alle 24 Std. neu, selbst neu würfeln alle 12 Std.', () => {
     const erster = w.bewerber!.liste[0];
     const danach = ohneBewerber(w, erster.id);
     expect(danach.bewerber!.liste).toHaveLength(w.bewerber!.liste.length - 1);
+  });
+});
+
+describe('Personal bereinigen', () => {
+  it('ordnet Personal der Wache seines Fahrzeugs zu', () => {
+    const rtw = fahrzeug('v1', 'RTW', 'w2');
+    const personal: Mitarbeiter[] = [
+      { id: 'p1', name: 'A', wacheId: 'w1', qualifikationen: [], fahrzeugId: 'v1' },
+      { id: 'p2', name: 'B', wacheId: 'w1', qualifikationen: [] },
+    ];
+    const ergebnis = bereinigePersonal(personal, [rtw]);
+    expect(ergebnis.map((p) => p.wacheId)).toEqual(['w2', 'w1']);
+  });
+
+  it('gibt dasselbe Array zurück, wenn alles passt', () => {
+    const personal: Mitarbeiter[] = [{ id: 'p1', name: 'A', wacheId: 'w1', qualifikationen: [], fahrzeugId: 'v1' }];
+    expect(bereinigePersonal(personal, [fahrzeug('v1', 'RTW', 'w1')])).toBe(personal);
   });
 });

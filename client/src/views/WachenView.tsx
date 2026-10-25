@@ -75,6 +75,8 @@ export default function WachenView({
   erweitereStellplaetze,
   personalAktionen,
   onWacheKaufen,
+  verwaltenId,
+  setVerwaltenId,
 }: {
   locations: MapLocation[];
   selectedId: string;
@@ -90,14 +92,17 @@ export default function WachenView({
   erweitereStellplaetze: (stationId: string) => string | null;
   personalAktionen: PersonalAktionen;
   onWacheKaufen: () => void;
+  /** Gerade verwaltete Wache – liegt in App, damit die Karte direkt eine Wache öffnen kann */
+  verwaltenId: string | null;
+  setVerwaltenId: (id: string | null) => void;
 }) {
   const stations = locations.filter((l) => l.type === 'station');
-  const [verwaltenId, setVerwaltenId] = useState<string | null>(null);
   const verwaltet = stations.find((s) => s.id === verwaltenId);
 
   if (verwaltet) {
     return (
       <WacheVerwalten
+        key={verwaltet.id}
         wache={verwaltet}
         vehicles={vehicles}
         personal={personal}

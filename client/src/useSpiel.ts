@@ -14,6 +14,7 @@ import {
   mitStellplatzErweiterung,
   besetzeAutomatisch,
   erzeugeBesatzungFuer,
+  bereinigePersonal,
   getPersonalDerWache,
   getPersonalLimit,
   getRuheraumPreis,
@@ -302,6 +303,11 @@ export function useSpiel(optionen: UseSpielOptionen = {}) {
   const gibSprechaufforderung = (sprechwunschId: string) => {
     setFunk((current) => quittiereSprechwunsch(current, sprechwunschId, Date.now()));
   };
+
+  // Personal gehört immer zur Wache seines Fahrzeugs (repariert falsch zugeordnete alte Spielstände)
+  useEffect(() => {
+    setPersonal((current) => bereinigePersonal(current, vehicles));
+  }, [personal, vehicles]);
 
   // Besatzung der Fahrzeuge immer aus dem Personal ableiten
   useEffect(() => {

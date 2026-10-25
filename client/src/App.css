@@ -3100,3 +3100,13 @@ a.anmeldung__link { text-align: center; }
 }
 .profil { display: grid; gap: 12px; max-width: 760px; }
 a.btn { text-decoration: none; }
+
+/* Personal-Liste: Suche und Filter */
+.personal-filter { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 6px; margin: 8px 0; }
+.personal-filter .field { margin: 0; }
+
+/* Alarmierung: Knöpfe über der Fahrzeugliste */
+.fahrzeug-auswahl__knoepfe { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0; }
+.fahrzeug-auswahl__knoepfe .btn { flex: 1 1 auto; justify-content: center; }
+/* Auf der Karte scrollt nur die Fahrzeugliste, Knöpfe und Bedarf bleiben sichtbar */
+.map-incident-panel .fahrzeug-auswahl--karte { max-height: 260px; overflow-y: auto; padding-right: 4px; }

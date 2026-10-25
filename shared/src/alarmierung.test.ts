@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { GAME_CONFIG } from './konfig.js';
-import { alarmiereFahrzeuge, getWarteLage, rueckalarmiereAlle, rueckalarmiereFahrzeug } from './alarmierung.js';
+import { alarmiereFahrzeuge, getWarteLage, rueckalarmiereAlle, rueckalarmiereFahrzeug, stelleLoeschzugZusammen } from './alarmierung.js';
 import { getAktiveZuteilungen } from './daten.js';
 import { getFahrzeugGeschwindigkeit } from './fahrzeuge.js';
 import { getFahrzeitSekunden } from './geo.js';
@@ -123,5 +123,20 @@ describe('rueckalarmiereFahrzeug', () => {
     expect(lage?.wartende.map((w) => w.vehicleId)).toEqual(['rtw']);
     expect(lage?.fehlt.length).toBeGreaterThan(0);
     expect(lage?.freiesFahrzeugFuerFehlendes).toBe(false);
+  });
+});
+
+describe('Löschzug', () => {
+  it('nimmt ELW, zwei Löschfahrzeuge und eine Drehleiter – jeweils die schnellsten', () => {
+    const eintrag = (id: string, type: string, anfahrtSekunden: number) => ({ vehicle: fahrzeug(id, type), anfahrtSekunden });
+    const { fahrzeugIds, fehlt } = stelleLoeschzugZusammen([
+      eintrag('lf-weit', 'LF 20', 900),
+      eintrag('hlf', 'HLF 20', 200),
+      eintrag('lf', 'LF 10', 300),
+      eintrag('dlk', 'DLK 23/12', 400),
+      eintrag('rtw', 'RTW', 100),
+    ]);
+    expect(fahrzeugIds).toEqual(['hlf', 'lf', 'dlk']);
+    expect(fehlt).toEqual([{ kategorie: 'Einsatzleitwagen', anzahl: 1 }]);
   });
 });

@@ -3,12 +3,14 @@ import {
   EINSATZ_STATUS_LABELS,
   erstelleAlarmVorschlag,
   getVerfuegbareFahrzeugeFuerEinsatz,
+  stelleLoeschzugZusammen,
   getMeldungKey,
   getVerborgeneMeldungen,
   type FunkSpruch,
   PATIENTEN_STATUS_LABELS,
   formatBedarfsListe,
   formatEinsatzTitel,
+  getFahrzeugTyp,
   getBedarfsLabel,
   getEinsatzVersorgung,
   istEskaliert,
@@ -146,7 +148,50 @@ export function KarteEinsatzPanel({
 
       {kannAlarmieren && passende.length > 0 && (
         <>
-          <ul className="fahrzeug-auswahl">
+          {/* Knöpfe über der Liste, damit man bei vielen Fahrzeugen nicht nach unten scrollen muss */}
+          <div className="fahrzeug-auswahl__knoepfe">
+            <button
+              type="button"
+              className="btn btn--primary"
+              disabled={auswahl.length === 0}
+              onClick={() => {
+                const namen = auswahl.map((id) => {
+                  const vehicle = vehicles.find((item) => item.id === id);
+                  return vehicle?.callsign ?? vehicle?.name ?? 'Fahrzeug';
+                });
+                onAlarmieren(auswahl);
+                setAuswahl([]);
+                setRueckmeldung(`✓ ${namen.join(', ')} alarmiert.`);
+              }}
+            >
+              {incident.status === 'alarmiert' ? 'Nachalarmieren' : 'Alarmieren'}{auswahl.length > 0 ? ` (${auswahl.length})` : ''}
+            </button>
+            {vorschlag.fahrzeugIds.length > 0 && (
+              <button type="button" className="btn" onClick={() => setAuswahl((current) => [...new Set([...current, ...vorschlag.fahrzeugIds])])}>
+                Vorschlag
+              </button>
+            )}
+            {passende.some(({ vehicle }) => getFahrzeugTyp(vehicle.type)?.organisation === 'Feuerwehr') && (
+              <button
+                type="button"
+                className="btn"
+                title="ELW, zwei Löschfahrzeuge und eine Drehleiter – die schnellsten freien, egal von welcher Wache"
+                onClick={() => {
+                  const zug = stelleLoeschzugZusammen(passende);
+                  setAuswahl((current) => [...new Set([...current, ...zug.fahrzeugIds])]);
+                  setRueckmeldung(zug.fehlt.length > 0
+                    ? `Löschzug ausgewählt – nicht frei: ${zug.fehlt.map((f) => `${f.anzahl}× ${f.kategorie}`).join(', ')}.`
+                    : '✓ Löschzug ausgewählt – jetzt alarmieren.');
+                }}
+              >
+                Löschzug
+              </button>
+            )}
+            {auswahl.length > 0 && (
+              <button type="button" className="btn" onClick={() => setAuswahl([])}>Leeren</button>
+            )}
+          </div>
+          <ul className="fahrzeug-auswahl fahrzeug-auswahl--karte">
             {passende.map(({ vehicle, distanzKm, anfahrtSekunden, passend }) => (
               <li key={vehicle.id} style={passend ? undefined : { opacity: 0.75 }}>
                 <label>
@@ -154,7 +199,7 @@ export function KarteEinsatzPanel({
                   <span>
                     <strong className="mit-kennzeichen"><Kennzeichen art="fahrzeug" typ={vehicle.type} groesse={20} />{vehicle.callsign ?? vehicle.name}</strong> · {vehicle.type}
                     <small>
-                      <span title="Realistische Anfahrtszeit (Ausrückzeit + Straßenweg). Auf der Karte vorerst auf direktem Weg – echte Routenführung ist für später angedacht.">Anfahrt {formatAnfahrt(anfahrtSekunden)}</span> · {locations.find((l) => l.id === vehicle.stationId)?.name ?? '–'} · {distanzKm.toFixed(1)} km
+                      <span title="Realistische Anfahrtszeit (Ausrückzeit + Straßenweg). Mit Straßen-Routing: Navi-Zeit, je nach Fahrzeugtyp etwas schneller oder langsamer.">Anfahrt {formatAnfahrt(anfahrtSekunden)}</span> · {locations.find((l) => l.id === vehicle.stationId)?.name ?? '–'} · {distanzKm.toFixed(1)} km
                       {!passend && ' · zählt nicht zum Bedarf'}
                     </small>
                   </span>
@@ -162,22 +207,6 @@ export function KarteEinsatzPanel({
               </li>
             ))}
           </ul>
-          <button
-            type="button"
-            className="btn btn--primary map-incident-panel__open"
-            disabled={auswahl.length === 0}
-            onClick={() => {
-              const namen = auswahl.map((id) => {
-                const vehicle = vehicles.find((item) => item.id === id);
-                return vehicle?.callsign ?? vehicle?.name ?? 'Fahrzeug';
-              });
-              onAlarmieren(auswahl);
-              setAuswahl([]);
-              setRueckmeldung(`✓ ${namen.join(', ')} alarmiert.`);
-            }}
-          >
-            {incident.status === 'alarmiert' ? 'Nachalarmieren' : 'Alarmieren'}{auswahl.length > 0 ? ` (${auswahl.length})` : ''}
-          </button>
         </>
       )}
       {kannAlarmieren && vorschlag.nichtVerfuegbar.length > 0 && (
