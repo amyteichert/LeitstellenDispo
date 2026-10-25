@@ -3110,3 +3110,41 @@ a.btn { text-decoration: none; }
 .fahrzeug-auswahl__knoepfe .btn { flex: 1 1 auto; justify-content: center; }
 /* Auf der Karte scrollt nur die Fahrzeugliste, Knöpfe und Bedarf bleiben sichtbar */
 .map-incident-panel .fahrzeug-auswahl--karte { max-height: 260px; overflow-y: auto; padding-right: 4px; }
+
+/* AAO: eigene Alarm-Knöpfe (wie leitstellenspiel.de) */
+.aao { margin: 8px 0; }
+.aao__kopf { display: flex; align-items: flex-end; gap: 6px; border-bottom: 1px solid var(--color-border, #8884); }
+.aao__reiter { display: flex; flex-wrap: wrap; gap: 4px; flex: 1; }
+.aao__reiter-knopf {
+  padding: 6px 12px; border: 1px solid var(--color-border, #8886); border-bottom: none; border-radius: 6px 6px 0 0;
+  background: var(--color-surface); color: var(--color-text); cursor: pointer; font: inherit; min-height: 36px;
+}
+.aao__reiter-knopf--aktiv { background: var(--color-primary, #b91c1c); color: #fff; border-color: transparent; }
+.aao__knoepfe { display: flex; flex-wrap: wrap; gap: 6px; padding-top: 8px; }
+.aao__knopf {
+  display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; min-height: 36px;
+  border: 1px solid #0004; border-radius: 6px; color: #fff; font: inherit; font-weight: 600; cursor: pointer;
+  text-shadow: 0 1px 1px #0006;
+}
+.aao__knopf:hover { filter: brightness(1.1); }
+.aao__knopf--vorschau { cursor: default; }
+.aao__status { display: inline-grid; place-items: center; width: 22px; height: 22px; border-radius: 4px; background: #fff3; font-size: 0.8rem; }
+.aao-hilfe__knopf {
+  width: 28px; height: 28px; border-radius: 50%; border: 1px solid var(--color-border, #8886); flex: none;
+  background: var(--color-surface); color: var(--color-text); font-weight: 700; cursor: pointer; margin-bottom: 4px;
+}
+.aao-hilfe {
+  margin: 8px 0; padding: 10px 12px; border-radius: 8px; background: var(--color-surface);
+  box-shadow: var(--shadow-card); font-size: 0.9rem; font-weight: normal;
+}
+.aao-hilfe p, .aao-hilfe ol { margin: 4px 0 10px; }
+.aao-hilfe ol { padding-left: 1.2rem; }
+.aao-formular { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 8px; }
+.aao-formular__farbe input { width: 100%; min-height: 40px; padding: 2px; }
+.aao-formular__fahrzeuge { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 6px; }
+.aao-formular__fahrzeug { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.aao-formular__fahrzeug input { width: 64px; }
+.aao-liste { list-style: none; padding: 0; display: grid; gap: 8px; }
+.aao-liste li { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.aao-liste small { flex: 1 1 160px; color: var(--color-text-muted); }
+.aao-liste__aktionen { display: flex; gap: 4px; }

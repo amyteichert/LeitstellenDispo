@@ -3,14 +3,13 @@ import {
   EINSATZ_STATUS_LABELS,
   erstelleAlarmVorschlag,
   getVerfuegbareFahrzeugeFuerEinsatz,
-  stelleLoeschzugZusammen,
   getMeldungKey,
   getVerborgeneMeldungen,
   type FunkSpruch,
   PATIENTEN_STATUS_LABELS,
   formatBedarfsListe,
   formatEinsatzTitel,
-  getFahrzeugTyp,
+  type AaoEintrag,
   getBedarfsLabel,
   getEinsatzVersorgung,
   istEskaliert,
@@ -21,6 +20,7 @@ import type { MapLocation, Vehicle } from '../types';
 import FehlendeKraefte from './FehlendeKraefte';
 import Rueckalarmierung from './Rueckalarmierung';
 import { Kennzeichen } from '../Kennzeichen';
+import AaoKnoepfe from './AaoKnoepfe';
 
 /** Leiste oben auf der Karte mit allen laufenden Einsätzen. */
 export function KarteEinsatzLeiste({
@@ -74,7 +74,10 @@ export function KarteEinsatzPanel({
   onAlleRueckalarmieren,
   funk,
   onSprechaufforderung,
+  aao,
 }: {
+  /** Eigene Alarm-Knöpfe */
+  aao: AaoEintrag[];
   /** Fahrzeug vom Einsatz zurückholen */
   onRueckalarmieren: (vehicleId: string) => void;
   onAlleRueckalarmieren: () => void;
@@ -149,6 +152,7 @@ export function KarteEinsatzPanel({
       {kannAlarmieren && passende.length > 0 && (
         <>
           {/* Knöpfe über der Liste, damit man bei vielen Fahrzeugen nicht nach unten scrollen muss */}
+          <AaoKnoepfe aao={aao} verfuegbar={passende} auswahl={auswahl} onAuswahl={setAuswahl} onMeldung={setRueckmeldung} />
           <div className="fahrzeug-auswahl__knoepfe">
             <button
               type="button"
@@ -169,22 +173,6 @@ export function KarteEinsatzPanel({
             {vorschlag.fahrzeugIds.length > 0 && (
               <button type="button" className="btn" onClick={() => setAuswahl((current) => [...new Set([...current, ...vorschlag.fahrzeugIds])])}>
                 Vorschlag
-              </button>
-            )}
-            {passende.some(({ vehicle }) => getFahrzeugTyp(vehicle.type)?.organisation === 'Feuerwehr') && (
-              <button
-                type="button"
-                className="btn"
-                title="ELW, zwei Löschfahrzeuge und eine Drehleiter – die schnellsten freien, egal von welcher Wache"
-                onClick={() => {
-                  const zug = stelleLoeschzugZusammen(passende);
-                  setAuswahl((current) => [...new Set([...current, ...zug.fahrzeugIds])]);
-                  setRueckmeldung(zug.fehlt.length > 0
-                    ? `Löschzug ausgewählt – nicht frei: ${zug.fehlt.map((f) => `${f.anzahl}× ${f.kategorie}`).join(', ')}.`
-                    : '✓ Löschzug ausgewählt – jetzt alarmieren.');
-                }}
-              >
-                Löschzug
               </button>
             )}
             {auswahl.length > 0 && (

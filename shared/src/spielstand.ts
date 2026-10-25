@@ -14,6 +14,7 @@ import { erzeugePatienten } from './patienten.js';
 import { RUF_CONFIG } from './bewertung.js';
 import { erzeugeBesatzungFuer, synchronisiereBesatzung, type Mitarbeiter } from './personal.js';
 import type { FunkSpruch } from './funk.js';
+import type { AaoEintrag } from './aao.js';
 import { getFehlendeQualifikationen, type Qualifikation } from './fahrzeuge.js';
 import type { FinanceTransaction, MapLocation, Vehicle } from './typen.js';
 
@@ -39,6 +40,8 @@ export interface Spielstand {
   funk?: FunkSpruch[];
   /** Bis hierhin sind die laufenden Kosten abgerechnet – fehlt = Abrechnung beginnt beim nächsten Start */
   kostenAbgerechnetBis?: number;
+  /** Eigene Alarm-Knöpfe (AAO) – fehlt bei älteren Spielständen (dann die Standard-Knöpfe) */
+  aao?: AaoEintrag[];
 }
 
 export const START_WACHEN: MapLocation[] = [

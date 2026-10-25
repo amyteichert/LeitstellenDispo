@@ -6,7 +6,6 @@ import {
   getFehlendenBedarf,
   istAusreichendBesetzt,
   type BedarfsKlasse,
-  type FahrzeugKategorie,
 } from './fahrzeuge.js';
 import { getFahrzeitSekunden, getPositionAufAnfahrt, getRueckfahrtPosition, getStationCoords, haversineKm } from './geo.js';
 import { GAME_CONFIG } from './konfig.js';
@@ -287,28 +286,3 @@ export function erstelleAlarmVorschlag(einsatz: SpielEinsatz, zustand: Alarmieru
   };
 }
 
-/** Löschzug nach FwDV 3: Einsatzleitwagen, zwei Löschfahrzeuge und eine Drehleiter */
-export const LOESCHZUG: ReadonlyArray<{ kategorie: FahrzeugKategorie; anzahl: number }> = [
-  { kategorie: 'Einsatzleitwagen', anzahl: 1 },
-  { kategorie: 'Löschfahrzeug', anzahl: 2 },
-  { kategorie: 'Drehleiter', anzahl: 1 },
-];
-
-/**
- * Stellt einen Löschzug aus den schnellsten freien Fahrzeugen zusammen – egal von welcher Wache.
- * Fehlt eine Kategorie, kommt der Rest trotzdem (`fehlt` nennt, was nicht frei ist).
- */
-export function stelleLoeschzugZusammen(verfuegbar: Array<Pick<VerfuegbaresFahrzeug, 'vehicle' | 'anfahrtSekunden'>>) {
-  const nachAnfahrt = [...verfuegbar].sort((a, b) => a.anfahrtSekunden - b.anfahrtSekunden);
-  const fahrzeugIds: string[] = [];
-  const fehlt: Array<{ kategorie: FahrzeugKategorie; anzahl: number }> = [];
-  for (const { kategorie, anzahl } of LOESCHZUG) {
-    const treffer = nachAnfahrt
-      .filter(({ vehicle }) => getFahrzeugTyp(vehicle.type)?.kategorie === kategorie)
-      .slice(0, anzahl)
-      .map(({ vehicle }) => vehicle.id);
-    fahrzeugIds.push(...treffer);
-    if (treffer.length < anzahl) fehlt.push({ kategorie, anzahl: anzahl - treffer.length });
-  }
-  return { fahrzeugIds, fehlt };
-}

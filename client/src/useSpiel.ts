@@ -15,6 +15,8 @@ import {
   besetzeAutomatisch,
   erzeugeBesatzungFuer,
   bereinigePersonal,
+  ladeAao,
+  type AaoEintrag,
   getPersonalDerWache,
   getPersonalLimit,
   getRuheraumPreis,
@@ -269,6 +271,8 @@ export function useSpiel(optionen: UseSpielOptionen = {}) {
 
   // ---- Funkverkehr: Statuswechsel und neue Lagemeldungen erkennen ----
   const [funk, setFunk] = useState<FunkSpruch[]>(startSpiel.funk ?? []);
+  // Eigene Alarm-Knöpfe (AAO)
+  const [aao, setAao] = useState<AaoEintrag[]>(() => ladeAao(startSpiel.aao));
   const statusStand = useRef<Map<string, number> | null>(null);
   const bekannteMeldungen = useRef<Set<string> | null>(null);
 
@@ -325,6 +329,7 @@ export function useSpiel(optionen: UseSpielOptionen = {}) {
     setRuf(spielstand.ruf ?? RUF_CONFIG.start);
     setPersonal(spielstand.personal ?? []);
     setFunk(spielstand.funk ?? []);
+    setAao(ladeAao(spielstand.aao));
     setKostenAbgerechnetBis(spielstand.kostenAbgerechnetBis);
     // Nach dem Laden neu einlesen, ohne alte Meldungen und Status nochmal zu funken
     statusStand.current = null;
@@ -371,10 +376,11 @@ export function useSpiel(optionen: UseSpielOptionen = {}) {
         personal,
         funk,
         kostenAbgerechnetBis,
+        aao,
       });
     }, 1000);
     return () => clearTimeout(timeout);
-  }, [spielstandGeladen, balance, transactions, locations, vehicles, incidents, completedIncidentHistory, krankenhaeuser, ruf, personal, funk, kostenAbgerechnetBis]);
+  }, [spielstandGeladen, balance, transactions, locations, vehicles, incidents, completedIncidentHistory, krankenhaeuser, ruf, personal, funk, kostenAbgerechnetBis, aao]);
 
   // Spielzeit
   useEffect(() => {
@@ -858,6 +864,8 @@ export function useSpiel(optionen: UseSpielOptionen = {}) {
   };
 
   return {
+    aao,
+    setAao,
     schichtzulage,
     schichtzulageGesehen: () => setSchichtzulage(null),
     willkommen,

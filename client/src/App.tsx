@@ -47,6 +47,7 @@ import { getEinstellungen, useEinstellungen } from './einstellungen';
 import FunkView from './views/FunkView';
 import FahrzeugeView from './views/FahrzeugeView';
 import WachenView from './views/WachenView';
+import AaoView from './views/AaoView';
 import KrankenhaeuserView from './views/KrankenhaeuserView';
 import EinsaetzeView from './views/EinsaetzeView';
 import { KarteEinsatzLeiste, KarteEinsatzPanel } from './views/KarteEinsatzOverlay';
@@ -942,6 +943,7 @@ Dein Guthaben: ${balance.toLocaleString('de-DE')} €`)) return;
                   onAlleRueckalarmieren={() => spiel.rueckalarmiereAlleFahrzeuge(mapIncident.id)}
                   funk={spiel.funk}
                   onSprechaufforderung={spiel.gibSprechaufforderung}
+                  aao={spiel.aao}
                   onClose={() => setMapIncidentId(null)}
                   onOpenInEinsaetze={() => {
                     setSelectedIncidentId(mapIncident.id);
@@ -1137,12 +1139,17 @@ Dein Guthaben: ${balance.toLocaleString('de-DE')} €`)) return;
               />
             )}
 
+            {currentView === 'AAO' && (
+              <AaoView aao={spiel.aao} setAao={spiel.setAao} wachen={locations.filter((l) => l.type === 'station')} />
+            )}
+
             {currentView === 'Fahrzeuge' && (
               <FahrzeugeView vehicles={vehicles} addVehicle={addVehicle} stations={locations.filter(l => l.type === 'station')} />
             )}
 
             {currentView === 'Einsätze' && (
               <EinsaetzeView
+                aao={spiel.aao}
                 incidents={incidents}
                 completedIncidentHistory={completedIncidentHistory}
                 vehicles={vehicles}
