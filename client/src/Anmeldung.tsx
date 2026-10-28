@@ -185,7 +185,7 @@ const MERKMALE: Array<{ icon: SymbolName; titel: string; text: string }> = [
   { icon: 'einsatz', titel: 'Einsätze disponieren', text: 'Notrufe kommen rein – du schickst die richtigen Fahrzeuge los.' },
   { icon: 'karte', titel: 'Rettungsdienst & Feuerwehr', text: 'Von der Schnittverletzung bis zum Gebäudebrand – auf echten Karten.' },
   { icon: 'wache', titel: 'Wachen ausbauen', text: 'Neue Standorte, mehr Stellplätze, Personal und Ausbildung.' },
-  { icon: 'geld', titel: 'Haushalten', text: 'Mit Einsätzen verdienst du Geld – Gehälter und Unterhalt kosten welches.' },
+  { icon: 'geld', titel: 'Haushalten', text: 'Einsätze bringen Geld ein – Gehälter und Unterhalt wollen bezahlt werden.' },
 ];
 
 // Echte Zahlen aus dem Spiel – keine Fantasiewerte
