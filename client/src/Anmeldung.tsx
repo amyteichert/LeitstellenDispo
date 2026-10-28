@@ -12,6 +12,7 @@ import {
   pruefeNameGegenEmail,
   pruefePasswort,
   anzeigeName,
+  getBegruessung,
   type Konto,
 } from '@leitstellendispo/shared';
 import ProfilBild from './ProfilBild';
@@ -228,17 +229,23 @@ function StartBildschirm({ konto, onStart, onAndererNutzer }: {
   };
 
   return (
-    <div className="anmeldung__formular startklar">
-      <ProfilBild konto={konto} groesse={88} />
+    <div className={`anmeldung__formular startklar${laedt ? ' startklar--laedt' : ''}`}>
+      <span className="startklar__status"><span aria-hidden /> Leitstelle online</span>
+      <span className="startklar__ring">
+        <ProfilBild konto={konto} groesse={112} />
+      </span>
       <div>
-        <h2>Hey {anzeigeName(konto)}, bist du startklar?</h2>
-        <p className="anmeldung__info">Deine Leitstelle wartet schon auf dich.</p>
+        <p className="startklar__gruss">{getBegruessung(new Date().getHours())}</p>
+        <h2 className="startklar__titel">
+          Hey {anzeigeName(konto)},
+          <span>bist du startklar?</span>
+        </h2>
       </div>
       {laedt ? (
         <LadeBalken geschafft={geschafft} art="start" />
       ) : (
-        <button type="button" className="btn btn--primary anmeldung__absenden" onClick={() => void starten()} autoFocus>
-          Los geht’s
+        <button type="button" className="btn btn--primary anmeldung__absenden startklar__los" onClick={() => void starten()} autoFocus>
+          Los geht’s <span aria-hidden>→</span>
         </button>
       )}
       {!laedt && (
@@ -259,6 +266,8 @@ function AnmeldeFormular({ hinweis, onErfolg, onGast }: { hinweis?: string; onEr
   const [fehler, setFehler] = useState<string | null>(null);
   const [sendet, setSendet] = useState(false);
   const [geschafft, setGeschafft] = useState(false);
+  /** Konto laut Server – zeigt beim Ladebalken das eigene Profilbild */
+  const [ergebnisKonto, setErgebnisKonto] = useState<Konto | null>(null);
   const [passwortSichtbar, setPasswortSichtbar] = useState(false);
   const id = useId();
   const istRegistrierung = modus === 'registrieren';
@@ -284,6 +293,7 @@ function AnmeldeFormular({ hinweis, onErfolg, onGast }: { hinweis?: string; onEr
     try {
       const konto = istRegistrierung ? await registrieren(name.trim(), email.trim(), passwort) : await anmelden(name.trim(), passwort);
       merkeBesuchsZiel(istRegistrierung ? 'registriert' : 'angemeldet');
+      setErgebnisKonto(konto);
       // Kurz „Du bist gleich drin“ zeigen, während der Spielstand geladen wird
       setGeschafft(true);
       await Promise.all([onErfolg(konto), new Promise((fertig) => setTimeout(fertig, 900))]);
@@ -421,7 +431,11 @@ function AnmeldeFormular({ hinweis, onErfolg, onGast }: { hinweis?: string; onEr
       {fehler && <p className="anmeldung__fehler" role="alert">{fehler}</p>}
 
       {sendet ? (
-        <LadeBalken geschafft={geschafft} art={istRegistrierung ? 'registrieren' : 'anmelden'} />
+        <div className="anmeldung__laden">
+          {/* Bis der Server antwortet die Standardfigur, dann das eigene Bild */}
+          <ProfilBild konto={ergebnisKonto ?? { id: 0, name: name.trim() || '?', avatar: null }} groesse={80} />
+          <LadeBalken geschafft={geschafft} art={istRegistrierung ? 'registrieren' : 'anmelden'} />
+        </div>
       ) : (
         <button type="submit" className="btn btn--primary anmeldung__absenden">
           {istRegistrierung ? 'Konto erstellen' : 'Anmelden'}

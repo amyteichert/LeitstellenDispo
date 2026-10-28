@@ -34,6 +34,7 @@ export default function ProfilView({
   onFehlerMelden: () => void;
   onZurAnmeldung: () => void;
 }) {
+  const [bildWaehlen, setBildWaehlen] = useState(false);
   const zahlen: Array<[string, string]> = [
     ['Guthaben', euro(stand.guthaben)],
     ['Ruf', `${stand.ruf} · ${getRufLabel(stand.ruf)}`],
@@ -56,13 +57,24 @@ export default function ProfilView({
           </>
         ) : (
           <>
-            <div className="profil-kopf__zeile">
-              <ProfilBild konto={konto} groesse={64} />
-              <div>
-                <p className="profil-name"><SpielerName konto={konto} /></p>
-                {konto.spitzname && <small className="einsatz-eintrag__zeile">„{konto.spitzname}“</small>}
-              </div>
+            <div className="profil-avatar">
+              <span className="profil-avatar__bild">
+                <ProfilBild konto={konto} groesse={112} />
+                <button
+                  type="button"
+                  className="profil-avatar__knopf"
+                  aria-expanded={bildWaehlen}
+                  aria-label={konto.avatar ? 'Profilbild ändern' : 'Profilbild hinzufügen'}
+                  title={konto.avatar ? 'Profilbild ändern' : 'Profilbild hinzufügen'}
+                  onClick={() => setBildWaehlen((offen) => !offen)}
+                >
+                  {konto.avatar ? '✎' : '+'}
+                </button>
+              </span>
+              <p className="profil-name"><SpielerName konto={konto} /></p>
+              {konto.spitzname && <small className="einsatz-eintrag__zeile">„{konto.spitzname}“</small>}
             </div>
+            {bildWaehlen && <BildAuswahl konto={konto} setKonto={setKonto} onFertig={() => setBildWaehlen(false)} />}
             <small className="einsatz-eintrag__zeile">
               {ROLLEN_LABELS[konto.rolle]} · dabei seit {new Date(konto.erstellt).toLocaleDateString('de-DE', { day: '2-digit', month: 'long', year: 'numeric' })}
             </small>
@@ -126,55 +138,12 @@ function ProfilBearbeiten({ konto, setKonto }: { konto: Konto; setKonto: (konto:
     }
   };
 
-  const waehleVorlage = (avatar: string | null) => void ausfuehren(() => setzeProfil(konto.spitzname ?? '', avatar), '✓ Profilbild geändert.');
-
   return (
     <section className="ausbau-karte profil-bearbeiten">
       <span className="ausbau-karte__kategorie">Profil anpassen</span>
       {meldung && (
         <div className={meldung.art === 'ok' ? 'aktion-rueckmeldung' : 'versorgung-hinweis versorgung-hinweis--fehlt'} role="status">{meldung.text}</div>
       )}
-
-      <div>
-        <h4>Profilbild</h4>
-        <div className="profil-avatare">
-          {AVATAR_VORLAGEN.map((id) => (
-            <button
-              key={id}
-              type="button"
-              aria-pressed={konto.avatar === `vorlage:${id}`}
-              disabled={laedt}
-              onClick={() => waehleVorlage(`vorlage:${id}`)}
-            >
-              <ProfilBild konto={konto} avatar={`vorlage:${id}`} groesse={52} />
-              {AVATAR_FIGUREN[id].name}
-            </button>
-          ))}
-        </div>
-        <div className="team-konto__aktionen" style={{ marginTop: 8 }}>
-          <label className="btn">
-            Eigenes Bild hochladen
-            <input
-              type="file"
-              accept="image/png,image/jpeg,image/webp"
-              hidden
-              disabled={laedt}
-              onChange={(e) => {
-                const datei = e.target.files?.[0];
-                e.target.value = '';
-                if (datei) void ausfuehren(async () => ladeProfilbildHoch(await bereiteProfilbildVor(datei)), '✓ Dein Bild ist hochgeladen.');
-              }}
-            />
-          </label>
-          {konto.avatar?.startsWith('bild:') && (
-            <button type="button" className="btn" disabled={laedt} onClick={() => void ausfuehren(entferneProfilbild, 'Bild entfernt.')}>Bild entfernen</button>
-          )}
-          {konto.avatar && !konto.avatar.startsWith('bild:') && (
-            <button type="button" className="btn" disabled={laedt} onClick={() => waehleVorlage(null)}>Kein Bild</button>
-          )}
-        </div>
-        <small className="einsatz-eintrag__zeile">Eigene Bilder sehen auch andere Spieler. Bitte nichts Anstößiges – das Team entfernt unpassende Bilder.</small>
-      </div>
 
       <form
         onSubmit={(e) => {
@@ -219,5 +188,73 @@ function ProfilBearbeiten({ konto, setKonto }: { konto: Konto; setKonto: (konto:
         </div>
       </form>
     </section>
+  );
+}
+
+/** Auswahl unter dem großen Profilbild: Figur, eigenes Bild oder keins */
+function BildAuswahl({ konto, setKonto, onFertig }: { konto: Konto; setKonto: (konto: Konto) => void; onFertig: () => void }) {
+  const [laedt, setLaedt] = useState(false);
+  const [fehler, setFehler] = useState<string | null>(null);
+
+  const ausfuehren = async (aktion: () => Promise<Konto>) => {
+    setLaedt(true);
+    setFehler(null);
+    try {
+      setKonto(await aktion());
+      onFertig();
+    } catch (e) {
+      setFehler(fehlerText(e));
+    } finally {
+      setLaedt(false);
+    }
+  };
+
+  const waehleVorlage = (avatar: string | null) => void ausfuehren(() => setzeProfil(konto.spitzname ?? '', avatar));
+
+  return (
+    <div className="profil-bildauswahl">
+      {fehler && <div className="versorgung-hinweis versorgung-hinweis--fehlt" role="alert">{fehler}</div>}
+      <div>
+        <h4>Profilbild wählen</h4>
+        <div className="profil-avatare">
+          {AVATAR_VORLAGEN.map((id) => (
+            <button
+              key={id}
+              type="button"
+              aria-pressed={konto.avatar === `vorlage:${id}`}
+              disabled={laedt}
+              onClick={() => waehleVorlage(`vorlage:${id}`)}
+            >
+              <ProfilBild konto={konto} avatar={`vorlage:${id}`} groesse={52} />
+              {AVATAR_FIGUREN[id].name}
+            </button>
+          ))}
+        </div>
+        <div className="team-konto__aktionen" style={{ marginTop: 8 }}>
+          <label className="btn">
+            Eigenes Bild hochladen
+            <input
+              type="file"
+              accept="image/png,image/jpeg,image/webp"
+              hidden
+              disabled={laedt}
+              onChange={(e) => {
+                const datei = e.target.files?.[0];
+                e.target.value = '';
+                if (datei) void ausfuehren(async () => ladeProfilbildHoch(await bereiteProfilbildVor(datei)));
+              }}
+            />
+          </label>
+          {konto.avatar?.startsWith('bild:') && (
+            <button type="button" className="btn" disabled={laedt} onClick={() => void ausfuehren(entferneProfilbild)}>Bild entfernen</button>
+          )}
+          {konto.avatar && !konto.avatar.startsWith('bild:') && (
+            <button type="button" className="btn" disabled={laedt} onClick={() => waehleVorlage(null)}>Kein Bild</button>
+          )}
+        </div>
+        <small className="einsatz-eintrag__zeile">Eigene Bilder sehen auch andere Spieler. Bitte nichts Anstößiges – das Team entfernt unpassende Bilder.</small>
+      </div>
+
+    </div>
   );
 }

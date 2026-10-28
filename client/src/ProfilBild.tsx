@@ -82,13 +82,18 @@ function figurSvg(f: Figur): string {
   return `<svg viewBox="0 0 64 64" width="100%" height="100%" aria-hidden="true">${teile.join('')}</svg>`;
 }
 
+/** Graue Standardfigur für alle ohne Profilbild */
+const STANDARD_FIGUR = '<svg viewBox="0 0 64 64" width="100%" height="100%" aria-hidden="true">'
+  + '<rect width="64" height="64" fill="#c4c4c4"/><circle cx="32" cy="27" r="11" fill="#f2f2f2"/>'
+  + '<path d="M13 58c2-11 10-17 19-17s17 6 19 17a29 29 0 0 1-38 0z" fill="#f2f2f2"/></svg>';
+
 const SVG_CACHE = new Map<string, string>();
 const figurHtml = (id: AvatarVorlage) => {
   if (!SVG_CACHE.has(id)) SVG_CACHE.set(id, figurSvg(AVATAR_FIGUREN[id]));
   return SVG_CACHE.get(id)!;
 };
 
-/** Profilbild eines Kontos – rund, in jeder Größe */
+/** Profilbild eines Kontos – rund, in jeder Größe; ohne Bild die graue Standardfigur */
 export default function ProfilBild({
   konto,
   groesse = 32,
@@ -109,11 +114,7 @@ export default function ProfilBild({
     // Feste SVG-Texte aus dieser Datei – keine Nutzereingaben
     return <span className="profilbild" style={stil} role="img" aria-label={titel} dangerouslySetInnerHTML={{ __html: figurHtml(vorlage) }} />;
   }
-  return (
-    <span className="profilbild profilbild--buchstabe" style={{ ...stil, fontSize: groesse * 0.45 }} role="img" aria-label={titel}>
-      {[...titel][0]?.toUpperCase() ?? '?'}
-    </span>
-  );
+  return <span className="profilbild" style={stil} role="img" aria-label={titel} dangerouslySetInnerHTML={{ __html: STANDARD_FIGUR }} />;
 }
 
 /** Verkleinert ein gewähltes Bild auf ein Quadrat (Mitte ausgeschnitten) und gibt es als Base64-JPEG zurück. */
