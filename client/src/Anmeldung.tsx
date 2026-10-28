@@ -13,7 +13,12 @@ import {
   pruefePasswort,
   anzeigeName,
   getBegruessung,
+  getRufLabel,
+  istGruendungsSpieler,
+  RUF_CONFIG,
+  ROLLEN_LABELS,
   type Konto,
+  type Spielstand,
 } from '@leitstellendispo/shared';
 import ProfilBild from './ProfilBild';
 import { KontoFehler, SITZUNG_ABGELAUFEN, abmelden, anmelden, holeFunktionen, holeKonto, passwortVergessen, registrieren } from './konto';
@@ -137,7 +142,7 @@ export default function Anmeldung({ children }: {
       </header>
 
       <div className="anmeldung__mitte">
-        <Merkmale />
+        {zustand.art === 'startklar' ? <LeitstellenStand /> : <Merkmale />}
 
         <main className="anmeldung__karte">
           {zustand.art === 'pruefen' && (
@@ -154,14 +159,18 @@ export default function Anmeldung({ children }: {
           {zustand.art === 'abgemeldet' && <AnmeldeFormular hinweis={zustand.hinweis} onErfolg={angemeldet} onGast={alsGast} />}
         </main>
 
-        <aside className="anmeldung__seite">
-          <EinsatzTicker />
-          <p className="anmeldung__fakten">
-            {FAKTEN.map((fakt) => (
-              <span key={fakt.text}><strong>{fakt.zahl}</strong> {fakt.text}</span>
-            ))}
-          </p>
-        </aside>
+        {zustand.art === 'startklar' ? (
+          <SchichtInfo konto={zustand.konto} />
+        ) : (
+          <aside className="anmeldung__seite">
+            <EinsatzTicker />
+            <p className="anmeldung__fakten">
+              {FAKTEN.map((fakt) => (
+                <span key={fakt.text}><strong>{fakt.zahl}</strong> {fakt.text}</span>
+              ))}
+            </p>
+          </aside>
+        )}
       </div>
 
       <footer className="anmeldung__fuss">
@@ -176,7 +185,7 @@ const MERKMALE: Array<{ icon: SymbolName; titel: string; text: string }> = [
   { icon: 'einsatz', titel: 'Einsätze disponieren', text: 'Notrufe kommen rein – du schickst die richtigen Fahrzeuge los.' },
   { icon: 'karte', titel: 'Rettungsdienst & Feuerwehr', text: 'Von der Schnittverletzung bis zum Gebäudebrand – auf echten Karten.' },
   { icon: 'wache', titel: 'Wachen ausbauen', text: 'Neue Standorte, mehr Stellplätze, Personal und Ausbildung.' },
-  { icon: 'geld', titel: 'Haushalten', text: 'Einsätze bringen Geld, Gehälter und Unterhalt kosten es.' },
+  { icon: 'geld', titel: 'Haushalten', text: 'Mit Einsätzen verdienst du Geld – Gehälter und Unterhalt kosten welches.' },
 ];
 
 // Echte Zahlen aus dem Spiel – keine Fantasiewerte
@@ -185,6 +194,105 @@ const FAKTEN = [
   { zahl: FAHRZEUG_TYPEN.length, text: 'Fahrzeugtypen' },
   { zahl: LEHRGAENGE.length, text: 'Lehrgänge' },
 ];
+
+/** Startbildschirm links: Stand der eigenen Leitstelle (aus dem gespeicherten Spielstand) */
+function LeitstellenStand() {
+  const [stand, setStand] = useState<Spielstand | null | undefined>(undefined);
+
+  useEffect(() => {
+    let aktiv = true;
+    serverSpeicher.laden().then((s) => aktiv && setStand(s), () => aktiv && setStand(null));
+    return () => {
+      aktiv = false;
+    };
+  }, []);
+
+  const eintraege: Array<{ icon: SymbolName; titel: string; text: string }> = stand
+    ? [
+        { icon: 'geld', titel: `${stand.balance.toLocaleString('de-DE')} €`, text: 'Guthaben' },
+        { icon: 'stern', titel: `Ruf ${stand.ruf ?? RUF_CONFIG.start}`, text: getRufLabel(stand.ruf ?? RUF_CONFIG.start) },
+        {
+          icon: 'wache',
+          titel: `${stand.locations.filter((l) => l.type === 'station').length} Wachen · ${stand.vehicles.length} Fahrzeuge`,
+          text: `${(stand.personal ?? []).length} Leute im Dienst`,
+        },
+        {
+          icon: 'einsatz',
+          titel: stand.incidents.length === 1 ? '1 laufender Einsatz' : `${stand.incidents.length} laufende Einsätze`,
+          text: `Zuletzt gespielt ${zuletzt(stand.gespeichertAm)}`,
+        },
+      ]
+    : [];
+
+  return (
+    <section className="anmeldung__seite" aria-label="Deine Leitstelle">
+      <h3>Deine Leitstelle</h3>
+      {stand === undefined && <p className="anmeldung__verbinde"><span className="anmeldung__spinner" aria-hidden /> Lade Spielstand …</p>}
+      {stand === null && <p className="anmeldung__info">Noch kein Spielstand – nach dem Start baust du deine erste Wache.</p>}
+      {stand && (
+        <ul className="anmeldung__merkmale">
+          {eintraege.map((eintrag) => (
+            <li key={eintrag.text}>
+              <span aria-hidden><Piktogramm name={eintrag.icon} groesse={18} /></span>
+              <div><strong>{eintrag.titel}</strong><small>{eintrag.text}</small></div>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  );
+}
+
+/** „vor 5 Min.“, „vor 3 Std.“, „gestern“, „am 12.10.“ */
+function zuletzt(iso: string): string {
+  const minuten = Math.round((Date.now() - Date.parse(iso)) / 60000);
+  if (!Number.isFinite(minuten)) return '–';
+  if (minuten < 1) return 'gerade eben';
+  if (minuten < 60) return `vor ${minuten} Min.`;
+  if (minuten < 24 * 60) return `vor ${Math.round(minuten / 60)} Std.`;
+  if (minuten < 48 * 60) return 'gestern';
+  return `am ${new Date(iso).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' })}`;
+}
+
+const SCHICHT_TIPPS = [
+  'Mit eigenen AAO-Knöpfen alarmierst du ganze Züge mit einem Tipp.',
+  'Zufriedenes Personal rückt schneller aus – Küche und Aufenthaltsraum helfen.',
+  'Fahrzeuge mit Sprechwunsch (Status 5) warten im Funk auf dich.',
+  'Mehr Stellplätze gibt es im Ausbau deiner Wache.',
+  'Ausgebildetes Personal kündigt seltener.',
+  'Über ✎ in der Wachenverwaltung gibst du jeder Wache Namen und Farbe.',
+  'Unter Einstellungen → Design kannst du die Farben des Spiels ändern.',
+  'Ein guter Ruf bringt dir mehr Geld pro Einsatz.',
+];
+
+/** Startbildschirm rechts: wer man ist und ein Tipp für die Schicht */
+function SchichtInfo({ konto }: { konto: Konto }) {
+  const [tipp] = useState(() => SCHICHT_TIPPS[Math.floor(Math.random() * SCHICHT_TIPPS.length)]);
+  return (
+    <aside className="anmeldung__seite" aria-label="Deine Schicht">
+      <h3>Deine Schicht</h3>
+      <ul className="anmeldung__merkmale">
+        <li>
+          <span aria-hidden><Piktogramm name="karte" groesse={18} /></span>
+          <div>
+            <strong>{ROLLEN_LABELS[konto.rolle]}</strong>
+            <small>Dabei seit {new Date(konto.erstellt).toLocaleDateString('de-DE', { day: '2-digit', month: 'long', year: 'numeric' })}</small>
+          </div>
+        </li>
+        {istGruendungsSpieler(konto) && (
+          <li>
+            <span aria-hidden>🎖️</span>
+            <div><strong>Gründungs-Spieler</strong><small>Schon in der Alpha dabei</small></div>
+          </li>
+        )}
+        <li>
+          <span aria-hidden><Piktogramm name="funk" groesse={18} /></span>
+          <div><strong>Tipp für deine Schicht</strong><small>{tipp}</small></div>
+        </li>
+      </ul>
+    </aside>
+  );
+}
 
 function Merkmale() {
   return (
@@ -266,6 +374,7 @@ function StartBildschirm({ konto, onStart, onAndererNutzer }: {
           Hey {anzeigeName(konto)},
           <span>bist du startklar?</span>
         </h2>
+        <p className="anmeldung__info">Deine Leitstelle wartet schon auf dich.</p>
       </div>
       {laedt ? (
         <LadeBalken geschafft={geschafft} art="start" />

@@ -3207,26 +3207,26 @@ html[data-design='hell'] .versorgung-hinweis--ok { color: #166534; }
   .begruessung { padding: 2px; }
   .begruessung__text { display: none; }
 }
-/* Startbildschirm: zentriert, leuchtender Ring um das Profilbild */
-.startklar {
-  position: relative; align-items: center; text-align: center; gap: 18px; overflow: hidden;
-  background: radial-gradient(120% 70% at 50% 0%, var(--color-primary-light), transparent 70%), var(--color-surface);
-}
+/* Startbildschirm: alles mittig (die Karte ist ein Grid), schmaler Ring um das Profilbild */
+.startklar { position: relative; text-align: center; gap: 16px; justify-items: center; }
+.startklar__los, .startklar .anmeldung__ladebalken, .startklar .anmeldung__link { justify-self: stretch; }
 .startklar__status {
   display: inline-flex; align-items: center; gap: 8px; padding: 4px 12px; border-radius: 999px;
   border: 1px solid var(--color-border-strong); background: var(--color-bg);
   font-size: 0.72rem; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--color-text-muted);
 }
 .startklar__status span { width: 8px; height: 8px; border-radius: 50%; background: var(--color-success); box-shadow: 0 0 8px var(--color-success); animation: startklar-blinken 1.6s ease-in-out infinite; }
-.startklar__ring { position: relative; display: inline-flex; padding: 5px; border-radius: 50%; isolation: isolate; }
-.startklar__ring::before {
-  content: ''; position: absolute; inset: 0; border-radius: 50%; z-index: -1;
-  background: conic-gradient(from 0deg, var(--color-primary), transparent 35%, var(--color-primary) 60%, transparent 85%, var(--color-primary));
-  animation: startklar-drehen 4s linear infinite;
+.startklar__ring {
+  position: relative; display: inline-flex; width: max-content; padding: 3px; border-radius: 50%;
+  isolation: isolate; overflow: hidden; box-shadow: 0 0 18px var(--color-primary-light);
 }
-.startklar__ring::after { content: ''; position: absolute; inset: -14px; border-radius: 50%; z-index: -2; box-shadow: 0 0 40px 4px var(--color-primary-light); }
-.startklar__ring .profilbild { border: 4px solid var(--color-surface); }
-.startklar--laedt .startklar__ring::before { animation-duration: 1.1s; }
+.startklar__ring::before {
+  content: ''; position: absolute; inset: 0; z-index: -1;
+  background: conic-gradient(from 0deg, var(--color-primary), transparent 45%, transparent 55%, var(--color-primary));
+  animation: startklar-drehen 6s linear infinite;
+}
+.startklar__ring .profilbild { border: 3px solid var(--color-surface); }
+.startklar--laedt .startklar__ring::before { animation-duration: 1.5s; }
 .startklar__gruss { margin: 0 0 4px; font-size: 0.8rem; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: var(--color-primary-text); }
 .startklar__titel { margin: 0; font-size: 1.6rem; line-height: 1.2; }
 .startklar__titel span {
