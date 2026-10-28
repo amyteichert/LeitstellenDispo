@@ -149,6 +149,10 @@ const MIGRATIONEN: Array<string | ((db: Datenbank) => void)> = [
     db.pragma(`schema_version = ${version + 1}`);
     db.pragma('writable_schema = OFF');
   },
+  // Ankündigungen mit Ablaufzeit: danach verschwinden sie von selbst (NULL = bis sie entfernt werden)
+  `
+  ALTER TABLE ankuendigung ADD COLUMN laeuft_ab TEXT;
+  `,
 ];
 
 /** Öffnet (bzw. erstellt) die Datenbank und bringt das Schema auf den neuesten Stand. */

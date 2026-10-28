@@ -133,8 +133,8 @@ export const teamApi = {
   notizen: (id: number) => team<{ notizen: KontoNotiz[] }>('GET', `/konten/${id}/notizen`).then((d) => d.notizen),
   notizAnlegen: (id: number, text: string) => team<{ notizen: KontoNotiz[] }>('POST', `/konten/${id}/notizen`, { text }).then((d) => d.notizen),
   notizLoeschen: (notizId: number) => team<null>('DELETE', `/notizen/${notizId}`),
-  ankuendigungSetzen: (text: string, art: AnkuendigungsArt) =>
-    team<{ ankuendigung: Ankuendigung }>('PUT', '/ankuendigung', { text, art }).then((d) => d.ankuendigung),
+  ankuendigungSetzen: (text: string, art: AnkuendigungsArt, dauerMinuten: number | null) =>
+    team<{ ankuendigung: Ankuendigung }>('PUT', '/ankuendigung', { text, art, dauerMinuten }).then((d) => d.ankuendigung),
   ankuendigungEntfernen: () => team<null>('DELETE', '/ankuendigung'),
   korrekturen: (id: number) =>
     team<{ korrekturen: Array<SpielstandKorrektur & { eingebucht: number }> }>('GET', `/konten/${id}/korrekturen`).then((d) => d.korrekturen),

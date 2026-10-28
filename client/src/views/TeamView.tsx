@@ -327,12 +327,24 @@ function KontoZeile({ konto, ich, offen, umschalten, melde, ersetze, entferne }:
   );
 }
 
-/** Ankündigung an alle Spieler: erscheint oben im Spiel, bis sie entfernt wird. */
+/** Wählbare Anzeigedauer einer Ankündigung – `null`: bis sie entfernt wird */
+const ANKUENDIGUNG_DAUERN: { minuten: number | null; text: string }[] = [
+  { minuten: 10, text: '10 Minuten' },
+  { minuten: 30, text: '30 Minuten' },
+  { minuten: 60, text: '1 Stunde' },
+  { minuten: 3 * 60, text: '3 Stunden' },
+  { minuten: 24 * 60, text: '1 Tag' },
+  { minuten: 7 * 24 * 60, text: '1 Woche' },
+  { minuten: null, text: 'Bis ich sie entferne' },
+];
+
+/** Ankündigung an alle Spieler: erscheint oben im Spiel, bis sie abläuft oder entfernt wird. */
 function AnkuendigungVerwalten({ ich, melde }: { ich: Konto; melde: Melde }) {
   const darf = hatTeamRecht(ich.rolle, 'ankuendigung');
   const [aktuell, setAktuell] = useState<Ankuendigung | null | undefined>(undefined);
   const [text, setText] = useState('');
   const [art, setArt] = useState<AnkuendigungsArt>('info');
+  const [dauer, setDauer] = useState<number | null>(60);
 
   useEffect(() => {
     ladeAnkuendigung().then((a) => {
@@ -346,7 +358,7 @@ function AnkuendigungVerwalten({ ich, melde }: { ich: Konto; melde: Melde }) {
 
   const veroeffentlichen = async () => {
     try {
-      setAktuell(await teamApi.ankuendigungSetzen(text, art));
+      setAktuell(await teamApi.ankuendigungSetzen(text, art, dauer));
       melde('ok', 'Ankündigung ist für alle Spieler sichtbar.');
     } catch (e) {
       melde('fehler', fehlerText(e));
@@ -368,7 +380,7 @@ function AnkuendigungVerwalten({ ich, melde }: { ich: Konto; melde: Melde }) {
     <div className="einstellungen-raster">
       <section className="ausbau-karte">
         <span className="ausbau-karte__kategorie">Ankündigung an alle</span>
-        <p>Erscheint bei allen Spielern oben im Spiel (z. B. Wartung, neue Version). Jeder kann sie für sich wegklicken.</p>
+        <p>Erscheint bei allen Spielern oben im Spiel (z. B. Wartung, neue Version) und verschwindet nach der gewählten Zeit von selbst. Jeder kann sie für sich wegklicken.</p>
         {!darf && <small className="einsatz-eintrag__zeile">Ankündigungen veröffentlichen Co-Owner und Owner. Du siehst hier die aktuelle.</small>}
         <label className="field">
           <span>Art</span>
@@ -376,6 +388,12 @@ function AnkuendigungVerwalten({ ich, melde }: { ich: Konto; melde: Melde }) {
             <option value="info">Info</option>
             <option value="wartung">Wartung</option>
             <option value="wichtig">⚠ Wichtig</option>
+          </select>
+        </label>
+        <label className="field">
+          <span>Sichtbar für</span>
+          <select disabled={!darf} value={dauer ?? ''} onChange={(e) => setDauer(e.target.value === '' ? null : Number(e.target.value))}>
+            {ANKUENDIGUNG_DAUERN.map((d) => <option key={d.text} value={d.minuten ?? ''}>{d.text}</option>)}
           </select>
         </label>
         <label className="field">
@@ -388,7 +406,7 @@ function AnkuendigungVerwalten({ ich, melde }: { ich: Konto; melde: Melde }) {
           </button>
           {aktuell && <button type="button" className="btn btn--danger" onClick={() => void entfernen()}>Entfernen</button>}
         </div>}
-        {aktuell && <small className="einsatz-eintrag__zeile">Aktiv seit {datum(aktuell.zeit)} · von {aktuell.vonName}</small>}
+        {aktuell && <small className="einsatz-eintrag__zeile">Aktiv seit {datum(aktuell.zeit)} · von {aktuell.vonName} · {aktuell.laeuftAb ? `läuft ab ${datum(aktuell.laeuftAb)}` : 'ohne Ablauf'}</small>}
         {aktuell === null && <small className="einsatz-eintrag__zeile">Gerade ist keine Ankündigung aktiv.</small>}
       </section>
     </div>

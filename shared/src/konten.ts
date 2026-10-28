@@ -210,9 +210,13 @@ export interface Ankuendigung {
   art: AnkuendigungsArt;
   vonName: string;
   zeit: string;
+  /** Ab hier wird sie nicht mehr angezeigt – `null`: bis das Team sie entfernt */
+  laeuftAb: string | null;
 }
 
 export const ANKUENDIGUNG_MAX_LAENGE = 300;
+/** Längste einstellbare Dauer einer Ankündigung (30 Tage) */
+export const ANKUENDIGUNG_MAX_DAUER_MINUTEN = 30 * 24 * 60;
 export const NOTIZ_MAX_LAENGE = 1000;
 
 /**

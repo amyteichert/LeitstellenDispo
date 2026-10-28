@@ -2,6 +2,7 @@
 // Kritische Aktionen (löschen, zurücksetzen, korrigieren, Ankündigung) erst ab Co-Owner – siehe TEAM_RECHT_AB.
 import { Router, type NextFunction, type Request, type Response } from 'express';
 import {
+  ANKUENDIGUNG_MAX_DAUER_MINUTEN,
   ANKUENDIGUNG_MAX_LAENGE,
   NOTIZ_MAX_LAENGE,
   RUF_CONFIG,
@@ -105,8 +106,10 @@ export function erstelleTeamRouter(db: Datenbank, konten: KontenDienst, optionen
     notiz: db.prepare('SELECT id, benutzer_id, von_name AS vonName FROM konto_notizen WHERE id = ?'),
     notizLoeschen: db.prepare('DELETE FROM konto_notizen WHERE id = ?'),
     ankuendigungSetzen: db.prepare(`
-      INSERT INTO ankuendigung (id, text, art, von_name, zeit) VALUES (1, ?, ?, ?, strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
-      ON CONFLICT (id) DO UPDATE SET text = excluded.text, art = excluded.art, von_name = excluded.von_name, zeit = excluded.zeit`),
+      INSERT INTO ankuendigung (id, text, art, von_name, zeit, laeuft_ab)
+      VALUES (1, ?, ?, ?, strftime('%Y-%m-%dT%H:%M:%fZ', 'now'), strftime('%Y-%m-%dT%H:%M:%fZ', 'now', '+' || ? || ' minutes'))
+      ON CONFLICT (id) DO UPDATE SET text = excluded.text, art = excluded.art, von_name = excluded.von_name, zeit = excluded.zeit,
+        laeuft_ab = excluded.laeuft_ab`),
     ankuendigungLoeschen: db.prepare('DELETE FROM ankuendigung'),
     korrekturAnlegen: db.prepare('INSERT INTO spielstand_korrekturen (benutzer_id, guthaben_aenderung, ruf_neu, grund, von_name) VALUES (?, ?, ?, ?, ?)'),
     korrekturen: db.prepare(`
@@ -289,7 +292,13 @@ export function erstelleTeamRouter(db: Datenbank, konten: KontenDienst, optionen
     const art: AnkuendigungsArt = ['info', 'wartung', 'wichtig'].includes(req.body?.art) ? req.body.art : 'info';
     if (!text) return void res.status(400).json({ fehler: 'Die Ankündigung ist leer.' });
     if (text.length > ANKUENDIGUNG_MAX_LAENGE) return void res.status(400).json({ fehler: `Höchstens ${ANKUENDIGUNG_MAX_LAENGE} Zeichen.` });
-    sql.ankuendigungSetzen.run(text, art, ich(res).name);
+    // Ohne Dauer bleibt sie, bis sie entfernt wird
+    const dauerRoh = req.body?.dauerMinuten;
+    const dauerMinuten = dauerRoh === null || dauerRoh === undefined ? null : Number(dauerRoh);
+    if (dauerMinuten !== null && (!Number.isInteger(dauerMinuten) || dauerMinuten < 1 || dauerMinuten > ANKUENDIGUNG_MAX_DAUER_MINUTEN)) {
+      return void res.status(400).json({ fehler: 'Ungültige Dauer.' });
+    }
+    sql.ankuendigungSetzen.run(text, art, ich(res).name, dauerMinuten);
     protokolliere(ich(res), 'Ankündigung veröffentlicht', null, text);
     res.json({ ankuendigung: ladeAnkuendigung(db) });
   });
@@ -331,9 +340,11 @@ export function erstelleTeamRouter(db: Datenbank, konten: KontenDienst, optionen
   return router;
 }
 
-/** Aktuelle Ankündigung des Teams – `null`, wenn keine aktiv ist. */
+/** Aktuelle Ankündigung des Teams – `null`, wenn keine aktiv oder sie abgelaufen ist. */
 export function ladeAnkuendigung(db: Datenbank): Ankuendigung | null {
-  const zeile = db.prepare('SELECT text, art, von_name AS vonName, zeit FROM ankuendigung WHERE id = 1').get() as Ankuendigung | undefined;
+  const zeile = db.prepare(`
+    SELECT text, art, von_name AS vonName, zeit, laeuft_ab AS laeuftAb FROM ankuendigung
+    WHERE id = 1 AND (laeuft_ab IS NULL OR laeuft_ab > strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))`).get() as Ankuendigung | undefined;
   return zeile ?? null;
 }
 

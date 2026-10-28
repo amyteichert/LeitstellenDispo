@@ -147,9 +147,21 @@ describe('Team-Werkzeuge: Protokoll, Notizen, Ankündigung, Korrekturen', () => 
     expect((await server.anfrage('PUT', '/team/ankuendigung', { body: { text: 'Heute 20 Uhr Wartung', art: 'wartung' }, cookie: admin })).status).toBe(403);
     await server.anfrage('PUT', '/team/ankuendigung', { body: { text: 'Heute 20 Uhr Wartung', art: 'wartung' }, cookie: owner });
     const gelesen = await json(await server.anfrage('GET', '/ankuendigung', { cookie: spieler }));
-    expect(gelesen.daten.ankuendigung).toMatchObject({ text: 'Heute 20 Uhr Wartung', art: 'wartung', vonName: 'Amy' });
+    expect(gelesen.daten.ankuendigung).toMatchObject({ text: 'Heute 20 Uhr Wartung', art: 'wartung', vonName: 'Amy', laeuftAb: null });
     expect((await server.anfrage('DELETE', '/team/ankuendigung', { cookie: admin })).status).toBe(403);
     await server.anfrage('DELETE', '/team/ankuendigung', { cookie: owner });
+    expect((await json(await server.anfrage('GET', '/ankuendigung'))).daten.ankuendigung).toBeNull();
+  });
+
+  it('Ankündigung mit Dauer verschwindet nach Ablauf von selbst', async () => {
+    expect((await server.anfrage('PUT', '/team/ankuendigung', { body: { text: 'Neustart', dauerMinuten: 0 }, cookie: owner })).status).toBe(400);
+    expect((await server.anfrage('PUT', '/team/ankuendigung', { body: { text: 'Neustart', dauerMinuten: 'bald' }, cookie: owner })).status).toBe(400);
+    const gesetzt = await json(await server.anfrage('PUT', '/team/ankuendigung', { body: { text: 'Neustart', dauerMinuten: 10 }, cookie: owner }));
+    const { zeit, laeuftAb } = gesetzt.daten.ankuendigung;
+    expect(Date.parse(laeuftAb) - Date.parse(zeit)).toBe(10 * 60 * 1000);
+    expect((await json(await server.anfrage('GET', '/ankuendigung'))).daten.ankuendigung).toMatchObject({ text: 'Neustart' });
+    // Zeit vorspulen: Ablauf in die Vergangenheit legen
+    server.db.prepare("UPDATE ankuendigung SET laeuft_ab = strftime('%Y-%m-%dT%H:%M:%fZ', 'now', '-1 second')").run();
     expect((await json(await server.anfrage('GET', '/ankuendigung'))).daten.ankuendigung).toBeNull();
   });
 
