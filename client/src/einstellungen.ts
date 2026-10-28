@@ -23,9 +23,9 @@ export type Design = 'blau' | 'rot' | 'lila' | 'gruen' | 'schwarz' | 'hell';
 /** Auswahl in den Einstellungen – `farbe` ist nur die Vorschau-Kachel */
 export const DESIGNS: Array<{ wert: Design; text: string; farbe: string; hintergrund: string }> = [
   { wert: 'blau', text: 'Neon-Blau', farbe: '#0a7cff', hintergrund: '#0d1117' },
-  { wert: 'rot', text: 'Neon-Rot', farbe: '#ff2d55', hintergrund: '#0d1117' },
-  { wert: 'lila', text: 'Neon-Lila', farbe: '#b14dff', hintergrund: '#0d1117' },
-  { wert: 'gruen', text: 'Neon-Grün', farbe: '#1fd655', hintergrund: '#0d1117' },
+  { wert: 'rot', text: 'Neon-Rot', farbe: '#ff2d55', hintergrund: '#12080b' },
+  { wert: 'lila', text: 'Neon-Lila', farbe: '#b14dff', hintergrund: '#0e0816' },
+  { wert: 'gruen', text: 'Neon-Grün', farbe: '#1fd655', hintergrund: '#06100a' },
   { wert: 'schwarz', text: 'Schwarz', farbe: '#0a7cff', hintergrund: '#000000' },
   { wert: 'hell', text: 'Hell', farbe: '#0a66d6', hintergrund: '#f5f7fa' },
 ];
