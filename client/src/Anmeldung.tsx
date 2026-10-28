@@ -31,6 +31,26 @@ type Zustand =
   | { art: 'startklar'; konto: Konto }
   | { art: 'angemeldet'; konto: Konto; gast: boolean };
 
+/** sessionStorage gilt nur für diesen Tab und übersteht das Neuladen – ein neuer Tab startet ohne */
+const TAB_GESTARTET_KEY = 'leitstellendispo.tab-gestartet';
+
+const istTabGestartet = () => {
+  try {
+    return sessionStorage.getItem(TAB_GESTARTET_KEY) === '1';
+  } catch {
+    return false;
+  }
+};
+
+const merkeTabGestartet = (gestartet: boolean) => {
+  try {
+    if (gestartet) sessionStorage.setItem(TAB_GESTARTET_KEY, '1');
+    else sessionStorage.removeItem(TAB_GESTARTET_KEY);
+  } catch {
+    // Dann kommt der Startbildschirm eben auch beim Neuladen
+  }
+};
+
 /** Platzhalter-Konto für den Gastmodus – existiert nicht auf dem Server */
 const gastKonto = (): Konto => ({ id: 0, name: 'Gast', rolle: 'player', erstellt: new Date().toISOString() });
 
@@ -47,6 +67,7 @@ export default function Anmeldung({ children }: {
   const angemeldet = useCallback(async (konto: Konto) => {
     istGast.current = false;
     setzeGastmodus(false);
+    merkeTabGestartet(true);
     await uebernimmBrowserSpielstand();
     setZustand({ art: 'angemeldet', konto, gast: false });
   }, []);
@@ -61,10 +82,15 @@ export default function Anmeldung({ children }: {
   const pruefeSitzung = useCallback(() => {
     setZustand({ art: 'pruefen' });
     holeKonto().then(
-      (konto) => setZustand(konto ? { art: 'startklar', konto } : { art: 'abgemeldet' }),
+      (konto) => {
+        if (!konto) return setZustand({ art: 'abgemeldet' });
+        // Neu geladen im selben Tab: direkt weiter – der Startbildschirm kommt nur in einem neuen Tab
+        if (istTabGestartet()) return void angemeldet(konto);
+        setZustand({ art: 'startklar', konto });
+      },
       (error: unknown) => setZustand({ art: 'fehler', meldung: error instanceof Error ? error.message : String(error) }),
     );
-  }, []);
+  }, [angemeldet]);
 
   useEffect(pruefeSitzung, [pruefeSitzung]);
 
