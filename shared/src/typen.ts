@@ -34,6 +34,8 @@ export type MapLocation = {
   kuendigungGeprueftAt?: number;
   /** Aktuelle Bewerber der Wache – kommen alle 24 Std. neu, selbst neu würfeln geht alle 12 Std. */
   bewerber?: BewerberPool;
+  /** Vom Spieler gewählte Hintergrundfarbe des Wachen-Logos (#rrggbb) – fehlt = Standard */
+  logoFarbe?: string;
 };
 
 export interface AusbildungsRaum {

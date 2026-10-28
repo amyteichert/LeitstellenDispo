@@ -12,6 +12,7 @@ import {
   getStellplatzPreis,
   hatFreienStellplatz,
   mitStellplatzErweiterung,
+  mitWachenAnpassung,
   besetzeAutomatisch,
   erzeugeBesatzungFuer,
   bereinigePersonal,
@@ -641,6 +642,16 @@ export function useSpiel(optionen: UseSpielOptionen = {}) {
     return null;
   };
 
+  /** Name und Logo-Farbe einer Wache ändern. Gibt eine Fehlermeldung zurück oder null bei Erfolg. */
+  const passeWacheAn = (wacheId: string, aenderung: { name?: string; logoFarbe?: string | null }): string | null => {
+    const wache = locations.find((location) => location.id === wacheId && location.type === 'station');
+    if (!wache) return 'Wache nicht gefunden.';
+    const ergebnis = mitWachenAnpassung(wache, aenderung);
+    if ('fehler' in ergebnis) return ergebnis.fehler;
+    setLocations((current) => current.map((location) => (location.id === wacheId ? ergebnis.wache : location)));
+    return null;
+  };
+
   const loescheWache = (id: string) => {
     const ergebnis = entferneWache({ locations, vehicles, incidents, personal }, id);
     setLocations(ergebnis.locations);
@@ -894,6 +905,7 @@ export function useSpiel(optionen: UseSpielOptionen = {}) {
     eigenesKrankenhaus,
     erstelleWache,
     erweitereStellplaetze,
+    passeWacheAn,
     loescheWache,
     personal,
     stellePersonalEin,

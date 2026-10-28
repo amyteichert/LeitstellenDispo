@@ -3,7 +3,7 @@
  * Die Grafiken sind feste SVG-Texte (24×24, weiße Linien auf farbigem Grund) oder Bilder aus public/symbole
  * (Flaticon – Bildnachweis im Impressum). Leaflet bekommt sie als HTML, React-Listen zeigen sie über <Kennzeichen …/>.
  */
-import { getEinsatzSymbol, getFahrzeugTyp, type EinsatzSymbol, type FahrzeugKategorie, type SpielEinsatz, type StationKind } from '@leitstellendispo/shared';
+import { getEinsatzSymbol, getFahrzeugTyp, istLogoFarbe, type EinsatzSymbol, type FahrzeugKategorie, type SpielEinsatz, type StationKind } from '@leitstellendispo/shared';
 
 const LINIE = 'fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"';
 const svg = (inhalt: string) => `<svg viewBox="0 0 24 24" width="100%" height="100%" ${LINIE} aria-hidden="true">${inhalt}</svg>`;
@@ -65,9 +65,12 @@ const abstand = (groesse: number) => Math.round(groesse * 0.16);
 const kastenStil = (groesse: number, farbe: string) =>
   `width:${groesse}px;height:${groesse}px;padding:${abstand(groesse)}px;background:${farbe}`;
 
+/** Hintergrund des Wachen-Logos: eigene Farbe des Spielers, sonst hell (nur gültige #rrggbb, landet im HTML) */
+const wachenFarbe = (logoFarbe: string | undefined) => (istLogoFarbe(logoFarbe) ? logoFarbe : HELL);
+
 /** HTML für Leaflet: Wache als farbiges Quadrat mit Symbol */
-export const wachenMarkerHtml = (art: StationKind | undefined, groesse = 28) => {
-  return `<span class="kennzeichen kennzeichen--wache" style="${kastenStil(groesse, HELL)}">${WACHE_GRAFIK[art ?? 'Rettungswache']}</span>`;
+export const wachenMarkerHtml = (art: StationKind | undefined, groesse = 28, logoFarbe?: string) => {
+  return `<span class="kennzeichen kennzeichen--wache" style="${kastenStil(groesse, wachenFarbe(logoFarbe))}">${WACHE_GRAFIK[art ?? 'Rettungswache']}</span>`;
 };
 
 export const krankenhausMarkerHtml = (groesse = 26) =>
@@ -81,7 +84,7 @@ export const einsatzMarkerHtml = (einsatz: Pick<SpielEinsatz, 'stichwort' | 'mel
 export const fahrzeugSymbolHtml = (typ: string | undefined) => `<i class="kennzeichen-inline">${getFahrzeugGrafik(typ)}</i>`;
 
 type KennzeichenProps =
-  | { art: 'wache'; wachenArt: StationKind | undefined }
+  | { art: 'wache'; wachenArt: StationKind | undefined; logoFarbe?: string }
   | { art: 'krankenhaus' }
   | { art: 'fahrzeug'; typ: string | undefined }
   | { art: 'einsatz'; einsatz: Pick<SpielEinsatz, 'stichwort' | 'meldebild' | 'organization'> };
@@ -95,7 +98,7 @@ export function Kennzeichen(props: KennzeichenProps & { groesse?: number }) {
   let titel: string;
   if (props.art === 'wache') {
     grafik = WACHE_GRAFIK[props.wachenArt ?? 'Rettungswache'];
-    farbe = HELL;
+    farbe = wachenFarbe(props.logoFarbe);
     titel = props.wachenArt ?? 'Rettungswache';
   } else if (props.art === 'krankenhaus') {
     grafik = KRANKENHAUS_GRAFIK;

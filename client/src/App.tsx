@@ -95,10 +95,10 @@ const createIncidentMarkerIcon = (incident: SpielEinsatz, selected: boolean) => 
 };
 
 /** Wache als Quadrat mit Symbol: Feuerwehrhelm (rot) bzw. Stern des Lebens (orange) */
-const createWachenMarkerIcon = (location: Pick<MapLocation, 'stationKind'>, groesse = 32) =>
+const createWachenMarkerIcon = (location: Pick<MapLocation, 'stationKind' | 'logoFarbe'>, groesse = 32) =>
   L.divIcon({
     className: 'custom-marker',
-    html: wachenMarkerHtml(location.stationKind, groesse),
+    html: wachenMarkerHtml(location.stationKind, groesse, location.logoFarbe),
     iconSize: [groesse, groesse],
     iconAnchor: [groesse / 2, groesse / 2],
   });
@@ -1088,6 +1088,7 @@ Dein Guthaben: ${balance.toLocaleString('de-DE')} €`)) return;
                 eigenesKrankenhaus={spiel.eigenesKrankenhaus}
                 benenneFahrzeugUm={spiel.benenneFahrzeugUm}
                 erweitereStellplaetze={spiel.erweitereStellplaetze}
+                passeWacheAn={spiel.passeWacheAn}
                 personalAktionen={spiel}
                 onWacheKaufen={() => setWacheKaufenOffen(true)}
                 verwaltenId={verwaltenId}

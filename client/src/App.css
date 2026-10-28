@@ -3145,6 +3145,11 @@ a.btn { text-decoration: none; }
 .aao-formular__fahrzeug { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .aao-formular__fahrzeug input { width: 64px; }
 .aao-formular__reiter { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
+.wache-anpassen { display: grid; gap: 8px; margin-bottom: 12px; }
+.wache-anpassen__farben { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.wache-anpassen__farbe { width: 32px; height: 32px; border-radius: 8px; border: 2px solid var(--color-border, #444); cursor: pointer; padding: 0; }
+.wache-anpassen__farbe--aktiv { outline: 2px solid var(--color-primary, #3b82f6); outline-offset: 2px; }
+.wache-anpassen__eigene input { width: 40px; height: 32px; padding: 0; border: none; background: none; cursor: pointer; }
 .aao-formular__gruppe { margin: 12px 0 6px; font-size: 13px; color: var(--color-text-muted); }
 .aao-liste { list-style: none; padding: 0; display: grid; gap: 8px; }
 .aao-liste li { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }

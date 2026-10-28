@@ -15,6 +15,46 @@ export const STELLPLATZ_CONFIG = {
   preisFaktor: 1.6,
 } as const;
 
+export const WACHENNAME_MAX_LAENGE = 40;
+
+/** Vorschläge für die Logo-Farbe einer Wache – frei wählen geht auch */
+export const WACHEN_LOGO_FARBEN = [
+  { name: 'Standard', farbe: '#f4f6f8' },
+  { name: 'Rot', farbe: '#fde2e2' },
+  { name: 'Orange', farbe: '#ffe8d1' },
+  { name: 'Gelb', farbe: '#fff4c2' },
+  { name: 'Grün', farbe: '#dcf5e3' },
+  { name: 'Blau', farbe: '#dbeafe' },
+  { name: 'Lila', farbe: '#ede4ff' },
+  { name: 'Dunkel', farbe: '#1f2937' },
+] as const;
+
+export const istLogoFarbe = (farbe: unknown): farbe is string => typeof farbe === 'string' && /^#[0-9a-f]{6}$/i.test(farbe);
+
+/**
+ * Name und Logo-Farbe einer Wache ändern. `logoFarbe: null` setzt auf Standard zurück.
+ * Gibt die geänderte Wache oder eine Fehlermeldung zurück.
+ */
+export function mitWachenAnpassung(
+  wache: MapLocation,
+  aenderung: { name?: string; logoFarbe?: string | null },
+): { wache: MapLocation } | { fehler: string } {
+  const neu = { ...wache };
+  if (aenderung.name !== undefined) {
+    const name = aenderung.name.trim();
+    if (!name) return { fehler: 'Der Name darf nicht leer sein.' };
+    if (name.length > WACHENNAME_MAX_LAENGE) return { fehler: `Höchstens ${WACHENNAME_MAX_LAENGE} Zeichen.` };
+    neu.name = name;
+  }
+  if (aenderung.logoFarbe === null || aenderung.logoFarbe === WACHEN_LOGO_FARBEN[0].farbe) {
+    delete neu.logoFarbe;
+  } else if (aenderung.logoFarbe !== undefined) {
+    if (!istLogoFarbe(aenderung.logoFarbe)) return { fehler: 'Ungültige Farbe.' };
+    neu.logoFarbe = aenderung.logoFarbe.toLowerCase();
+  }
+  return { wache: neu };
+}
+
 export const getStellplatzErweiterungen = (wache: Pick<MapLocation, 'ausbau'>) => wache.ausbau?.stellplatz ?? 0;
 
 export const getStellplaetze = (wache: Pick<MapLocation, 'stationKind' | 'ausbau'>) =>

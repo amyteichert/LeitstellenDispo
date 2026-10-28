@@ -3,6 +3,8 @@ import {
   FAEHIGKEIT_LABELS,
   FMS_STATUS,
   STELLPLATZ_CONFIG,
+  WACHENNAME_MAX_LAENGE,
+  WACHEN_LOGO_FARBEN,
   formatAdresse,
   getBelegteStellplaetze,
   getWachenKostenJeStunde,
@@ -61,6 +63,8 @@ export interface PersonalAktionen extends AusbildungAktionen {
   baueRuheraum: (wacheId: string) => string | null;
 }
 
+type WacheAnpassen = (wacheId: string, aenderung: { name?: string; logoFarbe?: string | null }) => string | null;
+
 export default function WachenView({
   locations,
   selectedId,
@@ -73,6 +77,7 @@ export default function WachenView({
   eigenesKrankenhaus,
   benenneFahrzeugUm,
   erweitereStellplaetze,
+  passeWacheAn,
   personalAktionen,
   onWacheKaufen,
   verwaltenId,
@@ -90,6 +95,7 @@ export default function WachenView({
   eigenesKrankenhaus: boolean;
   benenneFahrzeugUm: (fahrzeugId: string, name: string) => string | null;
   erweitereStellplaetze: (stationId: string) => string | null;
+  passeWacheAn: WacheAnpassen;
   personalAktionen: PersonalAktionen;
   onWacheKaufen: () => void;
   /** Gerade verwaltete Wache – liegt in App, damit die Karte direkt eine Wache öffnen kann */
@@ -113,6 +119,7 @@ export default function WachenView({
         eigenesKrankenhaus={eigenesKrankenhaus}
         benenneFahrzeugUm={benenneFahrzeugUm}
         erweitereStellplaetze={erweitereStellplaetze}
+        passeWacheAn={passeWacheAn}
         onZurueck={() => setVerwaltenId(null)}
       />
     );
@@ -136,7 +143,7 @@ export default function WachenView({
           const plaetze = getStellplaetze(s);
           return (
             <li key={s.id} className={`wachen-karte ${selectedId === s.id ? 'wachen-karte--aktiv' : ''}`}>
-              <Kennzeichen art="wache" wachenArt={s.stationKind} groesse={40} />
+              <Kennzeichen art="wache" wachenArt={s.stationKind} logoFarbe={s.logoFarbe} groesse={40} />
               <button type="button" className="wachen-karte__info" onClick={() => setSelectedId(s.id)}>
                 <strong>{s.name}</strong>
                 <small>{s.adresse ? formatAdresse(s.adresse) : s.details}</small>
@@ -153,6 +160,65 @@ export default function WachenView({
   );
 }
 
+/** Name und Logo-Farbe einer Wache – Vorschau zeigt die Farbe sofort */
+function WacheAnpassenFormular({
+  wache,
+  passeWacheAn,
+  onFertig,
+  onFehler,
+}: {
+  wache: MapLocation;
+  passeWacheAn: WacheAnpassen;
+  onFertig: (text: string) => void;
+  onFehler: (text: string) => void;
+}) {
+  const standard = WACHEN_LOGO_FARBEN[0].farbe;
+  const [name, setName] = useState(wache.name);
+  const [farbe, setFarbe] = useState<string>(wache.logoFarbe ?? standard);
+
+  return (
+    <form
+      className="einsatz-abschnitt wache-anpassen"
+      onSubmit={(event) => {
+        event.preventDefault();
+        const fehler = passeWacheAn(wache.id, { name, logoFarbe: farbe });
+        if (fehler) onFehler(fehler);
+        else onFertig('✓ Wache angepasst.');
+      }}
+    >
+      <h4>Name und Logo</h4>
+      <label className="field">
+        <span>Name</span>
+        <input value={name} maxLength={WACHENNAME_MAX_LAENGE} onChange={(e) => setName(e.target.value)} />
+      </label>
+      <div className="field">
+        <span>Logo-Farbe</span>
+        <div className="wache-anpassen__farben">
+          <Kennzeichen art="wache" wachenArt={wache.stationKind} logoFarbe={farbe} groesse={40} />
+          {WACHEN_LOGO_FARBEN.map((vorschlag) => (
+            <button
+              key={vorschlag.farbe}
+              type="button"
+              className={`wache-anpassen__farbe ${farbe === vorschlag.farbe ? 'wache-anpassen__farbe--aktiv' : ''}`}
+              style={{ background: vorschlag.farbe }}
+              aria-label={vorschlag.name}
+              aria-pressed={farbe === vorschlag.farbe}
+              title={vorschlag.name}
+              onClick={() => setFarbe(vorschlag.farbe)}
+            />
+          ))}
+          <label className="wache-anpassen__eigene" title="Eigene Farbe">
+            <input type="color" value={farbe} onChange={(e) => setFarbe(e.target.value)} aria-label="Eigene Farbe" />
+          </label>
+        </div>
+      </div>
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        <button type="submit" className="btn btn--primary" disabled={!name.trim()}>Speichern</button>
+      </div>
+    </form>
+  );
+}
+
 function WacheVerwalten({
   wache,
   vehicles,
@@ -164,6 +230,7 @@ function WacheVerwalten({
   eigenesKrankenhaus,
   benenneFahrzeugUm,
   erweitereStellplaetze,
+  passeWacheAn,
   onZurueck,
 }: {
   wache: MapLocation;
@@ -177,9 +244,11 @@ function WacheVerwalten({
   eigenesKrankenhaus: boolean;
   benenneFahrzeugUm: (fahrzeugId: string, name: string) => string | null;
   erweitereStellplaetze: (stationId: string) => string | null;
+  passeWacheAn: WacheAnpassen;
   onZurueck: () => void;
 }) {
   const [reiter, setReiter] = useState<Reiter>('Übersicht');
+  const [anpassenOffen, setAnpassenOffen] = useState(false);
   const [meldung, setMeldung] = useState<{ art: 'ok' | 'fehler'; text: string } | null>(null);
   const [offenesFahrzeug, setOffenesFahrzeug] = useState<string | null>(null);
   const kaufbareTypen = getFahrzeugTypenFuerWache(wache.stationKind ?? 'Rettungswache');
@@ -224,10 +293,34 @@ function WacheVerwalten({
       <div className="verwalten-kopf">
         <button type="button" className="btn" onClick={onZurueck}>← Zurück</button>
         <div>
-          <h2 className="mit-kennzeichen" style={{ margin: 0 }}><Kennzeichen art="wache" wachenArt={wache.stationKind} groesse={32} />{wache.name}</h2>
+          <h2 className="mit-kennzeichen" style={{ margin: 0 }}>
+            <Kennzeichen art="wache" wachenArt={wache.stationKind} logoFarbe={wache.logoFarbe} groesse={32} />{wache.name}
+            <button
+              type="button"
+              className="btn btn--klein"
+              aria-expanded={anpassenOffen}
+              aria-label="Name und Logo anpassen"
+              title="Name und Logo anpassen"
+              onClick={() => setAnpassenOffen((offen) => !offen)}
+            >
+              ✎
+            </button>
+          </h2>
           <small>{wache.stationKind ?? 'Rettungswache'} · {wache.adresse ? formatAdresse(wache.adresse) : wache.details}</small>
         </div>
       </div>
+
+      {anpassenOffen && (
+        <WacheAnpassenFormular
+          wache={wache}
+          passeWacheAn={passeWacheAn}
+          onFertig={(text) => {
+            setMeldung({ art: 'ok', text });
+            setAnpassenOffen(false);
+          }}
+          onFehler={(text) => setMeldung({ art: 'fehler', text })}
+        />
+      )}
 
       <div className="verwalten-reiter" role="tablist" data-tour="wache-reiter">
         {REITER.map((name) => (

@@ -6,8 +6,26 @@ import {
   getStellplatzPreis,
   hatFreienStellplatz,
   mitStellplatzErweiterung,
+  mitWachenAnpassung,
   STELLPLATZ_CONFIG,
+  WACHENNAME_MAX_LAENGE,
 } from './wachen.js';
+
+describe('Wache anpassen', () => {
+  it('ändert Namen und Logo-Farbe, Standardfarbe entfernt die eigene', () => {
+    const ergebnis = mitWachenAnpassung(wache('rw-1'), { name: '  Rettungswache Nord ', logoFarbe: '#DBEAFE' });
+    expect(ergebnis).toMatchObject({ wache: { name: 'Rettungswache Nord', logoFarbe: '#dbeafe' } });
+    if (!('wache' in ergebnis)) throw new Error('erwartet Wache');
+    expect(mitWachenAnpassung(ergebnis.wache, { logoFarbe: '#f4f6f8' })).not.toHaveProperty('wache.logoFarbe');
+    expect(mitWachenAnpassung(ergebnis.wache, { logoFarbe: null })).not.toHaveProperty('wache.logoFarbe');
+  });
+
+  it('lehnt leere oder zu lange Namen und ungültige Farben ab', () => {
+    expect(mitWachenAnpassung(wache('rw-1'), { name: '   ' })).toHaveProperty('fehler');
+    expect(mitWachenAnpassung(wache('rw-1'), { name: 'x'.repeat(WACHENNAME_MAX_LAENGE + 1) })).toHaveProperty('fehler');
+    expect(mitWachenAnpassung(wache('rw-1'), { logoFarbe: 'red;background:url(x)' })).toHaveProperty('fehler');
+  });
+});
 
 describe('Stellplätze', () => {
   it('Rettungswache startet mit 2, Feuerwache mit 3 Stellplätzen', () => {
