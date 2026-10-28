@@ -290,8 +290,8 @@
 }
 
 .location-item--active {
-  border-color: #2563eb;
-  box-shadow: 0 0 0 1px rgba(37, 99, 235, 0.12);
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 1px var(--color-primary-light);
 }
 
 .delete-button {
@@ -1768,7 +1768,7 @@
 }
 .anmeldung__eingabe:focus-within {
   border-color: var(--color-primary);
-  box-shadow: 0 0 0 3px rgba(10, 124, 255, 0.35);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 35%, transparent);
 }
 .anmeldung__eingabe > span { opacity: 0.7; }
 .anmeldung__eingabe input {
@@ -1811,8 +1811,8 @@
   font-size: 0.85rem;
   padding: 0.55rem 0.75rem;
   border-radius: 10px;
-  background: rgba(96, 165, 250, 0.12);
-  border: 1px solid rgba(96, 165, 250, 0.35);
+  background: var(--color-primary-light);
+  border: 1px solid color-mix(in srgb, var(--color-primary) 35%, transparent);
 }
 
 .anmeldung__fehler {
@@ -1889,7 +1889,7 @@
   border-radius: 50%;
   transform: translate(40%, -50%);
   background: #fff;
-  box-shadow: 0 0 10px 4px var(--color-primary), 0 0 20px 6px rgba(10, 124, 255, 0.5);
+  box-shadow: 0 0 10px 4px var(--color-primary), 0 0 20px 6px color-mix(in srgb, var(--color-primary) 50%, transparent);
   animation: ladebalken-puls 0.9s ease-in-out infinite alternate;
 }
 
@@ -2277,7 +2277,7 @@
   position: fixed;
   border: 2px solid var(--color-primary);
   border-radius: 10px;
-  box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.35);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--color-primary) 35%, transparent);
   transition: top 0.2s, left 0.2s, width 0.2s, height 0.2s;
 }
 .tour__rahmen--tippen {
@@ -2288,7 +2288,7 @@
   pointer-events: auto; /* Element nur zeigen, nicht bedienen */
 }
 @keyframes tour-puls {
-  50% { box-shadow: 0 0 0 9px rgba(37, 99, 235, 0.15); }
+  50% { box-shadow: 0 0 0 9px color-mix(in srgb, var(--color-primary) 15%, transparent); }
 }
 @media (prefers-reduced-motion: reduce) {
   .tour__rahmen { transition: none; }
@@ -3148,10 +3148,45 @@ a.btn { text-decoration: none; }
 .wache-anpassen { display: grid; gap: 8px; margin-bottom: 12px; }
 .wache-anpassen__farben { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 .wache-anpassen__farbe { width: 32px; height: 32px; border-radius: 8px; border: 2px solid var(--color-border, #444); cursor: pointer; padding: 0; }
-.wache-anpassen__farbe--aktiv { outline: 2px solid var(--color-primary, #3b82f6); outline-offset: 2px; }
+.wache-anpassen__farbe--aktiv { outline: 2px solid var(--color-primary); outline-offset: 2px; }
 .wache-anpassen__eigene input { width: 40px; height: 32px; padding: 0; border: none; background: none; cursor: pointer; }
 .aao-formular__gruppe { margin: 12px 0 6px; font-size: 13px; color: var(--color-text-muted); }
 .aao-liste { list-style: none; padding: 0; display: grid; gap: 8px; }
 .aao-liste li { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 .aao-liste small { flex: 1 1 160px; color: var(--color-text-muted); }
 .aao-liste__aktionen { display: flex; gap: 4px; }
+
+/* ---- Design-Auswahl (Einstellungen) ---- */
+.design-auswahl { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 8px; }
+.design-auswahl__knopf {
+  display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 8px;
+  border: 1px solid var(--color-border); border-radius: 8px; background: var(--color-surface-raised);
+  color: var(--color-text); font: inherit; font-size: 0.85rem; cursor: pointer;
+}
+.design-auswahl__knopf--aktiv { border-color: var(--color-primary); box-shadow: var(--glow-primary); }
+.design-auswahl__vorschau {
+  display: flex; align-items: center; justify-content: center; width: 100%; height: 36px;
+  border-radius: 6px; border: 1px solid var(--color-border-strong);
+}
+.design-auswahl__vorschau span { width: 40%; height: 8px; border-radius: 4px; }
+
+/* ---- Helles Design: Karte nicht abdunkeln, helle Schriftfarben für dunklen Grund nachdunkeln ---- */
+html[data-design='hell'] .map-tiles--dunkel { filter: none; }
+html[data-design='hell'] .status-badge--offen { color: #92600a; }
+html[data-design='hell'] .status-badge--alarmiert,
+html[data-design='hell'] .bedarf-chip--unterwegs { color: #1d4ed8 !important; }
+html[data-design='hell'] .status-badge--in_bearbeitung,
+html[data-design='hell'] .bedarf-chip--fehlt,
+html[data-design='hell'] .patient-zustand--schwer,
+html[data-design='hell'] .patient-zustand--kritisch { color: #b91c1c !important; }
+html[data-design='hell'] .status-badge--transport { color: #6d28d9; }
+html[data-design='hell'] .status-badge--abgeschlossen { color: #4b5563; }
+html[data-design='hell'] .bedarf-chip--erfuellt,
+html[data-design='hell'] .anmeldung__regeln li.ok,
+html[data-design='hell'] .betrag--plus,
+html[data-design='hell'] .finanz-kachel--plus strong { color: #15803d; }
+html[data-design='hell'] .finanz-kachel--minus strong { color: #b91c1c; }
+html[data-design='hell'] .versorgung-hinweis--fehlt,
+html[data-design='hell'] .einsatz-details .einsatz-meldungen h4 { color: #9f1239; }
+html[data-design='hell'] .versorgung-hinweis--unterwegs { color: #1e3a8a; }
+html[data-design='hell'] .versorgung-hinweis--ok { color: #166534; }

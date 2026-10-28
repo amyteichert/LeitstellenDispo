@@ -31,6 +31,57 @@
   --font: 'Inter', system-ui, -apple-system, sans-serif;
 }
 
+/* ---- Designs (Einstellungen → Design): überschreiben nur die Variablen oben ---- */
+html[data-design='rot'] {
+  --color-primary: #ff2d55;
+  --color-primary-dark: #e0204a;
+  --color-primary-light: rgba(255, 45, 85, 0.16);
+  --color-primary-text: #ff6b85;
+  --glow-primary: 0 0 12px rgba(255, 45, 85, 0.55);
+}
+html[data-design='lila'] {
+  --color-primary: #b14dff;
+  --color-primary-dark: #9a33ea;
+  --color-primary-light: rgba(177, 77, 255, 0.16);
+  --color-primary-text: #c98bff;
+  --glow-primary: 0 0 12px rgba(177, 77, 255, 0.55);
+}
+html[data-design='gruen'] {
+  --color-primary: #1fd655;
+  --color-primary-dark: #16b546;
+  --color-primary-light: rgba(31, 214, 85, 0.16);
+  --color-primary-text: #5be585;
+  --color-on-primary: #04130a;
+  --glow-primary: 0 0 12px rgba(31, 214, 85, 0.55);
+}
+html[data-design='schwarz'] {
+  --color-bg: #000;
+  --color-surface: #0a0a0a;
+  --color-surface-raised: #141414;
+  --color-input: #050505;
+  --color-border: #1f1f1f;
+  --color-border-strong: #2c2c2c;
+}
+html[data-design='hell'] {
+  color-scheme: light;
+  --color-primary: #0a66d6;
+  --color-primary-dark: #0853ad;
+  --color-primary-light: rgba(10, 102, 214, 0.12);
+  --color-primary-text: #0a5cc2;
+  --glow-primary: 0 0 8px rgba(10, 102, 214, 0.3);
+  --color-bg: #f5f7fa;
+  --color-surface: #ffffff;
+  --color-surface-raised: #eef1f5;
+  --color-input: #ffffff;
+  --color-text: #1a202c;
+  --color-text-muted: #5b6573;
+  --color-border: #dde2e8;
+  --color-border-strong: #c5ccd5;
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.08);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.1);
+  --shadow-card: 0 8px 24px rgba(0, 0, 0, 0.12);
+}
+
 *,
 *::before,
 *::after {

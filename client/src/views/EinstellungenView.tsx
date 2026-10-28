@@ -2,7 +2,7 @@ import { useState } from 'react';
 import type { Konto, UserRole } from '@leitstellendispo/shared';
 import { STARTANSICHTEN, ladeStartansicht, speichereStartansicht, type Ansicht } from '../startansicht';
 import { RechtlicheLinks } from '../Rechtliches';
-import { EINSATZ_TEMPI, setEinstellungen, useEinstellungen, type GeraeteEinstellungen } from '../einstellungen';
+import { EINSATZ_TEMPI, setEinstellungen, useEinstellungen, type GeraeteEinstellungen, DESIGNS } from '../einstellungen';
 import { testeTon } from '../ton';
 import KontoEinstellungen from './KontoEinstellungen';
 
@@ -114,6 +114,27 @@ export default function EinstellungenView({
         </section>
 
         <section className="ausbau-karte">
+          <span className="ausbau-karte__kategorie">Design</span>
+          <p>Farben des ganzen Spiels. Gilt auf diesem Gerät.</p>
+          <div className="design-auswahl">
+            {DESIGNS.map((design) => (
+              <button
+                key={design.wert}
+                type="button"
+                className={`design-auswahl__knopf ${einstellungen.design === design.wert ? 'design-auswahl__knopf--aktiv' : ''}`}
+                aria-pressed={einstellungen.design === design.wert}
+                onClick={() => setEinstellungen({ design: design.wert })}
+              >
+                <span className="design-auswahl__vorschau" style={{ background: design.hintergrund }} aria-hidden>
+                  <span style={{ background: design.farbe, boxShadow: `0 0 8px ${design.farbe}` }} />
+                </span>
+                {design.text}
+              </button>
+            ))}
+          </div>
+        </section>
+
+        <section className="ausbau-karte">
           <span className="ausbau-karte__kategorie">Ansicht</span>
           <label className="field">
             <span>Ansicht beim Start</span>
@@ -155,10 +176,7 @@ export default function EinstellungenView({
           <span className="ausbau-karte__kategorie">Gut zu wissen</span>
           <p>
             <strong>Anfahrtszeiten:</strong> Die Fahrzeiten sind realistisch angelegt – mit Ausrückzeit, typischen Geschwindigkeiten
-            bei Einsatzfahrten und dem Umweg über die Straße. Auf der Karte fahren die Fahrzeuge aber vorerst auf direktem Weg.
-          </p>
-          <p>
-            Echte Routenführung über das Straßennetz ist in nächster Zeit nicht geplant, haben wir aber für später im Hinterkopf.
+            bei Einsatzfahrten. Auf der Karte fahren die Fahrzeuge auf echten Straßen mit Navi-Zeit.
           </p>
         </section>
 
