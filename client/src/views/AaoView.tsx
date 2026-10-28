@@ -9,10 +9,25 @@ import {
 import type { MapLocation } from '../types';
 import { AaoHilfe } from './AaoKnoepfe';
 
-const FAHRZEUG_SCHLUESSEL = [
-  ...AAO_KATEGORIEN.map((kategorie) => `${AAO_KATEGORIE}${kategorie}`),
-  ...FAHRZEUG_TYPEN.map((typ) => typ.typ),
-];
+/** Reiter, die immer zur Auswahl stehen – weitere kann man frei eintragen */
+const STANDARD_REITER = ['Feuerwehr', 'Rettungsdienst'];
+
+/**
+ * Fahrzeuge im Formular, nach Organisation getrennt: erst „(beliebig)“ je Kategorie, dann die Typen.
+ * Kategorien mit nur einem gleichnamigen Typ (RTW, NEF, KTW) stehen nur einmal da.
+ */
+const FAHRZEUG_GRUPPEN = [...new Set(FAHRZEUG_TYPEN.map((typ) => typ.organisation))].map((organisation) => {
+  const typen = FAHRZEUG_TYPEN.filter((typ) => typ.organisation === organisation);
+  const kategorien = AAO_KATEGORIEN.filter((kategorie) => {
+    const zugehoerig = typen.filter((typ) => typ.kategorie === kategorie);
+    return zugehoerig.length > 0 && !(zugehoerig.length === 1 && zugehoerig[0].typ === kategorie);
+  });
+  return {
+    organisation,
+    schluessel: [...kategorien.map((kategorie) => `${AAO_KATEGORIE}${kategorie}`), ...typen.map((typ) => typ.typ)],
+  };
+});
+const ALLE_SCHLUESSEL = FAHRZEUG_GRUPPEN.flatMap((gruppe) => gruppe.schluessel);
 
 const neuerEintrag = (): AaoEintrag => ({
   id: `aao-${Date.now()}-${Math.random().toString(16).slice(2, 6)}`,
@@ -40,6 +55,7 @@ export default function AaoView({
 }) {
   const [bearbeitet, setBearbeitet] = useState<AaoEintrag | null>(null);
   const reiterListe = [...new Set(aao.map((e) => e.reiter.trim() || 'Allgemein'))];
+  const reiterVorschlaege = [...new Set([...STANDARD_REITER, ...reiterListe])];
 
   const speichern = () => {
     if (!bearbeitet || !bearbeitet.name.trim()) return;
@@ -72,8 +88,20 @@ export default function AaoView({
           </label>
           <label className="field">
             <span>Reiter</span>
-            <input value={bearbeitet.reiter} maxLength={30} list="aao-reiter" placeholder="z. B. Feuerwehr" onChange={(e) => setze({ reiter: e.target.value })} />
-            <datalist id="aao-reiter">{reiterListe.map((r) => <option key={r} value={r} />)}</datalist>
+            <input value={bearbeitet.reiter} maxLength={30} list="aao-reiter" placeholder="z. B. Rettungsdienst" onChange={(e) => setze({ reiter: e.target.value })} />
+            <datalist id="aao-reiter">{reiterVorschlaege.map((r) => <option key={r} value={r} />)}</datalist>
+            <span className="aao-formular__reiter">
+              {reiterVorschlaege.map((r) => (
+                <button
+                  key={r}
+                  type="button"
+                  className={`btn btn--klein ${bearbeitet.reiter.trim() === r ? 'btn--primary' : ''}`}
+                  onClick={() => setze({ reiter: r })}
+                >
+                  {r}
+                </button>
+              ))}
+            </span>
           </label>
           <label className="field aao-formular__farbe">
             <span>Farbe</span>
@@ -84,8 +112,17 @@ export default function AaoView({
         <section className="einsatz-abschnitt">
           <h4>Fahrzeuge</h4>
           <p className="einsatz-eintrag__zeile">Anzahl eintragen. „(beliebig)“ = irgendein Fahrzeug dieser Art, sonst genau dieser Typ.</p>
+          {FAHRZEUG_GRUPPEN.map(({ organisation, schluessel }) => (
+          <div key={organisation}>
+          <h5 className="aao-formular__gruppe">{organisation}</h5>
           <div className="aao-formular__fahrzeuge">
-            {FAHRZEUG_SCHLUESSEL.map((key) => (
+            {[
+              ...schluessel,
+              // Früher gespeicherte Schlüssel, die es im Formular nicht mehr gibt (z. B. „RTW (beliebig)“), bleiben sichtbar
+              ...(organisation === FAHRZEUG_GRUPPEN[FAHRZEUG_GRUPPEN.length - 1].organisation
+                ? Object.keys(bearbeitet.fahrzeuge).filter((key) => !ALLE_SCHLUESSEL.includes(key))
+                : []),
+            ].map((key) => (
               <label key={key} className="aao-formular__fahrzeug">
                 <span>{getAaoFahrzeugLabel(key)}</span>
                 <input
@@ -103,6 +140,8 @@ export default function AaoView({
               </label>
             ))}
           </div>
+          </div>
+          ))}
         </section>
 
         <section className="einsatz-abschnitt">

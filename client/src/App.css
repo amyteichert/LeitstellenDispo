@@ -3144,6 +3144,8 @@ a.btn { text-decoration: none; }
 .aao-formular__fahrzeuge { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 6px; }
 .aao-formular__fahrzeug { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .aao-formular__fahrzeug input { width: 64px; }
+.aao-formular__reiter { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
+.aao-formular__gruppe { margin: 12px 0 6px; font-size: 13px; color: var(--color-text-muted); }
 .aao-liste { list-style: none; padding: 0; display: grid; gap: 8px; }
 .aao-liste li { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 .aao-liste small { flex: 1 1 160px; color: var(--color-text-muted); }
