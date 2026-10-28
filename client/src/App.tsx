@@ -3,6 +3,8 @@ import { createPortal } from 'react-dom';
 import { MapContainer, Marker, Polyline, Popup, TileLayer, useMap, useMapEvents } from 'react-leaflet';
 import L, { type LeafletMouseEvent } from 'leaflet';
 import {
+  anzeigeName,
+  getBegruessung,
   APP_VERSION,
   getRufLabel,
   getOffeneSprechwuensche,
@@ -37,6 +39,7 @@ import { useWetter } from './useWetter';
 import { ladeStartansicht, sichtbareAnsichten, type Ansicht } from './startansicht';
 import TeamView from './views/TeamView';
 import { Marke, Piktogramm, type SymbolName } from './Symbole';
+import ProfilBild from './ProfilBild';
 import { merkeBesuchsZiel } from './besuchsMessung';
 import { einsatzMarkerHtml, fahrzeugSymbolHtml, krankenhausMarkerHtml, wachenMarkerHtml } from './Kennzeichen';
 import Tour, { tourGesehen } from './Tour';
@@ -256,7 +259,14 @@ function MapStyleToggle({
     container,
   );
 }
-function App({ konto, onAbmelden, gast = false }: { konto: Konto; onAbmelden: () => Promise<void>; /** Gastmodus: nichts wird gespeichert */ gast?: boolean }) {
+function App({ konto, onAbmelden, gast = false, setKonto }: {
+  konto: Konto;
+  onAbmelden: () => Promise<void>;
+  /** Gastmodus: nichts wird gespeichert */
+  gast?: boolean;
+  /** Profil geändert (Spitzname, Bild, Name) */
+  setKonto: (konto: Konto) => void;
+}) {
   /** Gast verlässt das Spiel Richtung Anmeldung – das Gast-Spiel verfällt */
   const zurAnmeldung = () => {
     if (window.confirm('Zur Anmeldung wechseln? Dein Gast-Spiel wird dabei nicht gespeichert und geht verloren.')) void onAbmelden();
@@ -708,6 +718,15 @@ Dein Guthaben: ${balance.toLocaleString('de-DE')} €`)) return;
       )}
       <header className="topbar">
         <div className="brand">
+          <button
+            type="button"
+            className="begruessung"
+            title="Zu deinem Profil"
+            onClick={() => setCurrentView('Profil')}
+          >
+            <ProfilBild konto={konto} groesse={30} />
+            <span className="begruessung__text">{gast ? 'Hallo' : getBegruessung(new Date().getHours())}, <strong>{anzeigeName(konto)}</strong></span>
+          </button>
           <Marke />
           <span className="chip chip--version" title="Spielversion">V{APP_VERSION}</span>
           {schnellzugriff('kopf')}
@@ -1206,6 +1225,7 @@ Dein Guthaben: ${balance.toLocaleString('de-DE')} €`)) return;
               <ProfilView
                 konto={konto}
                 gast={gast}
+                setKonto={setKonto}
                 stand={{
                   wachen: locations.filter((location) => location.type === 'station').length,
                   fahrzeuge: vehicles.length,

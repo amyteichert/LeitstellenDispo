@@ -1,7 +1,7 @@
 // Datenzugriff für Benutzerkonten, Sitzungen und Passwort-Zurücksetzung
 import { createHash, randomBytes } from 'node:crypto';
 import bcrypt from 'bcryptjs';
-import { normalisiereEmail, type Konto, type UserRole } from '@leitstellendispo/shared';
+import { getNameAenderbarAb, normalisiereEmail, type Konto, type UserRole } from '@leitstellendispo/shared';
 import type { Datenbank } from './datenbank.js';
 
 export const SITZUNG_DAUER_MS = 30 * 24 * 60 * 60 * 1000; // 30 Tage
@@ -16,6 +16,9 @@ interface BenutzerZeile {
   gesperrt: number;
   erstellt: string;
   email: string | null;
+  spitzname: string | null;
+  avatar: string | null;
+  name_geaendert: string | null;
 }
 
 export type AnmeldeErgebnis =
@@ -27,7 +30,10 @@ export type RegistrierErgebnis =
   | { ok: false; grund: 'name_vergeben' | 'email_vergeben' };
 
 function zuKonto(z: BenutzerZeile): Konto {
-  return { id: z.id, name: z.name, rolle: z.rolle, erstellt: z.erstellt, email: z.email };
+  return {
+    id: z.id, name: z.name, rolle: z.rolle, erstellt: z.erstellt, email: z.email,
+    spitzname: z.spitzname, avatar: z.avatar, nameGeaendert: z.name_geaendert,
+  };
 }
 
 /** Tokens werden nur gehasht gespeichert – ein Datenbank-Leak verrät keine gültigen Cookies oder Links. */
@@ -47,6 +53,11 @@ export function erstelleKontenDienst(db: Datenbank, optionen: { bcryptRunden?: n
     benutzerAnlegen: db.prepare('INSERT INTO benutzer (name, email, passwort_hash, rolle) VALUES (?, ?, ?, ?) RETURNING *'),
     emailSetzen: db.prepare('UPDATE benutzer SET email = ? WHERE id = ?'),
     passwortSetzen: db.prepare('UPDATE benutzer SET passwort_hash = ? WHERE id = ?'),
+    profilSetzen: db.prepare('UPDATE benutzer SET spitzname = ?, avatar = ? WHERE id = ?'),
+    nameSetzen: db.prepare(`UPDATE benutzer SET name = ?, name_geaendert = strftime('%Y-%m-%dT%H:%M:%fZ', 'now') WHERE id = ?`),
+    bildSetzen: db.prepare('INSERT INTO profilbilder (benutzer_id, daten, typ) VALUES (?, ?, ?) ON CONFLICT (benutzer_id) DO UPDATE SET daten = excluded.daten, typ = excluded.typ'),
+    bildLoeschen: db.prepare('DELETE FROM profilbilder WHERE benutzer_id = ?'),
+    bild: db.prepare('SELECT daten, typ FROM profilbilder WHERE benutzer_id = ?'),
     sitzungAnlegen: db.prepare('INSERT INTO sitzungen (token_hash, benutzer_id, erstellt, laeuft_ab) VALUES (?, ?, ?, ?)'),
     sitzungLoeschen: db.prepare('DELETE FROM sitzungen WHERE token_hash = ?'),
     andereSitzungenLoeschen: db.prepare('DELETE FROM sitzungen WHERE benutzer_id = ? AND token_hash != ?'),
@@ -134,6 +145,51 @@ export function erstelleKontenDienst(db: Datenbank, optionen: { bcryptRunden?: n
         sql.tokensDesBenutzersLoeschen.run(id);
       })();
       return true;
+    },
+
+    konto(id: number): Konto | null {
+      const zeile = sql.benutzerNachId.get(id) as BenutzerZeile | undefined;
+      return zeile ? zuKonto(zeile) : null;
+    },
+
+    /** Spitzname und Profilbild-Vorlage setzen. Eine Vorlage (oder kein Bild) ersetzt ein hochgeladenes Bild. */
+    setzeProfil(id: number, spitzname: string | null, avatar: string | null): void {
+      db.transaction(() => {
+        sql.profilSetzen.run(spitzname, avatar, id);
+        if (!avatar?.startsWith('bild:')) sql.bildLoeschen.run(id);
+      })();
+    },
+
+    /** Benutzername ändern – nur mit Passwort, höchstens alle 30 Tage und nur, wenn der Name frei ist. */
+    async aendereName(id: number, name: string, passwort: string, jetzt = Date.now()): Promise<'ok' | 'falsches_passwort' | 'zu_frueh' | 'name_vergeben'> {
+      if (!(await pruefePasswortVon(id, passwort))) return 'falsches_passwort';
+      const zeile = sql.benutzerNachId.get(id) as BenutzerZeile;
+      if (jetzt < getNameAenderbarAb(zeile.name_geaendert)) return 'zu_frueh';
+      const anderer = sql.benutzerNachName.get(name) as BenutzerZeile | undefined;
+      if (anderer && anderer.id !== id) return 'name_vergeben';
+      sql.nameSetzen.run(name, id);
+      return 'ok';
+    },
+
+    /** Hochgeladenes Profilbild speichern; `avatar` bekommt einen neuen Stand, damit Browser nicht das alte zeigen */
+    setzeBild(id: number, daten: Buffer, typ: string): void {
+      db.transaction(() => {
+        sql.bildSetzen.run(id, daten, typ);
+        const zeile = sql.benutzerNachId.get(id) as BenutzerZeile;
+        sql.profilSetzen.run(zeile.spitzname, `bild:${Date.now()}`, id);
+      })();
+    },
+
+    /** Hochgeladenes Bild entfernen (auch durch das Team) – danach zeigt das Spiel den Anfangsbuchstaben */
+    entferneBild(id: number): void {
+      db.transaction(() => {
+        sql.bildLoeschen.run(id);
+        db.prepare("UPDATE benutzer SET avatar = NULL WHERE id = ? AND avatar LIKE 'bild:%'").run(id);
+      })();
+    },
+
+    ladeBild(id: number): { daten: Buffer; typ: string } | null {
+      return (sql.bild.get(id) as { daten: Buffer; typ: string } | undefined) ?? null;
     },
 
     /** Konto zu einer E-Mail-Adresse (für „Passwort vergessen“). */

@@ -73,6 +73,11 @@ async function auth<T>(pfad: string, body?: unknown, methode = 'POST'): Promise<
 export const holeFunktionen = () => auth<{ passwortVergessen: boolean }>('/funktionen', undefined, 'GET').catch(() => ({ passwortVergessen: false }));
 export const aendereEmail = (email: string, passwort: string) => auth<{ konto: Konto }>('/email', { email, passwort }).then((d) => d.konto);
 export const aenderePasswort = (altesPasswort: string, neuesPasswort: string) => auth<null>('/passwort', { altesPasswort, neuesPasswort });
+export const setzeProfil = (spitzname: string, avatar: string | null) =>
+  auth<{ konto: Konto }>('/profil', { spitzname, avatar }).then((d) => d.konto);
+export const aendereName = (name: string, passwort: string) => auth<{ konto: Konto }>('/name', { name, passwort }).then((d) => d.konto);
+export const ladeProfilbildHoch = (daten: string) => auth<{ konto: Konto }>('/bild', { daten }, 'PUT').then((d) => d.konto);
+export const entferneProfilbild = () => auth<{ konto: Konto }>('/bild', undefined, 'DELETE').then((d) => d.konto);
 export const passwortVergessen = (email: string) => auth<{ hinweis: string }>('/passwort-vergessen', { email }).then((d) => d.hinweis);
 export const passwortZuruecksetzen = (token: string, passwort: string) => auth<{ name: string }>('/passwort-zuruecksetzen', { token, passwort }).then((d) => d.name);
 
@@ -125,6 +130,7 @@ export const teamApi = {
   rolle: (id: number, rolle: UserRole) => team<{ konto: TeamKonto }>('POST', `/konten/${id}/rolle`, { rolle }).then((d) => d.konto),
   spielstandZuruecksetzen: (id: number) => team<null>('DELETE', `/konten/${id}/spielstand`),
   loeschen: (id: number) => team<null>('DELETE', `/konten/${id}`),
+  profilbildEntfernen: (id: number) => team<{ konto: TeamKonto }>('DELETE', `/konten/${id}/bild`).then((d) => d.konto),
   devMarkierung: () => team<null>('POST', '/dev-markierung'),
   passwortLink: (id: number) => team<{ link: string; laeuftAb: number }>('POST', `/konten/${id}/passwort-link`),
   protokoll: () => team<{ eintraege: TeamProtokollEintrag[] }>('GET', '/protokoll').then((d) => d.eintraege),

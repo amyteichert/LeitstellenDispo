@@ -135,3 +135,57 @@ describe('Öffentlicher Benutzername', () => {
     expect((await post('/registrieren', { name: 'Amy.Projektleitung', email: 'amy.teichert@test.de', passwort: 'geheim123' })).status).toBe(201);
   });
 });
+
+describe('Profil', () => {
+  const PNG = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 0]).toString('base64');
+  const ich = async (cookie: string) => (await (await server.anfrage('GET', '/auth/ich', { cookie })).json()).konto;
+
+  it('Spitzname und Vorlage setzen, Unbekanntes ablehnen', async () => {
+    server = await starteTestServer();
+    const cookie = await registriere('Disponent');
+    expect((await post('/profil', { spitzname: 'gamer23 🚒', avatar: 'vorlage:fw-helm' }, cookie)).status).toBe(200);
+    expect(await ich(cookie)).toMatchObject({ spitzname: 'gamer23 🚒', avatar: 'vorlage:fw-helm' });
+    expect((await post('/profil', { spitzname: 'x'.repeat(25) }, cookie)).status).toBe(400);
+    expect((await post('/profil', { spitzname: '<b>', avatar: null }, cookie)).status).toBe(400);
+    expect((await post('/profil', { spitzname: '', avatar: 'bild:123' }, cookie)).status).toBe(400);
+    expect((await post('/profil', { spitzname: '  ', avatar: null }, cookie)).status).toBe(200);
+    expect(await ich(cookie)).toMatchObject({ spitzname: null, avatar: null });
+  });
+
+  it('Bild hochladen: nur echte Bilder, für alle abrufbar, Team kann es entfernen', async () => {
+    server = await starteTestServer();
+    const owner = await registriere('Amy');
+    setzeRolle(server.db, 'Amy', 'owner');
+    const cookie = await registriere('Disponent');
+    const id = (server.db.prepare("SELECT id FROM benutzer WHERE name = 'Disponent'").get() as { id: number }).id;
+
+    expect((await server.anfrage('PUT', '/auth/bild', { body: { daten: Buffer.from('<svg onload=x>').toString('base64') }, cookie })).status).toBe(400);
+    expect((await server.anfrage('PUT', '/auth/bild', { body: { daten: PNG }, cookie })).status).toBe(200);
+    const { avatar } = await ich(cookie);
+    expect(avatar).toMatch(/^bild:\d+$/);
+    const bild = await server.anfrage('GET', `/auth/bild/${id}`);
+    expect(bild.headers.get('content-type')).toBe('image/png');
+    // Spitzname ändern behält das Bild
+    await post('/profil', { spitzname: 'Neu', avatar }, cookie);
+    expect((await ich(cookie)).avatar).toBe(avatar);
+
+    expect((await server.anfrage('DELETE', `/team/konten/${id}/bild`, { cookie })).status).toBe(403);
+    expect((await server.anfrage('DELETE', `/team/konten/${id}/bild`, { cookie: owner })).status).toBe(200);
+    expect((await ich(cookie)).avatar).toBeNull();
+    expect((await server.anfrage('GET', `/auth/bild/${id}`)).status).toBe(404);
+  });
+
+  it('Benutzername ändern: mit Passwort, nur wenn frei, höchstens alle 30 Tage', async () => {
+    server = await starteTestServer();
+    await registriere('Belegt');
+    const cookie = await registriere('Disponent');
+    expect((await post('/name', { name: 'Neuer_Name', passwort: 'falsch123' }, cookie)).status).toBe(403);
+    expect((await post('/name', { name: 'belegt', passwort: 'geheim123' }, cookie)).status).toBe(409);
+    expect((await post('/name', { name: 'Neuer_Name', passwort: 'geheim123' }, cookie)).status).toBe(200);
+    expect((await ich(cookie)).name).toBe('Neuer_Name');
+    expect((await post('/anmelden', { name: 'Neuer_Name', passwort: 'geheim123' })).status).toBe(200);
+    expect((await post('/name', { name: 'Noch_einer', passwort: 'geheim123' }, cookie)).status).toBe(429);
+    server.db.prepare("UPDATE benutzer SET name_geaendert = '2020-01-01T00:00:00.000Z'").run();
+    expect((await post('/name', { name: 'Noch_einer', passwort: 'geheim123' }, cookie)).status).toBe(200);
+  });
+});

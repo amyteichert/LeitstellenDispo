@@ -40,6 +40,8 @@ interface TeamKontoZeile {
   dev_markiert: number;
   email: string | null;
   zuletzt: string | null;
+  spitzname: string | null;
+  avatar: string | null;
 }
 
 const zuTeamKonto = (z: TeamKontoZeile): TeamKonto => ({
@@ -48,6 +50,8 @@ const zuTeamKonto = (z: TeamKontoZeile): TeamKonto => ({
   rolle: z.rolle,
   erstellt: z.erstellt,
   email: z.email,
+  spitzname: z.spitzname,
+  avatar: z.avatar,
   gesperrt: Boolean(z.gesperrt),
   devMarkiert: Boolean(z.dev_markiert),
   zuletztGespielt: z.zuletzt,
@@ -72,7 +76,7 @@ export const nurMitRecht = (recht: TeamRecht) => (_req: Request, res: Response, 
 };
 
 const KONTO_SPALTEN = `
-  b.id, b.name, b.rolle, b.gesperrt, b.erstellt, b.dev_markiert, b.email, s.aktualisiert AS zuletzt
+  b.id, b.name, b.rolle, b.gesperrt, b.erstellt, b.dev_markiert, b.email, b.spitzname, b.avatar, s.aktualisiert AS zuletzt
   FROM benutzer b LEFT JOIN spielstaende s ON s.benutzer_id = b.id`;
 
 export function erstelleTeamRouter(db: Datenbank, konten: KontenDienst, optionen: AuthOptionen & { sicherungsOrdner?: string } = {}): Router {
@@ -284,6 +288,15 @@ export function erstelleTeamRouter(db: Datenbank, konten: KontenDienst, optionen
     sql.notizLoeschen.run(notiz.id);
     protokolliere(ich(res), 'Notiz gelöscht', sql.konto.get(notiz.benutzer_id) as TeamKontoZeile | undefined);
     res.status(204).end();
+  });
+
+  // ---- Unpassendes Profilbild entfernen (jedes Team-Mitglied, solange es keinen Filter gibt) ----
+  router.delete('/konten/:id/bild', (req, res) => {
+    const ziel = zielKonto(req, res);
+    if (!ziel) return;
+    konten.entferneBild(ziel.id);
+    protokolliere(ich(res), 'Profilbild entfernt', ziel);
+    res.json({ konto: zuTeamKonto(sql.konto.get(ziel.id) as TeamKontoZeile) });
   });
 
   // ---- Ankündigung an alle Spieler ----

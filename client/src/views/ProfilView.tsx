@@ -1,5 +1,20 @@
-import { ROLLEN_LABELS, getRufLabel, istGruendungsSpieler, type Konto } from '@leitstellendispo/shared';
+import { useState } from 'react';
+import {
+  AVATAR_VORLAGEN,
+  KONTO_REGELN,
+  NAME_AENDERN_ABSTAND_TAGE,
+  ROLLEN_LABELS,
+  SPITZNAME_MAX_LAENGE,
+  getNameAenderbarAb,
+  getRufLabel,
+  istGruendungsSpieler,
+  pruefeBenutzername,
+  pruefeSpitzname,
+  type Konto,
+} from '@leitstellendispo/shared';
 import SpielerName from '../SpielerName';
+import ProfilBild, { AVATAR_FIGUREN, bereiteProfilbildVor } from '../ProfilBild';
+import { KontoFehler, aendereName, entferneProfilbild, ladeProfilbildHoch, setzeProfil } from '../konto';
 
 const euro = (betrag: number) => `${Math.round(betrag).toLocaleString('de-DE')} €`;
 
@@ -7,12 +22,14 @@ const euro = (betrag: number) => `${Math.round(betrag).toLocaleString('de-DE')} 
 export default function ProfilView({
   konto,
   gast,
+  setKonto,
   stand,
   onFehlerMelden,
   onZurAnmeldung,
 }: {
   konto: Konto;
   gast: boolean;
+  setKonto: (konto: Konto) => void;
   stand: { wachen: number; fahrzeuge: number; personal: number; einsaetze: number; rd: number; fw: number; guthaben: number; ruf: number };
   onFehlerMelden: () => void;
   onZurAnmeldung: () => void;
@@ -39,7 +56,13 @@ export default function ProfilView({
           </>
         ) : (
           <>
-            <p className="profil-name"><SpielerName konto={konto} /></p>
+            <div className="profil-kopf__zeile">
+              <ProfilBild konto={konto} groesse={64} />
+              <div>
+                <p className="profil-name"><SpielerName konto={konto} /></p>
+                {konto.spitzname && <small className="einsatz-eintrag__zeile">„{konto.spitzname}“</small>}
+              </div>
+            </div>
             <small className="einsatz-eintrag__zeile">
               {ROLLEN_LABELS[konto.rolle]} · dabei seit {new Date(konto.erstellt).toLocaleDateString('de-DE', { day: '2-digit', month: 'long', year: 'numeric' })}
             </small>
@@ -52,6 +75,8 @@ export default function ProfilView({
           </>
         )}
       </section>
+
+      {!gast && <ProfilBearbeiten konto={konto} setKonto={setKonto} />}
 
       <section className="ausbau-karte">
         <span className="ausbau-karte__kategorie">Deine Leitstelle</span>
@@ -72,5 +97,127 @@ export default function ProfilView({
         {gast && <small className="einsatz-eintrag__zeile">Fehler melden geht mit einem Konto.</small>}
       </section>
     </div>
+  );
+}
+
+const fehlerText = (e: unknown) => (e instanceof KontoFehler || e instanceof Error ? e.message : 'Unerwarteter Fehler.');
+
+/** Profilbild (Figur oder eigenes Bild), Spitzname und Benutzername ändern */
+function ProfilBearbeiten({ konto, setKonto }: { konto: Konto; setKonto: (konto: Konto) => void }) {
+  const [spitzname, setSpitzname] = useState(konto.spitzname ?? '');
+  const [meldung, setMeldung] = useState<{ art: 'ok' | 'fehler'; text: string } | null>(null);
+  const [laedt, setLaedt] = useState(false);
+  const [neuerName, setNeuerName] = useState(konto.name);
+  const [passwort, setPasswort] = useState('');
+  const aenderbarAb = getNameAenderbarAb(konto.nameGeaendert);
+  const nameGesperrt = Date.now() < aenderbarAb;
+
+  const ausfuehren = async (aktion: () => Promise<Konto>, ok: string) => {
+    setLaedt(true);
+    try {
+      setKonto(await aktion());
+      setMeldung({ art: 'ok', text: ok });
+      return true;
+    } catch (e) {
+      setMeldung({ art: 'fehler', text: fehlerText(e) });
+      return false;
+    } finally {
+      setLaedt(false);
+    }
+  };
+
+  const waehleVorlage = (avatar: string | null) => void ausfuehren(() => setzeProfil(konto.spitzname ?? '', avatar), '✓ Profilbild geändert.');
+
+  return (
+    <section className="ausbau-karte profil-bearbeiten">
+      <span className="ausbau-karte__kategorie">Profil anpassen</span>
+      {meldung && (
+        <div className={meldung.art === 'ok' ? 'aktion-rueckmeldung' : 'versorgung-hinweis versorgung-hinweis--fehlt'} role="status">{meldung.text}</div>
+      )}
+
+      <div>
+        <h4>Profilbild</h4>
+        <div className="profil-avatare">
+          {AVATAR_VORLAGEN.map((id) => (
+            <button
+              key={id}
+              type="button"
+              aria-pressed={konto.avatar === `vorlage:${id}`}
+              disabled={laedt}
+              onClick={() => waehleVorlage(`vorlage:${id}`)}
+            >
+              <ProfilBild konto={konto} avatar={`vorlage:${id}`} groesse={52} />
+              {AVATAR_FIGUREN[id].name}
+            </button>
+          ))}
+        </div>
+        <div className="team-konto__aktionen" style={{ marginTop: 8 }}>
+          <label className="btn">
+            Eigenes Bild hochladen
+            <input
+              type="file"
+              accept="image/png,image/jpeg,image/webp"
+              hidden
+              disabled={laedt}
+              onChange={(e) => {
+                const datei = e.target.files?.[0];
+                e.target.value = '';
+                if (datei) void ausfuehren(async () => ladeProfilbildHoch(await bereiteProfilbildVor(datei)), '✓ Dein Bild ist hochgeladen.');
+              }}
+            />
+          </label>
+          {konto.avatar?.startsWith('bild:') && (
+            <button type="button" className="btn" disabled={laedt} onClick={() => void ausfuehren(entferneProfilbild, 'Bild entfernt.')}>Bild entfernen</button>
+          )}
+          {konto.avatar && !konto.avatar.startsWith('bild:') && (
+            <button type="button" className="btn" disabled={laedt} onClick={() => waehleVorlage(null)}>Kein Bild</button>
+          )}
+        </div>
+        <small className="einsatz-eintrag__zeile">Eigene Bilder sehen auch andere Spieler. Bitte nichts Anstößiges – das Team entfernt unpassende Bilder.</small>
+      </div>
+
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          const fehler = pruefeSpitzname(spitzname);
+          if (fehler) return setMeldung({ art: 'fehler', text: fehler });
+          void ausfuehren(() => setzeProfil(spitzname, konto.avatar ?? null), spitzname.trim() ? `✓ Hallo ${spitzname.trim()}!` : 'Spitzname entfernt.');
+        }}
+      >
+        <h4>Spitzname</h4>
+        <p className="einsatz-eintrag__zeile">So begrüßt dich das Spiel. Leer lassen = Benutzername.</p>
+        <div className="fahrzeug-bearbeiten__zeile">
+          <label className="field" style={{ flex: '1 1 180px', margin: 0 }}>
+            <input value={spitzname} maxLength={SPITZNAME_MAX_LAENGE * 2} placeholder={konto.name} onChange={(e) => setSpitzname(e.target.value)} aria-label="Spitzname" />
+          </label>
+          <button type="submit" className="btn" disabled={laedt || spitzname.trim() === (konto.spitzname ?? '')}>Speichern</button>
+        </div>
+      </form>
+
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          const fehler = pruefeBenutzername(neuerName);
+          if (fehler) return setMeldung({ art: 'fehler', text: fehler });
+          void ausfuehren(() => aendereName(neuerName.trim(), passwort), `✓ Du heißt jetzt ${neuerName.trim()}. Melde dich ab jetzt mit diesem Namen an.`)
+            .then((ok) => ok && setPasswort(''));
+        }}
+      >
+        <h4>Benutzername ändern</h4>
+        <p className="einsatz-eintrag__zeile">
+          Damit meldest du dich an, andere sehen ihn. Geht nur alle {NAME_AENDERN_ABSTAND_TAGE} Tage.
+          {nameGesperrt && ` Wieder möglich ab ${new Date(aenderbarAb).toLocaleDateString('de-DE', { day: '2-digit', month: 'long' })}.`}
+        </p>
+        <div className="fahrzeug-bearbeiten__zeile">
+          <label className="field" style={{ flex: '1 1 160px', margin: 0 }}>
+            <input value={neuerName} maxLength={KONTO_REGELN.nameMaxLaenge} disabled={nameGesperrt} autoComplete="username" onChange={(e) => setNeuerName(e.target.value)} aria-label="Neuer Benutzername" />
+          </label>
+          <label className="field" style={{ flex: '1 1 160px', margin: 0 }}>
+            <input type="password" value={passwort} disabled={nameGesperrt} placeholder="Aktuelles Passwort" autoComplete="current-password" onChange={(e) => setPasswort(e.target.value)} aria-label="Aktuelles Passwort" />
+          </label>
+          <button type="submit" className="btn" disabled={laedt || nameGesperrt || !passwort || neuerName.trim() === konto.name}>Ändern</button>
+        </div>
+      </form>
+    </section>
   );
 }

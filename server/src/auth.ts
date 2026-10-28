@@ -1,6 +1,16 @@
 // Endpunkte für Registrieren, Anmelden, Abmelden und „Wer bin ich“ sowie Middleware für geschützte Routen
 import { Router, type CookieOptions, type NextFunction, type Request, type Response } from 'express';
-import { pruefeBenutzername, pruefeEmail, pruefeNameGegenEmail, pruefePasswort, type Konto } from '@leitstellendispo/shared';
+import {
+  AVATAR_VORLAGEN,
+  NAME_AENDERN_ABSTAND_TAGE,
+  PROFILBILD_MAX_BYTES,
+  pruefeBenutzername,
+  pruefeEmail,
+  pruefeNameGegenEmail,
+  pruefePasswort,
+  pruefeSpitzname,
+  type Konto,
+} from '@leitstellendispo/shared';
 import { erstelleFehlversuchBremse } from './fehlversuchBremse.js';
 import { SITZUNG_DAUER_MS, type KontenDienst } from './konten.js';
 import { KEIN_MAILVERSAND, type Mailversand } from './mail.js';
@@ -36,6 +46,14 @@ function sitzungsToken(req: Request): string | undefined {
 
 function setzeSitzungsCookie(res: Response, token: string) {
   res.cookie(SITZUNG_COOKIE, token, { ...cookieOptionen(), maxAge: SITZUNG_DAUER_MS });
+}
+
+/** Bildformat anhand der ersten Bytes – nur JPEG, PNG und WebP, egal was der Client behauptet */
+export function erkenneBildTyp(daten: Buffer): string | null {
+  if (daten.length > 3 && daten[0] === 0xff && daten[1] === 0xd8 && daten[2] === 0xff) return 'image/jpeg';
+  if (daten.length > 8 && daten.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))) return 'image/png';
+  if (daten.length > 12 && daten.toString('latin1', 0, 4) === 'RIFF' && daten.toString('latin1', 8, 12) === 'WEBP') return 'image/webp';
+  return null;
 }
 
 /** Hängt das angemeldete Konto (oder `null`) an `res.locals.konto`. */
@@ -185,6 +203,76 @@ export function erstelleAuthRouter(konten: KontenDienst, optionen: AuthOptionen 
         return void res.status(403).json({ fehler: 'Das aktuelle Passwort ist falsch.' });
       }
       res.status(204).end();
+    } catch (e) {
+      next(e);
+    }
+  });
+
+  // ---- Profil: Spitzname, Profilbild, Benutzername ----
+
+  router.post('/profil', ladeKonto(konten), nurAngemeldet, (req, res) => {
+    const ich = res.locals.konto as Konto;
+    const { spitzname, avatar } = req.body ?? {};
+    const fehler = pruefeSpitzname(spitzname);
+    if (fehler) return void res.status(400).json({ fehler });
+    // Hochgeladenes Bild bleibt nur, wenn der Client den aktuellen Stand mitschickt; sonst nur Vorlagen oder keins
+    const gueltigerAvatar = avatar === null || avatar === undefined
+      || (typeof avatar === 'string' && (avatar === ich.avatar || AVATAR_VORLAGEN.some((v) => avatar === `vorlage:${v}`)));
+    if (!gueltigerAvatar) return void res.status(400).json({ fehler: 'Unbekanntes Profilbild.' });
+    const name = typeof spitzname === 'string' && spitzname.trim() ? spitzname.trim() : null;
+    konten.setzeProfil(ich.id, name, avatar ?? null);
+    res.json({ konto: konten.konto(ich.id) });
+  });
+
+  router.put('/bild', ladeKonto(konten), nurAngemeldet, (req, res) => {
+    const roh: unknown = req.body?.daten;
+    if (typeof roh !== 'string') return void res.status(400).json({ fehler: 'Kein Bild.' });
+    const daten = Buffer.from(roh, 'base64');
+    if (daten.length === 0 || daten.length > PROFILBILD_MAX_BYTES) return void res.status(400).json({ fehler: 'Das Bild ist zu groß.' });
+    const typ = erkenneBildTyp(daten);
+    if (!typ) return void res.status(400).json({ fehler: 'Nur JPG, PNG oder WebP.' });
+    const ich = res.locals.konto as Konto;
+    konten.setzeBild(ich.id, daten, typ);
+    res.json({ konto: konten.konto(ich.id) });
+  });
+
+  router.delete('/bild', ladeKonto(konten), nurAngemeldet, (_req, res) => {
+    const ich = res.locals.konto as Konto;
+    konten.entferneBild(ich.id);
+    res.json({ konto: konten.konto(ich.id) });
+  });
+
+  /** Hochgeladene Profilbilder sind für alle sichtbar */
+  router.get('/bild/:id', (req, res) => {
+    const bild = konten.ladeBild(Number(req.params.id));
+    if (!bild) return void res.status(404).end();
+    res.setHeader('Content-Type', bild.typ);
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('Content-Security-Policy', "default-src 'none'");
+    // Die Adresse enthält den Stand (?v=…) – ein neues Bild bekommt eine neue Adresse
+    res.setHeader('Cache-Control', 'public, max-age=86400');
+    res.send(bild.daten);
+  });
+
+  router.post('/name', ladeKonto(konten), nurAngemeldet, async (req, res, next) => {
+    try {
+      const ip = req.ip ?? 'unbekannt';
+      const warten = kontoAenderungBremse.gesperrtFuer(ip);
+      if (warten > 0) return zuVieleVersuche(res, warten);
+      const ich = res.locals.konto as Konto;
+      const { name, passwort } = req.body ?? {};
+      const fehler = pruefeBenutzername(name) ?? (ich.email ? pruefeNameGegenEmail(name, ich.email) : null);
+      if (fehler) return void res.status(400).json({ fehler });
+      if (typeof passwort !== 'string') return void res.status(400).json({ fehler: 'Bitte dein aktuelles Passwort angeben.' });
+
+      const ergebnis = await konten.aendereName(ich.id, (name as string).trim(), passwort);
+      if (ergebnis === 'falsches_passwort') {
+        kontoAenderungBremse.merkeFehlversuch(ip);
+        return void res.status(403).json({ fehler: 'Das Passwort ist falsch.' });
+      }
+      if (ergebnis === 'zu_frueh') return void res.status(429).json({ fehler: `Den Benutzernamen kannst du nur alle ${NAME_AENDERN_ABSTAND_TAGE} Tage ändern.` });
+      if (ergebnis === 'name_vergeben') return void res.status(409).json({ fehler: 'Dieser Benutzername ist schon vergeben.' });
+      res.json({ konto: konten.konto(ich.id) });
     } catch (e) {
       next(e);
     }

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import SpielerName from '../SpielerName';
+import ProfilBild from '../ProfilBild';
 import {
   ANKUENDIGUNG_MAX_LAENGE,
   NOTIZ_MAX_LAENGE,
@@ -211,7 +212,9 @@ function KontoZeile({ konto, ich, offen, umschalten, melde, ersetze, entferne }:
   return (
     <li className={`team-konto ${konto.gesperrt ? 'team-konto--gesperrt' : ''}`}>
       <button type="button" className="team-konto__kopf" onClick={umschalten} aria-expanded={offen}>
+        <ProfilBild konto={konto} groesse={28} />
         <SpielerName konto={konto} />
+        {konto.spitzname && <small>„{konto.spitzname}“</small>}
         {konto.id === ich.id && <span className="quali-chip">Du</span>}
         <span className="quali-chip">{ROLLEN_LABELS[konto.rolle]}</span>
         {konto.gesperrt && <span className="quali-chip team-chip--warnung">Gesperrt</span>}
@@ -266,6 +269,19 @@ function KontoZeile({ konto, ich, offen, umschalten, melde, ersetze, entferne }:
                   {vergebbar.map((r) => <option key={r} value={r}>{ROLLEN_LABELS[r]}</option>)}
                 </select>
               </label>
+            )}
+            {verwaltbar && konto.avatar?.startsWith('bild:') && (
+              <button
+                type="button"
+                className="btn"
+                onClick={() => {
+                  if (window.confirm(`Profilbild von ${konto.name} entfernen?`)) {
+                    void aktion(async () => ersetze(await teamApi.profilbildEntfernen(konto.id)), `Profilbild von ${konto.name} entfernt.`);
+                  }
+                }}
+              >
+                Profilbild entfernen
+              </button>
             )}
             {verwaltbar ? (
               <>

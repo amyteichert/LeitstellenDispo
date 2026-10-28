@@ -11,8 +11,10 @@ import {
   pruefeEmail,
   pruefeNameGegenEmail,
   pruefePasswort,
+  anzeigeName,
   type Konto,
 } from '@leitstellendispo/shared';
+import ProfilBild from './ProfilBild';
 import { KontoFehler, SITZUNG_ABGELAUFEN, abmelden, anmelden, holeFunktionen, holeKonto, passwortVergessen, registrieren } from './konto';
 import { serverSpeicher, setzeGastmodus, uebernimmBrowserSpielstand } from './spielstand';
 import { RechtlicheLinks } from './Rechtliches';
@@ -24,6 +26,8 @@ type Zustand =
   | { art: 'pruefen' }
   | { art: 'abgemeldet'; hinweis?: string }
   | { art: 'fehler'; meldung: string }
+  /** Noch angemeldet (Sitzung gilt): Begrüßung mit „Los geht’s“ statt direkt ins Spiel */
+  | { art: 'startklar'; konto: Konto }
   | { art: 'angemeldet'; konto: Konto; gast: boolean };
 
 /** Platzhalter-Konto für den Gastmodus – existiert nicht auf dem Server */
@@ -33,7 +37,9 @@ const gastKonto = (): Konto => ({ id: 0, name: 'Gast', rolle: 'player', erstellt
  * Zeigt das Spiel erst nach der Anmeldung. Prüft beim Start, ob noch eine Sitzung besteht,
  * und kehrt zur Anmeldeseite zurück, wenn die Sitzung abläuft.
  */
-export default function Anmeldung({ children }: { children: (konto: Konto, onAbmelden: () => Promise<void>, gast: boolean) => ReactNode }) {
+export default function Anmeldung({ children }: {
+  children: (konto: Konto, onAbmelden: () => Promise<void>, gast: boolean, setKonto: (konto: Konto) => void) => ReactNode;
+}) {
   const [zustand, setZustand] = useState<Zustand>({ art: 'pruefen' });
   const istGast = useRef(false);
 
@@ -54,12 +60,23 @@ export default function Anmeldung({ children }: { children: (konto: Konto, onAbm
   const pruefeSitzung = useCallback(() => {
     setZustand({ art: 'pruefen' });
     holeKonto().then(
-      (konto) => (konto ? angemeldet(konto) : setZustand({ art: 'abgemeldet' })),
+      (konto) => setZustand(konto ? { art: 'startklar', konto } : { art: 'abgemeldet' }),
       (error: unknown) => setZustand({ art: 'fehler', meldung: error instanceof Error ? error.message : String(error) }),
     );
-  }, [angemeldet]);
+  }, []);
 
   useEffect(pruefeSitzung, [pruefeSitzung]);
+
+  /** Profil geändert (Spitzname, Bild, Name) – das Spiel läuft weiter */
+  const setKonto = useCallback((konto: Konto) => {
+    setZustand((alt) => (alt.art === 'angemeldet' ? { ...alt, konto } : alt));
+  }, []);
+
+  /** „Nicht du?“ auf dem Startbildschirm: abmelden und das Anmeldeformular zeigen */
+  const wechsleKonto = useCallback(async () => {
+    await abmelden();
+    setZustand({ art: 'abgemeldet' });
+  }, []);
 
   useEffect(() => {
     const abgelaufen = () => !istGast.current && setZustand({ art: 'abgemeldet', hinweis: 'Deine Sitzung ist abgelaufen. Bitte melde dich erneut an.' });
@@ -79,7 +96,7 @@ export default function Anmeldung({ children }: { children: (konto: Konto, onAbm
     setZustand({ art: 'abgemeldet' });
   }, []);
 
-  if (zustand.art === 'angemeldet') return <>{children(zustand.konto, onAbmelden, zustand.gast)}</>;
+  if (zustand.art === 'angemeldet') return <>{children(zustand.konto, onAbmelden, zustand.gast, setKonto)}</>;
 
   return (
     <div className="anmeldung">
@@ -106,6 +123,7 @@ export default function Anmeldung({ children }: { children: (konto: Konto, onAbm
               <button type="button" className="btn btn--primary anmeldung__absenden" onClick={pruefeSitzung}>Erneut versuchen</button>
             </div>
           )}
+          {zustand.art === 'startklar' && <StartBildschirm konto={zustand.konto} onStart={angemeldet} onAndererNutzer={wechsleKonto} />}
           {zustand.art === 'abgemeldet' && <AnmeldeFormular hinweis={zustand.hinweis} onErfolg={angemeldet} onGast={alsGast} />}
         </main>
 
@@ -188,6 +206,47 @@ function EinsatzTicker() {
         ))}
       </ul>
     </section>
+  );
+}
+
+/** Wer noch angemeldet ist, wird persönlich begrüßt und startet mit einem Tipp – samt Ladebalken wie beim Anmelden */
+function StartBildschirm({ konto, onStart, onAndererNutzer }: {
+  konto: Konto;
+  onStart: (konto: Konto) => Promise<void>;
+  onAndererNutzer: () => void;
+}) {
+  const [laedt, setLaedt] = useState(false);
+  const [geschafft, setGeschafft] = useState(false);
+
+  const starten = async () => {
+    setLaedt(true);
+    // Ladebalken kurz laufen lassen – den Spielstand lädt danach das Spiel selbst
+    await new Promise((fertig) => setTimeout(fertig, 1600));
+    setGeschafft(true);
+    await new Promise((fertig) => setTimeout(fertig, 700));
+    await onStart(konto);
+  };
+
+  return (
+    <div className="anmeldung__formular startklar">
+      <ProfilBild konto={konto} groesse={88} />
+      <div>
+        <h2>Hey {anzeigeName(konto)}, bist du startklar?</h2>
+        <p className="anmeldung__info">Deine Leitstelle wartet schon auf dich.</p>
+      </div>
+      {laedt ? (
+        <LadeBalken geschafft={geschafft} art="start" />
+      ) : (
+        <button type="button" className="btn btn--primary anmeldung__absenden" onClick={() => void starten()} autoFocus>
+          Los geht’s
+        </button>
+      )}
+      {!laedt && (
+        <button type="button" className="anmeldung__link" onClick={onAndererNutzer}>
+          Nicht {anzeigeName(konto)}? Mit anderem Konto anmelden
+        </button>
+      )}
+    </div>
   );
 }
 
@@ -362,7 +421,7 @@ function AnmeldeFormular({ hinweis, onErfolg, onGast }: { hinweis?: string; onEr
       {fehler && <p className="anmeldung__fehler" role="alert">{fehler}</p>}
 
       {sendet ? (
-        <LadeBalken geschafft={geschafft} registrierung={istRegistrierung} />
+        <LadeBalken geschafft={geschafft} art={istRegistrierung ? 'registrieren' : 'anmelden'} />
       ) : (
         <button type="submit" className="btn btn--primary anmeldung__absenden">
           {istRegistrierung ? 'Konto erstellen' : 'Anmelden'}
@@ -390,7 +449,7 @@ function AnmeldeFormular({ hinweis, onErfolg, onGast }: { hinweis?: string; onEr
  * Ladebalken beim Anmelden: läuft von links nach rechts und nähert sich 90 %, bis der Server antwortet –
  * dann füllt er sich ganz. Der Text wechselt je nach Fortschritt.
  */
-function LadeBalken({ geschafft, registrierung }: { geschafft: boolean; registrierung: boolean }) {
+function LadeBalken({ geschafft, art }: { geschafft: boolean; art: 'anmelden' | 'registrieren' | 'start' }) {
   const [vergangen, setVergangen] = useState(0);
 
   useEffect(() => {
@@ -403,9 +462,9 @@ function LadeBalken({ geschafft, registrierung }: { geschafft: boolean; registri
   const text = geschafft
     ? 'Du bist gleich drin – mach dich bereit!'
     : prozent < 35
-      ? 'Informationen werden geprüft …'
+      ? art === 'start' ? 'Leitstelle wird hochgefahren …' : 'Informationen werden geprüft …'
       : prozent < 70
-        ? registrierung ? 'Konto wird angelegt …' : 'Passwort wird geprüft …'
+        ? { start: 'Funk wird verbunden …', registrieren: 'Konto wird angelegt …', anmelden: 'Passwort wird geprüft …' }[art]
         : 'Gleich geschafft …';
 
   return (

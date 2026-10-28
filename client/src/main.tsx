@@ -31,7 +31,7 @@ createRoot(document.getElementById('root')!).render(
     ) : (
       <Anmeldung>
         {/* key: Beim Kontowechsel startet das Spiel komplett neu mit dem Stand des neuen Kontos */}
-        {(konto, onAbmelden, gast) => <App key={konto.id} konto={konto} onAbmelden={onAbmelden} gast={gast} />}
+        {(konto, onAbmelden, gast, setKonto) => <App key={konto.id} konto={konto} onAbmelden={onAbmelden} gast={gast} setKonto={setKonto} />}
       </Anmeldung>
     )}
   </StrictMode>,

@@ -153,6 +153,17 @@ const MIGRATIONEN: Array<string | ((db: Datenbank) => void)> = [
   `
   ALTER TABLE ankuendigung ADD COLUMN laeuft_ab TEXT;
   `,
+  // Profil: Spitzname, Profilbild (Vorlage oder hochgeladen) und wann der Name zuletzt geändert wurde
+  `
+  ALTER TABLE benutzer ADD COLUMN spitzname TEXT;
+  ALTER TABLE benutzer ADD COLUMN avatar TEXT;
+  ALTER TABLE benutzer ADD COLUMN name_geaendert TEXT;
+  CREATE TABLE profilbilder (
+    benutzer_id INTEGER PRIMARY KEY REFERENCES benutzer(id) ON DELETE CASCADE,
+    daten       BLOB    NOT NULL,
+    typ         TEXT    NOT NULL
+  );
+  `,
 ];
 
 /** Öffnet (bzw. erstellt) die Datenbank und bringt das Schema auf den neuesten Stand. */

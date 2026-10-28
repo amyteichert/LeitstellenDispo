@@ -3190,3 +3190,32 @@ html[data-design='hell'] .versorgung-hinweis--fehlt,
 html[data-design='hell'] .einsatz-details .einsatz-meldungen h4 { color: #9f1239; }
 html[data-design='hell'] .versorgung-hinweis--unterwegs { color: #1e3a8a; }
 html[data-design='hell'] .versorgung-hinweis--ok { color: #166534; }
+
+/* ---- Profilbild, Begrüßung, Startbildschirm ---- */
+.profilbild {
+  display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0;
+  border-radius: 50%; overflow: hidden; object-fit: cover; background: var(--color-surface-raised);
+}
+.profilbild--buchstabe { background: var(--color-primary); color: var(--color-on-primary); font-weight: 700; }
+.begruessung {
+  display: inline-flex; align-items: center; gap: 8px; min-width: 0; padding: 2px 10px 2px 2px;
+  border: 1px solid var(--color-border); border-radius: 999px; background: var(--color-surface-raised);
+  color: var(--color-text); font: inherit; font-size: 0.85rem; cursor: pointer; white-space: nowrap;
+}
+.begruessung:hover { border-color: var(--color-primary); }
+.begruessung__text { overflow: hidden; text-overflow: ellipsis; }
+@media (max-width: 600px) {
+  .begruessung { padding: 2px; }
+  .begruessung__text { display: none; }
+}
+.startklar { align-items: center; text-align: center; }
+.startklar .profilbild { box-shadow: var(--glow-primary); }
+.profil-bearbeiten { display: grid; gap: 12px; }
+.profil-avatare { display: grid; grid-template-columns: repeat(auto-fill, minmax(64px, 1fr)); gap: 8px; }
+.profil-avatare button {
+  display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 6px 2px;
+  border: 2px solid transparent; border-radius: 10px; background: none; color: var(--color-text-muted);
+  font: inherit; font-size: 0.7rem; cursor: pointer;
+}
+.profil-avatare button[aria-pressed='true'] { border-color: var(--color-primary); color: var(--color-text); }
+.profil-kopf__zeile { display: flex; align-items: center; gap: 12px; }

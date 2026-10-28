@@ -19,6 +19,52 @@ export interface Konto {
   erstellt: string;
   /** Nur im eigenen Konto und im Team-Bereich – fehlt bei Konten von vor der E-Mail-Pflicht (null) */
   email?: string | null;
+  /** Frei wählbarer Anzeigename (Begrüßung, Startbildschirm) – `null`: Benutzername */
+  spitzname?: string | null;
+  /** Profilbild: `vorlage:<id>` (gezeichnete Figur) oder `bild:<stand>` (hochgeladen) – `null`: Anfangsbuchstabe */
+  avatar?: string | null;
+  /** Wann der Benutzername zuletzt geändert wurde (ISO) – nur im eigenen Konto */
+  nameGeaendert?: string | null;
+}
+
+export const SPITZNAME_MAX_LAENGE = 24;
+/** So lange muss man warten, bis man den Benutzernamen erneut ändern darf */
+export const NAME_AENDERN_ABSTAND_TAGE = 30;
+/** Hochgeladene Profilbilder verkleinert der Client vorher auf 256×256 – mehr braucht es nicht */
+export const PROFILBILD_MAX_BYTES = 60_000;
+export const PROFILBILD_GROESSE = 256;
+
+/** Gezeichnete Profilbilder zur Auswahl (Grafiken im Client) */
+export const AVATAR_VORLAGEN = [
+  'fw-helm', 'fw-helm-2', 'fw-maschinist', 'fw-atemschutz',
+  'rd-notfallsani', 'rd-notaerztin', 'rd-sani', 'rd-kappe',
+  'ls-disponent', 'ls-disponentin', 'ls-chefin', 'ls-nacht',
+] as const;
+export type AvatarVorlage = (typeof AVATAR_VORLAGEN)[number];
+
+/** Name, mit dem das Spiel einen anspricht */
+export const anzeigeName = (konto: Pick<Konto, 'name' | 'spitzname'>) => konto.spitzname?.trim() || konto.name;
+
+/** Prüft einen Spitznamen (leer = keiner). Gibt eine Fehlermeldung zurück oder `null`. */
+export function pruefeSpitzname(spitzname: unknown): string | null {
+  if (spitzname === null || spitzname === undefined) return null;
+  if (typeof spitzname !== 'string') return 'Ungültiger Spitzname.';
+  if ([...spitzname.trim()].length > SPITZNAME_MAX_LAENGE) return `Der Spitzname darf höchstens ${SPITZNAME_MAX_LAENGE} Zeichen haben.`;
+  // eslint-disable-next-line no-control-regex
+  if (/[\u0000-\u001f\u007f<>]/.test(spitzname)) return 'Der Spitzname enthält unerlaubte Zeichen.';
+  return null;
+}
+
+/** Ab wann der Benutzername wieder geändert werden darf (ms) – 0: sofort */
+export const getNameAenderbarAb = (nameGeaendert: string | null | undefined) =>
+  nameGeaendert ? Date.parse(nameGeaendert) + NAME_AENDERN_ABSTAND_TAGE * 24 * 60 * 60 * 1000 : 0;
+
+/** Begrüßung je nach Tageszeit (Stunde 0–23) */
+export function getBegruessung(stunde: number): string {
+  if (stunde >= 5 && stunde < 11) return 'Guten Morgen';
+  if (stunde >= 11 && stunde < 18) return 'Guten Tag';
+  if (stunde >= 18 && stunde < 23) return 'Guten Abend';
+  return 'Gute Nacht';
 }
 
 const ERLAUBTE_NAMENSZEICHEN = /^[A-Za-z0-9ÄÖÜäöüß_.-]+$/;
@@ -166,6 +212,7 @@ export const darfNotizLoeschen = (handelnd: Pick<Konto, 'name' | 'rolle'>, notiz
   istTeamRolle(handelnd.rolle) && (notiz.vonName === handelnd.name || hatTeamRecht(handelnd.rolle, 'fremde_notizen_loeschen'));
 
 /** Konto, wie es der Team-Bereich sieht */
+/** Team sieht Spitzname und Profilbild, damit unpassende Bilder entfernt werden können */
 export interface TeamKonto extends Konto {
   gesperrt: boolean;
   /** Hat Dev-Werkzeuge benutzt – zählt nicht für die Bestenliste */
