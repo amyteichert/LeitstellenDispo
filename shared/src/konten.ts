@@ -27,6 +27,9 @@ export interface Konto {
   nameGeaendert?: string | null;
 }
 
+/** Hochgeladenes Profilbild, das noch auf Freigabe durchs Team wartet */
+export type OffenesBild = Pick<Konto, 'id' | 'name' | 'spitzname' | 'avatar'>;
+
 export const SPITZNAME_MAX_LAENGE = 24;
 /** So lange muss man warten, bis man den Benutzernamen erneut ändern darf */
 export const NAME_AENDERN_ABSTAND_TAGE = 30;

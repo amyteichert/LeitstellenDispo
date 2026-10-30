@@ -252,7 +252,7 @@ function BildAuswahl({ konto, setKonto, onFertig }: { konto: Konto; setKonto: (k
             <button type="button" className="btn" disabled={laedt} onClick={() => waehleVorlage(null)}>Kein Bild</button>
           )}
         </div>
-        <small className="einsatz-eintrag__zeile">Eigene Bilder sehen auch andere Spieler. Bitte nichts Anstößiges – das Team entfernt unpassende Bilder.</small>
+        <small className="einsatz-eintrag__zeile">Eigene Bilder prüft erst das Team – bis zur Freigabe sehen andere Spieler die Standardfigur. Bitte nichts Anstößiges.</small>
       </div>
 
     </div>

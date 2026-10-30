@@ -290,7 +290,20 @@ export function erstelleTeamRouter(db: Datenbank, konten: KontenDienst, optionen
     res.status(204).end();
   });
 
-  // ---- Unpassendes Profilbild entfernen (jedes Team-Mitglied, solange es keinen Filter gibt) ----
+  // ---- Bildprüfung: neue Profilbilder freigeben oder entfernen (jedes Team-Mitglied) ----
+  router.get('/bilder', (_req, res) => {
+    res.json({ bilder: konten.offeneBilder() });
+  });
+
+  router.post('/konten/:id/bild/freigeben', (req, res) => {
+    const ziel = zielKonto(req, res);
+    if (!ziel) return;
+    if (!konten.gibBildFrei(ziel.id)) return void res.status(404).json({ fehler: 'Dieses Konto hat kein eigenes Bild.' });
+    protokolliere(ich(res), 'Profilbild freigegeben', ziel);
+    res.json({ bilder: konten.offeneBilder() });
+  });
+
+  // ---- Unpassendes Profilbild entfernen (jedes Team-Mitglied) ----
   router.delete('/konten/:id/bild', (req, res) => {
     const ziel = zielKonto(req, res);
     if (!ziel) return;

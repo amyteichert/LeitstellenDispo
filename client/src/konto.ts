@@ -14,6 +14,7 @@ import type {
   UserRole,
   WebsiteBereich,
   WebsiteStatistik,
+  OffenesBild,
 } from '@leitstellendispo/shared';
 
 /** Wird ausgelöst, wenn der Server eine Anfrage mit 401 ablehnt (Sitzung abgelaufen oder Konto gesperrt). */
@@ -130,6 +131,8 @@ export const teamApi = {
   rolle: (id: number, rolle: UserRole) => team<{ konto: TeamKonto }>('POST', `/konten/${id}/rolle`, { rolle }).then((d) => d.konto),
   spielstandZuruecksetzen: (id: number) => team<null>('DELETE', `/konten/${id}/spielstand`),
   loeschen: (id: number) => team<null>('DELETE', `/konten/${id}`),
+  bilder: () => team<{ bilder: OffenesBild[] }>('GET', '/bilder').then((d) => d.bilder),
+  bildFreigeben: (id: number) => team<{ bilder: OffenesBild[] }>('POST', `/konten/${id}/bild/freigeben`).then((d) => d.bilder),
   profilbildEntfernen: (id: number) => team<{ konto: TeamKonto }>('DELETE', `/konten/${id}/bild`).then((d) => d.konto),
   devMarkierung: () => team<null>('POST', '/dev-markierung'),
   passwortLink: (id: number) => team<{ link: string; laeuftAb: number }>('POST', `/konten/${id}/passwort-link`),

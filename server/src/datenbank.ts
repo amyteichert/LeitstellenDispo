@@ -164,6 +164,10 @@ const MIGRATIONEN: Array<string | ((db: Datenbank) => void)> = [
     typ         TEXT    NOT NULL
   );
   `,
+  // Bildprüfung: Neue Profilbilder sehen andere erst nach Freigabe durchs Team (bisherige gelten als geprüft)
+  `
+  ALTER TABLE profilbilder ADD COLUMN geprueft INTEGER NOT NULL DEFAULT 1;
+  `,
 ];
 
 /** Öffnet (bzw. erstellt) die Datenbank und bringt das Schema auf den neuesten Stand. */

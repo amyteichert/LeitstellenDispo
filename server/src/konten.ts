@@ -1,7 +1,7 @@
 // Datenzugriff für Benutzerkonten, Sitzungen und Passwort-Zurücksetzung
 import { createHash, randomBytes } from 'node:crypto';
 import bcrypt from 'bcryptjs';
-import { getNameAenderbarAb, normalisiereEmail, type Konto, type UserRole } from '@leitstellendispo/shared';
+import { getNameAenderbarAb, normalisiereEmail, type Konto, type OffenesBild, type UserRole } from '@leitstellendispo/shared';
 import type { Datenbank } from './datenbank.js';
 
 export const SITZUNG_DAUER_MS = 30 * 24 * 60 * 60 * 1000; // 30 Tage
@@ -55,9 +55,11 @@ export function erstelleKontenDienst(db: Datenbank, optionen: { bcryptRunden?: n
     passwortSetzen: db.prepare('UPDATE benutzer SET passwort_hash = ? WHERE id = ?'),
     profilSetzen: db.prepare('UPDATE benutzer SET spitzname = ?, avatar = ? WHERE id = ?'),
     nameSetzen: db.prepare(`UPDATE benutzer SET name = ?, name_geaendert = strftime('%Y-%m-%dT%H:%M:%fZ', 'now') WHERE id = ?`),
-    bildSetzen: db.prepare('INSERT INTO profilbilder (benutzer_id, daten, typ) VALUES (?, ?, ?) ON CONFLICT (benutzer_id) DO UPDATE SET daten = excluded.daten, typ = excluded.typ'),
+    bildSetzen: db.prepare('INSERT INTO profilbilder (benutzer_id, daten, typ, geprueft) VALUES (?, ?, ?, 0) ON CONFLICT (benutzer_id) DO UPDATE SET daten = excluded.daten, typ = excluded.typ, geprueft = 0'),
+    bildFreigeben: db.prepare('UPDATE profilbilder SET geprueft = 1 WHERE benutzer_id = ?'),
+    offeneBilder: db.prepare('SELECT b.id, b.name, b.spitzname, b.avatar FROM profilbilder p JOIN benutzer b ON b.id = p.benutzer_id WHERE p.geprueft = 0 ORDER BY b.avatar'),
     bildLoeschen: db.prepare('DELETE FROM profilbilder WHERE benutzer_id = ?'),
-    bild: db.prepare('SELECT daten, typ FROM profilbilder WHERE benutzer_id = ?'),
+    bild: db.prepare('SELECT daten, typ, geprueft FROM profilbilder WHERE benutzer_id = ?'),
     sitzungAnlegen: db.prepare('INSERT INTO sitzungen (token_hash, benutzer_id, erstellt, laeuft_ab) VALUES (?, ?, ?, ?)'),
     sitzungLoeschen: db.prepare('DELETE FROM sitzungen WHERE token_hash = ?'),
     andereSitzungenLoeschen: db.prepare('DELETE FROM sitzungen WHERE benutzer_id = ? AND token_hash != ?'),
@@ -171,7 +173,7 @@ export function erstelleKontenDienst(db: Datenbank, optionen: { bcryptRunden?: n
       return 'ok';
     },
 
-    /** Hochgeladenes Profilbild speichern; `avatar` bekommt einen neuen Stand, damit Browser nicht das alte zeigen */
+    /** Hochgeladenes Profilbild speichern (wartet auf Freigabe); `avatar` bekommt einen neuen Stand, damit Browser nicht das alte zeigen */
     setzeBild(id: number, daten: Buffer, typ: string): void {
       db.transaction(() => {
         sql.bildSetzen.run(id, daten, typ);
@@ -188,8 +190,19 @@ export function erstelleKontenDienst(db: Datenbank, optionen: { bcryptRunden?: n
       })();
     },
 
-    ladeBild(id: number): { daten: Buffer; typ: string } | null {
-      return (sql.bild.get(id) as { daten: Buffer; typ: string } | undefined) ?? null;
+    ladeBild(id: number): { daten: Buffer; typ: string; geprueft: boolean } | null {
+      const zeile = sql.bild.get(id) as { daten: Buffer; typ: string; geprueft: number } | undefined;
+      return zeile ? { ...zeile, geprueft: zeile.geprueft === 1 } : null;
+    },
+
+    /** Profilbild für alle sichtbar machen (Team) – false, wenn es kein Bild gibt */
+    gibBildFrei(id: number): boolean {
+      return sql.bildFreigeben.run(id).changes > 0;
+    },
+
+    /** Hochgeladene Profilbilder, die noch auf Freigabe warten – älteste zuerst */
+    offeneBilder(): OffenesBild[] {
+      return sql.offeneBilder.all() as OffenesBild[];
     },
 
     /** Konto zu einer E-Mail-Adresse (für „Passwort vergessen“). */

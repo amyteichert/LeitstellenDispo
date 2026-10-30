@@ -152,22 +152,43 @@ describe('Profil', () => {
     expect(await ich(cookie)).toMatchObject({ spitzname: null, avatar: null });
   });
 
-  it('Bild hochladen: nur echte Bilder, für alle abrufbar, Team kann es entfernen', async () => {
+  it('Bild hochladen: nur echte Bilder, erst nach Freigabe für alle abrufbar, Team kann es entfernen', async () => {
     server = await starteTestServer();
     const owner = await registriere('Amy');
     setzeRolle(server.db, 'Amy', 'owner');
     const cookie = await registriere('Disponent');
+    const fremder = await registriere('Fremder');
     const id = (server.db.prepare("SELECT id FROM benutzer WHERE name = 'Disponent'").get() as { id: number }).id;
 
     expect((await server.anfrage('PUT', '/auth/bild', { body: { daten: Buffer.from('<svg onload=x>').toString('base64') }, cookie })).status).toBe(400);
     expect((await server.anfrage('PUT', '/auth/bild', { body: { daten: PNG }, cookie })).status).toBe(200);
     const { avatar } = await ich(cookie);
     expect(avatar).toMatch(/^bild:\d+$/);
+
+    // Vor der Freigabe: nur der Spieler selbst und das Team sehen das Bild
+    expect((await server.anfrage('GET', `/auth/bild/${id}`)).status).toBe(404);
+    expect((await server.anfrage('GET', `/auth/bild/${id}`, { cookie: fremder })).status).toBe(404);
+    const eigenes = await server.anfrage('GET', `/auth/bild/${id}`, { cookie });
+    expect(eigenes.status).toBe(200);
+    expect(eigenes.headers.get('cache-control')).toBe('private, no-store');
+    expect((await server.anfrage('GET', `/auth/bild/${id}`, { cookie: owner })).status).toBe(200);
+
+    // Team sieht es in der Prüfliste und gibt es frei
+    expect((await server.anfrage('GET', '/team/bilder', { cookie })).status).toBe(403);
+    expect((await (await server.anfrage('GET', '/team/bilder', { cookie: owner })).json()).bilder).toMatchObject([{ id, name: 'Disponent' }]);
+    expect((await server.anfrage('POST', `/team/konten/${id}/bild/freigeben`, { cookie })).status).toBe(403);
+    const freigabe = await server.anfrage('POST', `/team/konten/${id}/bild/freigeben`, { cookie: owner });
+    expect((await freigabe.json()).bilder).toEqual([]);
     const bild = await server.anfrage('GET', `/auth/bild/${id}`);
     expect(bild.headers.get('content-type')).toBe('image/png');
+    expect(bild.headers.get('cache-control')).toBe('public, max-age=86400');
     // Spitzname ändern behält das Bild
     await post('/profil', { spitzname: 'Neu', avatar }, cookie);
     expect((await ich(cookie)).avatar).toBe(avatar);
+
+    // Ein neues Bild muss wieder geprüft werden
+    await server.anfrage('PUT', '/auth/bild', { body: { daten: PNG }, cookie });
+    expect((await server.anfrage('GET', `/auth/bild/${id}`)).status).toBe(404);
 
     expect((await server.anfrage('DELETE', `/team/konten/${id}/bild`, { cookie })).status).toBe(403);
     expect((await server.anfrage('DELETE', `/team/konten/${id}/bild`, { cookie: owner })).status).toBe(200);

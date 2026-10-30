@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { PROFILBILD_GROESSE, PROFILBILD_MAX_BYTES, anzeigeName, type AvatarVorlage, type Konto } from '@leitstellendispo/shared';
 
 /**
@@ -106,8 +107,11 @@ export default function ProfilBild({
 }) {
   const stil = { width: groesse, height: groesse };
   const titel = anzeigeName(konto);
-  if (avatar?.startsWith('bild:')) {
-    return <img className="profilbild" style={stil} src={`/api/auth/bild/${konto.id}?v=${avatar.slice(5)}`} alt={titel} />;
+  const src = avatar?.startsWith('bild:') ? `/api/auth/bild/${konto.id}?v=${avatar.slice(5)}` : null;
+  // Noch nicht freigegebene Bilder liefert der Server anderen nicht aus – dann die Standardfigur
+  const [fehlt, setFehlt] = useState<string | null>(null);
+  if (src && fehlt !== src) {
+    return <img className="profilbild" style={stil} src={src} alt={titel} onError={() => setFehlt(src)} />;
   }
   const vorlage = avatar?.startsWith('vorlage:') ? (avatar.slice(8) as AvatarVorlage) : null;
   if (vorlage && AVATAR_FIGUREN[vorlage]) {

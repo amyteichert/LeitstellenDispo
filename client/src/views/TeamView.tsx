@@ -20,6 +20,7 @@ import {
   type TeamProtokollEintrag,
   type TeamKonto,
   type Fehlermeldung,
+  type OffenesBild,
   type TeamUebersicht,
   type UserRole,
 } from '@leitstellendispo/shared';
@@ -27,8 +28,8 @@ import { ladeAnkuendigung, teamApi } from '../konto';
 import WebsiteStatistikView from './WebsiteStatistikView';
 import BotWerkzeug from './BotWerkzeug';
 
-type Reiter = 'Übersicht' | 'Konten' | 'Meldungen' | 'Ankündigung' | 'Protokoll' | 'Website' | 'Dev-Werkzeuge' | 'Bot';
-const REITER: Reiter[] = ['Übersicht', 'Konten', 'Meldungen', 'Ankündigung', 'Protokoll', 'Website', 'Dev-Werkzeuge', 'Bot'];
+type Reiter = 'Übersicht' | 'Konten' | 'Meldungen' | 'Bilder' | 'Ankündigung' | 'Protokoll' | 'Website' | 'Dev-Werkzeuge' | 'Bot';
+const REITER: Reiter[] = ['Übersicht', 'Konten', 'Meldungen', 'Bilder', 'Ankündigung', 'Protokoll', 'Website', 'Dev-Werkzeuge', 'Bot'];
 
 const datum = (iso: string | null) => (iso
   ? new Date(iso).toLocaleString('de-DE', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' })
@@ -96,6 +97,7 @@ export default function TeamView({ konto, dev }: { konto: Konto; dev: DevAktione
       {reiter === 'Konten' && <Konten ich={konto} melde={melde} />}
       {reiter === 'Ankündigung' && <AnkuendigungVerwalten ich={konto} melde={melde} />}
       {reiter === 'Meldungen' && <Fehlermeldungen melde={melde} />}
+      {reiter === 'Bilder' && <BilderPruefen melde={melde} />}
       {reiter === 'Protokoll' && <Protokoll melde={melde} />}
       {reiter === 'Website' && hatTeamRecht(konto.rolle, 'website_statistik') && <WebsiteStatistikView />}
       {reiter === 'Dev-Werkzeuge' && <DevWerkzeuge dev={dev} melde={melde} />}
@@ -429,7 +431,6 @@ function AnkuendigungVerwalten({ ich, melde }: { ich: Konto; melde: Melde }) {
   );
 }
 
-/** Wer hat wann was gemacht – die letzten 200 Team-Aktionen. */
 /** Fehlermeldungen der Spieler – offene zuerst */
 function Fehlermeldungen({ melde }: { melde: Melde }) {
   const [meldungen, setMeldungen] = useState<Fehlermeldung[] | null>(null);
@@ -460,6 +461,44 @@ function Fehlermeldungen({ melde }: { melde: Melde }) {
               <button type="button" className="btn btn--klein" style={{ justifySelf: 'start' }} onClick={() => void umschalten(m)}>
                 {m.erledigt ? 'Wieder öffnen' : 'Erledigt'}
               </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </>
+  );
+}
+
+/** Neue Profilbilder: andere Spieler sehen sie erst, wenn ein Team-Mitglied sie freigibt */
+function BilderPruefen({ melde }: { melde: Melde }) {
+  const [bilder, setBilder] = useState<OffenesBild[] | null>(null);
+  const laden = useCallback(() => {
+    teamApi.bilder().then(setBilder).catch((e) => melde('fehler', fehlerText(e)));
+  }, []);
+  useEffect(laden, [laden]);
+  const freigeben = (b: OffenesBild) =>
+    teamApi.bildFreigeben(b.id).then((liste) => { setBilder(liste); melde('ok', `Bild von ${b.name} freigegeben.`); }).catch((e) => melde('fehler', fehlerText(e)));
+  const entfernen = (b: OffenesBild) => {
+    if (!window.confirm(`Profilbild von ${b.name} entfernen?`)) return;
+    teamApi.profilbildEntfernen(b.id)
+      .then(() => { setBilder((liste) => liste?.filter((x) => x.id !== b.id) ?? null); melde('ok', `Profilbild von ${b.name} entfernt.`); })
+      .catch((e) => melde('fehler', fehlerText(e)));
+  };
+
+  if (!bilder) return <p className="einsatz-eintrag__zeile">Lade …</p>;
+  return (
+    <>
+      <button type="button" className="btn" style={{ marginBottom: 8 }} onClick={laden}>↻ Aktualisieren</button>
+      {bilder.length === 0 ? (
+        <div className="leerzustand">Keine neuen Bilder zu prüfen.</div>
+      ) : (
+        <ul className="team-protokoll">
+          {bilder.map((b) => (
+            <li key={b.id} style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+              <ProfilBild konto={b} groesse={96} />
+              <strong style={{ flex: 1 }}>{b.name}</strong>
+              <button type="button" className="btn btn--primary btn--klein" onClick={() => void freigeben(b)}>Freigeben</button>
+              <button type="button" className="btn btn--klein" onClick={() => entfernen(b)}>Entfernen</button>
             </li>
           ))}
         </ul>

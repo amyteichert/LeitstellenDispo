@@ -4,6 +4,7 @@ import {
   AVATAR_VORLAGEN,
   NAME_AENDERN_ABSTAND_TAGE,
   PROFILBILD_MAX_BYTES,
+  istTeamRolle,
   pruefeBenutzername,
   pruefeEmail,
   pruefeNameGegenEmail,
@@ -242,15 +243,18 @@ export function erstelleAuthRouter(konten: KontenDienst, optionen: AuthOptionen 
     res.json({ konto: konten.konto(ich.id) });
   });
 
-  /** Hochgeladene Profilbilder sind für alle sichtbar */
-  router.get('/bild/:id', (req, res) => {
-    const bild = konten.ladeBild(Number(req.params.id));
-    if (!bild) return void res.status(404).end();
+  /** Hochgeladene Profilbilder: freigegebene für alle, ungeprüfte nur für den Spieler selbst und das Team */
+  router.get('/bild/:id', ladeKonto(konten), (req, res) => {
+    const id = Number(req.params.id);
+    const bild = konten.ladeBild(id);
+    const ich = res.locals.konto as Konto | null;
+    if (!bild || (!bild.geprueft && ich?.id !== id && !(ich && istTeamRolle(ich.rolle)))) return void res.status(404).end();
     res.setHeader('Content-Type', bild.typ);
     res.setHeader('X-Content-Type-Options', 'nosniff');
     res.setHeader('Content-Security-Policy', "default-src 'none'");
-    // Die Adresse enthält den Stand (?v=…) – ein neues Bild bekommt eine neue Adresse
-    res.setHeader('Cache-Control', 'public, max-age=86400');
+    // Die Adresse enthält den Stand (?v=…) – ein neues Bild bekommt eine neue Adresse.
+    // Ungeprüfte Bilder nicht zwischenspeichern, sonst zeigt ein Proxy sie auch anderen
+    res.setHeader('Cache-Control', bild.geprueft ? 'public, max-age=86400' : 'private, no-store');
     res.send(bild.daten);
   });
 
