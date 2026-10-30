@@ -18,8 +18,11 @@ const app = erstelleApp(db, { mailversand: mailversandAusUmgebung(), spielUrl: p
   einsaetzeAufraeumenBis: Date.parse(process.env.EINSAETZE_AUFRAEUMEN_BIS ?? '') || undefined,
 });
 
-app.listen(PORT, () => {
-  console.log(`LeitstellenDispo Server läuft auf http://localhost:${PORT}`);
+// HOST=127.0.0.1 auf dem Server: nur nginx auf demselben Rechner erreicht die API, nicht das Internet
+const HOST = process.env.HOST || '0.0.0.0';
+
+app.listen(Number(PORT), HOST, () => {
+  console.log(`LeitstellenDispo Server läuft auf http://${HOST}:${PORT}`);
   console.log(`Mailversand: ${process.env.MAIL_VERSAND || 'aus'}`);
   if (process.env.EINSAETZE_AUFRAEUMEN_BIS) console.log(`Einsätze aufräumen bis: ${process.env.EINSAETZE_AUFRAEUMEN_BIS}`);
   console.log(`Straßen-Routing: ${process.env.OSRM_URL || 'aus (Luftlinie)'}`);
