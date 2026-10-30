@@ -501,9 +501,10 @@ export const berechneSpielTick = (zustand: SpielTickZustand, jetzt: number): Spi
 
     const sollStatus = getSollStatus(vehicle, nextIncidents, jetzt);
     if (sollStatus) {
-      if (vehicle.status === sollStatus) return vehicle;
+      if (vehicle.status === sollStatus && !vehicle.rueckfahrt) return vehicle;
       ctx.geaendert = true;
-      return { ...vehicle, status: sollStatus };
+      // Im Einsatz gibt es keine Rückfahrt – eine alte würde das Fahrzeug auf der Karte an der Wache festhalten
+      return { ...vehicle, status: sollStatus, rueckfahrt: undefined };
     }
 
     // Rückfahrt zur Wache: erst bei Ankunft wieder einsatzbereit

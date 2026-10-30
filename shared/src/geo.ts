@@ -95,11 +95,7 @@ export const getFahrzeugPosition = (
   if (!wache) return null;
   const luftweg = istLuftfahrzeug(vehicle.type);
 
-  if (vehicle.rueckfahrt) {
-    const { von, startAt, ankunftAt } = vehicle.rueckfahrt;
-    return { ...getFahrtVerlauf(von, wache, startAt, ankunftAt, nowMs, luftweg), ziel: wache, unterwegs: nowMs < ankunftAt, art: 'rueckfahrt' };
-  }
-
+  // Erst die Einsätze: Ein zugeteiltes Fahrzeug ist dort – auch wenn noch eine alte Rückfahrt gespeichert ist
   for (const incident of incidents) {
     if (incident.status === 'abgeschlossen') continue;
     const assignment = incident.alarmedVehicles.find((entry) => entry.vehicleId === vehicle.id && entry.freigegebenAt === undefined);
@@ -122,6 +118,11 @@ export const getFahrzeugPosition = (
       unterwegs: nowMs < assignment.arrivalAt,
       art: nowMs < assignment.arrivalAt ? 'anfahrt' : 'einsatzstelle',
     };
+  }
+
+  if (vehicle.rueckfahrt) {
+    const { von, startAt, ankunftAt } = vehicle.rueckfahrt;
+    return { ...getFahrtVerlauf(von, wache, startAt, ankunftAt, nowMs, luftweg), ziel: wache, unterwegs: nowMs < ankunftAt, art: 'rueckfahrt' };
   }
 
   return null;

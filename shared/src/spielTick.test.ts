@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { getBearbeitungsMs } from './konfig.js';
 import { alarmiereFahrzeuge } from './alarmierung.js';
 import { berechneSpielTick } from './spielTick.js';
+import { getFahrzeugPosition } from './geo.js';
 import { findeEinsatzVorlage } from './daten.js';
 import { T0, einsatz, fahrzeug, wache } from './testHilfen.js';
 
@@ -235,5 +236,23 @@ describe('berechneSpielTick – Randfälle der Eskalation', () => {
     expect(zweite.incidents[0].meldebild).toBe('Zimmerbrand');
     expect(zweite.incidents[0].meldungen).toHaveLength(2);
     expect(zweite.incidents[0].createdAt).toBe(T0); // 12-Stunden-Frist läuft ab der ersten Meldung
+  });
+});
+
+describe('berechneSpielTick – Fahrzeug mit alter Rückfahrt im Einsatz', () => {
+  it('zeigt das Fahrzeug am Einsatz statt an der Wache und räumt die alte Rückfahrt weg', () => {
+    const e = einsatz('sturz');
+    const start = alarmiereFahrzeuge({ incidents: [e], vehicles: [fahrzeug('rtw', 'RTW')], locations }, e.id, ['rtw'], T0);
+    const ankunft = start.incidents[0].alarmedVehicles[0].arrivalAt;
+    // Fehlerzustand: Zugeteilt, aber eine längst beendete Rückfahrt hängt noch am Fahrzeug
+    const kaputt = start.vehicles.map((v) => ({ ...v, rueckfahrt: { von: locations[0].coords, startAt: T0 - 60_000, ankunftAt: T0 - 1000 } }));
+
+    const position = getFahrzeugPosition(kaputt[0], start.incidents, locations, ankunft + 1000);
+    expect(position?.art).toBe('einsatzstelle');
+    expect(position?.position).toEqual(start.incidents[0].coords);
+
+    const tick = berechneSpielTick({ incidents: start.incidents, vehicles: kaputt, locations }, ankunft + 1000);
+    expect(tick.vehicles[0].rueckfahrt).toBeUndefined();
+    expect(tick.vehicles[0].status).toBe('Im Einsatz');
   });
 });
