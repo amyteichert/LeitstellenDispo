@@ -20,14 +20,15 @@ import {
 import type { MapLocation, Vehicle } from '../types';
 import { FahrzeugBild, bereiteFahrzeuggrafikVor, useFahrzeuggrafiken } from '../fahrzeugGrafik';
 
-type Reiter = 'Katalog' | 'Meine Fahrzeuge';
 type Filter = 'Alle' | 'Feuerwehr' | 'Rettungsdienst';
 
 /** Einsätze, bei denen dieser Typ einen angeforderten Platz füllen kann */
 const einsaetzeFuer = (typ: string) =>
   ALLE_EINSATZ_VORLAGEN.filter((vorlage) => vorlage.requiredVehicles.some((bedarf) => fahrzeugErfuelltBedarf(typ, bedarf.category)));
 
+/** Zwei Menüpunkte: „Fahrzeuge“ (eigene Flotte) und „Fahrzeugkatalog“ (alle Typen mit Grafiken) */
 export default function FahrzeugeView({
+  bereich,
   vehicles,
   stations,
   grafiken: auswahl,
@@ -35,6 +36,7 @@ export default function FahrzeugeView({
   konto,
   gast,
 }: {
+  bereich: 'Fahrzeuge' | 'Fahrzeugkatalog';
   vehicles: Vehicle[];
   stations: MapLocation[];
   grafiken: GrafikAuswahl;
@@ -42,7 +44,6 @@ export default function FahrzeugeView({
   konto: Konto;
   gast: boolean;
 }) {
-  const [reiter, setReiter] = useState<Reiter>('Katalog');
   const [filter, setFilter] = useState<Filter>('Alle');
   const [suche, setSuche] = useState('');
   const [offen, setOffen] = useState<string | null>(null);
@@ -61,16 +62,9 @@ export default function FahrzeugeView({
 
   return (
     <div>
-      <h2>Fahrzeuge</h2>
-      <div className="aao-reiter" role="tablist" style={{ marginBottom: 12 }}>
-        {(['Katalog', 'Meine Fahrzeuge'] as Reiter[]).map((r) => (
-          <button key={r} type="button" role="tab" aria-selected={reiter === r} className={`btn ${reiter === r ? 'btn--primary' : ''}`} onClick={() => setReiter(r)}>
-            {r}{r === 'Meine Fahrzeuge' ? ` (${vehicles.length})` : ''}
-          </button>
-        ))}
-      </div>
+      <h2>{bereich === 'Fahrzeuge' ? `Meine Fahrzeuge (${vehicles.length})` : 'Fahrzeugkatalog'}</h2>
 
-      {reiter === 'Katalog' && (
+      {bereich === 'Fahrzeugkatalog' && (
         <>
           <p className="einsatz-eintrag__zeile" style={{ marginTop: 0 }}>
             Alle {FAHRZEUG_TYPEN.length} Fahrzeugtypen mit ihren Daten. Tippe auf ein Fahrzeug, um seine Grafik zu wählen –
@@ -127,7 +121,7 @@ export default function FahrzeugeView({
         </>
       )}
 
-      {reiter === 'Meine Fahrzeuge' && (
+      {bereich === 'Fahrzeuge' && (
         <ul className="meine-fahrzeuge">
           {vehicles.map((v) => {
             const typ = getFahrzeugTyp(v.type);

@@ -169,7 +169,7 @@ export default function FahrzeugBearbeiten({
             </select>
           </label>
         </div>
-        <small className="einsatz-eintrag__zeile">Weitere Grafiken findest und lädst du unter „Fahrzeuge → Katalog“ hoch.</small>
+        <small className="einsatz-eintrag__zeile">Weitere Grafiken findest und lädst du im „Fahrzeugkatalog“ hoch (Menü).</small>
         <div className="field" style={{ marginTop: 8 }}>
           <span>Farbe (gilt für die gezeichnete Grafik und das Schild auf der Karte)</span>
           <FarbWahl farbe={fahrzeug.farbe} setFarbe={(farbe) => waehleFahrzeugFarbe(fahrzeug.id, farbe)} standardText="Wie die Wache" />
