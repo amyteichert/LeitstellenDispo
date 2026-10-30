@@ -27,6 +27,7 @@ import {
 import { ladeAnkuendigung, teamApi } from '../konto';
 import WebsiteStatistikView from './WebsiteStatistikView';
 import BotWerkzeug from './BotWerkzeug';
+import { FahrzeugBild, useFahrzeuggrafiken } from '../fahrzeugGrafik';
 
 type Reiter = 'Übersicht' | 'Konten' | 'Meldungen' | 'Bilder' | 'Ankündigung' | 'Protokoll' | 'Website' | 'Dev-Werkzeuge' | 'Bot';
 const REITER: Reiter[] = ['Übersicht', 'Konten', 'Meldungen', 'Bilder', 'Ankündigung', 'Protokoll', 'Website', 'Dev-Werkzeuge', 'Bot'];
@@ -97,7 +98,14 @@ export default function TeamView({ konto, dev }: { konto: Konto; dev: DevAktione
       {reiter === 'Konten' && <Konten ich={konto} melde={melde} />}
       {reiter === 'Ankündigung' && <AnkuendigungVerwalten ich={konto} melde={melde} />}
       {reiter === 'Meldungen' && <Fehlermeldungen melde={melde} />}
-      {reiter === 'Bilder' && <BilderPruefen melde={melde} />}
+      {reiter === 'Bilder' && (
+        <>
+          <h3>Profilbilder</h3>
+          <BilderPruefen melde={melde} />
+          <h3 style={{ marginTop: 20 }}>Fahrzeuggrafiken</h3>
+          <FahrzeuggrafikenPruefen melde={melde} />
+        </>
+      )}
       {reiter === 'Protokoll' && <Protokoll melde={melde} />}
       {reiter === 'Website' && hatTeamRecht(konto.rolle, 'website_statistik') && <WebsiteStatistikView />}
       {reiter === 'Dev-Werkzeuge' && <DevWerkzeuge dev={dev} melde={melde} />}
@@ -499,6 +507,50 @@ function BilderPruefen({ melde }: { melde: Melde }) {
               <strong style={{ flex: 1 }}>{b.name}</strong>
               <button type="button" className="btn btn--primary btn--klein" onClick={() => void freigeben(b)}>Freigeben</button>
               <button type="button" className="btn btn--klein" onClick={() => entfernen(b)}>Entfernen</button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </>
+  );
+}
+
+/** Neue Fahrzeuggrafiken aus dem Katalog freigeben oder löschen */
+function FahrzeuggrafikenPruefen({ melde }: { melde: Melde }) {
+  const { grafiken, fehler, freigeben, loeschen, neuLaden } = useFahrzeuggrafiken();
+  const offen = grafiken?.filter((g) => !g.geprueft) ?? null;
+  const ok = (text: string) => () => melde('ok', text);
+  const fehlgeschlagen = (e: unknown) => melde('fehler', fehlerText(e));
+
+  if (fehler) return <p className="einsatz-eintrag__zeile">{fehler}</p>;
+  if (!offen) return <p className="einsatz-eintrag__zeile">Lade …</p>;
+  return (
+    <>
+      <button type="button" className="btn" style={{ marginBottom: 8 }} onClick={neuLaden}>↻ Aktualisieren</button>
+      {offen.length === 0 ? (
+        <div className="leerzustand">Keine neuen Fahrzeuggrafiken zu prüfen.</div>
+      ) : (
+        <ul className="team-protokoll">
+          {offen.map((g) => (
+            <li key={g.id} style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+              <FahrzeugBild typ={g.fahrzeugTyp} grafikId={g.id} hoehe={64} />
+              <span style={{ flex: 1 }}>
+                <strong>{g.name}</strong> <small>({g.fahrzeugTyp})</small>
+                <br />
+                <small className="einsatz-eintrag__zeile">von {g.vonName}</small>
+              </span>
+              <button type="button" className="btn btn--primary btn--klein" onClick={() => freigeben(g.id).then(ok(`„${g.name}“ freigegeben.`), fehlgeschlagen)}>
+                Freigeben
+              </button>
+              <button
+                type="button"
+                className="btn btn--klein"
+                onClick={() => {
+                  if (window.confirm(`Fahrzeuggrafik „${g.name}“ von ${g.vonName} löschen?`)) loeschen(g.id).then(ok(`„${g.name}“ gelöscht.`), fehlgeschlagen);
+                }}
+              >
+                Löschen
+              </button>
             </li>
           ))}
         </ul>

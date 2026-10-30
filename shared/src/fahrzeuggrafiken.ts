@@ -23,6 +23,8 @@ export interface Fahrzeuggrafik {
   vonId: number | null;
   /** ISO-Zeitpunkt */
   erstellt: string;
+  /** Vom Team freigegeben – vorher sehen sie nur der Hochladende und das Team */
+  geprueft: boolean;
 }
 
 /** Gewählte Grafiken eines Spielers: Fahrzeugtyp → Grafik-ID (fehlt = Standardgrafik) */

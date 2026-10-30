@@ -141,7 +141,15 @@ export function useFahrzeuggrafiken() {
     await anfrage('DELETE', `/${id}`);
     setzeListe(((await geladen) ?? []).filter((g) => g.id !== id));
   }, []);
-  return { grafiken, fehler, hochladen, loeschen };
+  /** Nur Team: Grafik für alle freigeben */
+  const freigeben = useCallback(async (id: number) => {
+    const { grafik } = await anfrage<{ grafik: Fahrzeuggrafik }>('POST', `/${id}/freigeben`);
+    setzeListe(((await geladen) ?? []).map((g) => (g.id === id ? grafik : g)));
+  }, []);
+  const neuLaden = useCallback(() => {
+    ladeGrafiken(true).then(setGrafiken, (e: Error) => setFehler(e.message));
+  }, []);
+  return { grafiken, fehler, hochladen, loeschen, freigeben, neuLaden };
 }
 
 /**

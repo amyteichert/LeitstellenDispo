@@ -193,7 +193,7 @@ function FahrzeugDetail({
       waehle(grafik.id);
       setName('');
       setDatei(null);
-      setMeldung({ art: 'ok', text: '✓ Hochgeladen und für deine Fahrzeuge gewählt.' });
+      setMeldung({ art: 'ok', text: '✓ Hochgeladen und für deine Fahrzeuge gewählt. Andere Spieler sehen die Grafik, sobald das Team sie freigegeben hat.' });
     } catch (e) {
       setMeldung({ art: 'fehler', text: e instanceof Error ? e.message : 'Hochladen fehlgeschlagen.' });
     } finally {
@@ -256,7 +256,7 @@ function FahrzeugDetail({
           <li key={grafik.id}>
             <GrafikKarte
               titel={grafik.name}
-              von={grafik.vonName}
+              von={grafik.geprueft ? grafik.vonName : `${grafik.vonName} · wartet auf Freigabe`}
               aktiv={gewaehlt === grafik.id}
               onWaehlen={() => waehle(grafik.id)}
               onLoeschen={(grafik.vonId === konto.id && !gast) || team ? () => entfernen(grafik) : undefined}
