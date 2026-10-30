@@ -1,13 +1,13 @@
 import { getAktiveZuteilungen, getEinsatzVersorgung, type AlarmiertesFahrzeug, type SpielEinsatz } from './daten.js';
 import {
   fahrzeugErfuelltBedarf,
-  getFahrzeugGeschwindigkeit,
+  istLuftfahrzeug,
   getFahrzeugTyp,
   getFehlendenBedarf,
   istAusreichendBesetzt,
   type BedarfsKlasse,
 } from './fahrzeuge.js';
-import { getFahrzeitSekunden, getPositionAufAnfahrt, getRueckfahrtPosition, getStationCoords, haversineKm } from './geo.js';
+import { getFahrzeitFuerTyp, getPositionAufAnfahrt, getRueckfahrtPosition, getStationCoords, haversineKm } from './geo.js';
 import { GAME_CONFIG } from './konfig.js';
 import type { MapLocation, Vehicle } from './typen.js';
 import { getAusrueckVerzoegerung } from './zufriedenheit.js';
@@ -50,9 +50,9 @@ export const getAnfahrtSekunden = (
   const wache = locations.find((location) => location.id === vehicle.stationId && location.type === 'station');
   if (!wache) return null;
   const unterwegs = getRueckfahrtPosition(vehicle, locations, jetzt);
-  if (unterwegs) return getFahrzeitSekunden(unterwegs, ziel, getFahrzeugGeschwindigkeit(vehicle.type));
+  if (unterwegs) return getFahrzeitFuerTyp(unterwegs, ziel, vehicle.type);
   const ausrueckzeit = GAME_CONFIG.ausrueckzeitSekunden[getFahrzeugTyp(vehicle.type)?.organisation ?? 'Rettungsdienst'];
-  return ausrueckzeit + getFahrzeitSekunden(wache.coords, ziel, getFahrzeugGeschwindigkeit(vehicle.type)) + getAusrueckVerzoegerung(wache, jetzt);
+  return ausrueckzeit + getFahrzeitFuerTyp(wache.coords, ziel, vehicle.type) + getAusrueckVerzoegerung(wache, jetzt);
 };
 
 /**
@@ -131,8 +131,8 @@ export const rueckalarmiereFahrzeug = (
   if (!einsatz || !vehicle || !wache || !kannRueckalarmieren(einsatz, vehicleId)) return { incidents, vehicles };
   const assignment = getAktiveZuteilungen(einsatz).find((entry) => entry.vehicleId === vehicleId)!;
 
-  const von = assignment.arrivalAt <= jetzt ? einsatz.coords : getPositionAufAnfahrt(wache, einsatz.coords, assignment, jetzt);
-  const fahrzeit = getFahrzeitSekunden(von, wache, getFahrzeugGeschwindigkeit(vehicle.type));
+  const von = assignment.arrivalAt <= jetzt ? einsatz.coords : getPositionAufAnfahrt(wache, einsatz.coords, assignment, jetzt, istLuftfahrzeug(vehicle.type));
+  const fahrzeit = getFahrzeitFuerTyp(von, wache, vehicle.type);
   const alarmedVehicles = einsatz.alarmedVehicles.map((entry) => (entry === assignment ? { ...entry, freigegebenAt: jetzt } : entry));
   const nochZugeteilt = alarmedVehicles.some((entry) => entry.freigegebenAt === undefined);
 

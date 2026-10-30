@@ -2,6 +2,7 @@ import { GAME_CONFIG } from './konfig.js';
 import type { Koordinaten, MapLocation, Vehicle } from './typen.js';
 import type { AlarmiertesFahrzeug, SpielEinsatz } from './daten.js';
 import { getRoute, punktAufLinie, restLinie } from './routen.js';
+import { getFahrzeugGeschwindigkeit, istLuftfahrzeug } from './fahrzeuge.js';
 
 export const clamp = (value: number, min: number, max: number) => Math.min(Math.max(value, min), max);
 
@@ -21,14 +22,19 @@ export const haversineKm = (from: Koordinaten, to: Koordinaten) => {
 /**
  * Fahrzeit in Sekunden. Mit Straßenroute: Navi-Zeit, schnellere Fahrzeugtypen kürzer, langsamere länger
  * (gemessen an der Durchschnittsgeschwindigkeit). Ohne Route: Luftlinie mal Umwegfaktor.
+ * `luftweg`: Hubschrauber fliegen die reine Luftlinie (ohne Umweg, ohne Straßenroute).
  */
-export const getFahrzeitSekunden = (from: Koordinaten, to: Koordinaten, geschwindigkeitKmh: number = GAME_CONFIG.averageSpeedKmh) => {
-  const route = getRoute(from, to);
+export const getFahrzeitSekunden = (from: Koordinaten, to: Koordinaten, geschwindigkeitKmh: number = GAME_CONFIG.averageSpeedKmh, luftweg = false) => {
+  const route = luftweg ? null : getRoute(from, to);
   const sekunden = route
     ? route.dauerSekunden * (GAME_CONFIG.averageSpeedKmh / geschwindigkeitKmh)
-    : ((haversineKm(from, to) * GAME_CONFIG.strassenUmwegFaktor) / geschwindigkeitKmh) * 3600;
+    : ((haversineKm(from, to) * (luftweg ? 1 : GAME_CONFIG.strassenUmwegFaktor)) / geschwindigkeitKmh) * 3600;
   return Math.max(1, Math.round(sekunden));
 };
+
+/** Fahrzeit eines Fahrzeugtyps – mit seiner Geschwindigkeit, Hubschrauber per Luftlinie */
+export const getFahrzeitFuerTyp = (from: Koordinaten, to: Koordinaten, typ: string | undefined) =>
+  getFahrzeitSekunden(from, to, getFahrzeugGeschwindigkeit(typ), istLuftfahrzeug(typ));
 
 export const getStationCoords = (stationId: string | undefined, locations: MapLocation[]): Koordinaten | null => {
   if (!stationId) return null;
@@ -37,13 +43,13 @@ export const getStationCoords = (stationId: string | undefined, locations: MapLo
 };
 
 /** Punkt einer Fahrt von `startAt` bis `ankunftAt` zum Zeitpunkt `jetzt` – auf der Straße, wenn die Route bekannt ist. */
-export const interpoliereFahrt = (von: Koordinaten, nach: Koordinaten, startAt: number, ankunftAt: number, jetzt: number): Koordinaten =>
-  getFahrtVerlauf(von, nach, startAt, ankunftAt, jetzt).position;
+export const interpoliereFahrt = (von: Koordinaten, nach: Koordinaten, startAt: number, ankunftAt: number, jetzt: number, luftweg = false): Koordinaten =>
+  getFahrtVerlauf(von, nach, startAt, ankunftAt, jetzt, luftweg).position;
 
-/** Position und restliche Strecke (für die Linie auf der Karte) einer Fahrt. */
-export const getFahrtVerlauf = (von: Koordinaten, nach: Koordinaten, startAt: number, ankunftAt: number, jetzt: number) => {
+/** Position und restliche Strecke (für die Linie auf der Karte) einer Fahrt – `luftweg`: gerade Linie (Hubschrauber). */
+export const getFahrtVerlauf = (von: Koordinaten, nach: Koordinaten, startAt: number, ankunftAt: number, jetzt: number, luftweg = false) => {
   const anteil = clamp((jetzt - startAt) / Math.max(1, ankunftAt - startAt), 0, 1);
-  const route = getRoute(von, nach);
+  const route = luftweg ? null : getRoute(von, nach);
   if (route && route.punkte.length >= 2) {
     return { position: punktAufLinie(route.punkte, anteil), linie: restLinie(route.punkte, anteil) };
   }
@@ -57,7 +63,8 @@ export const getPositionAufAnfahrt = (
   einsatzort: Koordinaten,
   assignment: Pick<AlarmiertesFahrzeug, 'arrivalAt' | 'etaSeconds' | 'startCoords'>,
   jetzt: number,
-): Koordinaten => interpoliereFahrt(assignment.startCoords ?? wache, einsatzort, assignment.arrivalAt - assignment.etaSeconds * 1000, assignment.arrivalAt, jetzt);
+  luftweg = false,
+): Koordinaten => interpoliereFahrt(assignment.startCoords ?? wache, einsatzort, assignment.arrivalAt - assignment.etaSeconds * 1000, assignment.arrivalAt, jetzt, luftweg);
 
 export interface FahrzeugFahrt {
   position: Koordinaten;
@@ -74,7 +81,7 @@ export const getRueckfahrtPosition = (vehicle: Vehicle, locations: MapLocation[]
   const wache = getStationCoords(vehicle.stationId, locations);
   if (!vehicle.rueckfahrt || !wache) return null;
   const { von, startAt, ankunftAt } = vehicle.rueckfahrt;
-  return interpoliereFahrt(von, wache, startAt, ankunftAt, nowMs);
+  return interpoliereFahrt(von, wache, startAt, ankunftAt, nowMs, istLuftfahrzeug(vehicle.type));
 };
 
 /** Aktuelle Position eines Fahrzeugs unterwegs – oder null, wenn es an der Wache steht. */
@@ -86,10 +93,11 @@ export const getFahrzeugPosition = (
 ): FahrzeugFahrt | null => {
   const wache = getStationCoords(vehicle.stationId, locations);
   if (!wache) return null;
+  const luftweg = istLuftfahrzeug(vehicle.type);
 
   if (vehicle.rueckfahrt) {
     const { von, startAt, ankunftAt } = vehicle.rueckfahrt;
-    return { ...getFahrtVerlauf(von, wache, startAt, ankunftAt, nowMs), ziel: wache, unterwegs: nowMs < ankunftAt, art: 'rueckfahrt' };
+    return { ...getFahrtVerlauf(von, wache, startAt, ankunftAt, nowMs, luftweg), ziel: wache, unterwegs: nowMs < ankunftAt, art: 'rueckfahrt' };
   }
 
   for (const incident of incidents) {
@@ -101,7 +109,7 @@ export const getFahrzeugPosition = (
     const transport = incident.patienten?.find((patient) => patient.transport?.fahrzeugId === vehicle.id)?.transport;
     if (transport && nowMs >= transport.startAt) {
       return {
-        ...getFahrtVerlauf(incident.coords, transport.ziel, transport.startAt, transport.ankunftAt, nowMs),
+        ...getFahrtVerlauf(incident.coords, transport.ziel, transport.startAt, transport.ankunftAt, nowMs, luftweg),
         ziel: transport.ziel,
         unterwegs: nowMs < transport.ankunftAt,
         art: nowMs < transport.ankunftAt ? 'transport' : 'krankenhaus',
@@ -109,7 +117,7 @@ export const getFahrzeugPosition = (
     }
 
     return {
-      ...getFahrtVerlauf(assignment.startCoords ?? wache, incident.coords, assignment.arrivalAt - assignment.etaSeconds * 1000, assignment.arrivalAt, nowMs),
+      ...getFahrtVerlauf(assignment.startCoords ?? wache, incident.coords, assignment.arrivalAt - assignment.etaSeconds * 1000, assignment.arrivalAt, nowMs, luftweg),
       ziel: incident.coords,
       unterwegs: nowMs < assignment.arrivalAt,
       art: nowMs < assignment.arrivalAt ? 'anfahrt' : 'einsatzstelle',

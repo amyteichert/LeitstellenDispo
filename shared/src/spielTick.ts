@@ -16,13 +16,13 @@ import {
 import {
   ergaenzeBedarf,
   formatBedarfsListe,
-  getFahrzeugGeschwindigkeit,
+  istLuftfahrzeug,
   getFehlendenBedarf,
   hatFaehigkeit,
   istBedarfGedeckt,
   ordneFahrzeugeBedarfZu,
 } from './fahrzeuge.js';
-import { getFahrzeitSekunden, getPositionAufAnfahrt, getStationCoords } from './geo.js';
+import { getFahrzeitFuerTyp, getPositionAufAnfahrt, getStationCoords } from './geo.js';
 import {
   FACHRICHTUNGEN,
   findeZielKrankenhaus,
@@ -118,9 +118,10 @@ const eskaliere = (einsatz: SpielEinsatz, ziel: EinsatzVorlage, text: string, ze
 const gibFrei = (einsatz: SpielEinsatz, vehicleId: string, zeit: number, ctx: TickKontext, von?: Koordinaten): SpielEinsatz => {
   const assignment = getAktiveZuteilungen(einsatz).find((a) => a.vehicleId === vehicleId);
   if (!assignment) return einsatz;
-  const wache = getStationCoords(ctx.vehicles.find((v) => v.id === vehicleId)?.stationId, ctx.locations);
+  const fahrzeug = ctx.vehicles.find((v) => v.id === vehicleId);
+  const wache = getStationCoords(fahrzeug?.stationId, ctx.locations);
   const position = von
-    ?? (assignment.arrivalAt <= zeit || !wache ? einsatz.coords : getPositionAufAnfahrt(wache, einsatz.coords, assignment, zeit));
+    ?? (assignment.arrivalAt <= zeit || !wache ? einsatz.coords : getPositionAufAnfahrt(wache, einsatz.coords, assignment, zeit, istLuftfahrzeug(fahrzeug?.type)));
   ctx.freigaben.push({ vehicleId, von: position, startAt: zeit });
   return {
     ...einsatz,
@@ -333,7 +334,7 @@ const beendeBearbeitung = (einsatz: SpielEinsatz, ctx: TickKontext): SpielEinsat
         : 'Patient vor Ort versorgt, kein Transport erforderlich.', 'patient'));
       return { ...patient, status: 'ambulant' };
     }
-    const fahrzeit = getFahrzeitSekunden(einsatz.coords, krankenhaus.coords, getFahrzeugGeschwindigkeit(typVon(ctx, fahrzeugId)));
+    const fahrzeit = getFahrzeitFuerTyp(einsatz.coords, krankenhaus.coords, typVon(ctx, fahrzeugId));
     const ankunftAt = ende + fahrzeit * 1000;
     const ohneFach = patient.fachrichtung && !getFachrichtungen(krankenhaus).includes(patient.fachrichtung);
     neueMeldungen.push(meldung(ende, `${funkname(ctx, fahrzeugId)}: Transport in ${krankenhaus.name}${krankenhaus.eigen ? ' (eigenes Haus)' : ''}.`
@@ -490,7 +491,7 @@ export const berechneSpielTick = (zustand: SpielTickZustand, jetzt: number): Spi
       ctx.geaendert = true;
       const wache = getStationCoords(vehicle.stationId, locations);
       if (!wache) return { ...vehicle, status: 'Einsatzbereit', rueckfahrt: undefined };
-      const fahrzeit = getFahrzeitSekunden(freigabe.von, wache, getFahrzeugGeschwindigkeit(vehicle.type));
+      const fahrzeit = getFahrzeitFuerTyp(freigabe.von, wache, vehicle.type);
       return {
         ...vehicle,
         status: 'Rückfahrt',

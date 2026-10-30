@@ -137,6 +137,8 @@ export interface FahrzeugTyp {
   brauchtErweiterung?: SonderErweiterungId;
   /** Kurzer Text für das Fahrzeug-Lexikon: wofür man das Fahrzeug braucht */
   beschreibung: string;
+  /** Fliegt Luftlinie statt Straße (Hubschrauber) */
+  luftfahrzeug?: boolean;
 }
 
 /** Alle Fahrzeugtypen, die im Spiel gekauft bzw. als Startfahrzeug gewählt werden können. */
@@ -167,7 +169,7 @@ export const FAHRZEUG_TYPEN: FahrzeugTyp[] = [
   {
     typ: 'RTH', bezeichnung: 'Rettungshubschrauber', kategorie: 'RTH', organisation: 'Rettungsdienst', wachenArt: 'Rettungswache',
     preis: 60000, geschwindigkeitKmh: 220, besatzung: 3, faehigkeiten: ['notarzt', 'patientenversorgung', 'luftrettung'],
-    pflichtQualifikationen: ['pilot', 'notarzt'], keinStartfahrzeug: true, brauchtErweiterung: 'hubschrauberlandeplatz',
+    pflichtQualifikationen: ['pilot', 'notarzt'], keinStartfahrzeug: true, brauchtErweiterung: 'hubschrauberlandeplatz', luftfahrzeug: true,
     beschreibung: 'Bringt den Notarzt aus der Luft – sehr schnell, auch weit draußen. Zählt überall, wo ein NEF gebraucht wird.',
   },
   {
@@ -381,6 +383,9 @@ export function getStartfahrzeugTypen(wachenArt: WachenArt): FahrzeugTyp[] {
 export function hatFaehigkeit(typ: string | undefined, faehigkeit: Faehigkeit): boolean {
   return getFahrzeugTyp(typ)?.faehigkeiten.includes(faehigkeit) ?? false;
 }
+
+/** Fliegt dieser Typ (Luftlinie, keine Straßenroute)? */
+export const istLuftfahrzeug = (typ?: string) => getFahrzeugTyp(typ)?.luftfahrzeug === true;
 
 /** Geschwindigkeit eines Fahrzeugtyps (unbekannte Typen fahren mit dem Durchschnitt). */
 export function getFahrzeugGeschwindigkeit(typ?: string): number {

@@ -95,3 +95,30 @@ describe('Fahrzeugfarben', () => {
     expect(getSchriftFarbe('#1d4ed8')).toBe('#ffffff');
   });
 });
+
+describe('Rettungshubschrauber fliegt Luftlinie', () => {
+  it('ohne Straßenumweg und auch dann, wenn eine Straßenroute bekannt ist', async () => {
+    const { getFahrzeitFuerTyp, getFahrtVerlauf, haversineKm } = await import('./geo.js');
+    const { speichereRoute, leereRoutenSpeicher } = await import('./routen.js');
+    const { istLuftfahrzeug } = await import('./fahrzeuge.js');
+    leereRoutenSpeicher();
+    const von: [number, number] = [48.775, 9.177];
+    const nach: [number, number] = [48.875, 9.277];
+    // Lange Straßenroute mit Umweg über einen Punkt weit abseits
+    speichereRoute({ von, nach }, { dauerSekunden: 3600, distanzKm: 60, punkte: [von, [48.6, 9.5], nach] });
+
+    expect(istLuftfahrzeug('RTH')).toBe(true);
+    expect(istLuftfahrzeug('NEF')).toBe(false);
+    const flug = getFahrzeitFuerTyp(von, nach, 'RTH');
+    expect(flug).toBe(Math.round((haversineKm(von, nach) / 220) * 3600));
+    // Das NEF nimmt die (lange) Straßenroute
+    expect(getFahrzeitFuerTyp(von, nach, 'NEF')).toBeGreaterThan(flug * 3);
+
+    // Halbe Flugzeit: Position genau auf der Mitte der geraden Linie
+    const mitte = getFahrtVerlauf(von, nach, 0, 1000, 500, true);
+    expect(mitte.position[0]).toBeCloseTo(48.825, 5);
+    expect(mitte.position[1]).toBeCloseTo(9.227, 5);
+    expect(mitte.linie).toHaveLength(2);
+    leereRoutenSpeicher();
+  });
+});
