@@ -3349,6 +3349,8 @@ html[data-design='hell'] .versorgung-hinweis--ok { color: #166534; }
   color: var(--color-text-muted);
 }
 .katalog-marke--grafik { color: var(--color-primary); border-color: var(--color-primary); }
+.katalog-marke--kaufbar { color: var(--color-success); border-color: currentColor; }
+.katalog-marke--gesperrt { opacity: 0.8; }
 
 .fahrzeug-detail { margin-bottom: 14px; }
 .fahrzeug-detail__kopf {
