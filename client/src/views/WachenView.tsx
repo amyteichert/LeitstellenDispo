@@ -92,6 +92,7 @@ export default function WachenView({
   onWacheKaufen,
   verwaltenId,
   setVerwaltenId,
+  startFahrzeugId,
 }: {
   locations: MapLocation[];
   selectedId: string;
@@ -111,6 +112,8 @@ export default function WachenView({
   /** Gerade verwaltete Wache – liegt in App, damit die Karte direkt eine Wache öffnen kann */
   verwaltenId: string | null;
   setVerwaltenId: (id: string | null) => void;
+  /** Von der Karte aus: dieses Fahrzeug gleich aufgeklappt zeigen */
+  startFahrzeugId?: string | null;
 }) {
   const stations = locations.filter((l) => l.type === 'station');
   const verwaltet = stations.find((s) => s.id === verwaltenId);
@@ -118,7 +121,7 @@ export default function WachenView({
   if (verwaltet) {
     return (
       <WacheVerwalten
-        key={verwaltet.id}
+        key={`${verwaltet.id}|${startFahrzeugId ?? ""}`}
         wache={verwaltet}
         vehicles={vehicles}
         personal={personal}
@@ -130,6 +133,7 @@ export default function WachenView({
         benenneFahrzeugUm={benenneFahrzeugUm}
         erweitereStellplaetze={erweitereStellplaetze}
         passeWacheAn={passeWacheAn}
+        startFahrzeugId={startFahrzeugId ?? null}
         onZurueck={() => setVerwaltenId(null)}
       />
     );
@@ -247,6 +251,7 @@ function WacheVerwalten({
   benenneFahrzeugUm,
   erweitereStellplaetze,
   passeWacheAn,
+  startFahrzeugId,
   onZurueck,
 }: {
   wache: MapLocation;
@@ -261,12 +266,13 @@ function WacheVerwalten({
   benenneFahrzeugUm: (fahrzeugId: string, name: string) => string | null;
   erweitereStellplaetze: (stationId: string) => string | null;
   passeWacheAn: WacheAnpassen;
+  startFahrzeugId: string | null;
   onZurueck: () => void;
 }) {
-  const [reiter, setReiter] = useState<Reiter>('Übersicht');
+  const [reiter, setReiter] = useState<Reiter>(startFahrzeugId ? 'Fahrzeuge' : 'Übersicht');
   const [anpassenOffen, setAnpassenOffen] = useState(false);
   const [meldung, setMeldung] = useState<{ art: 'ok' | 'fehler'; text: string } | null>(null);
-  const [offenesFahrzeug, setOffenesFahrzeug] = useState<string | null>(null);
+  const [offenesFahrzeug, setOffenesFahrzeug] = useState<string | null>(startFahrzeugId);
   const kaufbareTypen = getFahrzeugTypenFuerWache(wache.stationKind ?? 'Rettungswache');
   const [kaufTyp, setKaufTyp] = useState(kaufbareTypen[0]?.typ ?? '');
 

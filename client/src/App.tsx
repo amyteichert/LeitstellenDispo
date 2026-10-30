@@ -4,7 +4,6 @@ import { MapContainer, Marker, Polyline, Popup, TileLayer, useMap, useMapEvents 
 import L, { type LeafletMouseEvent } from 'leaflet';
 import {
   anzeigeName,
-  getSchriftFarbe,
   type Vehicle,
   getBegruessung,
   APP_VERSION,
@@ -15,6 +14,7 @@ import {
   formatEinsatzTitel,
   getFahrzeugPosition,
   getFahrzeugTyp,
+  FMS_STATUS,
   getStartfahrzeugTypen,
   FUNKRUFNAME_MAX_LAENGE,
   getFunkKurzname,
@@ -51,7 +51,7 @@ import { spieleFunkPiep } from './ton';
 import { getEinstellungen, useEinstellungen } from './einstellungen';
 import FunkView from './views/FunkView';
 import FahrzeugeView from './views/FahrzeugeView';
-import { GrafikKontext, fahrzeugFarbeModul, setzeModulAuswahl } from './fahrzeugGrafik';
+import { GrafikKontext, setzeModulAuswahl } from './fahrzeugGrafik';
 import WachenView from './views/WachenView';
 import AaoView from './views/AaoView';
 import KrankenhaeuserView from './views/KrankenhaeuserView';
@@ -125,16 +125,20 @@ const FAHRT_LINIEN_FARBEN: Record<FahrzeugFahrt['art'], string> = {
   rueckfahrt: '#9ca3af',
 };
 
-const createVehicleMarkerIcon = (label: string, art: FahrzeugFahrt['art'], organisation: 'fw' | 'rd', fahrzeug: Vehicle) => {
-  // Eigene Lackfarbe färbt auch das Schild – Schrift automatisch hell oder dunkel
-  const farbe = fahrzeugFarbeModul(fahrzeug);
-  const stil = farbe ? ` style="background:${farbe};color:${getSchriftFarbe(farbe)}"` : '';
-  return L.divIcon({
-    className: `vehicle-marker vehicle-marker--${art} vehicle-marker--${organisation}`,
-    html: `<span${stil}>${fahrzeugSymbolHtml(fahrzeug)}${label.replace(/[&<>"']/g, (z) => `&#${z.charCodeAt(0)};`)}</span>`,
-    iconSize: undefined,
-    iconAnchor: [0, 0],
-  });
+/** Fahrzeug auf der Karte: nur das Fahrzeugbild, der Punkt zeigt den Fahrtstatus – Name und Details beim Antippen */
+const createVehicleMarkerIcon = (art: FahrzeugFahrt['art'], organisation: 'fw' | 'rd', fahrzeug: Vehicle) => L.divIcon({
+  className: `vehicle-marker vehicle-marker--${art} vehicle-marker--${organisation}`,
+  html: `<span>${fahrzeugSymbolHtml(fahrzeug)}</span>`,
+  iconSize: undefined,
+  iconAnchor: [0, 0],
+});
+
+const FAHRT_TEXTE: Record<FahrzeugFahrt['art'], string> = {
+  anfahrt: 'Anfahrt zum Einsatz',
+  einsatzstelle: 'An der Einsatzstelle',
+  transport: 'Transport ins Krankenhaus',
+  krankenhaus: 'Im Krankenhaus',
+  rueckfahrt: 'Rückfahrt zur Wache',
 };
 
 /** Neue Spieler: Karte auf die eigene Stadt setzen statt auf den Standard-Ausschnitt */
@@ -290,6 +294,8 @@ function App({ konto, onAbmelden, gast = false, setKonto }: {
   const [selectedId, setSelectedId] = useState<string>('');
   // Wache, deren Verwaltung offen ist (auch direkt von der Karte aus)
   const [verwaltenId, setVerwaltenId] = useState<string | null>(null);
+  // Von der Karte aus: dieses Fahrzeug in der Wachenverwaltung gleich aufgeklappt zeigen
+  const [bearbeitenFahrzeugId, setBearbeitenFahrzeugId] = useState<string | null>(null);
   const [selectedIncidentId, setSelectedIncidentId] = useState<string | null>(null);
   // Einsatz, dessen Kurzinfo gerade als schwebendes Fenster auf der Karte angezeigt wird
   const [mapIncidentId, setMapIncidentId] = useState<string | null>(null);
@@ -1095,10 +1101,32 @@ Dein Guthaben: ${balance.toLocaleString('de-DE')} €`)) return;
                     )}
                     <Marker
                       position={fahrt.position}
-                      icon={createVehicleMarkerIcon(vehicle.callsign ?? vehicle.name, fahrt.art, organisation, vehicle)}
+                      icon={createVehicleMarkerIcon(fahrt.art, organisation, vehicle)}
                       zIndexOffset={2000}
-                      interactive={false}
-                    />
+                      title={vehicle.callsign ?? vehicle.name}
+                    >
+                      <Popup>
+                        <div className="fahrzeug-popup">
+                          <strong>{vehicle.callsign ?? vehicle.name}</strong>
+                          <span>{getFahrzeugTyp(vehicle.type)?.bezeichnung ?? vehicle.type}</span>
+                          <span>S{FMS_STATUS[vehicle.status ?? 'Einsatzbereit']} · {FAHRT_TEXTE[fahrt.art]}</span>
+                          <span>{locations.find((location) => location.id === vehicle.stationId)?.name ?? 'Ohne Wache'} · {vehicle.besatzung ?? 0} Personen an Bord</span>
+                          {vehicle.stationId && (
+                            <button
+                              type="button"
+                              className="btn btn--primary btn--klein"
+                              onClick={() => {
+                                setVerwaltenId(vehicle.stationId ?? null);
+                                setBearbeitenFahrzeugId(vehicle.id);
+                                setCurrentView('Wachen');
+                              }}
+                            >
+                              ✎ Fahrzeug bearbeiten
+                            </button>
+                          )}
+                        </div>
+                      </Popup>
+                    </Marker>
                   </Fragment>
                 );
               })}
@@ -1123,7 +1151,11 @@ Dein Guthaben: ${balance.toLocaleString('de-DE')} €`)) return;
                 personalAktionen={spiel}
                 onWacheKaufen={() => setWacheKaufenOffen(true)}
                 verwaltenId={verwaltenId}
-                setVerwaltenId={setVerwaltenId}
+                setVerwaltenId={(id) => {
+                  setVerwaltenId(id);
+                  setBearbeitenFahrzeugId(null);
+                }}
+                startFahrzeugId={bearbeitenFahrzeugId}
               />
             )}
 
