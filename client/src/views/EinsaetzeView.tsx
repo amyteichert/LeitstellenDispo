@@ -313,7 +313,7 @@ export default function EinsaetzeView({
                           <label>
                             <input type="checkbox" checked={selectedVehicleIds.includes(vehicle.id)} onChange={() => toggleVehicle(vehicle.id)} />
                             <span>
-                              <strong className="mit-kennzeichen"><Kennzeichen art="fahrzeug" typ={vehicle.type} groesse={22} />{vehicle.callsign ?? vehicle.name}</strong> · {vehicle.type}
+                              <strong className="mit-kennzeichen"><Kennzeichen art="fahrzeug" typ={vehicle.type} fahrzeug={vehicle} groesse={22} />{vehicle.callsign ?? vehicle.name}</strong> · {vehicle.type}
                               <small>
                                 <span title="Realistische Anfahrtszeit (Ausrückzeit + Straßenweg). Mit Straßen-Routing: Navi-Zeit, je nach Fahrzeugtyp etwas schneller oder langsamer.">Anfahrt ca. {formatDauer(anfahrtSekunden)}</span> · {station?.name ?? '–'} · {distanzKm.toFixed(1)} km
                                 {!passend && ' · zählt nicht zum Bedarf'}
@@ -363,7 +363,7 @@ export default function EinsaetzeView({
                       const fms = vehicle?.status ? FMS_STATUS[vehicle.status] : undefined;
                       return (
                         <li key={`${assignment.vehicleId}-${index}`}>
-                          <strong className="mit-kennzeichen"><Kennzeichen art="fahrzeug" typ={vehicle?.type} groesse={20} />{callSign}</strong>
+                          <strong className="mit-kennzeichen"><Kennzeichen art="fahrzeug" typ={vehicle?.type} fahrzeug={vehicle} groesse={20} />{callSign}</strong>
                           {selectedIncident.status !== 'abgeschlossen' && (
                             <span> – {fms !== undefined ? `S${fms} · ` : ''}{beschreibeZuteilung(selectedIncident, assignment, nowMs)}</span>
                           )}

@@ -70,10 +70,10 @@ const startTypFuer = (art: StationKind): FahrzeugTyp | undefined => {
   return [...startfaehig].sort((a, b) => a.preis - b.preis)[0];
 };
 
-/** Günstigster kaufbarer Fahrzeugtyp, der eine Bedarfsklasse erfüllt (ohne „braucht Krankenhaus“). */
+/** Günstigster kaufbarer Fahrzeugtyp, der eine Bedarfsklasse erfüllt (ohne „braucht Krankenhaus“ und ohne Sonder-Erweiterung). */
 const kaufTypFuer = (klasse: BedarfsKlasse): FahrzeugTyp | undefined =>
   FAHRZEUG_TYPEN
-    .filter((typ) => !typ.brauchtEigenesKrankenhaus && fahrzeugErfuelltBedarf(typ.typ, klasse))
+    .filter((typ) => !typ.brauchtEigenesKrankenhaus && !typ.brauchtErweiterung && fahrzeugErfuelltBedarf(typ.typ, klasse))
     .sort((a, b) => a.preis - b.preis)[0];
 
 const START_COORDS: [number, number] = [48.775, 9.1771];

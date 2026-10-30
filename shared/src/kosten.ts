@@ -23,6 +23,12 @@ export const KOSTEN_CONFIG = {
     maschinist_dlk: 10,
     gruppenfuehrer: 20,
     zugfuehrer: 40,
+    lna: 100,
+    orgl: 40,
+    pilot: 80,
+    gefahrgut: 10,
+    wasserrettung: 10,
+    hoehenretter: 15,
   } as Record<Qualifikation, number>,
   /** Unterhalt (Strom, Miete, Reinigung) je Wache und Stunde */
   wacheJeStunde: { Rettungswache: 80, Feuerwache: 150 } as Record<WachenArt, number>,

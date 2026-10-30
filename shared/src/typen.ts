@@ -36,6 +36,8 @@ export type MapLocation = {
   bewerber?: BewerberPool;
   /** Vom Spieler gewählte Hintergrundfarbe des Wachen-Logos (#rrggbb) – fehlt = Standard */
   logoFarbe?: string;
+  /** Lackfarbe aller Fahrzeuge dieser Wache (#rrggbb) – fehlt = Farbe der Organisation */
+  fahrzeugFarbe?: string;
 };
 
 export interface AusbildungsRaum {
@@ -89,6 +91,10 @@ export type Vehicle = {
   besatzung?: number;
   /** Gesetzt, wenn der Besatzung die Pflicht-Qualifikation fehlt (z. B. kein Notarzt auf dem NEF) – wird aus dem Personal berechnet */
   fehlendeQualifikation?: Qualifikation;
+  /** Eigene Grafik nur für dieses Fahrzeug (ID aus dem Grafik-Katalog) – fehlt = Grafik des Typs */
+  grafikId?: number;
+  /** Eigene Lackfarbe nur für dieses Fahrzeug (#rrggbb) – fehlt = Farbe der Wache bzw. der Organisation */
+  farbe?: string;
   /** Gesetzt, solange das Fahrzeug zurück zur Wache fährt (vom Einsatzort oder Krankenhaus) */
   rueckfahrt?: {
     von: Koordinaten;

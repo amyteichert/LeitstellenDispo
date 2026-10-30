@@ -13,11 +13,16 @@ import {
   hatFreienStellplatz,
   mitStellplatzErweiterung,
   mitWachenAnpassung,
+  mitSonderErweiterung,
+  getSonderErweiterung,
+  getKaufSperre,
+  istLogoFarbe,
   besetzeAutomatisch,
   erzeugeBesatzungFuer,
   bereinigePersonal,
   ladeAao,
   type AaoEintrag,
+  type GrafikAuswahl,
   getPersonalDerWache,
   getPersonalLimit,
   getRuheraumPreis,
@@ -274,6 +279,8 @@ export function useSpiel(optionen: UseSpielOptionen = {}) {
   const [funk, setFunk] = useState<FunkSpruch[]>(startSpiel.funk ?? []);
   // Eigene Alarm-Knöpfe (AAO)
   const [aao, setAao] = useState<AaoEintrag[]>(() => ladeAao(startSpiel.aao));
+  // Gewählte Fahrzeuggrafiken je Typ
+  const [grafiken, setGrafiken] = useState<GrafikAuswahl>(startSpiel.grafiken ?? {});
   const statusStand = useRef<Map<string, number> | null>(null);
   const bekannteMeldungen = useRef<Set<string> | null>(null);
 
@@ -331,6 +338,7 @@ export function useSpiel(optionen: UseSpielOptionen = {}) {
     setPersonal(spielstand.personal ?? []);
     setFunk(spielstand.funk ?? []);
     setAao(ladeAao(spielstand.aao));
+    setGrafiken(spielstand.grafiken ?? {});
     setKostenAbgerechnetBis(spielstand.kostenAbgerechnetBis);
     // Nach dem Laden neu einlesen, ohne alte Meldungen und Status nochmal zu funken
     statusStand.current = null;
@@ -378,10 +386,11 @@ export function useSpiel(optionen: UseSpielOptionen = {}) {
         funk,
         kostenAbgerechnetBis,
         aao,
+        grafiken,
       });
     }, 1000);
     return () => clearTimeout(timeout);
-  }, [spielstandGeladen, balance, transactions, locations, vehicles, incidents, completedIncidentHistory, krankenhaeuser, ruf, personal, funk, kostenAbgerechnetBis, aao]);
+  }, [spielstandGeladen, balance, transactions, locations, vehicles, incidents, completedIncidentHistory, krankenhaeuser, ruf, personal, funk, kostenAbgerechnetBis, aao, grafiken]);
 
   // Spielzeit
   useEffect(() => {
@@ -496,6 +505,9 @@ export function useSpiel(optionen: UseSpielOptionen = {}) {
     }
     if (fahrzeugTyp.brauchtEigenesKrankenhaus && !eigenesKrankenhaus) {
       return `Den ${typ} gibt es erst, wenn du ein eigenes Krankenhaus gebaut hast.`;
+    }
+    if (getKaufSperre(fahrzeugTyp, station, eigenesKrankenhaus)) {
+      return `Für den ${typ} braucht die Wache erst die Erweiterung „${getSonderErweiterung(fahrzeugTyp.brauchtErweiterung ?? '')?.name}“ (unter „Ausbau“).`;
     }
     if (!hatFreienStellplatz(station, vehicles)) {
       return `Kein freier Stellplatz (${getBelegteStellplaetze(station.id, vehicles)} von ${getStellplaetze(station)} belegt). Erweitere die Wache unter „Ausbau“.`;
@@ -643,7 +655,7 @@ export function useSpiel(optionen: UseSpielOptionen = {}) {
   };
 
   /** Name und Logo-Farbe einer Wache ändern. Gibt eine Fehlermeldung zurück oder null bei Erfolg. */
-  const passeWacheAn = (wacheId: string, aenderung: { name?: string; logoFarbe?: string | null }): string | null => {
+  const passeWacheAn = (wacheId: string, aenderung: { name?: string; logoFarbe?: string | null; fahrzeugFarbe?: string | null }): string | null => {
     const wache = locations.find((location) => location.id === wacheId && location.type === 'station');
     if (!wache) return 'Wache nicht gefunden.';
     const ergebnis = mitWachenAnpassung(wache, aenderung);
@@ -782,6 +794,49 @@ export function useSpiel(optionen: UseSpielOptionen = {}) {
     return null;
   };
 
+  /** Grafik für einen Fahrzeugtyp wählen (`undefined` = Standardgrafik) */
+  const waehleTypGrafik = (typ: string, grafikId: number | undefined) => {
+    setGrafiken((current) => {
+      const neu = { ...current };
+      if (grafikId === undefined) delete neu[typ];
+      else neu[typ] = grafikId;
+      return neu;
+    });
+  };
+
+  /** Eigene Grafik nur für ein Fahrzeug (`undefined` = wie der Typ) */
+  const waehleFahrzeugGrafik = (fahrzeugId: string, grafikId: number | undefined) => {
+    setVehicles((current) => current.map((vehicle) => {
+      if (vehicle.id !== fahrzeugId) return vehicle;
+      const { grafikId: _alt, ...rest } = vehicle;
+      return grafikId === undefined ? rest : { ...rest, grafikId };
+    }));
+  };
+
+  /** Eigene Lackfarbe nur für ein Fahrzeug (`undefined` = wie die Wache) */
+  const waehleFahrzeugFarbe = (fahrzeugId: string, farbe: string | undefined) => {
+    if (farbe !== undefined && !istLogoFarbe(farbe)) return;
+    setVehicles((current) => current.map((vehicle) => {
+      if (vehicle.id !== fahrzeugId) return vehicle;
+      const { farbe: _alt, ...rest } = vehicle;
+      return farbe === undefined ? rest : { ...rest, farbe: farbe.toLowerCase() };
+    }));
+  };
+
+  /** Baut eine Sonder-Erweiterung (schaltet Sonderfahrzeuge frei, z. B. Hubschrauberlandeplatz). */
+  const baueSonderErweiterung = (wacheId: string, erweiterungId: string): string | null => {
+    const wache = findeWache(wacheId);
+    const erweiterung = getSonderErweiterung(erweiterungId);
+    if (!wache || !erweiterung) return 'Erweiterung nicht gefunden.';
+    const ergebnis = mitSonderErweiterung(wache, erweiterungId);
+    if ('fehler' in ergebnis) return ergebnis.fehler;
+    if (balance < erweiterung.preis) return `Nicht genügend Guthaben. Benötigt: ${erweiterung.preis.toLocaleString('de-DE')} €.`;
+    setBalance((cur) => cur - erweiterung.preis);
+    addTransaction('Ausgabe', `${erweiterung.name} für ${wache.name}`, erweiterung.preis);
+    setLocations((current) => current.map((location) => (location.id === wacheId ? ergebnis.wache : location)));
+    return null;
+  };
+
   /** Baut eine Ruheraum-Stufe (mehr Personal-Plätze). */
   const baueRuheraum = (wacheId: string): string | null => {
     const wache = findeWache(wacheId);
@@ -877,6 +932,10 @@ export function useSpiel(optionen: UseSpielOptionen = {}) {
   return {
     aao,
     setAao,
+    grafiken,
+    waehleTypGrafik,
+    waehleFahrzeugGrafik,
+    waehleFahrzeugFarbe,
     schichtzulage,
     schichtzulageGesehen: () => setSchichtzulage(null),
     willkommen,
@@ -919,6 +978,7 @@ export function useSpiel(optionen: UseSpielOptionen = {}) {
     starteLehrgangAnWache,
     ausbildungsAbschluesse,
     baueZufriedenheitsAusbau,
+    baueSonderErweiterung,
     kuendigungen,
     funk,
     gibSprechaufforderung,

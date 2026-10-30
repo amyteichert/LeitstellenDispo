@@ -10,6 +10,11 @@ import {
   getWachenKostenJeStunde,
   getFahrzeugTyp,
   getFahrzeugTypenFuerWache,
+  getKaufSperre,
+  getMindestBesatzung,
+  getSonderErweiterung,
+  getSonderErweiterungenFuerWache,
+  hatSonderErweiterung,
   getStellplaetze,
   getStellplatzErweiterungen,
   getStellplatzPreis,
@@ -39,6 +44,8 @@ import PersonalReiter from './PersonalReiter';
 import FahrzeugBearbeiten from './FahrzeugBearbeiten';
 import AusbildungReiter, { type AusbildungAktionen } from './AusbildungReiter';
 import { Kennzeichen } from '../Kennzeichen';
+import { FahrzeugBild } from '../fahrzeugGrafik';
+import FarbWahl from './FarbWahl';
 
 type Reiter = 'Übersicht' | 'Fahrzeuge' | 'Personal' | 'Ausbildung' | 'Ausbau';
 const REITER: Reiter[] = ['Übersicht', 'Fahrzeuge', 'Personal', 'Ausbildung', 'Ausbau'];
@@ -55,6 +62,9 @@ export interface PersonalAktionen extends AusbildungAktionen {
   ausbildungsAbschluesse: AbgeschlossenerLehrgang[];
   kuendigungen: Kuendigung[];
   baueZufriedenheitsAusbau: (wacheId: string, ausbauId: ZufriedenheitsAusbau['id']) => string | null;
+  baueSonderErweiterung: (wacheId: string, erweiterungId: string) => string | null;
+  waehleFahrzeugGrafik: (fahrzeugId: string, grafikId: number | undefined) => void;
+  waehleFahrzeugFarbe: (fahrzeugId: string, farbe: string | undefined) => void;
   stellePersonalEin: (wacheId: string, bewerber: Bewerber) => string | null;
   wuerfleBewerberNeu: (wacheId: string) => string | null;
   entlassePersonal: (personId: string) => string | null;
@@ -63,7 +73,7 @@ export interface PersonalAktionen extends AusbildungAktionen {
   baueRuheraum: (wacheId: string) => string | null;
 }
 
-type WacheAnpassen = (wacheId: string, aenderung: { name?: string; logoFarbe?: string | null }) => string | null;
+type WacheAnpassen = (wacheId: string, aenderung: { name?: string; logoFarbe?: string | null; fahrzeugFarbe?: string | null }) => string | null;
 
 export default function WachenView({
   locations,
@@ -175,18 +185,19 @@ function WacheAnpassenFormular({
   const standard = WACHEN_LOGO_FARBEN[0].farbe;
   const [name, setName] = useState(wache.name);
   const [farbe, setFarbe] = useState<string>(wache.logoFarbe ?? standard);
+  const [fahrzeugFarbe, setFahrzeugFarbe] = useState<string | undefined>(wache.fahrzeugFarbe);
 
   return (
     <form
       className="einsatz-abschnitt wache-anpassen"
       onSubmit={(event) => {
         event.preventDefault();
-        const fehler = passeWacheAn(wache.id, { name, logoFarbe: farbe });
+        const fehler = passeWacheAn(wache.id, { name, logoFarbe: farbe, fahrzeugFarbe: fahrzeugFarbe ?? null });
         if (fehler) onFehler(fehler);
         else onFertig('✓ Wache angepasst.');
       }}
     >
-      <h4>Name und Logo</h4>
+      <h4>Name, Logo und Fahrzeugfarbe</h4>
       <label className="field">
         <span>Name</span>
         <input value={name} maxLength={WACHENNAME_MAX_LAENGE} onChange={(e) => setName(e.target.value)} />
@@ -211,6 +222,11 @@ function WacheAnpassenFormular({
             <input type="color" value={farbe} onChange={(e) => setFarbe(e.target.value)} aria-label="Eigene Farbe" />
           </label>
         </div>
+      </div>
+      <div className="field">
+        <span>Fahrzeugfarbe (alle Fahrzeuge der Wache)</span>
+        <FahrzeugBild typ={wache.stationKind === 'Feuerwache' ? 'HLF 20' : 'RTW'} farbe={fahrzeugFarbe} hoehe={44} />
+        <FarbWahl farbe={fahrzeugFarbe} setFarbe={setFahrzeugFarbe} standardText="Standard" />
       </div>
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
         <button type="submit" className="btn btn--primary" disabled={!name.trim()}>Speichern</button>
@@ -267,6 +283,8 @@ function WacheVerwalten({
   const erweiterungen = getStellplatzErweiterungen(wache);
   const stellplatzPreis = getStellplatzPreis(wache);
   const gewaehlterTyp = getFahrzeugTyp(kaufTyp);
+  const kaufSperre = gewaehlterTyp ? getKaufSperre(gewaehlterTyp, wache, eigenesKrankenhaus) : null;
+  const sonderErweiterungen = getSonderErweiterungenFuerWache(wache);
   const wachenPersonal = getPersonalDerWache(wache.id, personal);
   const personalLimit = getPersonalLimit(wache);
   const ruheraumStufe = getRuheraumStufe(wache);
@@ -409,7 +427,7 @@ function WacheVerwalten({
                       onClick={() => setOffenesFahrzeug(offenesFahrzeug === v.id ? null : v.id)}
                     >
                       <span>
-                        <strong className="mit-kennzeichen"><Kennzeichen art="fahrzeug" typ={v.type} groesse={24} />{v.callsign ?? v.name}</strong> – {v.type ?? '–'} · S{FMS_STATUS[v.status ?? 'Einsatzbereit']} {v.status ?? 'Einsatzbereit'}
+                        <strong className="mit-kennzeichen"><Kennzeichen art="fahrzeug" typ={v.type} fahrzeug={v} groesse={24} />{v.callsign ?? v.name}</strong> – {v.type ?? '–'} · S{FMS_STATUS[v.status ?? 'Einsatzbereit']} {v.status ?? 'Einsatzbereit'}
                         {!istAusreichendBesetzt(v) && <span className="ruf-minus"> · nicht besetzt</span>}
                       </span>
                       <span aria-hidden>{offenesFahrzeug === v.id ? '▴' : '✎'}</span>
@@ -421,6 +439,8 @@ function WacheVerwalten({
                         benenneFahrzeugUm={benenneFahrzeugUm}
                         weisePersonalZu={personalAktionen.weisePersonalZu}
                         besetzeFahrzeugAutomatisch={personalAktionen.besetzeFahrzeugAutomatisch}
+                        waehleFahrzeugGrafik={personalAktionen.waehleFahrzeugGrafik}
+                        waehleFahrzeugFarbe={personalAktionen.waehleFahrzeugFarbe}
                         onMeldung={setMeldung}
                       />
                     )}
@@ -441,33 +461,45 @@ function WacheVerwalten({
               </div>
             ) : (
               <>
-                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-                  <label className="field" style={{ flex: '1 1 160px' }}>
-                    <select value={kaufTyp} onChange={(e) => setKaufTyp(e.target.value)}>
-                      {kaufbareTypen.map((fahrzeugTyp) => {
-                        const gesperrt = fahrzeugTyp.brauchtEigenesKrankenhaus && !eigenesKrankenhaus;
-                        return (
-                          <option key={fahrzeugTyp.typ} value={fahrzeugTyp.typ} disabled={gesperrt}>
-                            {fahrzeugTyp.typ} – {euro(fahrzeugTyp.preis)}{gesperrt ? ' (erst mit eigenem Krankenhaus)' : ''}
-                          </option>
-                        );
-                      })}
-                    </select>
-                  </label>
-                  <button
-                    className="btn btn--primary"
-                    type="button"
-                    disabled={!gewaehlterTyp || balance < gewaehlterTyp.preis}
-                    onClick={kaufen}
-                  >
-                    Kaufen
-                  </button>
-                </div>
+                <ul className="kauf-raster">
+                  {kaufbareTypen.map((fahrzeugTyp) => {
+                    const sperre = getKaufSperre(fahrzeugTyp, wache, eigenesKrankenhaus);
+                    const erweiterung = fahrzeugTyp.brauchtErweiterung ? getSonderErweiterung(fahrzeugTyp.brauchtErweiterung) : undefined;
+                    return (
+                      <li key={fahrzeugTyp.typ}>
+                        <button
+                          type="button"
+                          className={`kauf-karte ${kaufTyp === fahrzeugTyp.typ ? 'kauf-karte--gewaehlt' : ''} ${sperre ? 'kauf-karte--gesperrt' : ''}`}
+                          aria-pressed={kaufTyp === fahrzeugTyp.typ}
+                          onClick={() => setKaufTyp(fahrzeugTyp.typ)}
+                        >
+                          <FahrzeugBild typ={fahrzeugTyp.typ} hoehe={40} />
+                          <strong>{fahrzeugTyp.typ}</strong>
+                          <small>{euro(fahrzeugTyp.preis)}</small>
+                          {sperre && <small className="kauf-karte__sperre">🔒 {erweiterung ? erweiterung.name : sperre}</small>}
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
                 {gewaehlterTyp && (
-                  <p style={{ fontSize: 12, color: 'var(--color-text-muted)', marginTop: 6 }}>
-                    {gewaehlterTyp.bezeichnung} · {gewaehlterTyp.besatzung} Personen · {gewaehlterTyp.geschwindigkeitKmh} km/h
-                    {' · '}{gewaehlterTyp.faehigkeiten.map((f) => FAEHIGKEIT_LABELS[f]).join(', ')}
-                  </p>
+                  <div className="kauf-auswahl">
+                    <p style={{ fontSize: 12, color: 'var(--color-text-muted)', margin: 0, flex: '1 1 240px' }}>
+                      <strong style={{ color: 'var(--color-text)' }}>{gewaehlterTyp.bezeichnung}</strong> – {gewaehlterTyp.beschreibung}
+                      <br />
+                      {gewaehlterTyp.besatzung} Sitze (ausrücken ab {getMindestBesatzung(gewaehlterTyp.typ)}) · {gewaehlterTyp.geschwindigkeitKmh} km/h
+                      {' · '}{gewaehlterTyp.faehigkeiten.map((f) => FAEHIGKEIT_LABELS[f]).join(', ')}
+                    </p>
+                    {kaufSperre ? (
+                      <button type="button" className="btn btn--secondary" onClick={() => setReiter('Ausbau')} disabled={!gewaehlterTyp.brauchtErweiterung}>
+                        {gewaehlterTyp.brauchtErweiterung ? `Erst „${getSonderErweiterung(gewaehlterTyp.brauchtErweiterung)?.name}“ bauen` : 'Erst mit eigenem Krankenhaus'}
+                      </button>
+                    ) : (
+                      <button className="btn btn--primary" type="button" disabled={balance < gewaehlterTyp.preis} onClick={kaufen}>
+                        {balance < gewaehlterTyp.preis ? `Es fehlen ${euro(gewaehlterTyp.preis - balance)}` : `${gewaehlterTyp.typ} kaufen · ${euro(gewaehlterTyp.preis)}`}
+                      </button>
+                    )}
+                  </div>
                 )}
               </>
             )}
@@ -541,6 +573,40 @@ function WacheVerwalten({
                       }}
                     >
                       {balance < preis ? `Es fehlen ${euro(preis - balance)}` : stufe === 0 ? 'Bauen' : 'Ausbauen'}
+                    </button>
+                  </>
+                )}
+              </article>
+            );
+          })}
+          {sonderErweiterungen.map((erweiterung) => {
+            const gebaut = hatSonderErweiterung(wache, erweiterung.id);
+            const fahrzeuge = kaufbareTypen.filter((t) => t.brauchtErweiterung === erweiterung.id);
+            return (
+              <article key={erweiterung.id} className="ausbau-karte">
+                <span className="ausbau-karte__kategorie">Sonderfahrzeuge</span>
+                <h3>{erweiterung.name}</h3>
+                <p>{erweiterung.text}</p>
+                <div className="ausbau-karte__fahrzeuge">
+                  {fahrzeuge.map((t) => (
+                    <span key={t.typ} className="mit-kennzeichen"><FahrzeugBild typ={t.typ} hoehe={22} /><small>{t.typ}</small></span>
+                  ))}
+                </div>
+                {gebaut ? (
+                  <div className="aktion-rueckmeldung">✓ Gebaut</div>
+                ) : (
+                  <>
+                    <div className="ausbau-karte__preis">{euro(erweiterung.preis)}</div>
+                    <button
+                      type="button"
+                      className="btn btn--primary"
+                      disabled={balance < erweiterung.preis}
+                      onClick={() => {
+                        const fehler = personalAktionen.baueSonderErweiterung(wache.id, erweiterung.id);
+                        setMeldung(fehler ? { art: 'fehler', text: fehler } : { art: 'ok', text: `✓ ${erweiterung.name} gebaut – neue Fahrzeuge unter „Fahrzeuge“.` });
+                      }}
+                    >
+                      {balance < erweiterung.preis ? `Es fehlen ${euro(erweiterung.preis - balance)}` : 'Bauen'}
                     </button>
                   </>
                 )}

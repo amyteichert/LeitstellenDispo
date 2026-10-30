@@ -24,7 +24,7 @@ describe('Einsatzanforderungen (Daten)', () => {
   });
 
   it('schickt für jeden Patienten genug Transportfahrzeuge (RTW/KTW) mit', () => {
-    const transportKlassen = ['RTW', 'KTW', 'Krankentransport'];
+    const transportKlassen = ['RTW', 'KTW', 'ITW', 'Krankentransport'];
     for (const vorlage of ALLE_EINSATZ_VORLAGEN.filter((v) => v.patienten)) {
       const transport = vorlage.requiredVehicles
         .filter((b) => transportKlassen.includes(b.category))

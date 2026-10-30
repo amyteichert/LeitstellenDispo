@@ -168,6 +168,24 @@ const MIGRATIONEN: Array<string | ((db: Datenbank) => void)> = [
   `
   ALTER TABLE profilbilder ADD COLUMN geprueft INTEGER NOT NULL DEFAULT 1;
   `,
+  // Fahrzeuggrafik-Katalog: von Spielern hochgeladen, für alle sichtbar. Der Name des Hochladenden bleibt
+  // auch nach dem Löschen des Kontos erhalten (von_name), das Konto selbst wird dann NULL.
+  // Neue Grafiken sehen andere erst nach Freigabe durchs Team (geprueft = 1).
+  `
+  CREATE TABLE fahrzeuggrafiken (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    benutzer_id  INTEGER REFERENCES benutzer(id) ON DELETE SET NULL,
+    von_name     TEXT    NOT NULL,
+    name         TEXT    NOT NULL,
+    fahrzeug_typ TEXT    NOT NULL,
+    daten        BLOB    NOT NULL,
+    typ          TEXT    NOT NULL,
+    erstellt     TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+    geprueft     INTEGER NOT NULL DEFAULT 0
+  );
+  CREATE INDEX fahrzeuggrafiken_typ ON fahrzeuggrafiken(fahrzeug_typ);
+  CREATE INDEX fahrzeuggrafiken_benutzer ON fahrzeuggrafiken(benutzer_id);
+  `,
 ];
 
 /** Öffnet (bzw. erstellt) die Datenbank und bringt das Schema auf den neuesten Stand. */

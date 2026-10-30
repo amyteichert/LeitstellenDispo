@@ -185,7 +185,7 @@ export function KarteEinsatzPanel({
                 <label>
                   <input type="checkbox" checked={auswahl.includes(vehicle.id)} onChange={() => toggle(vehicle.id)} />
                   <span>
-                    <strong className="mit-kennzeichen"><Kennzeichen art="fahrzeug" typ={vehicle.type} groesse={20} />{vehicle.callsign ?? vehicle.name}</strong> · {vehicle.type}
+                    <strong className="mit-kennzeichen"><Kennzeichen art="fahrzeug" typ={vehicle.type} fahrzeug={vehicle} groesse={20} />{vehicle.callsign ?? vehicle.name}</strong> · {vehicle.type}
                     <small>
                       <span title="Realistische Anfahrtszeit (Ausrückzeit + Straßenweg). Mit Straßen-Routing: Navi-Zeit, je nach Fahrzeugtyp etwas schneller oder langsamer.">Anfahrt {formatAnfahrt(anfahrtSekunden)}</span> · {locations.find((l) => l.id === vehicle.stationId)?.name ?? '–'} · {distanzKm.toFixed(1)} km
                       {!passend && ' · zählt nicht zum Bedarf'}

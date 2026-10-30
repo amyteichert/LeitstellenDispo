@@ -3,7 +3,8 @@
  * Die Grafiken sind feste SVG-Texte (24×24, weiße Linien auf farbigem Grund) oder Bilder aus public/symbole
  * (Flaticon – Bildnachweis im Impressum). Leaflet bekommt sie als HTML, React-Listen zeigen sie über <Kennzeichen …/>.
  */
-import { getEinsatzSymbol, getFahrzeugTyp, istLogoFarbe, type EinsatzSymbol, type FahrzeugKategorie, type SpielEinsatz, type StationKind } from '@leitstellendispo/shared';
+import { FahrzeugBild, fahrzeugBildHtml, type FahrzeugAussehen } from './fahrzeugGrafik';
+import { getEinsatzSymbol, istLogoFarbe, type EinsatzSymbol, type SpielEinsatz, type StationKind } from '@leitstellendispo/shared';
 
 const LINIE = 'fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"';
 const svg = (inhalt: string) => `<svg viewBox="0 0 24 24" width="100%" height="100%" ${LINIE} aria-hidden="true">${inhalt}</svg>`;
@@ -11,11 +12,9 @@ const svg = (inhalt: string) => `<svg viewBox="0 0 24 24" width="100%" height="1
 const bild = (datei: string, weiss = false) =>
   `<img src="/symbole/${datei}.png" alt="" draggable="false" class="kennzeichen__bild${weiss ? ' kennzeichen__bild--weiss' : ''}">`;
 
-// Bausteine für Fahrzeuge
+// Bausteine für das Verkehrsunfall-Symbol
 const RAEDER = '<circle cx="7" cy="17.5" r="1.6"/><circle cx="17" cy="17.5" r="1.6"/>';
 const PKW = '<path d="M3.5 16.5v-3l2-4h11l2.5 4v3"/><path d="M3.5 13.5h17M8.6 17.5h6.8"/>';
-const LKW = '<path d="M2.5 16.5V7.5h12v9M14.5 10.5h4l3 3.5v2.5"/><path d="M8.6 17.5h6.8M2.5 17.5h2.9M18.6 17.5h2.9"/>';
-const KREUZ_KLEIN = (x: number, y: number) => `<path d="M${x} ${y - 1.8}v3.6M${x - 1.8} ${y}h3.6"/>`;
 
 export const EINSATZ_GRAFIK: Record<EinsatzSymbol, string> = {
   brand: svg('<path d="M12 3c.8 2.8 5 4.8 5 10a5 5 0 0 1-10 0c0-2.6 1.4-3.8 2-5.2.6 1.6 1.4 2.2 2 2.2-.3-2.9.2-5.1 1-7z"/>'),
@@ -31,15 +30,6 @@ export const EINSATZ_GRAFIK: Record<EinsatzSymbol, string> = {
   krankentransport: svg('<path d="M3 7.5V19M3 15h18V19M3 12.5h7.5a2.5 2.5 0 0 1 2.5 2.5"/><circle cx="6.5" cy="10.5" r="1.7"/>'),
 };
 
-export const FAHRZEUG_GRAFIK: Record<FahrzeugKategorie, string> = {
-  RTW: bild('rtw', true),
-  KTW: bild('ktw', true),
-  NEF: svg(`${PKW}${RAEDER}${KREUZ_KLEIN(12, 5)}`),
-  Löschfahrzeug: bild('loeschfahrzeug', true),
-  Drehleiter: svg(`${LKW}${RAEDER}<path d="M3 6.5l14-4M6 5.6l.5 1.6M9.5 4.6l.5 1.6M13 3.6l.5 1.6"/>`),
-  Rüstwagen: svg(`${LKW}${RAEDER}<path d="M5 10.5h6.5M5 13.5h6.5"/>`),
-  Einsatzleitwagen: svg(`${PKW}${RAEDER}<path d="M15.5 9.5V3.5M15.5 3.5h3.5l-1 1.3 1 1.2h-3.5"/>`),
-};
 
 const WACHE_GRAFIK: Record<StationKind, string> = {
   Feuerwache: bild('feuerwache'),
@@ -53,12 +43,6 @@ const HELL = '#f4f6f8';
 /** Farben der Organisationen: Feuerwehr rot, Rettungsdienst orange */
 export const ORGANISATION_FARBE = { fw: '#c62828', rd: '#d4570f' } as const;
 
-export const getFahrzeugKategorie = (typ: string | undefined): FahrzeugKategorie =>
-  getFahrzeugTyp(typ)?.kategorie ?? 'RTW';
-
-export const getFahrzeugGrafik = (typ: string | undefined) => FAHRZEUG_GRAFIK[getFahrzeugKategorie(typ)];
-
-export const istFeuerwehrFahrzeug = (typ: string | undefined) => getFahrzeugTyp(typ)?.organisation === 'Feuerwehr';
 
 /** Innenabstand zur Grafik: fest in Pixeln (Prozent-Padding würde sich auf das Elternelement beziehen) */
 const abstand = (groesse: number) => Math.round(groesse * 0.16);
@@ -80,18 +64,20 @@ export const krankenhausMarkerHtml = (groesse = 26) =>
 export const einsatzMarkerHtml = (einsatz: Pick<SpielEinsatz, 'stichwort' | 'meldebild'>, farbe: string, groesse: number) =>
   `<span class="kennzeichen kennzeichen--einsatz" style="${kastenStil(groesse, farbe)}">${EINSATZ_GRAFIK[getEinsatzSymbol(einsatz)]}</span>`;
 
-/** Kleines Symbol vor einem Text (für Fahrzeug-Schilder auf der Karte) */
-export const fahrzeugSymbolHtml = (typ: string | undefined) => `<i class="kennzeichen-inline">${getFahrzeugGrafik(typ)}</i>`;
+/** Kleines Fahrzeugbild vor einem Text (für Fahrzeug-Schilder auf der Karte) – gewählte Grafik oder Standard */
+export const fahrzeugSymbolHtml = (fahrzeug: FahrzeugAussehen) => fahrzeugBildHtml(fahrzeug);
 
 type KennzeichenProps =
   | { art: 'wache'; wachenArt: StationKind | undefined; logoFarbe?: string }
   | { art: 'krankenhaus' }
-  | { art: 'fahrzeug'; typ: string | undefined }
+  | { art: 'fahrzeug'; typ: string | undefined; fahrzeug?: FahrzeugAussehen }
   | { art: 'einsatz'; einsatz: Pick<SpielEinsatz, 'stichwort' | 'meldebild' | 'organization'> };
 
 /** Symbol für Listen (Wachen, Fahrzeuge, Einsätze, Krankenhäuser) – gleiche Grafik wie auf der Karte */
 export function Kennzeichen(props: KennzeichenProps & { groesse?: number }) {
   const groesse = props.groesse ?? 30;
+  // Fahrzeuge zeigen ihr Bild (Seitenansicht) statt eines Symbols im Kästchen
+  if (props.art === 'fahrzeug') return <FahrzeugBild typ={props.typ} fahrzeug={props.fahrzeug} hoehe={groesse} />;
   let grafik: string;
   let farbe: string;
   let rund = false;
@@ -104,10 +90,6 @@ export function Kennzeichen(props: KennzeichenProps & { groesse?: number }) {
     grafik = KRANKENHAUS_GRAFIK;
     farbe = HELL;
     titel = 'Krankenhaus';
-  } else if (props.art === 'fahrzeug') {
-    grafik = getFahrzeugGrafik(props.typ);
-    farbe = istFeuerwehrFahrzeug(props.typ) ? ORGANISATION_FARBE.fw : ORGANISATION_FARBE.rd;
-    titel = getFahrzeugTyp(props.typ)?.bezeichnung ?? props.typ ?? 'Fahrzeug';
   } else {
     grafik = EINSATZ_GRAFIK[getEinsatzSymbol(props.einsatz)];
     farbe = props.einsatz.organization === 'Feuerwehr' ? ORGANISATION_FARBE.fw : ORGANISATION_FARBE.rd;

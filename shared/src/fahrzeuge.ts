@@ -1,12 +1,16 @@
-﻿/**
+/**
  * Zentraler Fahrzeugkatalog: Typen, Fähigkeiten, Besatzung, Geschwindigkeit und Preis.
  * Alle anderen Stellen (Kaufen, Alarmierung, Einsatzbedarf, Fahrzeiten) lesen nur von hier.
  */
 import { GAME_CONFIG } from './konfig.js';
 import type { EinsatzOrganisation, Vehicle, WachenArt } from './typen.js';
+import type { SonderErweiterungId } from './wachen.js';
 
 /** Grobe Fahrzeugklasse – so denkt der Disponent („2 LF und eine DLK“). */
-export type FahrzeugKategorie = 'RTW' | 'NEF' | 'KTW' | 'Löschfahrzeug' | 'Drehleiter' | 'Rüstwagen' | 'Einsatzleitwagen';
+export type FahrzeugKategorie =
+  | 'RTW' | 'NEF' | 'KTW' | 'ITW' | 'RTH' | 'LNA' | 'OrgL' | 'GW-San'
+  | 'Löschfahrzeug' | 'Drehleiter' | 'Rüstwagen' | 'Einsatzleitwagen' | 'Einsatzleitwagen 2'
+  | 'MTW' | 'GW-A' | 'GW-Öl' | 'Schlauchwagen' | 'GW-L2' | 'Kran' | 'GW-G' | 'GW-Mess' | 'Wasserrettung' | 'Höhenrettung';
 
 /** Was ein Fahrzeug kann. Bewusst wenige – nur was die Spiellogik aktuell nutzt. */
 export type Faehigkeit =
@@ -18,7 +22,22 @@ export type Faehigkeit =
   | 'notarzt'
   | 'schwere_technik'
   | 'rettungsgeraet'
-  | 'einsatzleitung';
+  | 'einsatzleitung'
+  | 'intensivtransport'
+  | 'luftrettung'
+  | 'leitender_notarzt'
+  | 'organisatorische_leitung'
+  | 'sanitaetsdienst'
+  | 'mannschaftstransport'
+  | 'atemschutz'
+  | 'oelbindung'
+  | 'wasserversorgung'
+  | 'logistik'
+  | 'kran'
+  | 'gefahrgut'
+  | 'messtechnik'
+  | 'wasserrettung'
+  | 'absturzsicherung';
 
 export const FAEHIGKEIT_LABELS: Record<Faehigkeit, string> = {
   brandbekaempfung: 'Brandbekämpfung',
@@ -30,6 +49,21 @@ export const FAEHIGKEIT_LABELS: Record<Faehigkeit, string> = {
   schwere_technik: 'Schwere technische Rettung',
   rettungsgeraet: 'Hydraulisches Rettungsgerät',
   einsatzleitung: 'Einsatzleitung',
+  intensivtransport: 'Intensivtransport',
+  luftrettung: 'Luftrettung',
+  leitender_notarzt: 'Leitender Notarzt',
+  organisatorische_leitung: 'Organisatorische Leitung Rettungsdienst',
+  sanitaetsdienst: 'Sanitätsdienst bei vielen Verletzten',
+  mannschaftstransport: 'Mannschaftstransport',
+  atemschutz: 'Atemschutz-Nachschub',
+  oelbindung: 'Ölschadenbekämpfung',
+  wasserversorgung: 'Wasserversorgung über lange Wege',
+  logistik: 'Logistik und Nachschub',
+  kran: 'Bergung schwerer Lasten',
+  gefahrgut: 'Gefahrgut-Abwehr',
+  messtechnik: 'Messen von Schadstoffen',
+  wasserrettung: 'Wasserrettung',
+  absturzsicherung: 'Spezielle Höhenrettung',
 };
 
 /** Qualifikationen des Personals – nur die, die ein Fahrzeug zwingend braucht. */
@@ -40,7 +74,13 @@ export type Qualifikation =
   | 'maschinist_dlk'
   | 'gruppenfuehrer'
   | 'zugfuehrer'
-  | 'technische_hilfe';
+  | 'technische_hilfe'
+  | 'lna'
+  | 'orgl'
+  | 'pilot'
+  | 'gefahrgut'
+  | 'wasserrettung'
+  | 'hoehenretter';
 
 export const QUALIFIKATION_LABELS: Record<Qualifikation, string> = {
   rettungssanitaeter: 'Rettungssanitäter',
@@ -50,6 +90,12 @@ export const QUALIFIKATION_LABELS: Record<Qualifikation, string> = {
   gruppenfuehrer: 'Gruppenführer',
   zugfuehrer: 'Zugführer',
   technische_hilfe: 'Technische Hilfeleistung',
+  lna: 'Leitender Notarzt',
+  orgl: 'Organisatorischer Leiter',
+  pilot: 'Hubschrauberpilot',
+  gefahrgut: 'Gefahrgut (ABC)',
+  wasserrettung: 'Wasserretter',
+  hoehenretter: 'Höhenretter',
 };
 
 /** Höhere Qualifikationen schließen niedrigere ein (z. B. darf ein Notfallsanitäter auch KTW fahren). */
@@ -57,6 +103,8 @@ const QUALIFIKATION_UMFASST: Partial<Record<Qualifikation, Qualifikation[]>> = {
   notfallsanitaeter: ['rettungssanitaeter'],
   notarzt: ['rettungssanitaeter'],
   zugfuehrer: ['gruppenfuehrer'],
+  lna: ['notarzt', 'rettungssanitaeter'],
+  orgl: ['notfallsanitaeter', 'rettungssanitaeter'],
 };
 
 /** Hat jemand mit diesen Qualifikationen die gesuchte – direkt oder über eine höhere? */
@@ -76,6 +124,8 @@ export interface FahrzeugTyp {
   geschwindigkeitKmh: number;
   /** Sollbesatzung (Personen) */
   besatzung: number;
+  /** Damit darf das Fahrzeug schon ausrücken – fehlt = Standard nach Größe (siehe getMindestBesatzung) */
+  mindestBesatzung?: number;
   faehigkeiten: Faehigkeit[];
   /** Jede dieser Qualifikationen muss mindestens eine Person der Besatzung haben */
   pflichtQualifikationen?: Qualifikation[];
@@ -83,60 +133,186 @@ export interface FahrzeugTyp {
   keinStartfahrzeug?: boolean;
   /** Erst kaufbar, wenn der Spieler ein eigenes Krankenhaus hat */
   brauchtEigenesKrankenhaus?: boolean;
+  /** Erst kaufbar, wenn die Wache diese Sonder-Erweiterung hat (z. B. Hubschrauberlandeplatz) */
+  brauchtErweiterung?: SonderErweiterungId;
+  /** Kurzer Text für das Fahrzeug-Lexikon: wofür man das Fahrzeug braucht */
+  beschreibung: string;
 }
 
 /** Alle Fahrzeugtypen, die im Spiel gekauft bzw. als Startfahrzeug gewählt werden können. */
 export const FAHRZEUG_TYPEN: FahrzeugTyp[] = [
+  // ---- Rettungsdienst ----
   {
     typ: 'RTW', bezeichnung: 'Rettungswagen', kategorie: 'RTW', organisation: 'Rettungsdienst', wachenArt: 'Rettungswache',
     preis: 4000, geschwindigkeitKmh: 60, besatzung: 2, faehigkeiten: ['patientenversorgung', 'patiententransport'], pflichtQualifikationen: ['notfallsanitaeter'],
+    beschreibung: 'Das Arbeitstier im Rettungsdienst: versorgt Notfallpatienten vor Ort und bringt sie ins Krankenhaus.',
   },
   {
     typ: 'NEF', bezeichnung: 'Notarzteinsatzfahrzeug', kategorie: 'NEF', organisation: 'Rettungsdienst', wachenArt: 'Rettungswache',
     preis: 3500, geschwindigkeitKmh: 70, besatzung: 2, faehigkeiten: ['notarzt', 'patientenversorgung'], pflichtQualifikationen: ['notarzt'],
+    beschreibung: 'Bringt den Notarzt schnell zum Einsatz. Transportiert selbst keine Patienten – dafür braucht es einen RTW.',
   },
   {
     typ: 'KTW', bezeichnung: 'Krankentransportwagen', kategorie: 'KTW', organisation: 'Rettungsdienst', wachenArt: 'Rettungswache',
     preis: 2500, geschwindigkeitKmh: 55, besatzung: 2, faehigkeiten: ['patiententransport'], pflichtQualifikationen: ['rettungssanitaeter'],
     keinStartfahrzeug: true, brauchtEigenesKrankenhaus: true,
+    beschreibung: 'Für planbare Krankentransporte ohne Notfall. Entlastet die RTW.',
+  },
+  {
+    typ: 'ITW', bezeichnung: 'Intensivtransportwagen', kategorie: 'ITW', organisation: 'Rettungsdienst', wachenArt: 'Rettungswache',
+    preis: 9000, geschwindigkeitKmh: 55, besatzung: 3, faehigkeiten: ['patientenversorgung', 'patiententransport', 'notarzt', 'intensivtransport'],
+    pflichtQualifikationen: ['notarzt', 'notfallsanitaeter'], keinStartfahrzeug: true,
+    beschreibung: 'Rollende Intensivstation mit Arzt an Bord. Kann überall einspringen, wo ein RTW gebraucht wird.',
+  },
+  {
+    typ: 'RTH', bezeichnung: 'Rettungshubschrauber', kategorie: 'RTH', organisation: 'Rettungsdienst', wachenArt: 'Rettungswache',
+    preis: 60000, geschwindigkeitKmh: 220, besatzung: 3, faehigkeiten: ['notarzt', 'patientenversorgung', 'luftrettung'],
+    pflichtQualifikationen: ['pilot', 'notarzt'], keinStartfahrzeug: true, brauchtErweiterung: 'hubschrauberlandeplatz',
+    beschreibung: 'Bringt den Notarzt aus der Luft – sehr schnell, auch weit draußen. Zählt überall, wo ein NEF gebraucht wird.',
+  },
+  {
+    typ: 'KdoW-LNA', bezeichnung: 'Kommandowagen Leitender Notarzt', kategorie: 'LNA', organisation: 'Rettungsdienst', wachenArt: 'Rettungswache',
+    preis: 3000, geschwindigkeitKmh: 70, besatzung: 1, faehigkeiten: ['leitender_notarzt'], pflichtQualifikationen: ['lna'],
+    keinStartfahrzeug: true, brauchtErweiterung: 'fuehrungsdienst',
+    beschreibung: 'Der Leitende Notarzt behält bei vielen Verletzten den medizinischen Überblick.',
+  },
+  {
+    typ: 'KdoW-OrgL', bezeichnung: 'Kommandowagen Organisatorischer Leiter', kategorie: 'OrgL', organisation: 'Rettungsdienst', wachenArt: 'Rettungswache',
+    preis: 3000, geschwindigkeitKmh: 70, besatzung: 1, faehigkeiten: ['organisatorische_leitung'], pflichtQualifikationen: ['orgl'],
+    keinStartfahrzeug: true, brauchtErweiterung: 'fuehrungsdienst',
+    beschreibung: 'Organisiert bei großen Lagen Bereitstellungsraum, Abtransport und Zusammenarbeit mit der Feuerwehr.',
+  },
+  {
+    typ: 'GW-San', bezeichnung: 'Gerätewagen Sanität', kategorie: 'GW-San', organisation: 'Rettungsdienst', wachenArt: 'Rettungswache',
+    preis: 5000, geschwindigkeitKmh: 55, besatzung: 6, faehigkeiten: ['sanitaetsdienst'], pflichtQualifikationen: ['rettungssanitaeter'],
+    keinStartfahrzeug: true, brauchtErweiterung: 'seg',
+    beschreibung: 'Schnelleinsatzgruppe mit Material für viele Verletzte (Behandlungsplatz, Tragen, Zelte).',
+  },
+  // ---- Feuerwehr: Löschfahrzeuge ----
+  {
+    typ: 'TSF-W', bezeichnung: 'Tragkraftspritzenfahrzeug Wasser', kategorie: 'Löschfahrzeug', organisation: 'Feuerwehr', wachenArt: 'Feuerwache',
+    preis: 3000, geschwindigkeitKmh: 55, besatzung: 6, faehigkeiten: ['brandbekaempfung'], pflichtQualifikationen: ['gruppenfuehrer'],
+    beschreibung: 'Kleines, günstiges Löschfahrzeug mit Wassertank – typisch für kleine Ortsfeuerwehren.',
+  },
+  {
+    typ: 'MLF', bezeichnung: 'Mittleres Löschfahrzeug', kategorie: 'Löschfahrzeug', organisation: 'Feuerwehr', wachenArt: 'Feuerwache',
+    preis: 4000, geschwindigkeitKmh: 54, besatzung: 6, faehigkeiten: ['brandbekaempfung', 'technische_hilfe'], pflichtQualifikationen: ['gruppenfuehrer'],
+    beschreibung: 'Wendiges Löschfahrzeug mit etwas Technik für kleinere Hilfeleistungen.',
   },
   {
     typ: 'LF 10', bezeichnung: 'Löschgruppenfahrzeug 10', kategorie: 'Löschfahrzeug', organisation: 'Feuerwehr', wachenArt: 'Feuerwache',
     preis: 5000, geschwindigkeitKmh: 52, besatzung: 9, faehigkeiten: ['brandbekaempfung', 'technische_hilfe'], pflichtQualifikationen: ['gruppenfuehrer'],
+    beschreibung: 'Solides Löschfahrzeug für eine ganze Gruppe – Brände und einfache technische Hilfe.',
   },
   {
     typ: 'LF 20', bezeichnung: 'Löschgruppenfahrzeug 20', kategorie: 'Löschfahrzeug', organisation: 'Feuerwehr', wachenArt: 'Feuerwache',
     preis: 6500, geschwindigkeitKmh: 50, besatzung: 9, faehigkeiten: ['brandbekaempfung', 'technische_hilfe'], pflichtQualifikationen: ['gruppenfuehrer'],
+    beschreibung: 'Größere Pumpe und mehr Wasser als das LF 10 – das Standard-Löschfahrzeug der Städte.',
+  },
+  {
+    typ: 'HLF 10', bezeichnung: 'Hilfeleistungslöschgruppenfahrzeug 10', kategorie: 'Löschfahrzeug', organisation: 'Feuerwehr', wachenArt: 'Feuerwache',
+    preis: 7000, geschwindigkeitKmh: 51, besatzung: 9, faehigkeiten: ['brandbekaempfung', 'technische_hilfe', 'rettungsgeraet'],
+    pflichtQualifikationen: ['gruppenfuehrer', 'technische_hilfe'],
+    beschreibung: 'Löschen und Retten in einem: mit Schere und Spreizer für eingeklemmte Personen.',
   },
   {
     typ: 'HLF 20', bezeichnung: 'Hilfeleistungslöschgruppenfahrzeug 20', kategorie: 'Löschfahrzeug', organisation: 'Feuerwehr', wachenArt: 'Feuerwache',
     preis: 8000, geschwindigkeitKmh: 50, besatzung: 9, faehigkeiten: ['brandbekaempfung', 'technische_hilfe', 'rettungsgeraet'],
     pflichtQualifikationen: ['gruppenfuehrer', 'technische_hilfe'],
+    beschreibung: 'Das Allround-Fahrzeug der Berufsfeuerwehr: viel Wasser und volle Rettungstechnik.',
   },
   {
     typ: 'TLF 2000', bezeichnung: 'Tanklöschfahrzeug 2000', kategorie: 'Löschfahrzeug', organisation: 'Feuerwehr', wachenArt: 'Feuerwache',
     preis: 4500, geschwindigkeitKmh: 50, besatzung: 3, faehigkeiten: ['brandbekaempfung'],
+    beschreibung: 'Kleine Besatzung, 2000 Liter Wasser – schnell beim Brand, aber keine technische Hilfe.',
   },
   {
     typ: 'TLF 3000', bezeichnung: 'Tanklöschfahrzeug 3000', kategorie: 'Löschfahrzeug', organisation: 'Feuerwehr', wachenArt: 'Feuerwache',
     preis: 5500, geschwindigkeitKmh: 48, besatzung: 3, faehigkeiten: ['brandbekaempfung'],
+    beschreibung: '3000 Liter Wasser an Bord – gut, wo Hydranten knapp sind.',
   },
   {
     typ: 'TLF 4000', bezeichnung: 'Tanklöschfahrzeug 4000', kategorie: 'Löschfahrzeug', organisation: 'Feuerwehr', wachenArt: 'Feuerwache',
     preis: 7000, geschwindigkeitKmh: 46, besatzung: 3, faehigkeiten: ['brandbekaempfung'],
+    beschreibung: 'Der große Tanker mit 4000 Litern – für Wald- und Flächenbrände.',
   },
+  // ---- Feuerwehr: Sonderfahrzeuge ----
   {
     typ: 'DLK 23/12', bezeichnung: 'Drehleiter mit Korb', kategorie: 'Drehleiter', organisation: 'Feuerwehr', wachenArt: 'Feuerwache',
     preis: 9000, geschwindigkeitKmh: 48, besatzung: 3, faehigkeiten: ['hoehenrettung', 'brandbekaempfung'], pflichtQualifikationen: ['maschinist_dlk'],
+    beschreibung: 'Rettet Menschen aus oberen Stockwerken und löscht von oben.',
   },
   {
     typ: 'RW', bezeichnung: 'Rüstwagen', kategorie: 'Rüstwagen', organisation: 'Feuerwehr', wachenArt: 'Feuerwache',
     preis: 7500, geschwindigkeitKmh: 50, besatzung: 3, faehigkeiten: ['technische_hilfe', 'schwere_technik', 'rettungsgeraet'],
     pflichtQualifikationen: ['technische_hilfe'], keinStartfahrzeug: true,
+    beschreibung: 'Werkzeugkiste auf Rädern: Seilwinde, Hebekissen, schweres Rettungsgerät.',
   },
   {
     typ: 'ELW 1', bezeichnung: 'Einsatzleitwagen 1', kategorie: 'Einsatzleitwagen', organisation: 'Feuerwehr', wachenArt: 'Feuerwache',
     preis: 6000, geschwindigkeitKmh: 60, besatzung: 3, faehigkeiten: ['einsatzleitung'], pflichtQualifikationen: ['zugfuehrer'], keinStartfahrzeug: true,
+    beschreibung: 'Der Zugführer leitet von hier aus größere Einsätze.',
+  },
+  {
+    typ: 'ELW 2', bezeichnung: 'Einsatzleitwagen 2', kategorie: 'Einsatzleitwagen 2', organisation: 'Feuerwehr', wachenArt: 'Feuerwache',
+    preis: 12000, geschwindigkeitKmh: 50, besatzung: 4, faehigkeiten: ['einsatzleitung'], pflichtQualifikationen: ['zugfuehrer'],
+    keinStartfahrzeug: true, brauchtErweiterung: 'fuehrungsstelle',
+    beschreibung: 'Mobile Führungsstelle für Großlagen mit mehreren Einsatzabschnitten. Kann auch einen ELW 1 ersetzen.',
+  },
+  {
+    typ: 'MTW', bezeichnung: 'Mannschaftstransportwagen', kategorie: 'MTW', organisation: 'Feuerwehr', wachenArt: 'Feuerwache',
+    preis: 2000, geschwindigkeitKmh: 65, besatzung: 9, mindestBesatzung: 1, faehigkeiten: ['mannschaftstransport'], keinStartfahrzeug: true,
+    beschreibung: 'Bringt zusätzliche Einsatzkräfte zur Einsatzstelle, z. B. bei langen Pump- oder Aufräumarbeiten.',
+  },
+  {
+    typ: 'GW-A', bezeichnung: 'Gerätewagen Atemschutz', kategorie: 'GW-A', organisation: 'Feuerwehr', wachenArt: 'Feuerwache',
+    preis: 5000, geschwindigkeitKmh: 55, besatzung: 2, faehigkeiten: ['atemschutz'], keinStartfahrzeug: true,
+    beschreibung: 'Bringt Nachschub an Atemschutzgeräten – Pflicht bei langen Innenangriffen.',
+  },
+  {
+    typ: 'GW-Öl', bezeichnung: 'Gerätewagen Öl', kategorie: 'GW-Öl', organisation: 'Feuerwehr', wachenArt: 'Feuerwache',
+    preis: 4000, geschwindigkeitKmh: 55, besatzung: 3, faehigkeiten: ['oelbindung'], keinStartfahrzeug: true,
+    beschreibung: 'Bindemittel, Ölsperren und Pumpen für große Ölschäden auf Straße und Wasser.',
+  },
+  {
+    typ: 'SW 2000', bezeichnung: 'Schlauchwagen 2000', kategorie: 'Schlauchwagen', organisation: 'Feuerwehr', wachenArt: 'Feuerwache',
+    preis: 5500, geschwindigkeitKmh: 50, besatzung: 3, faehigkeiten: ['wasserversorgung'], keinStartfahrzeug: true, brauchtErweiterung: 'logistik',
+    beschreibung: 'Verlegt 2 km Schlauch während der Fahrt – Wasser für Wald- und Großbrände.',
+  },
+  {
+    typ: 'GW-L2', bezeichnung: 'Gerätewagen Logistik 2', kategorie: 'GW-L2', organisation: 'Feuerwehr', wachenArt: 'Feuerwache',
+    preis: 6000, geschwindigkeitKmh: 52, besatzung: 3, faehigkeiten: ['logistik'], keinStartfahrzeug: true, brauchtErweiterung: 'logistik',
+    beschreibung: 'Fährt Nachschub: Schläuche, Sandsäcke, Verpflegung, Ersatzmaterial.',
+  },
+  {
+    typ: 'FwK', bezeichnung: 'Feuerwehrkran', kategorie: 'Kran', organisation: 'Feuerwehr', wachenArt: 'Feuerwache',
+    preis: 15000, geschwindigkeitKmh: 40, besatzung: 2, faehigkeiten: ['kran', 'schwere_technik'], pflichtQualifikationen: ['technische_hilfe'],
+    keinStartfahrzeug: true, brauchtErweiterung: 'logistik',
+    beschreibung: 'Hebt umgestürzte LKW, Busse und Bäume. Langsam, aber durch nichts zu ersetzen.',
+  },
+  {
+    typ: 'GW-G', bezeichnung: 'Gerätewagen Gefahrgut', kategorie: 'GW-G', organisation: 'Feuerwehr', wachenArt: 'Feuerwache',
+    preis: 9000, geschwindigkeitKmh: 50, besatzung: 3, faehigkeiten: ['gefahrgut'], pflichtQualifikationen: ['gefahrgut'],
+    keinStartfahrzeug: true, brauchtErweiterung: 'gefahrgut',
+    beschreibung: 'Chemikalienschutzanzüge, Auffangwannen, Abdichtmaterial – für Unfälle mit gefährlichen Stoffen.',
+  },
+  {
+    typ: 'GW-Mess', bezeichnung: 'Gerätewagen Messtechnik', kategorie: 'GW-Mess', organisation: 'Feuerwehr', wachenArt: 'Feuerwache',
+    preis: 7000, geschwindigkeitKmh: 60, besatzung: 3, faehigkeiten: ['messtechnik'], pflichtQualifikationen: ['gefahrgut'],
+    keinStartfahrzeug: true, brauchtErweiterung: 'gefahrgut',
+    beschreibung: 'Misst Gase und Schadstoffe – klärt, ob es gefährlich ist und wie weit evakuiert werden muss.',
+  },
+  {
+    typ: 'GW-Wasserrettung', bezeichnung: 'Gerätewagen Wasserrettung', kategorie: 'Wasserrettung', organisation: 'Feuerwehr', wachenArt: 'Feuerwache',
+    preis: 6000, geschwindigkeitKmh: 55, besatzung: 4, faehigkeiten: ['wasserrettung'], pflichtQualifikationen: ['wasserrettung'],
+    keinStartfahrzeug: true, brauchtErweiterung: 'wasserrettung',
+    beschreibung: 'Mit Boot und Tauchausrüstung – rettet Personen aus Flüssen, Seen und vom Eis.',
+  },
+  {
+    typ: 'GW-Höhenrettung', bezeichnung: 'Gerätewagen Höhenrettung', kategorie: 'Höhenrettung', organisation: 'Feuerwehr', wachenArt: 'Feuerwache',
+    preis: 7500, geschwindigkeitKmh: 55, besatzung: 4, faehigkeiten: ['absturzsicherung'], pflichtQualifikationen: ['hoehenretter'],
+    keinStartfahrzeug: true, brauchtErweiterung: 'hoehenrettung',
+    beschreibung: 'Seiltechnik für Rettungen von Kränen, Masten und aus Schächten – wo die Drehleiter nicht hinkommt.',
   },
 ];
 
@@ -182,6 +358,21 @@ export function getFehlendeQualifikationen(
     .filter((pflicht) => !besatzung.some((person) => besitztQualifikation(person.qualifikationen, pflicht)));
 }
 
+/**
+ * Warum ein Typ an dieser Wache (noch) nicht kaufbar ist – oder null, wenn er kaufbar ist.
+ * Prüft Wachenart, eigenes Krankenhaus und Sonder-Erweiterung (nicht Geld und Stellplatz).
+ */
+export function getKaufSperre(
+  typ: FahrzeugTyp,
+  wache: { stationKind?: WachenArt; ausbau?: Record<string, number> },
+  eigenesKrankenhaus: boolean,
+): string | null {
+  if (typ.wachenArt !== (wache.stationKind ?? 'Rettungswache')) return `${typ.typ} passt nicht zu einer ${wache.stationKind ?? 'Rettungswache'}.`;
+  if (typ.brauchtEigenesKrankenhaus && !eigenesKrankenhaus) return 'erst mit eigenem Krankenhaus';
+  if (typ.brauchtErweiterung && !(wache.ausbau?.[typ.brauchtErweiterung] ?? 0)) return 'Erweiterung nötig';
+  return null;
+}
+
 /** Fahrzeugtypen, die beim Bau einer Wache als Startfahrzeug wählbar sind */
 export function getStartfahrzeugTypen(wachenArt: WachenArt): FahrzeugTyp[] {
   return getFahrzeugTypenFuerWache(wachenArt).filter((eintrag) => !eintrag.keinStartfahrzeug);
@@ -196,11 +387,25 @@ export function getFahrzeugGeschwindigkeit(typ?: string): number {
   return getFahrzeugTyp(typ)?.geschwindigkeitKmh ?? GAME_CONFIG.averageSpeedKmh;
 }
 
-/** Ist das Fahrzeug ausreichend besetzt? Ältere Spielstände ohne Angabe gelten als voll besetzt. */
+/**
+ * Mit so vielen Personen darf ein Fahrzeug ausrücken – wie in echt muss nicht jeder Sitz belegt sein:
+ * Gruppe (9) fährt auch als Staffel (6), Staffel (6) als 4er-Trupp, kleine Fahrzeuge mit einer Person weniger (mind. 2).
+ */
+export function getMindestBesatzung(typ?: string): number {
+  const fahrzeugTyp = getFahrzeugTyp(typ);
+  if (!fahrzeugTyp) return 1;
+  if (fahrzeugTyp.mindestBesatzung !== undefined) return fahrzeugTyp.mindestBesatzung;
+  const soll = fahrzeugTyp.besatzung;
+  if (soll >= 9) return 6;
+  if (soll >= 6) return 4;
+  return Math.min(soll, Math.max(2, soll - 1));
+}
+
+/** Ist das Fahrzeug ausreichend besetzt (Mindestbesatzung + Pflicht-Qualifikationen)? Ältere Spielstände ohne Angabe gelten als besetzt. */
 export function istAusreichendBesetzt(vehicle: Pick<Vehicle, 'type' | 'besatzung' | 'fehlendeQualifikation'>): boolean {
   if (vehicle.fehlendeQualifikation) return false;
   if (vehicle.besatzung === undefined) return true;
-  return vehicle.besatzung >= (getFahrzeugTyp(vehicle.type)?.besatzung ?? 1);
+  return vehicle.besatzung >= getMindestBesatzung(vehicle.type);
 }
 
 // ---------------------------------------------------------------------------
@@ -213,6 +418,26 @@ export function istAusreichendBesetzt(vehicle: Pick<Vehicle, 'type' | 'besatzung
  */
 export type BedarfsKlasse = FahrzeugKategorie | 'Technische Hilfe' | 'Rettungsgerät' | 'Krankentransport';
 
+/** Neue Kategorien, die ein Einsatz genau so anfordert, wie sie heißen (ein Fahrzeug = ein Platz) */
+const EINFACHE_KLASSEN: Array<[FahrzeugKategorie, string]> = [
+  ['RTH', 'RTH'],
+  ['ITW', 'ITW'],
+  ['LNA', 'LNA'],
+  ['OrgL', 'OrgL'],
+  ['GW-San', 'GW-San'],
+  ['Einsatzleitwagen 2', 'ELW 2'],
+  ['MTW', 'MTW'],
+  ['GW-A', 'GW-A'],
+  ['GW-Öl', 'GW-Öl'],
+  ['Schlauchwagen', 'SW'],
+  ['GW-L2', 'GW-L2'],
+  ['Kran', 'Kran'],
+  ['GW-G', 'GW-G'],
+  ['GW-Mess', 'GW-Mess'],
+  ['Wasserrettung', 'GW-Wasserrettung'],
+  ['Höhenrettung', 'GW-Höhenrettung'],
+];
+
 interface BedarfsKlassenInfo {
   /** Anzeige, z. B. „LF/HLF (Technische Hilfe)“ */
   label: string;
@@ -221,13 +446,18 @@ interface BedarfsKlassenInfo {
 }
 
 export const BEDARFS_KLASSEN: Record<BedarfsKlasse, BedarfsKlassenInfo> = {
-  RTW: { label: 'RTW', kategorien: ['RTW'] },
-  NEF: { label: 'NEF', kategorien: ['NEF'] },
+  ...(Object.fromEntries(EINFACHE_KLASSEN.map(([kategorie, label]) => [kategorie, { label, kategorien: [kategorie] }])) as
+    Record<(typeof EINFACHE_KLASSEN)[number][0], BedarfsKlassenInfo>),
+  /** Ein ITW kann jeden RTW ersetzen */
+  RTW: { label: 'RTW', kategorien: ['RTW', 'ITW'] },
+  /** Der Notarzt kann auch mit dem Hubschrauber kommen */
+  NEF: { label: 'NEF', kategorien: ['NEF', 'RTH'] },
   Löschfahrzeug: { label: 'Löschfahrzeug', kategorien: ['Löschfahrzeug'] },
   Drehleiter: { label: 'Drehleiter', kategorien: ['Drehleiter'] },
   KTW: { label: 'KTW', kategorien: ['KTW'] },
   Rüstwagen: { label: 'Rüstwagen', kategorien: ['Rüstwagen'] },
-  Einsatzleitwagen: { label: 'ELW', kategorien: ['Einsatzleitwagen'] },
+  /** Ein ELW 2 kann auch einen ELW 1 ersetzen */
+  Einsatzleitwagen: { label: 'ELW', kategorien: ['Einsatzleitwagen', 'Einsatzleitwagen 2'] },
   'Technische Hilfe': { label: 'LF/HLF/RW (Techn. Hilfe)', faehigkeit: 'technische_hilfe' },
   /** Schere und Spreizer für eingeklemmte Personen: nur HLF und Rüstwagen */
   Rettungsgerät: { label: 'HLF/RW (Rettungsgerät)', faehigkeit: 'rettungsgeraet' },

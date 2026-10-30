@@ -28,6 +28,12 @@ export const LEHRGAENGE: Lehrgang[] = [
   { qualifikation: 'maschinist_dlk', dauerMs: 1 * TAG, kosten: 1500, wachenArt: 'Feuerwache' },
   { qualifikation: 'technische_hilfe', dauerMs: 1 * TAG, kosten: 1500, wachenArt: 'Feuerwache' },
   { qualifikation: 'zugfuehrer', dauerMs: 3 * TAG, kosten: 3500, wachenArt: 'Feuerwache', voraussetzung: 'gruppenfuehrer' },
+  { qualifikation: 'gefahrgut', dauerMs: 2 * TAG, kosten: 2500, wachenArt: 'Feuerwache' },
+  { qualifikation: 'wasserrettung', dauerMs: 2 * TAG, kosten: 2500, wachenArt: 'Feuerwache' },
+  { qualifikation: 'hoehenretter', dauerMs: 3 * TAG, kosten: 3000, wachenArt: 'Feuerwache' },
+  { qualifikation: 'orgl', dauerMs: 2 * TAG, kosten: 4000, wachenArt: 'Rettungswache', voraussetzung: 'notfallsanitaeter' },
+  { qualifikation: 'lna', dauerMs: 3 * TAG, kosten: 8000, wachenArt: 'Rettungswache', voraussetzung: 'notarzt' },
+  { qualifikation: 'pilot', dauerMs: 7 * TAG, kosten: 15000, wachenArt: 'Rettungswache' },
 ];
 
 export const AUSBILDUNG_CONFIG = {

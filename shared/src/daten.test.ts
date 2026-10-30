@@ -30,7 +30,7 @@ describe('Spieldaten', () => {
   });
 
   it('bietet je Wachenart nur passende Fahrzeuge an', () => {
-    expect(getFahrzeugTypenFuerWache('Rettungswache').map((eintrag) => eintrag.typ)).toEqual(['RTW', 'NEF', 'KTW']);
+    expect(getFahrzeugTypenFuerWache('Rettungswache').map((eintrag) => eintrag.typ)).toEqual(['RTW', 'NEF', 'KTW', 'ITW', 'RTH', 'KdoW-LNA', 'KdoW-OrgL', 'GW-San']);
     expect(getFahrzeugTypenFuerWache('Feuerwache').every((eintrag) => eintrag.wachenArt === 'Feuerwache')).toBe(true);
     expect(getFahrzeugKategorie('HLF 20')).toBe('Löschfahrzeug');
     expect(getFahrzeugKategorie('Unbekannt')).toBeNull();

@@ -26,11 +26,12 @@ export const PERSONAL_CONFIG = {
   /** Personal-Plätze einer neuen Wache */
   limit: { Rettungswache: 6, Feuerwache: 12 } as Record<WachenArt, number>,
   grundpreis: 1500,
-  qualifikationsPreis: { notfallsanitaeter: 1500, notarzt: 4000, maschinist_dlk: 1000, gruppenfuehrer: 1500, zugfuehrer: 3000, rettungssanitaeter: 500, technische_hilfe: 800 } as Record<Qualifikation, number>,
+  qualifikationsPreis: { notfallsanitaeter: 1500, notarzt: 4000, maschinist_dlk: 1000, gruppenfuehrer: 1500, zugfuehrer: 3000, rettungssanitaeter: 500, technische_hilfe: 800,
+    lna: 6000, orgl: 3000, pilot: 8000, gefahrgut: 1500, wasserrettung: 1500, hoehenretter: 2000 } as Record<Qualifikation, number>,
   /** Wahrscheinlichkeit, dass ein Bewerber diese Qualifikation mitbringt – je Wachenart */
   qualifikationsChance: {
-    Rettungswache: { rettungssanitaeter: 0.5, notfallsanitaeter: 0.45, notarzt: 0.12 },
-    Feuerwache: { gruppenfuehrer: 0.2, maschinist_dlk: 0.2, zugfuehrer: 0.06, technische_hilfe: 0.35 },
+    Rettungswache: { rettungssanitaeter: 0.5, notfallsanitaeter: 0.45, notarzt: 0.12, orgl: 0.04, lna: 0.02, pilot: 0.03 },
+    Feuerwache: { gruppenfuehrer: 0.2, maschinist_dlk: 0.2, zugfuehrer: 0.06, technische_hilfe: 0.35, gefahrgut: 0.1, wasserrettung: 0.08, hoehenretter: 0.05 },
   } as Record<WachenArt, Partial<Record<Qualifikation, number>>>,
   bewerberAnzahl: 4,
 } as const;

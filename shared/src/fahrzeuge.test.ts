@@ -83,7 +83,15 @@ describe('Besatzung', () => {
     expect(istAusreichendBesetzt({ type: 'RTW' })).toBe(true);
     expect(istAusreichendBesetzt({ type: 'RTW', besatzung: 2 })).toBe(true);
     expect(istAusreichendBesetzt({ type: 'RTW', besatzung: 1 })).toBe(false);
-    expect(istAusreichendBesetzt({ type: 'HLF 20', besatzung: 6 })).toBe(false);
+    // Gruppenfahrzeuge rücken auch als Staffel aus, aber nicht mit weniger
+    expect(istAusreichendBesetzt({ type: 'HLF 20', besatzung: 6 })).toBe(true);
+    expect(istAusreichendBesetzt({ type: 'HLF 20', besatzung: 5 })).toBe(false);
+    expect(istAusreichendBesetzt({ type: 'MLF', besatzung: 4 })).toBe(true);
+    expect(istAusreichendBesetzt({ type: 'DLK 23/12', besatzung: 2 })).toBe(true);
+    expect(istAusreichendBesetzt({ type: 'DLK 23/12', besatzung: 1 })).toBe(false);
+    expect(istAusreichendBesetzt({ type: 'MTW', besatzung: 1 })).toBe(true);
+    // Mindestbesatzung allein reicht nicht, wenn die Pflicht-Qualifikation fehlt
+    expect(istAusreichendBesetzt({ type: 'HLF 20', besatzung: 9, fehlendeQualifikation: 'gruppenfuehrer' })).toBe(false);
   });
 });
 

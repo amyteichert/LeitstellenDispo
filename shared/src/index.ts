@@ -27,3 +27,4 @@ export * from './websiteStatistik.js';
 export * from './bot/index.js';
 export * from './routen.js';
 export * from './aao.js';
+export * from './fahrzeuggrafiken.js';

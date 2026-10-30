@@ -11,6 +11,7 @@ import { erstelleTeamRouter, ladeAnkuendigung } from './team.js';
 import { erstelleWebsiteRouter } from './website.js';
 import { erstelleFehlermeldungRouter } from './fehlermeldungen.js';
 import { erstelleRoutenRouter } from './routen.js';
+import { erstelleFahrzeuggrafikRouter } from './fahrzeuggrafiken.js';
 
 // Feste Beispieldaten für den ersten Durchstich – wird später durch echte Einsatzlogik ersetzt.
 const beispielEinsaetze: Einsatz[] = [
@@ -34,6 +35,8 @@ export function erstelleApp(db: Datenbank, optionen: { bcryptRunden?: number; si
   app.use('/api/spielstand', erstelleSpielstandRouter(db, konten, optionen.einsaetzeAufraeumenBis));
   // Besucherstatistik: Die Website (andere Domain) meldet Aufrufe als Text – eigener Parser im Router
   app.use('/api/website', erstelleWebsiteRouter(db));
+  // Fahrzeuggrafiken: Bilder brauchen ebenfalls ein größeres Limit als der allgemeine JSON-Parser
+  app.use('/api/fahrzeuggrafiken', erstelleFahrzeuggrafikRouter(db, konten));
   app.use(express.json());
 
   app.use('/api/auth', erstelleAuthRouter(konten, optionen));

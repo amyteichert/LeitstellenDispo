@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useContext, useState } from 'react';
 import {
   FAEHIGKEIT_LABELS,
   FMS_STATUS,
@@ -7,11 +7,14 @@ import {
   besitztQualifikation,
   getFahrzeugTyp,
   getFehlendeQualifikationen,
+  getMindestBesatzung,
   istInAusbildung,
   kannUmbesetzen,
   type Mitarbeiter,
 } from '@leitstellendispo/shared';
 import type { Vehicle } from '../types';
+import { FahrzeugBild, GrafikKontext, useFahrzeuggrafiken } from '../fahrzeugGrafik';
+import FarbWahl from './FarbWahl';
 
 type Melde = (meldung: { art: 'ok' | 'fehler'; text: string }) => void;
 
@@ -25,6 +28,8 @@ export default function FahrzeugBearbeiten({
   benenneFahrzeugUm,
   weisePersonalZu,
   besetzeFahrzeugAutomatisch,
+  waehleFahrzeugGrafik,
+  waehleFahrzeugFarbe,
   onMeldung,
 }: {
   fahrzeug: Vehicle;
@@ -33,6 +38,8 @@ export default function FahrzeugBearbeiten({
   benenneFahrzeugUm: (fahrzeugId: string, name: string) => string | null;
   weisePersonalZu: (personId: string, fahrzeugId?: string) => string | null;
   besetzeFahrzeugAutomatisch: (fahrzeugId: string) => string | null;
+  waehleFahrzeugGrafik: (fahrzeugId: string, grafikId: number | undefined) => void;
+  waehleFahrzeugFarbe: (fahrzeugId: string, farbe: string | undefined) => void;
   onMeldung: Melde;
 }) {
   const [name, setName] = useState(fahrzeug.callsign ?? fahrzeug.name);
@@ -47,6 +54,10 @@ export default function FahrzeugBearbeiten({
     .sort((a, b) => Number(fehlend.some((q) => besitztQualifikation(b.qualifikationen, q)))
       - Number(fehlend.some((q) => besitztQualifikation(a.qualifikationen, q))));
   const voll = besatzung.length >= soll;
+  const mindest = getMindestBesatzung(fahrzeug.type);
+  const { grafiken } = useFahrzeuggrafiken();
+  const typAuswahl = useContext(GrafikKontext).auswahl[fahrzeug.type ?? ''];
+  const passendeGrafiken = (grafiken ?? []).filter((g) => g.fahrzeugTyp === fahrzeug.type);
 
   const melde = (fehler: string | null, ok: string) => onMeldung(fehler ? { art: 'fehler', text: fehler } : { art: 'ok', text: ok });
 
@@ -76,6 +87,7 @@ export default function FahrzeugBearbeiten({
 
       <section className="einsatz-abschnitt">
         <h4>Besatzung ({besatzung.length}/{soll})</h4>
+        {mindest < soll && <small className="einsatz-eintrag__zeile">Rückt schon ab {mindest} Personen aus (mit Pflicht-Qualifikation an Bord).</small>}
         <div className="fahrzeug-bearbeiten__zeile">
           {typ?.pflichtQualifikationen?.map((pflicht) => (
             <small key={pflicht} className={fehlend.includes(pflicht) ? 'ruf-minus' : 'ruf-plus'}>
@@ -139,6 +151,28 @@ export default function FahrzeugBearbeiten({
           >
             Automatisch besetzen
           </button>
+        </div>
+      </section>
+
+      <section className="einsatz-abschnitt">
+        <h4>Grafik</h4>
+        <div className="fahrzeug-bearbeiten__zeile">
+          <FahrzeugBild fahrzeug={fahrzeug} hoehe={44} />
+          <label className="field" style={{ flex: '1 1 200px', margin: 0 }}>
+            <select
+              value={fahrzeug.grafikId ?? ''}
+              aria-label="Grafik dieses Fahrzeugs"
+              onChange={(event) => waehleFahrzeugGrafik(fahrzeug.id, event.target.value ? Number(event.target.value) : undefined)}
+            >
+              <option value="">Wie alle {fahrzeug.type ?? 'Fahrzeuge'} ({typAuswahl === undefined ? 'Standard' : passendeGrafiken.find((g) => g.id === typAuswahl)?.name ?? 'eigene Wahl'})</option>
+              {passendeGrafiken.map((g) => <option key={g.id} value={g.id}>{g.name} – von {g.vonName}</option>)}
+            </select>
+          </label>
+        </div>
+        <small className="einsatz-eintrag__zeile">Weitere Grafiken findest und lädst du unter „Fahrzeuge → Katalog“ hoch.</small>
+        <div className="field" style={{ marginTop: 8 }}>
+          <span>Farbe (gilt für die gezeichnete Grafik und das Schild auf der Karte)</span>
+          <FarbWahl farbe={fahrzeug.farbe} setFarbe={(farbe) => waehleFahrzeugFarbe(fahrzeug.id, farbe)} standardText="Wie die Wache" />
         </div>
       </section>
 

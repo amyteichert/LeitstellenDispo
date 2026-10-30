@@ -15,6 +15,7 @@ import { RUF_CONFIG } from './bewertung.js';
 import { erzeugeBesatzungFuer, synchronisiereBesatzung, type Mitarbeiter } from './personal.js';
 import type { FunkSpruch } from './funk.js';
 import type { AaoEintrag } from './aao.js';
+import type { GrafikAuswahl } from './fahrzeuggrafiken.js';
 import { getFehlendeQualifikationen, type Qualifikation } from './fahrzeuge.js';
 import type { FinanceTransaction, MapLocation, Vehicle } from './typen.js';
 
@@ -42,6 +43,8 @@ export interface Spielstand {
   kostenAbgerechnetBis?: number;
   /** Eigene Alarm-Knöpfe (AAO) – fehlt bei älteren Spielständen (dann die Standard-Knöpfe) */
   aao?: AaoEintrag[];
+  /** Gewählte Fahrzeuggrafiken je Fahrzeugtyp – fehlt = überall die Standardgrafik */
+  grafiken?: GrafikAuswahl;
 }
 
 export const START_WACHEN: MapLocation[] = [

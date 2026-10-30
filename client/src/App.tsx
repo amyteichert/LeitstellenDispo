@@ -4,6 +4,8 @@ import { MapContainer, Marker, Polyline, Popup, TileLayer, useMap, useMapEvents 
 import L, { type LeafletMouseEvent } from 'leaflet';
 import {
   anzeigeName,
+  getSchriftFarbe,
+  type Vehicle,
   getBegruessung,
   APP_VERSION,
   getRufLabel,
@@ -49,6 +51,7 @@ import { spieleFunkPiep } from './ton';
 import { getEinstellungen, useEinstellungen } from './einstellungen';
 import FunkView from './views/FunkView';
 import FahrzeugeView from './views/FahrzeugeView';
+import { GrafikKontext, fahrzeugFarbeModul, setzeModulAuswahl } from './fahrzeugGrafik';
 import WachenView from './views/WachenView';
 import AaoView from './views/AaoView';
 import KrankenhaeuserView from './views/KrankenhaeuserView';
@@ -122,13 +125,17 @@ const FAHRT_LINIEN_FARBEN: Record<FahrzeugFahrt['art'], string> = {
   rueckfahrt: '#9ca3af',
 };
 
-const createVehicleMarkerIcon = (label: string, art: FahrzeugFahrt['art'], organisation: 'fw' | 'rd', typ: string | undefined) =>
-  L.divIcon({
+const createVehicleMarkerIcon = (label: string, art: FahrzeugFahrt['art'], organisation: 'fw' | 'rd', fahrzeug: Vehicle) => {
+  // Eigene Lackfarbe färbt auch das Schild – Schrift automatisch hell oder dunkel
+  const farbe = fahrzeugFarbeModul(fahrzeug);
+  const stil = farbe ? ` style="background:${farbe};color:${getSchriftFarbe(farbe)}"` : '';
+  return L.divIcon({
     className: `vehicle-marker vehicle-marker--${art} vehicle-marker--${organisation}`,
-    html: `<span>${fahrzeugSymbolHtml(typ)}${label.replace(/[&<>"']/g, (z) => `&#${z.charCodeAt(0)};`)}</span>`,
+    html: `<span${stil}>${fahrzeugSymbolHtml(fahrzeug)}${label.replace(/[&<>"']/g, (z) => `&#${z.charCodeAt(0)};`)}</span>`,
     iconSize: undefined,
     iconAnchor: [0, 0],
   });
+};
 
 /** Neue Spieler: Karte auf die eigene Stadt setzen statt auf den Standard-Ausschnitt */
 function StartStadt({ onGefunden }: { onGefunden: (coords: [number, number]) => void }) {
@@ -319,7 +326,6 @@ function App({ konto, onAbmelden, gast = false, setKonto }: {
     completedIncidentHistory,
     completedIncidentStats,
     nowMs,
-    addVehicle,
     markiereMeldungGelesen,
   } = spiel;
 
@@ -681,7 +687,13 @@ Dein Guthaben: ${balance.toLocaleString('de-DE')} €`)) return;
     setCurrentView('Karte');
   };
 
+  // Gewählte Fahrzeuggrafiken auch für die Karten-HTML (außerhalb von React)
+  const wachenListe = useMemo(() => spiel.locations.filter((l) => l.type === 'station'), [spiel.locations]);
+  const grafikKontext = useMemo(() => ({ auswahl: spiel.grafiken, wachen: wachenListe }), [spiel.grafiken, wachenListe]);
+  setzeModulAuswahl(spiel.grafiken, wachenListe);
+
   return (
+    <GrafikKontext.Provider value={grafikKontext}>
     <div className="app-shell">
       {hinweise.length > 0 && (
         <div className="einsatz-hinweise" role="status" aria-live="polite">
@@ -1083,7 +1095,7 @@ Dein Guthaben: ${balance.toLocaleString('de-DE')} €`)) return;
                     )}
                     <Marker
                       position={fahrt.position}
-                      icon={createVehicleMarkerIcon(vehicle.callsign ?? vehicle.name, fahrt.art, organisation, vehicle.type)}
+                      icon={createVehicleMarkerIcon(vehicle.callsign ?? vehicle.name, fahrt.art, organisation, vehicle)}
                       zIndexOffset={2000}
                       interactive={false}
                     />
@@ -1164,7 +1176,14 @@ Dein Guthaben: ${balance.toLocaleString('de-DE')} €`)) return;
             )}
 
             {currentView === 'Fahrzeuge' && (
-              <FahrzeugeView vehicles={vehicles} addVehicle={addVehicle} stations={locations.filter(l => l.type === 'station')} />
+              <FahrzeugeView
+                vehicles={vehicles}
+                stations={locations.filter((l) => l.type === 'station')}
+                grafiken={spiel.grafiken}
+                waehleTypGrafik={spiel.waehleTypGrafik}
+                konto={konto}
+                gast={gast}
+              />
             )}
 
             {currentView === 'Einsätze' && (
@@ -1259,6 +1278,7 @@ Dein Guthaben: ${balance.toLocaleString('de-DE')} €`)) return;
       {/* Schnellzugriff am Handy unten – am PC steht er oben in der Kopfzeile */}
       {schnellzugriff('unten')}
     </div>
+    </GrafikKontext.Provider>
   );
 }
 
