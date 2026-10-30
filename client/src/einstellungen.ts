@@ -22,7 +22,7 @@ export type Design = 'blau' | 'rot' | 'lila' | 'gruen' | 'schwarz' | 'hell';
 
 /** Auswahl in den Einstellungen – `farbe` ist nur die Vorschau-Kachel */
 export const DESIGNS: Array<{ wert: Design; text: string; farbe: string; hintergrund: string }> = [
-  { wert: 'blau', text: 'Neon-Blau', farbe: '#0a7cff', hintergrund: '#0d1117' },
+  { wert: 'blau', text: 'Neon-Blau', farbe: '#0a7cff', hintergrund: '#0a101b' },
   { wert: 'rot', text: 'Neon-Rot', farbe: '#ff2d55', hintergrund: '#12080b' },
   { wert: 'lila', text: 'Neon-Lila', farbe: '#b14dff', hintergrund: '#0e0816' },
   { wert: 'gruen', text: 'Neon-Grün', farbe: '#1fd655', hintergrund: '#06100a' },
@@ -69,7 +69,7 @@ const wendeDesignAn = (design: Design) => {
   const gueltig = DESIGNS.some((d) => d.wert === design) ? design : 'blau';
   document.documentElement.dataset.design = gueltig;
   const hintergrund = DESIGNS.find((d) => d.wert === gueltig)?.hintergrund;
-  document.querySelector('meta[name="theme-color"]')?.setAttribute('content', hintergrund ?? '#0d1117');
+  document.querySelector('meta[name="theme-color"]')?.setAttribute('content', hintergrund ?? '#0a101b');
 };
 
 let aktuell = lade();

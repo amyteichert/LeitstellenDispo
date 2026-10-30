@@ -1,5 +1,5 @@
 :root {
-  /* LeitstellenDispo Design – ruhig und sachlich: neutrale Flächen, ein Neon-Dunkelblau als Akzent, Rot nur für Einsätze/Warnungen */
+  /* LeitstellenDispo Design – Leitstelle bei Nacht: tiefblaue Flächen, Neon-Blau als Akzent, Statusfarben kräftig */
   color-scheme: dark;
   --color-primary: #0a7cff;
   --color-primary-dark: #0066e0;
@@ -7,27 +7,27 @@
   --color-primary-text: #5aa9ff; /* Akzent für Text auf dunklem Grund */
   --color-on-primary: #fff;
   --glow-primary: 0 0 12px rgba(10, 124, 255, 0.55);
-  --color-bg: #0d1117;
-  --color-surface: #151b23;
-  --color-surface-raised: #1c232d;
-  --color-input: #10151c;
-  --color-text: #e6edf3;
-  --color-text-muted: #9aa4b2;
-  --color-border: #252d38;
-  --color-border-strong: #323c49;
+  --color-bg: #0a101b;
+  --color-surface: #111a29;
+  --color-surface-raised: #182336;
+  --color-input: #0d1521;
+  --color-text: #e8eef7;
+  --color-text-muted: #98a7bd;
+  --color-border: #1f2b3e;
+  --color-border-strong: #2b3a52;
   --color-success: #2ea043;
   --color-danger: #d93f3f;
   --color-warning: #d29922;
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
   --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.3);
   --shadow-card: 0 8px 24px rgba(0, 0, 0, 0.35);
-  --radius: 4px;
-  /* Statusfarben (Karte, Listen, Badges) – gedeckt wie in einem Einsatzleitrechner */
-  --status-offen: #c9972b;
-  --status-alarmiert: #4a7fd4;
-  --status-bearbeitung: #c2453f;
-  --status-transport: #8a6fd1;
-  --status-abgeschlossen: #6b7280;
+  --radius: 6px;
+  /* Statusfarben (Karte, Listen, Badges) – kräftig, damit Einsätze auf einen Blick auffallen */
+  --status-offen: #f0a92c;
+  --status-alarmiert: #4f8ff7;
+  --status-bearbeitung: #e5484d;
+  --status-transport: #9b7cf0;
+  --status-abgeschlossen: #6b7686;
   --font: 'Inter', system-ui, -apple-system, sans-serif;
 }
 

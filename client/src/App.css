@@ -2875,34 +2875,39 @@ a.anmeldung__link { text-align: center; }
 
 
 /* ==========================================================================
-   Leitstellen-Look: nüchtern, dicht, wenig Farbe – angelehnt an einen
-   Einsatzleitrechner. Farbe nur für den Status, keine Leucht- und Blinkeffekte.
+   Leitstellen-Look: dicht und ruhig wie ein Einsatzleitrechner, aber mit
+   Farbe dort, wo sie etwas sagt (Status, Einsatzart, Karte).
    ========================================================================== */
 
 /* Kopfzeile und Chips: flacher und kleiner */
 .topbar { min-height: 52px; padding: 6px 16px; }
+
+/* Blaulicht-Kante unter der Kopfzeile (nur Standard-Design; die Neon-Designs haben ihre eigene Leuchtkante) */
+html[data-design='blau'] .topbar::after,
+html[data-design='schwarz'] .topbar::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -1px;
+  height: 2px;
+  background: linear-gradient(90deg, var(--color-primary), transparent 38%, transparent 62%, var(--status-bearbeitung));
+  opacity: 0.85;
+  pointer-events: none;
+}
 .chip { min-height: 30px; padding: 0 8px; border-radius: var(--radius); font-size: 0.8rem; }
 .btn { border-radius: var(--radius); }
 .view-menu-item { border-radius: var(--radius); }
 
-/* Status: kleiner farbiger Punkt + Text, keine farbigen Flächen */
+/* Status: kompaktes Etikett in Statusfarbe (Farben aus [O1]) */
 .status-badge {
-  padding: 0;
-  border: 0;
-  border-radius: 0;
-  background: none !important;
-  color: var(--color-text-muted) !important;
-  font-size: 0.7rem;
-  font-weight: 600;
+  padding: 1px 7px;
+  border-radius: var(--radius);
+  font-size: 0.68rem;
+  font-weight: 700;
   letter-spacing: 0.04em;
   text-transform: uppercase;
 }
-.status-badge::before { width: 8px; height: 8px; border-radius: 2px; }
-.status-badge--offen::before { background: var(--status-offen); }
-.status-badge--alarmiert::before { background: var(--status-alarmiert); }
-.status-badge--in_bearbeitung::before { background: var(--status-bearbeitung); }
-.status-badge--transport::before { background: var(--status-transport); }
-.status-badge--abgeschlossen::before { background: var(--status-abgeschlossen); }
 
 /* Einsatzliste: Zeilen statt Karten */
 .einsatz-liste { gap: 4px; }
@@ -2914,14 +2919,6 @@ a.anmeldung__link { text-align: center; }
   border-left-width: 3px;
 }
 .einsatz-eintrag__zeile { font-size: 0.8rem; }
-
-/* Symbole in Listen und Details neutral – Farbe zeigt nur die Statusleiste */
-.einsatz-eintrag .kennzeichen,
-.einsatz-details .kennzeichen,
-.einsatz-aufgeklappt .kennzeichen {
-  background: var(--color-surface-raised) !important;
-  border: 1px solid var(--color-border-strong);
-}
 
 /* Fahrzeugbedarf: sachliche Kästchen, fehlende Kräfte nur als Textfarbe */
 .bedarf-chip,
@@ -2976,11 +2973,17 @@ a.anmeldung__link { text-align: center; }
   box-shadow: var(--shadow-sm);
 }
 
-/* Karte: keine pulsierenden Marker, Eskalation als schlichter Ring */
-.incident-marker--offen .kennzeichen { animation: none; }
-.incident-marker--fw .kennzeichen { border-radius: 3px; }
-.incident-marker--eskaliert .kennzeichen { outline: 2px solid var(--status-bearbeitung); }
-.incident-marker--eskaliert::after { background: var(--status-bearbeitung); box-shadow: none; }
+/* Karte: offene Einsätze pulsieren ruhig, eskalierte leuchten rot */
+.incident-marker--offen .kennzeichen { animation: incident-pulse 2.4s ease-out infinite; }
+.incident-marker--fw .kennzeichen { border-radius: 4px; }
+.incident-marker--eskaliert .kennzeichen {
+  outline: 2px solid var(--status-bearbeitung);
+  box-shadow: 0 0 10px rgba(229, 72, 77, 0.7);
+}
+.incident-marker--eskaliert::after { background: var(--status-bearbeitung); }
+@media (prefers-reduced-motion: reduce) {
+  .incident-marker--offen .kennzeichen { animation: none; }
+}
 
 /* Fahrzeugschilder auf der Karte: kleiner, ohne Leuchtrand.
    Farbe = Organisation (Feuerwehr rot, Rettungsdienst gelb), der Punkt rechts = Fahrtstatus */
