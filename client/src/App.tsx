@@ -1207,8 +1207,10 @@ Dein Guthaben: ${balance.toLocaleString('de-DE')} €`)) return;
               <AaoView aao={spiel.aao} setAao={spiel.setAao} wachen={locations.filter((l) => l.type === 'station')} />
             )}
 
-            {currentView === 'Fahrzeuge' && (
+            {(currentView === 'Fahrzeuge' || currentView === 'Fahrzeugkatalog') && (
               <FahrzeugeView
+                key={currentView}
+                bereich={currentView}
                 vehicles={vehicles}
                 stations={locations.filter((l) => l.type === 'station')}
                 grafiken={spiel.grafiken}
