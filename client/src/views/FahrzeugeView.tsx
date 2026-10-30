@@ -9,6 +9,7 @@ import {
   fahrzeugErfuelltBedarf,
   formatEuro,
   getFahrzeugTyp,
+  getKaufSperre,
   getMindestBesatzung,
   getSonderErweiterung,
   istTeamRolle,
@@ -27,8 +28,22 @@ const einsaetzeFuer = (typ: string) =>
   ALLE_EINSATZ_VORLAGEN.filter((vorlage) => vorlage.requiredVehicles.some((bedarf) => fahrzeugErfuelltBedarf(typ, bedarf.category)));
 
 /** Zwei Menüpunkte: „Fahrzeuge“ (eigene Flotte) und „Fahrzeugkatalog“ (alle Typen mit Grafiken) */
+/** Ob der Spieler diesen Typ jetzt kaufen kann: an welchen Wachen, sonst was noch fehlt */
+function getKaufStatus(typ: FahrzeugTyp, stations: MapLocation[], eigenesKrankenhaus: boolean): { kaufbarAn: string[]; fehlt: string[] } {
+  const passende = stations.filter((s) => (s.stationKind ?? 'Rettungswache') === typ.wachenArt);
+  const kaufbarAn = passende.filter((s) => !getKaufSperre(typ, s, eigenesKrankenhaus)).map((s) => s.name);
+  if (kaufbarAn.length > 0) return { kaufbarAn, fehlt: [] };
+  const fehlt: string[] = [];
+  if (passende.length === 0) fehlt.push(`eine ${typ.wachenArt}`);
+  if (typ.brauchtEigenesKrankenhaus && !eigenesKrankenhaus) fehlt.push('ein eigenes Krankenhaus');
+  const erweiterung = typ.brauchtErweiterung ? getSonderErweiterung(typ.brauchtErweiterung) : undefined;
+  if (erweiterung) fehlt.push(`die Erweiterung „${erweiterung.name}“ an einer ${typ.wachenArt} (${formatEuro(erweiterung.preis)}, unter Wachen → Ausbau)`);
+  return { kaufbarAn, fehlt };
+}
+
 export default function FahrzeugeView({
   bereich,
+  eigenesKrankenhaus,
   vehicles,
   stations,
   grafiken: auswahl,
@@ -37,6 +52,7 @@ export default function FahrzeugeView({
   gast,
 }: {
   bereich: 'Fahrzeuge' | 'Fahrzeugkatalog';
+  eigenesKrankenhaus: boolean;
   vehicles: Vehicle[];
   stations: MapLocation[];
   grafiken: GrafikAuswahl;
@@ -67,8 +83,8 @@ export default function FahrzeugeView({
       {bereich === 'Fahrzeugkatalog' && (
         <>
           <p className="einsatz-eintrag__zeile" style={{ marginTop: 0 }}>
-            Alle {FAHRZEUG_TYPEN.length} Fahrzeugtypen mit ihren Daten. Tippe auf ein Fahrzeug, um seine Grafik zu wählen –
-            die Grafiken laden Spieler hoch und alle können sie verwenden.
+            Alle {FAHRZEUG_TYPEN.length} Fahrzeugtypen mit ihren Daten. Tippe auf ein Fahrzeug, um zu sehen, was es kann, wofür es
+            alarmiert wird und was du zum Kaufen brauchst – und um seine Grafik zu wählen.
           </p>
           <div className="katalog-filter">
             {(['Alle', 'Feuerwehr', 'Rettungsdienst'] as Filter[]).map((f) => (
@@ -82,6 +98,7 @@ export default function FahrzeugeView({
           {offenerTyp && (
             <FahrzeugDetail
               typ={offenerTyp}
+              kaufStatus={getKaufStatus(offenerTyp, stations, eigenesKrankenhaus)}
               gewaehlt={auswahl[offenerTyp.typ]}
               waehle={(id) => waehleTypGrafik(offenerTyp.typ, id)}
               grafiken={(katalog.grafiken ?? []).filter((g) => g.fahrzeugTyp === offenerTyp.typ)}
@@ -109,6 +126,9 @@ export default function FahrzeugeView({
                     {formatEuro(typ.preis)} · {getMindestBesatzung(typ.typ)}–{typ.besatzung} Pers. · {typ.geschwindigkeitKmh} km/h
                   </span>
                   <span className="katalog-karte__marken">
+                    {getKaufStatus(typ, stations, eigenesKrankenhaus).kaufbarAn.length > 0
+                      ? <span className="katalog-marke katalog-marke--kaufbar">✓ Kaufbar</span>
+                      : <span className="katalog-marke katalog-marke--gesperrt">🔒 Gesperrt</span>}
                     {typ.brauchtErweiterung && <span className="katalog-marke">{getSonderErweiterung(typ.brauchtErweiterung)?.name}</span>}
                     {typ.brauchtEigenesKrankenhaus && <span className="katalog-marke">Eigenes Krankenhaus</span>}
                     {(anzahlGrafiken.get(typ.typ) ?? 0) > 0 && <span className="katalog-marke katalog-marke--grafik">{anzahlGrafiken.get(typ.typ)} Grafiken</span>}
@@ -148,6 +168,7 @@ export default function FahrzeugeView({
 
 function FahrzeugDetail({
   typ,
+  kaufStatus,
   gewaehlt,
   waehle,
   grafiken,
@@ -159,6 +180,7 @@ function FahrzeugDetail({
   onSchliessen,
 }: {
   typ: FahrzeugTyp;
+  kaufStatus: { kaufbarAn: string[]; fehlt: string[] };
   gewaehlt: number | undefined;
   waehle: (id: number | undefined) => void;
   grafiken: Fahrzeuggrafik[];
@@ -173,6 +195,7 @@ function FahrzeugDetail({
   const [datei, setDatei] = useState<File | null>(null);
   const [laeuft, setLaeuft] = useState(false);
   const [meldung, setMeldung] = useState<{ art: 'ok' | 'fehler'; text: string } | null>(null);
+  const [alleEinsaetze, setAlleEinsaetze] = useState(false);
   const einsaetze = einsaetzeFuer(typ.typ);
   const erweiterung = typ.brauchtErweiterung ? getSonderErweiterung(typ.brauchtErweiterung) : undefined;
   const team = istTeamRolle(konto.rolle);
@@ -231,10 +254,23 @@ function FahrzeugDetail({
           {typ.brauchtEigenesKrankenhaus && ' – erst mit eigenem Krankenhaus'}
           {typ.keinStartfahrzeug ? '' : ' · auch als Startfahrzeug'}
         </dd>
-        <dt>Gebraucht bei</dt>
+        <dt>Für dich</dt>
         <dd>
-          {einsaetze.length === 0 ? '–' : einsaetze.slice(0, 8).map((v) => v.meldebild).join(', ')}
-          {einsaetze.length > 8 && ` und ${einsaetze.length - 8} weiteren`}
+          {kaufStatus.kaufbarAn.length > 0
+            ? <span className="ruf-plus">✓ Kaufbar an: {kaufStatus.kaufbarAn.join(', ')} (unter Wachen → Fahrzeuge)</span>
+            : <span className="ruf-minus">🔒 Noch gesperrt – dir fehlt {kaufStatus.fehlt.join(' und ')}</span>}
+        </dd>
+        <dt>Alarmiert bei ({einsaetze.length})</dt>
+        <dd>
+          {einsaetze.length === 0 ? '–' : (alleEinsaetze ? einsaetze : einsaetze.slice(0, 8)).map((v) => v.meldebild).join(', ')}
+          {einsaetze.length > 8 && (
+            <>
+              {' '}
+              <button type="button" className="btn btn--klein" onClick={() => setAlleEinsaetze(!alleEinsaetze)}>
+                {alleEinsaetze ? 'Weniger' : `Alle ${einsaetze.length} zeigen`}
+              </button>
+            </>
+          )}
         </dd>
       </dl>
 

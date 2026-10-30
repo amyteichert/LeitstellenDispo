@@ -1179,6 +1179,7 @@ Dein Guthaben: ${balance.toLocaleString('de-DE')} €`)) return;
               <FahrzeugeView
                 key={currentView}
                 bereich={currentView}
+                eigenesKrankenhaus={spiel.eigenesKrankenhaus}
                 vehicles={vehicles}
                 stations={locations.filter((l) => l.type === 'station')}
                 grafiken={spiel.grafiken}
