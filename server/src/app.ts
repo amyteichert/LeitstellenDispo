@@ -38,7 +38,7 @@ export function erstelleApp(db: Datenbank, optionen: { bcryptRunden?: number; si
 
   app.use('/api/auth', erstelleAuthRouter(konten, optionen));
   app.use('/api/team', erstelleTeamRouter(db, konten, optionen));
-  app.use('/api/fehlermeldung', erstelleFehlermeldungRouter(db, konten));
+  app.use('/api/fehlermeldung', erstelleFehlermeldungRouter(db, konten, optionen));
   app.use('/api/routen', erstelleRoutenRouter(optionen.osrmUrl));
 
   // Ankündigung des Teams – für alle sichtbar (auch auf der Anmeldeseite möglich)

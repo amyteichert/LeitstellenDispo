@@ -2,20 +2,23 @@
 import { Router, type Response } from 'express';
 import { FEHLERMELDUNG_MAX_LAENGE, fasseSpielstandZusammen, type Fehlermeldung, type FehlermeldungKontext, type Konto } from '@leitstellendispo/shared';
 import type { Datenbank } from './datenbank.js';
-import { ladeKonto, nurAngemeldet } from './auth.js';
+import { ladeKonto, nurAngemeldet, spielBasisUrl, type AuthOptionen } from './auth.js';
 import type { KontenDienst } from './konten.js';
+import { KEIN_MAILVERSAND } from './mail.js';
 
 /** Höchstens so viele Meldungen pro Konto und Stunde */
 const MAX_PRO_STUNDE = 5;
 
 const kurz = (wert: unknown, max = 200) => (typeof wert === 'string' ? wert.slice(0, max) : '');
 
-export function erstelleFehlermeldungRouter(db: Datenbank, konten: KontenDienst): Router {
+export function erstelleFehlermeldungRouter(db: Datenbank, konten: KontenDienst, optionen: AuthOptionen = {}): Router {
   const router = Router();
+  const mailversand = optionen.mailversand ?? KEIN_MAILVERSAND;
   const sql = {
     anzahlLetzteStunde: db.prepare("SELECT COUNT(*) AS n FROM fehlermeldungen WHERE benutzer_id = ? AND zeit > strftime('%Y-%m-%dT%H:%M:%fZ', 'now', '-1 hour')"),
     spielstand: db.prepare('SELECT daten FROM spielstaende WHERE benutzer_id = ?'),
     anlegen: db.prepare('INSERT INTO fehlermeldungen (benutzer_id, name, text, kontext) VALUES (?, ?, ?, ?)'),
+    ownerMails: db.prepare("SELECT email FROM benutzer WHERE rolle = 'owner' AND email IS NOT NULL"),
   };
 
   router.post('/', ladeKonto(konten), nurAngemeldet, (req, res: Response) => {
@@ -37,6 +40,28 @@ export function erstelleFehlermeldungRouter(db: Datenbank, konten: KontenDienst)
     } satisfies Fehlermeldung['kontext'] & FehlermeldungKontext;
     sql.anlegen.run(konto.id, konto.name, text, JSON.stringify(kontext));
     res.status(201).json({ ok: true });
+
+    // Owner per Mail benachrichtigen – Fehler beim Versand dürfen die Meldung nicht kaputtmachen
+    if (mailversand.aktiv) {
+      const link = spielBasisUrl(req, optionen.spielUrl);
+      for (const { email } of sql.ownerMails.all() as Array<{ email: string }>) {
+        mailversand
+          .sende({
+            an: email,
+            betreff: `Neue Meldung von ${konto.name}`,
+            text: [
+              `${konto.name} hat einen Fehler gemeldet:`,
+              '',
+              text,
+              '',
+              `Ansicht: ${kontext.ansicht || '–'} · Gerät: ${kontext.geraet || '–'}`,
+              '',
+              `Alle Meldungen im Spiel unter Team → Meldungen: ${link}`,
+            ].join('\n'),
+          })
+          .catch((fehler) => console.error('Mail zur Fehlermeldung ging nicht raus:', fehler));
+      }
+    }
   });
 
   return router;

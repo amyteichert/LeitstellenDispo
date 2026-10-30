@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { cookieAus, starteTestServer, testmail, type TestServer } from './testServer.js';
+import type { Mail } from './mail.js';
 
 let server: TestServer;
 let spieler: string;
@@ -40,5 +41,27 @@ describe('Fehler melden', () => {
 
   it('ist für normale Spieler nicht einsehbar', async () => {
     expect((await server.anfrage('GET', '/team/fehlermeldungen', { cookie: spieler })).status).toBe(403);
+  });
+});
+
+describe('Fehler melden – Mail an den Owner', () => {
+  it('schickt jedem Owner eine Mail mit dem Text der Meldung, sonst niemandem', async () => {
+    await server.beenden();
+    const mails: Mail[] = [];
+    server = await starteTestServer({ mailversand: { aktiv: true, async sende(mail) { mails.push(mail); } }, spielUrl: 'https://spiel.example' });
+    const registriere = async (name: string) =>
+      cookieAus(await server.anfrage('POST', '/auth/registrieren', { body: { name, email: testmail(name), passwort: 'geheim123' } }));
+    spieler = await registriere('Disponent');
+    await registriere('Chefin');
+    server.db.prepare("UPDATE benutzer SET rolle = 'owner' WHERE name = 'Chefin'").run();
+
+    expect((await melden('Fahrzeug bleibt auf der Karte hängen', spieler)).status).toBe(201);
+    await new Promise((fertig) => setTimeout(fertig, 10));
+
+    expect(mails).toHaveLength(1);
+    expect(mails[0].an).toBe(testmail('Chefin'));
+    expect(mails[0].betreff).toBe('Neue Meldung von Disponent');
+    expect(mails[0].text).toContain('Fahrzeug bleibt auf der Karte hängen');
+    expect(mails[0].text).toContain('https://spiel.example');
   });
 });
