@@ -725,3 +725,364 @@ html[data-design='hell'] .anmeldung__karte {
 .leerzustand + .einsatz-layout {
   margin-top: 12px;
 }
+
+/* =====================================================================
+   Runde 2: Seiten im Spiel
+   ===================================================================== */
+
+/* ---------- Kopfzeile: Platz für das Logo schaffen ---------- */
+
+@media (max-width: 1700px) {
+  .topbar .chip--version {
+    display: none;
+  }
+}
+
+/* ---------- Seitentitel mit Leuchtbalken ---------- */
+
+.seiten-inhalt > div > h2:first-child,
+.seiten-inhalt .wachen-kopf h2,
+.seiten-kopf h2 {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.seiten-inhalt > div > h2:first-child::before,
+.seiten-inhalt .wachen-kopf h2::before,
+.seiten-kopf h2::before {
+  content: '';
+  width: 5px;
+  height: 1.05em;
+  flex-shrink: 0;
+  border-radius: 4px;
+  background: var(--verlauf);
+  box-shadow: 0 0 14px var(--color-primary);
+}
+
+.abschnitt-titel {
+  letter-spacing: 0.12em;
+  color: var(--color-primary-text);
+}
+
+/* ---------- Leere Zustände: Radar statt gestrichelter Kasten ---------- */
+
+.leerzustand {
+  position: relative;
+  padding: 28px 20px 22px;
+  border: 1px solid var(--color-border);
+  border-radius: 18px;
+  background:
+    radial-gradient(circle at 50% 0%, color-mix(in srgb, var(--color-primary) 12%, transparent), transparent 60%),
+    color-mix(in srgb, var(--color-surface) 70%, transparent);
+}
+
+.leerzustand::before {
+  content: '';
+  display: block;
+  width: 44px;
+  height: 44px;
+  margin: 0 auto 12px;
+  border-radius: 50%;
+  border: 2px solid color-mix(in srgb, var(--color-primary) 60%, transparent);
+  background:
+    radial-gradient(circle, var(--color-primary) 0 4px, transparent 5px),
+    conic-gradient(from 0deg, color-mix(in srgb, var(--akzent-2) 55%, transparent), transparent 70deg);
+  box-shadow: 0 0 20px -4px var(--color-primary);
+  animation: drehen 3s linear infinite;
+}
+
+.leerzustand strong {
+  font-family: var(--font-titel);
+  font-size: 1.05rem;
+}
+
+/* ---------- Kacheln mit Zahlen (Finanzen, Statistik) ---------- */
+
+.finanz-kachel {
+  position: relative;
+  overflow: hidden;
+  padding: 14px 16px;
+}
+
+.finanz-kachel::after {
+  content: '';
+  position: absolute;
+  right: -30px;
+  top: -30px;
+  width: 90px;
+  height: 90px;
+  border-radius: 50%;
+  background: radial-gradient(circle, color-mix(in srgb, var(--color-primary) 30%, transparent), transparent 70%);
+  pointer-events: none;
+}
+
+.finanz-kachel strong {
+  font-family: var(--font-titel);
+  font-size: 1.45rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- Listen: Finanzposten, Buchungen ---------- */
+
+.finanz-posten {
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--color-surface) 85%, transparent);
+}
+
+.finanz-posten li {
+  transition: background 0.15s ease;
+}
+
+.finanz-posten li:hover {
+  background: color-mix(in srgb, var(--color-primary) 7%, transparent);
+}
+
+.finanz-posten__summe {
+  background: color-mix(in srgb, var(--color-primary) 10%, transparent);
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+.finanz-buchungen li {
+  border-radius: 12px;
+  transition: transform 0.15s ease, border-color 0.15s ease;
+}
+
+.finanz-buchungen li:hover {
+  transform: translateX(3px);
+  border-color: var(--rand-hell);
+}
+
+.betrag--plus {
+  text-shadow: 0 0 12px rgba(74, 222, 128, 0.35);
+}
+
+/* ---------- Fahrzeuge ---------- */
+
+.meine-fahrzeuge__eintrag {
+  padding: 12px 14px;
+  border: 1px solid var(--color-border);
+  border-radius: 14px;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--color-primary) 8%, var(--color-surface)), var(--color-surface) 55%);
+  box-shadow: none;
+  transition: transform 0.15s ease, border-color 0.15s ease, box-shadow 0.2s ease;
+}
+
+.meine-fahrzeuge__eintrag:hover {
+  transform: translateX(3px);
+  border-color: var(--rand-hell);
+  box-shadow: var(--leuchten);
+}
+
+.meine-fahrzeuge__eintrag strong {
+  font-family: var(--font-titel);
+}
+
+.katalog-karte {
+  position: relative;
+  overflow: hidden;
+  gap: 4px;
+  padding: 14px 10px;
+  border-radius: 16px;
+  background: linear-gradient(180deg, var(--color-surface-raised), var(--color-surface));
+  border-color: var(--color-border);
+  transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.25s ease;
+}
+
+.katalog-karte::before {
+  content: '';
+  position: absolute;
+  inset: auto -20% -60% -20%;
+  height: 70%;
+  background: radial-gradient(ellipse at 50% 100%, color-mix(in srgb, var(--color-primary) 25%, transparent), transparent 70%);
+  opacity: 0;
+  transition: opacity 0.25s ease;
+  pointer-events: none;
+}
+
+.katalog-karte:hover {
+  transform: translateY(-3px);
+  border-color: var(--rand-hell);
+  box-shadow: var(--leuchten);
+}
+
+.katalog-karte:hover::before {
+  opacity: 1;
+}
+
+.katalog-karte img,
+.katalog-karte svg {
+  transition: transform 0.3s cubic-bezier(0.3, 1.6, 0.5, 1);
+}
+
+.katalog-karte:hover img,
+.katalog-karte:hover svg {
+  transform: translateX(4px) scale(1.06);
+}
+
+.katalog-karte strong {
+  font-family: var(--font-titel);
+  font-size: 1.05rem;
+}
+
+.katalog-marke {
+  border-radius: 999px;
+}
+
+/* ---------- Funk: Protokoll mit leuchtenden Status-Kacheln ---------- */
+
+.funk-liste {
+  gap: 6px;
+}
+
+.funk-zeile {
+  padding: 8px 12px;
+  border-radius: 10px;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--color-surface-raised) 90%, transparent), color-mix(in srgb, var(--color-surface) 80%, transparent));
+  animation: hereinschweben 0.25s ease-out;
+}
+
+.funk-zeile--sprechwunsch {
+  background: linear-gradient(90deg, rgba(245, 158, 11, 0.16), color-mix(in srgb, var(--color-surface) 80%, transparent) 60%);
+}
+
+.funk-zeile--alarm {
+  background: linear-gradient(90deg, color-mix(in srgb, var(--color-primary) 16%, transparent), color-mix(in srgb, var(--color-surface) 80%, transparent) 60%);
+}
+
+.funk-status {
+  min-width: 1.9em;
+  padding: 2px 6px;
+  border-radius: 7px;
+  font-family: var(--font-titel);
+}
+
+.funk-status--1, .funk-status--2 { background: #34d399; color: #04130b; box-shadow: 0 0 10px rgba(52, 211, 153, 0.5); }
+.funk-status--3, .funk-status--4 { background: #fbbf24; color: #1c1300; box-shadow: 0 0 10px rgba(251, 191, 36, 0.5); }
+.funk-status--7, .funk-status--8 { background: #a78bfa; color: #120a24; box-shadow: 0 0 10px rgba(167, 139, 250, 0.5); }
+.funk-status--5 { background: #60a5fa; color: #04101f; box-shadow: 0 0 10px rgba(96, 165, 250, 0.6); animation: puls-punkt 1.4s ease-in-out infinite; }
+.funk-status--6 { background: #6b7686; color: #fff; }
+.funk-status--leer { background: none; box-shadow: none; }
+
+.funk-zeile__zeit {
+  opacity: 0.7;
+}
+
+/* ---------- Reiter (Funk-Filter, Wachen-Bereiche) ---------- */
+
+.verwalten-reiter {
+  gap: 6px;
+  padding: 5px;
+  width: fit-content;
+  max-width: 100%;
+  border: 1px solid var(--color-border);
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--color-surface) 80%, transparent);
+}
+
+.verwalten-reiter .btn {
+  min-height: 38px;
+  border-color: transparent;
+  background: transparent;
+}
+
+.verwalten-reiter .btn--primary {
+  background: var(--verlauf);
+}
+
+/* ---------- Statistik ---------- */
+
+.statistik-balken__spur {
+  height: 12px;
+  border-radius: 999px;
+}
+
+.statistik-balken__spur span {
+  border-radius: 999px;
+  background: var(--verlauf);
+  box-shadow: 0 0 10px color-mix(in srgb, var(--color-primary) 60%, transparent);
+  animation: balken-wachsen 0.8s cubic-bezier(0.2, 0.8, 0.2, 1);
+  transform-origin: left;
+}
+
+@keyframes balken-wachsen {
+  from { transform: scaleX(0); }
+}
+
+/* ---------- Profil ---------- */
+
+.profil-avatar__bild > :first-child {
+  border-radius: 50%;
+  box-shadow: 0 0 0 3px var(--color-surface), 0 0 0 5px var(--color-primary), 0 0 30px -4px var(--color-primary);
+}
+
+.profil-avatar__knopf {
+  background: var(--verlauf);
+}
+
+.profil-zahlen dd {
+  font-family: var(--font-titel);
+  font-size: 1.1rem;
+  font-weight: 700;
+}
+
+/* ---------- AAO-Knöpfe ---------- */
+
+.aao__knopf {
+  border-radius: 10px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25), 0 6px 16px -6px rgba(0, 0, 0, 0.6);
+  transition: transform 0.15s ease, filter 0.15s ease;
+}
+
+.aao__knopf:hover {
+  transform: translateY(-1px);
+}
+
+/* ---------- Ausbau-Karten ---------- */
+
+.ausbau-karte__kategorie {
+  letter-spacing: 0.12em;
+  color: var(--color-primary-text);
+}
+
+.ausbau-karte__preis {
+  font-family: var(--font-titel);
+  font-weight: 800;
+}
+
+/* ---------- Hinweis „Neuer Einsatz“ ---------- */
+
+.einsatz-hinweis {
+  border-color: var(--rand-hell);
+  box-shadow: 0 20px 50px -14px rgba(0, 0, 0, 0.8), 0 0 30px -12px var(--color-primary);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .leerzustand::before,
+  .funk-zeile,
+  .funk-status--5,
+  .statistik-balken__spur span {
+    animation: none !important;
+  }
+}
+
+/* Handy: Kopfzeile etwas schmaler, damit der Menü-Knopf ganz sichtbar bleibt */
+@media (max-width: 480px) {
+  .topbar {
+    gap: 6px;
+  }
+
+  .topbar__meta {
+    gap: 4px;
+  }
+
+  .topbar .chip {
+    padding: 0 7px;
+  }
+
+  .view-trigger {
+    padding: 0 9px;
+  }
+}
