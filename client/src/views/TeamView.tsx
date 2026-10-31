@@ -4,7 +4,9 @@ import ProfilBild from '../ProfilBild';
 import {
   ANKUENDIGUNG_MAX_LAENGE,
   NOTIZ_MAX_LAENGE,
+  RAENGE,
   ROLLEN_LABELS,
+  getRang,
   darfKontoVerwalten,
   darfNotizLoeschen,
   darfRolleVergeben,
@@ -41,8 +43,10 @@ export interface DevAktionen {
   testEinsatz: () => string | null;
   geld: (betrag: number) => void;
   rufSetzen: (wert: number) => void;
+  rangSetzen: (stufe: number) => void;
   lehrgaengeBeenden: () => void;
   ruf: number;
+  xp: number;
 }
 
 /** Team-Bereich: für Owner, Co-Owner und Admin; Tester sehen nur die Dev-Werkzeuge. Jede Aktion prüft zusätzlich der Server. */
@@ -719,6 +723,8 @@ function KorrekturFormular({ konto, melde }: { konto: TeamKonto; melde: Melde })
 
 function DevWerkzeuge({ dev, melde }: { dev: DevAktionen; melde: Melde }) {
   const [ruf, setRuf] = useState(String(dev.ruf));
+  const aktuellerRang = getRang(dev.xp);
+  const [rangStufe, setRangStufe] = useState(aktuellerRang.stufe);
 
   /** Erst die Dev-Markierung auf dem Server setzen, dann das Werkzeug ausführen. */
   const mitMarkierung = async (ausfuehren: () => string | null | void, ok: string) => {
@@ -767,6 +773,21 @@ function DevWerkzeuge({ dev, melde }: { dev: DevAktionen; melde: Melde }) {
               <input type="number" min={0} max={100} value={ruf} onChange={(e) => setRuf(e.target.value)} aria-label="Neuer Ruf" />
             </label>
             <button type="button" className="btn" disabled={ruf.trim() === '' || Number.isNaN(Number(ruf))} onClick={() => void mitMarkierung(() => dev.rufSetzen(Number(ruf)), '✓ Ruf gesetzt.')}>Setzen</button>
+          </div>
+        </article>
+        <article className="ausbau-karte">
+          <span className="ausbau-karte__kategorie">Laufbahn</span>
+          <h3>Rang setzen</h3>
+          <p>Aktuell „{aktuellerRang.name}“ ({dev.xp.toLocaleString('de-DE')} EP). Setzt die EP auf den Beginn des Rangs – auch abwärts.</p>
+          <div style={{ display: 'flex', gap: 6 }}>
+            <label className="field" style={{ margin: 0, flex: 1 }}>
+              <select value={rangStufe} onChange={(e) => setRangStufe(Number(e.target.value))} aria-label="Neuer Rang">
+                {RAENGE.map((rang) => (
+                  <option key={rang.stufe} value={rang.stufe}>{rang.stufe} · {rang.name} (ab {rang.abXp.toLocaleString('de-DE')} EP)</option>
+                ))}
+              </select>
+            </label>
+            <button type="button" className="btn" onClick={() => void mitMarkierung(() => dev.rangSetzen(rangStufe), '✓ Rang gesetzt.')}>Setzen</button>
           </div>
         </article>
         <article className="ausbau-karte">

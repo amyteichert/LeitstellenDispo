@@ -1298,8 +1298,10 @@ Dein Guthaben: ${balance.toLocaleString('de-DE')} €`)) return;
                   },
                   geld: spiel.devGeld,
                   rufSetzen: spiel.devRufSetzen,
+                  rangSetzen: spiel.devRangSetzen,
                   lehrgaengeBeenden: spiel.devLehrgaengeBeenden,
                   ruf: spiel.ruf,
+                  xp: spiel.laufbahn.xp,
                 }}
               />
             )}

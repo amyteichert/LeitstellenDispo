@@ -3,6 +3,7 @@ import {
   GAME_CONFIG,
   RUF_CONFIG,
   LAUFBAHN_START,
+  RAENGE,
   findeNeueErfolge,
   getEinsatzXp,
   getRang,
@@ -1012,6 +1013,12 @@ export function useSpiel(optionen: UseSpielOptionen = {}) {
 
   const devRufSetzen = (wert: number) => setRuf(Math.min(RUF_CONFIG.max, Math.max(RUF_CONFIG.min, Math.round(wert))));
 
+  /** Setzt die EP auf den Beginn des gewählten Rangs – auch abwärts, damit sich Freischaltungen testen lassen. */
+  const devRangSetzen = (stufe: number) => {
+    const rang = RAENGE.find((r) => r.stufe === stufe);
+    if (rang) setLaufbahn((cur) => ({ ...cur, xp: rang.abXp }));
+  };
+
   /** Alle laufenden Lehrgänge enden sofort (der nächste Spiel-Tick vergibt die Qualifikationen). */
   const devLehrgaengeBeenden = () => {
     const jetzt = Date.now();
@@ -1085,6 +1092,7 @@ export function useSpiel(optionen: UseSpielOptionen = {}) {
     erzeugeTestEinsatz,
     devGeld,
     devRufSetzen,
+    devRangSetzen,
     devLehrgaengeBeenden,
     alarmieren,
     rueckalarmiereAlleFahrzeuge,
