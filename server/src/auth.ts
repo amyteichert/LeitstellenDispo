@@ -109,6 +109,28 @@ export function erstelleAuthRouter(konten: KontenDienst, optionen: AuthOptionen 
         });
       }
 
+      if (ergebnis.wartetAufFreischaltung) {
+        // Keine Sitzung: Das Konto ist erst nach Freischaltung durchs Team nutzbar. Owner per Mail benachrichtigen.
+        const link = spielBasisUrl(req, optionen.spielUrl);
+        for (const an of mailversand.aktiv ? konten.ownerMails() : []) {
+          mailversand
+            .sende({
+              an,
+              betreff: `Neues Konto wartet auf Freischaltung: ${ergebnis.konto.name}`,
+              text: [
+                `Auf ${link} hat sich ein neues Konto registriert:`,
+                '',
+                `Name: ${ergebnis.konto.name}`,
+                `E-Mail: ${ergebnis.konto.email ?? '–'}`,
+                '',
+                'Freischalten oder löschen im Spiel unter Team → Konten. Ohne Freischaltung wird das Konto nach 7 Tagen gelöscht.',
+              ].join('\n'),
+            })
+            .catch((fehler) => console.error('Mail zur Freischaltung ging nicht raus:', fehler));
+        }
+        return void res.status(202).json({ wartetAufFreischaltung: true });
+      }
+
       setzeSitzungsCookie(res, konten.starteSitzung(ergebnis.konto.id));
       res.status(201).json({ konto: ergebnis.konto });
     } catch (e) {
@@ -131,6 +153,9 @@ export function erstelleAuthRouter(konten: KontenDienst, optionen: AuthOptionen 
       if (!ergebnis.ok) {
         if (ergebnis.grund === 'gesperrt') {
           return void res.status(403).json({ fehler: 'Dieses Konto ist gesperrt.' });
+        }
+        if (ergebnis.grund === 'nicht_freigegeben') {
+          return void res.status(403).json({ fehler: 'Dein Konto wartet noch auf die Freischaltung durch das Team.' });
         }
         anmeldeBremse.merkeFehlversuch(ip);
         return void res.status(401).json({ fehler: 'Benutzername oder Passwort ist falsch.' });

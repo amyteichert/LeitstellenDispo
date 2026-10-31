@@ -51,7 +51,9 @@ async function sende(pfad: string, body?: unknown): Promise<Konto> {
 }
 
 export const anmelden = (name: string, passwort: string) => sende('/anmelden', { name, passwort });
-export const registrieren = (name: string, email: string, passwort: string) => sende('/registrieren', { name, email, passwort });
+/** Registrieren – `null`, wenn das Konto erst vom Team freigeschaltet werden muss (Testumgebung) */
+export const registrieren = (name: string, email: string, passwort: string) =>
+  auth<{ konto?: Konto }>('/registrieren', { name, email, passwort }).then((d) => d.konto ?? null);
 
 /** Anfrage an /api/auth, die kein Konto zurückgibt */
 async function auth<T>(pfad: string, body?: unknown, methode = 'POST'): Promise<T> {
@@ -127,6 +129,7 @@ export const teamApi = {
   uebersicht: () => team<{ uebersicht: TeamUebersicht }>('GET', '/uebersicht').then((d) => d.uebersicht),
   konten: (suche = '') => team<{ konten: TeamKonto[] }>('GET', `/konten?suche=${encodeURIComponent(suche)}`).then((d) => d.konten),
   spielstand: (id: number) => team<{ zusammenfassung: SpielstandZusammenfassung | null }>('GET', `/konten/${id}/spielstand`).then((d) => d.zusammenfassung),
+  freischalten: (id: number) => team<{ konto: TeamKonto }>('POST', `/konten/${id}/freischalten`).then((d) => d.konto),
   sperren: (id: number, gesperrt: boolean) => team<{ konto: TeamKonto }>('POST', `/konten/${id}/sperren`, { gesperrt }).then((d) => d.konto),
   rolle: (id: number, rolle: UserRole) => team<{ konto: TeamKonto }>('POST', `/konten/${id}/rolle`, { rolle }).then((d) => d.konto),
   spielstandZuruecksetzen: (id: number) => team<null>('DELETE', `/konten/${id}/spielstand`),

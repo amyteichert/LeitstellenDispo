@@ -7,6 +7,8 @@ import type { Datenbank } from './datenbank.js';
 export const SITZUNG_DAUER_MS = 30 * 24 * 60 * 60 * 1000; // 30 Tage
 /** So lange gilt ein Link zum Zurücksetzen des Passworts */
 export const PASSWORT_TOKEN_DAUER_MS = 60 * 60 * 1000; // 1 Stunde
+/** So lange wartet ein neues Konto auf Freischaltung, danach wird es gelöscht */
+export const FREISCHALTUNG_FRIST_MS = 7 * 24 * 60 * 60 * 1000; // 7 Tage
 
 interface BenutzerZeile {
   id: number;
@@ -19,14 +21,15 @@ interface BenutzerZeile {
   spitzname: string | null;
   avatar: string | null;
   name_geaendert: string | null;
+  freigegeben: number;
 }
 
 export type AnmeldeErgebnis =
   | { ok: true; konto: Konto }
-  | { ok: false; grund: 'falsche_daten' | 'gesperrt' };
+  | { ok: false; grund: 'falsche_daten' | 'gesperrt' | 'nicht_freigegeben' };
 
 export type RegistrierErgebnis =
-  | { ok: true; konto: Konto }
+  | { ok: true; konto: Konto; wartetAufFreischaltung: boolean }
   | { ok: false; grund: 'name_vergeben' | 'email_vergeben' };
 
 function zuKonto(z: BenutzerZeile): Konto {
@@ -41,8 +44,9 @@ function hashToken(token: string): string {
   return createHash('sha256').update(token).digest('hex');
 }
 
-export function erstelleKontenDienst(db: Datenbank, optionen: { bcryptRunden?: number } = {}) {
+export function erstelleKontenDienst(db: Datenbank, optionen: { bcryptRunden?: number; freischaltungNoetig?: boolean } = {}) {
   const runden = optionen.bcryptRunden ?? 12;
+  const freischaltungNoetig = optionen.freischaltungNoetig ?? false;
   // Vergleichs-Hash für unbekannte Namen, damit die Antwortzeit nicht verrät, ob ein Konto existiert
   const platzhalterHash = bcrypt.hashSync('platzhalter-passwort', runden);
 
@@ -50,7 +54,11 @@ export function erstelleKontenDienst(db: Datenbank, optionen: { bcryptRunden?: n
     benutzerNachId: db.prepare('SELECT * FROM benutzer WHERE id = ?'),
     benutzerNachName: db.prepare('SELECT * FROM benutzer WHERE name = ?'),
     benutzerNachEmail: db.prepare('SELECT * FROM benutzer WHERE email = ?'),
-    benutzerAnlegen: db.prepare('INSERT INTO benutzer (name, email, passwort_hash, rolle) VALUES (?, ?, ?, ?) RETURNING *'),
+    benutzerAnlegen: db.prepare('INSERT INTO benutzer (name, email, passwort_hash, rolle, freigegeben) VALUES (?, ?, ?, ?, ?) RETURNING *'),
+    freischalten: db.prepare('UPDATE benutzer SET freigegeben = 1 WHERE id = ? AND freigegeben = 0'),
+    alteUnfreigegebene: db.prepare('DELETE FROM benutzer WHERE freigegeben = 0 AND erstellt < ? RETURNING name'),
+    ownerMails: db.prepare("SELECT email FROM benutzer WHERE rolle = 'owner' AND email IS NOT NULL"),
+    protokollieren: db.prepare('INSERT INTO team_protokoll (von_name, aktion, ziel_name, details) VALUES (?, ?, ?, ?)'),
     emailSetzen: db.prepare('UPDATE benutzer SET email = ? WHERE id = ?'),
     passwortSetzen: db.prepare('UPDATE benutzer SET passwort_hash = ? WHERE id = ?'),
     profilSetzen: db.prepare('UPDATE benutzer SET spitzname = ?, avatar = ? WHERE id = ?'),
@@ -86,7 +94,8 @@ export function erstelleKontenDienst(db: Datenbank, optionen: { bcryptRunden?: n
   const registriereTransaktion = db.transaction((name: string, email: string, hash: string): RegistrierErgebnis => {
     if (sql.benutzerNachName.get(name)) return { ok: false, grund: 'name_vergeben' };
     if (emailVergeben(email)) return { ok: false, grund: 'email_vergeben' };
-    return { ok: true, konto: zuKonto(sql.benutzerAnlegen.get(name, email, hash, 'player') as BenutzerZeile) };
+    const zeile = sql.benutzerAnlegen.get(name, email, hash, 'player', freischaltungNoetig ? 0 : 1) as BenutzerZeile;
+    return { ok: true, konto: zuKonto(zeile), wartetAufFreischaltung: !zeile.freigegeben };
   });
 
   const pruefePasswortVon = async (id: number, passwort: string) => {
@@ -106,6 +115,7 @@ export function erstelleKontenDienst(db: Datenbank, optionen: { bcryptRunden?: n
       const passt = await bcrypt.compare(passwort, zeile?.passwort_hash ?? platzhalterHash);
       if (!zeile || !passt) return { ok: false, grund: 'falsche_daten' };
       if (zeile.gesperrt) return { ok: false, grund: 'gesperrt' };
+      if (!zeile.freigegeben) return { ok: false, grund: 'nicht_freigegeben' };
       return { ok: true, konto: zuKonto(zeile) };
     },
 
@@ -117,10 +127,10 @@ export function erstelleKontenDienst(db: Datenbank, optionen: { bcryptRunden?: n
       return token;
     },
 
-    /** Konto zur Sitzung – `null` bei unbekannter/abgelaufener Sitzung oder gesperrtem Konto. */
+    /** Konto zur Sitzung – `null` bei unbekannter/abgelaufener Sitzung, gesperrtem oder nicht freigeschaltetem Konto. */
     kontoZurSitzung(token: string, jetzt = Date.now()): Konto | null {
       const zeile = sql.benutzerZurSitzung.get(hashToken(token), jetzt) as BenutzerZeile | undefined;
-      if (!zeile || zeile.gesperrt) return null;
+      if (!zeile || zeile.gesperrt || !zeile.freigegeben) return null;
       return zuKonto(zeile);
     },
 
@@ -203,6 +213,26 @@ export function erstelleKontenDienst(db: Datenbank, optionen: { bcryptRunden?: n
     /** Hochgeladene Profilbilder, die noch auf Freigabe warten – älteste zuerst */
     offeneBilder(): OffenesBild[] {
       return sql.offeneBilder.all() as OffenesBild[];
+    },
+
+    /** Neues Konto freischalten (Team) – false, wenn es nicht (mehr) auf Freischaltung wartet */
+    schalteFrei(id: number): boolean {
+      return sql.freischalten.run(id).changes > 0;
+    },
+
+    /** Löscht Konten, die länger als die Frist auf Freischaltung warten, und hält das im Team-Protokoll fest */
+    loescheUnfreigegebene(jetzt = Date.now()): string[] {
+      return db.transaction(() => {
+        const grenze = new Date(jetzt - FREISCHALTUNG_FRIST_MS).toISOString();
+        const namen = (sql.alteUnfreigegebene.all(grenze) as Array<{ name: string }>).map((z) => z.name);
+        for (const name of namen) sql.protokollieren.run('System', 'Konto gelöscht', name, 'nach 7 Tagen nicht freigeschaltet');
+        return namen;
+      })();
+    },
+
+    /** E-Mail-Adressen aller Owner (für Benachrichtigungen) */
+    ownerMails(): string[] {
+      return (sql.ownerMails.all() as Array<{ email: string }>).map((z) => z.email);
     },
 
     /** Konto zu einer E-Mail-Adresse (für „Passwort vergessen“). */

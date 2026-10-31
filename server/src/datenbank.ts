@@ -186,6 +186,10 @@ const MIGRATIONEN: Array<string | ((db: Datenbank) => void)> = [
   CREATE INDEX fahrzeuggrafiken_typ ON fahrzeuggrafiken(fahrzeug_typ);
   CREATE INDEX fahrzeuggrafiken_benutzer ON fahrzeuggrafiken(benutzer_id);
   `,
+  // Freischaltung neuer Konten (nur wo KONTEN_FREISCHALTEN gesetzt ist, z. B. Testumgebung) – bisherige Konten gelten als freigeschaltet
+  `
+  ALTER TABLE benutzer ADD COLUMN freigegeben INTEGER NOT NULL DEFAULT 1;
+  `,
 ];
 
 /** Öffnet (bzw. erstellt) die Datenbank und bringt das Schema auf den neuesten Stand. */

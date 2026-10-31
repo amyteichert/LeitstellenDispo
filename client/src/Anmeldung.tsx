@@ -404,6 +404,8 @@ function AnmeldeFormular({ hinweis, onErfolg, onGast }: { hinweis?: string; onEr
   /** Konto laut Server – zeigt beim Ladebalken das eigene Profilbild */
   const [ergebnisKonto, setErgebnisKonto] = useState<Konto | null>(null);
   const [passwortSichtbar, setPasswortSichtbar] = useState(false);
+  /** Registriert, aber das Team muss das Konto erst freischalten (Testumgebung) */
+  const [wartetAufFreischaltung, setWartetAufFreischaltung] = useState(false);
   const id = useId();
   const istRegistrierung = modus === 'registrieren';
 
@@ -427,6 +429,12 @@ function AnmeldeFormular({ hinweis, onErfolg, onGast }: { hinweis?: string; onEr
     setFehler(null);
     try {
       const konto = istRegistrierung ? await registrieren(name.trim(), email.trim(), passwort) : await anmelden(name.trim(), passwort);
+      if (!konto) {
+        setWartetAufFreischaltung(true);
+        setSendet(false);
+        wechsleModus('anmelden');
+        return;
+      }
       merkeBesuchsZiel(istRegistrierung ? 'registriert' : 'angemeldet');
       setErgebnisKonto(konto);
       // Kurz „Du bist gleich drin“ zeigen, während der Spielstand geladen wird
@@ -564,6 +572,11 @@ function AnmeldeFormular({ hinweis, onErfolg, onGast }: { hinweis?: string; onEr
       )}
 
       {fehler && <p className="anmeldung__fehler" role="alert">{fehler}</p>}
+      {wartetAufFreischaltung && !fehler && (
+        <p className="anmeldung__hinweis" role="status">
+          ✓ Dein Konto ist angelegt und wartet auf die Freischaltung durch das Team. Danach kannst du dich hier anmelden.
+        </p>
+      )}
 
       {sendet ? (
         <div className="anmeldung__laden">

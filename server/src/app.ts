@@ -21,9 +21,14 @@ const beispielEinsaetze: Einsatz[] = [
 ];
 
 /** Baut die Express-App. Getrennt vom Serverstart, damit Tests sie mit einer eigenen Datenbank nutzen können. */
-export function erstelleApp(db: Datenbank, optionen: { bcryptRunden?: number; sicherungsOrdner?: string; osrmUrl?: string; einsaetzeAufraeumenBis?: number } & AuthOptionen = {}) {
+export function erstelleApp(db: Datenbank, optionen: { bcryptRunden?: number; freischaltungNoetig?: boolean; sicherungsOrdner?: string; osrmUrl?: string; einsaetzeAufraeumenBis?: number } & AuthOptionen = {}) {
   const app = express();
   const konten = erstelleKontenDienst(db, optionen);
+  if (optionen.freischaltungNoetig) {
+    // Nicht freigeschaltete Konten nach 7 Tagen entfernen: beim Start und dann stündlich
+    konten.loescheUnfreigegebene();
+    setInterval(() => konten.loescheUnfreigegebene(), 60 * 60 * 1000).unref();
+  }
 
   // Hinter nginx (Cloudflare → nginx → Node): echte Client-IP aus X-Forwarded-For übernehmen,
   // sonst gilt die Fehlversuch-Bremse für alle Spieler gemeinsam. Nur dem lokalen Proxy vertrauen.

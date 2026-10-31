@@ -220,6 +220,8 @@ export interface TeamKonto extends Konto {
   gesperrt: boolean;
   /** Hat Dev-Werkzeuge benutzt – zählt nicht für die Bestenliste */
   devMarkiert: boolean;
+  /** Neues Konto, das noch auf Freischaltung durchs Team wartet (nur mit KONTEN_FREISCHALTEN) */
+  wartetAufFreischaltung: boolean;
   /** Zuletzt gespeicherter Spielstand (ISO) – `null`, wenn noch nie gespielt */
   zuletztGespielt: string | null;
 }
@@ -228,6 +230,7 @@ export interface TeamUebersicht {
   konten: number;
   team: number;
   gesperrt: number;
+  wartenAufFreischaltung: number;
   neuLetzte7Tage: number;
   aktivHeute: number;
   aktivLetzte7Tage: number;

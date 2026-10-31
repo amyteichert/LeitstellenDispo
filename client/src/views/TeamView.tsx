@@ -133,6 +133,7 @@ function Uebersicht({ melde }: { melde: Melde }) {
     ['Mit Spielstand', daten.mitSpielstand],
     ['Team-Konten', daten.team],
     ['Gesperrt', daten.gesperrt],
+    ...(daten.wartenAufFreischaltung > 0 ? [['Warten auf Freischaltung', daten.wartenAufFreischaltung, 'unter Konten'] as [string, number, string]] : []),
   ];
   return (
     <>
@@ -228,6 +229,7 @@ function KontoZeile({ konto, ich, offen, umschalten, melde, ersetze, entferne }:
         {konto.id === ich.id && <span className="quali-chip">Du</span>}
         <span className="quali-chip">{ROLLEN_LABELS[konto.rolle]}</span>
         {konto.gesperrt && <span className="quali-chip team-chip--warnung">Gesperrt</span>}
+        {konto.wartetAufFreischaltung && <span className="quali-chip team-chip--warnung" title="Ohne Freischaltung wird das Konto nach 7 Tagen gelöscht">Wartet auf Freischaltung</span>}
         {konto.devMarkiert && <span className="quali-chip quali-chip--keine" title="Hat Dev-Werkzeuge benutzt – zählt nicht für die Bestenliste">Dev</span>}
         <small>
           {konto.email ?? 'keine E-Mail'} · seit {datum(konto.erstellt)} · zuletzt gespielt {datum(konto.zuletztGespielt)}
@@ -295,6 +297,15 @@ function KontoZeile({ konto, ich, offen, umschalten, melde, ersetze, entferne }:
             )}
             {verwaltbar ? (
               <>
+                {konto.wartetAufFreischaltung && (
+                  <button
+                    type="button"
+                    className="btn btn--primary"
+                    onClick={() => void aktion(async () => ersetze(await teamApi.freischalten(konto.id)), `${konto.name} ist freigeschaltet und kann sich jetzt anmelden.`)}
+                  >
+                    Freischalten
+                  </button>
+                )}
                 <button
                   type="button"
                   className="btn"

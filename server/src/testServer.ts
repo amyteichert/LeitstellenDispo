@@ -11,7 +11,7 @@ export interface TestServer {
   beenden(): Promise<void>;
 }
 
-export async function starteTestServer(optionen: AuthOptionen & { sicherungsOrdner?: string; osrmUrl?: string } = {}): Promise<TestServer> {
+export async function starteTestServer(optionen: AuthOptionen & { sicherungsOrdner?: string; osrmUrl?: string; freischaltungNoetig?: boolean } = {}): Promise<TestServer> {
   const db = oeffneDatenbank(':memory:');
   const server: Server = erstelleApp(db, { bcryptRunden: 4, ...optionen }).listen(0);
   await new Promise<void>((fertig) => server.once('listening', fertig));

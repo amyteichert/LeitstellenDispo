@@ -42,6 +42,7 @@ interface TeamKontoZeile {
   zuletzt: string | null;
   spitzname: string | null;
   avatar: string | null;
+  freigegeben: number;
 }
 
 const zuTeamKonto = (z: TeamKontoZeile): TeamKonto => ({
@@ -54,6 +55,7 @@ const zuTeamKonto = (z: TeamKontoZeile): TeamKonto => ({
   avatar: z.avatar,
   gesperrt: Boolean(z.gesperrt),
   devMarkiert: Boolean(z.dev_markiert),
+  wartetAufFreischaltung: !z.freigegeben,
   zuletztGespielt: z.zuletzt,
 });
 
@@ -76,19 +78,20 @@ export const nurMitRecht = (recht: TeamRecht) => (_req: Request, res: Response, 
 };
 
 const KONTO_SPALTEN = `
-  b.id, b.name, b.rolle, b.gesperrt, b.erstellt, b.dev_markiert, b.email, b.spitzname, b.avatar, s.aktualisiert AS zuletzt
+  b.id, b.name, b.rolle, b.gesperrt, b.erstellt, b.dev_markiert, b.email, b.spitzname, b.avatar, b.freigegeben, s.aktualisiert AS zuletzt
   FROM benutzer b LEFT JOIN spielstaende s ON s.benutzer_id = b.id`;
 
 export function erstelleTeamRouter(db: Datenbank, konten: KontenDienst, optionen: AuthOptionen & { sicherungsOrdner?: string } = {}): Router {
   const router = Router();
   const sql = {
     konto: db.prepare(`SELECT ${KONTO_SPALTEN} WHERE b.id = ?`),
-    suche: db.prepare(`SELECT ${KONTO_SPALTEN} WHERE b.name LIKE ? ESCAPE '\\' OR b.email LIKE ? ESCAPE '\\' ORDER BY b.id LIMIT 200`),
+    suche: db.prepare(`SELECT ${KONTO_SPALTEN} WHERE b.name LIKE ? ESCAPE '\\' OR b.email LIKE ? ESCAPE '\\' ORDER BY b.freigegeben, b.id LIMIT 200`), // wartende Konten zuerst
     uebersicht: db.prepare(`
       SELECT
         COUNT(*) AS konten,
         SUM(b.rolle != 'player') AS team,
         SUM(b.gesperrt) AS gesperrt,
+        SUM(b.freigegeben = 0) AS wartenAufFreischaltung,
         SUM(b.erstellt >= ?) AS neuLetzte7Tage,
         SUM(s.aktualisiert >= ?) AS aktivHeute,
         SUM(s.aktualisiert >= ?) AS aktivLetzte7Tage,
@@ -189,6 +192,14 @@ export function erstelleTeamRouter(db: Datenbank, konten: KontenDienst, optionen
       if (gesperrt) sql.sitzungenBeenden.run(ziel.id); // sofort abmelden
       protokolliere(ich(res), gesperrt ? 'Konto gesperrt' : 'Konto entsperrt', ziel);
     })();
+    res.json({ konto: zuTeamKonto(sql.konto.get(ziel.id) as TeamKontoZeile) });
+  });
+
+  router.post('/konten/:id/freischalten', (req, res) => {
+    const ziel = zielKonto(req, res);
+    if (!ziel) return;
+    if (!konten.schalteFrei(ziel.id)) return void res.status(409).json({ fehler: 'Dieses Konto ist schon freigeschaltet.' });
+    protokolliere(ich(res), 'Konto freigeschaltet', ziel);
     res.json({ konto: zuTeamKonto(sql.konto.get(ziel.id) as TeamKontoZeile) });
   });
 
