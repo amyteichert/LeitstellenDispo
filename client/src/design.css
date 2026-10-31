@@ -1,0 +1,727 @@
+/* =====================================================================
+   Design-Ebene „Spiel-Look“ – liegt über App.css und index.css.
+   Glas-Flächen, Verläufe in der Akzentfarbe, Leuchten und Bewegung.
+   Alle Farben kommen aus den Variablen in index.css, damit die Designs
+   aus den Einstellungen (Blau, Rot, Lila, Grün, Schwarz, Hell) mitziehen.
+   ===================================================================== */
+
+@font-face {
+  font-family: 'Inter';
+  src: url('/fonts/inter.woff2') format('woff2');
+  font-weight: 100 900;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Exo 2';
+  src: url('/fonts/exo2.woff2') format('woff2');
+  font-weight: 100 900;
+  font-display: swap;
+}
+
+:root {
+  --font-titel: 'Exo 2', 'Inter', system-ui, sans-serif;
+  --akzent-2: color-mix(in srgb, var(--color-primary) 55%, #22d3ee);
+  --verlauf: linear-gradient(135deg, var(--color-primary), var(--akzent-2));
+  --glas: color-mix(in srgb, var(--color-surface) 78%, transparent);
+  --glas-hoch: color-mix(in srgb, var(--color-surface-raised) 86%, transparent);
+  --rand-hell: color-mix(in srgb, var(--color-primary) 30%, var(--color-border));
+  --leuchten: 0 0 0 1px color-mix(in srgb, var(--color-primary) 35%, transparent), 0 14px 40px -12px color-mix(in srgb, var(--color-primary) 55%, transparent);
+  --radius: 12px;
+}
+
+/* ---------- Grundlage: Hintergrund mit Lichtern ---------- */
+
+body {
+  background:
+    radial-gradient(60vmax 50vmax at 0% 0%, color-mix(in srgb, var(--color-primary) 14%, transparent), transparent 60%),
+    radial-gradient(50vmax 45vmax at 100% 100%, color-mix(in srgb, var(--akzent-2) 10%, transparent), transparent 60%),
+    var(--color-bg);
+  background-attachment: fixed;
+}
+
+.app-shell {
+  background: transparent;
+}
+
+h1,
+h2,
+h3,
+.marke__text strong,
+.panel-header h2,
+.detail-card h3 {
+  font-family: var(--font-titel);
+  letter-spacing: 0;
+}
+
+::selection {
+  background: color-mix(in srgb, var(--color-primary) 45%, transparent);
+}
+
+/* Schlanke, farbige Scrollbalken */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--color-primary) 40%, var(--color-border-strong)) transparent;
+}
+
+/* ---------- Kopfzeile ---------- */
+
+.topbar {
+  background: var(--glas);
+  backdrop-filter: blur(16px) saturate(140%);
+  -webkit-backdrop-filter: blur(16px) saturate(140%);
+  border-bottom: 1px solid var(--color-border);
+  box-shadow: 0 8px 30px -12px rgba(0, 0, 0, 0.6);
+}
+
+/* Leuchtende Linie unter der Kopfzeile */
+.topbar::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -1px;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--color-primary), var(--akzent-2), transparent);
+  opacity: 0.8;
+  pointer-events: none;
+}
+
+.marke__signet {
+  filter: drop-shadow(0 0 10px color-mix(in srgb, var(--color-primary) 60%, transparent));
+}
+
+.marke__text strong {
+  font-weight: 800;
+  font-size: 1.12rem;
+}
+
+.marke__text strong span {
+  background: var(--verlauf);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* Chips (Guthaben, Ruf, Rang …) */
+.chip {
+  border-radius: 999px;
+  background: var(--glas-hoch);
+  border-color: var(--color-border-strong);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  transition: border-color 0.2s ease, transform 0.2s ease;
+}
+
+button.chip:hover,
+.chip:is(button):hover {
+  border-color: var(--rand-hell);
+  transform: translateY(-1px);
+}
+
+.chip--version {
+  background: transparent;
+  box-shadow: none;
+}
+
+.chip--accent {
+  background: var(--verlauf);
+  border-color: transparent;
+}
+
+/* Menü-Knopf oben rechts */
+.view-trigger {
+  border-radius: 10px;
+  border-color: transparent;
+  background: var(--verlauf);
+  box-shadow: 0 6px 18px -6px color-mix(in srgb, var(--color-primary) 80%, transparent), inset 0 1px 0 rgba(255, 255, 255, 0.25);
+  font-weight: 700;
+}
+
+.view-trigger:hover {
+  background: var(--verlauf);
+  filter: brightness(1.1);
+}
+
+.view-dropdown__menu {
+  border-radius: 14px;
+  background: var(--glas-hoch);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  border-color: var(--rand-hell);
+  box-shadow: 0 20px 50px -10px rgba(0, 0, 0, 0.7);
+  animation: aufklappen 0.18s ease-out;
+}
+
+.view-menu-item {
+  border-radius: 9px;
+  transition: background 0.15s ease, padding 0.15s ease, color 0.15s ease;
+}
+
+.view-menu-item:hover {
+  background: color-mix(in srgb, var(--color-primary) 12%, transparent);
+  padding-left: 16px;
+}
+
+.view-menu-item.active {
+  background: color-mix(in srgb, var(--color-primary) 20%, transparent);
+  box-shadow: inset 3px 0 0 var(--color-primary);
+}
+
+/* ---------- Knöpfe ---------- */
+
+.btn {
+  position: relative;
+  overflow: hidden;
+  border-radius: 11px;
+  font-weight: 600;
+  transition: transform 0.15s ease, box-shadow 0.2s ease, background 0.2s ease, border-color 0.2s ease, filter 0.2s ease;
+}
+
+.btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  border-color: var(--rand-hell);
+  background: color-mix(in srgb, var(--color-primary) 10%, var(--color-surface-raised));
+}
+
+.btn:active:not(:disabled) {
+  transform: translateY(0) scale(0.98);
+}
+
+.btn--primary {
+  background: var(--verlauf);
+  border-color: transparent;
+  font-weight: 700;
+  box-shadow: 0 8px 22px -8px color-mix(in srgb, var(--color-primary) 85%, transparent), inset 0 1px 0 rgba(255, 255, 255, 0.25);
+}
+
+/* Glanz, der über den Hauptknopf läuft */
+.btn--primary::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -60%;
+  width: 40%;
+  height: 100%;
+  background: linear-gradient(100deg, transparent, rgba(255, 255, 255, 0.4), transparent);
+  transform: skewX(-20deg);
+  transition: left 0.6s ease;
+  pointer-events: none;
+}
+
+.btn--primary:hover:not(:disabled) {
+  background: var(--verlauf);
+  border-color: transparent;
+  filter: brightness(1.08);
+  box-shadow: 0 12px 28px -8px color-mix(in srgb, var(--akzent-2) 80%, transparent), inset 0 1px 0 rgba(255, 255, 255, 0.3);
+}
+
+.btn--primary:hover:not(:disabled)::after {
+  left: 130%;
+}
+
+.btn--ghost:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--color-primary) 10%, transparent);
+  border-color: transparent;
+}
+
+.btn--danger:hover:not(:disabled) {
+  background: rgba(217, 63, 63, 0.16);
+  border-color: var(--color-danger);
+  box-shadow: 0 8px 22px -10px rgba(217, 63, 63, 0.8);
+}
+
+/* ---------- Eingabefelder ---------- */
+
+.field input,
+.field select,
+.field textarea,
+.anmeldung__eingabe input {
+  border-radius: 11px;
+  background: color-mix(in srgb, var(--color-input) 85%, transparent);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.field input:focus,
+.field select:focus,
+.field textarea:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 25%, transparent);
+}
+
+.field span {
+  letter-spacing: 0.1em;
+}
+
+/* ---------- Seitenleiste und Karten ---------- */
+
+.sidebar {
+  background: var(--glas);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border-right-color: var(--color-border);
+}
+
+.panel-header h2 {
+  font-size: 1.15rem;
+  font-weight: 800;
+}
+
+.panel-header span {
+  background: var(--verlauf);
+  border-color: transparent;
+  color: #fff;
+  font-weight: 700;
+}
+
+.location-form,
+.detail-card,
+.wachen-karte,
+.verwalten-kachel,
+.ausbau-karte,
+.besatzung-karte,
+.finanz-kachel {
+  border-radius: 14px;
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--color-surface-raised) 92%, transparent), color-mix(in srgb, var(--color-surface) 92%, transparent));
+  border: 1px solid var(--color-border);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04), 0 10px 30px -18px rgba(0, 0, 0, 0.7);
+}
+
+.detail-card__label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  letter-spacing: 0.14em;
+}
+
+.detail-card__label::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--akzent-2);
+  box-shadow: 0 0 8px var(--akzent-2);
+}
+
+/* Karten, die man anklicken kann, heben sich beim Drüberfahren */
+.location-item,
+.wachen-karte,
+.verwalten-kachel,
+.ausbau-karte {
+  transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.25s ease;
+}
+
+.location-item {
+  border-radius: 14px;
+  background: linear-gradient(180deg, var(--color-surface-raised), color-mix(in srgb, var(--color-surface) 90%, transparent));
+}
+
+.location-item:hover,
+.wachen-karte:hover,
+.verwalten-kachel:hover,
+.ausbau-karte:not(.ausbau-karte--gesperrt):hover {
+  transform: translateY(-2px);
+  border-color: var(--rand-hell);
+  box-shadow: var(--leuchten);
+}
+
+.location-item--active,
+.wachen-karte--aktiv {
+  border-color: var(--color-primary);
+  box-shadow: var(--leuchten);
+}
+
+.color-dot--station { box-shadow: 0 0 8px #d92d2d; }
+.color-dot--incident { box-shadow: 0 0 8px #f59e0b; }
+
+/* ---------- Karte ---------- */
+
+.map-view {
+  border-radius: 20px;
+  border-color: var(--rand-hell);
+  box-shadow: 0 20px 60px -20px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(255, 255, 255, 0.02), 0 0 50px -25px var(--color-primary);
+}
+
+.leaflet-bar {
+  border: 1px solid var(--color-border-strong) !important;
+  border-radius: 12px !important;
+  overflow: hidden;
+  box-shadow: 0 10px 24px -10px rgba(0, 0, 0, 0.7) !important;
+}
+
+.leaflet-bar a,
+.leaflet-bar a:hover {
+  background: var(--glas-hoch);
+  backdrop-filter: blur(10px);
+}
+
+.leaflet-bar a:hover {
+  color: var(--color-primary-text);
+}
+
+.leaflet-popup-content-wrapper {
+  border-radius: 14px;
+  border: 1px solid var(--rand-hell);
+  box-shadow: 0 16px 40px -10px rgba(0, 0, 0, 0.7);
+}
+
+/* Einsatz-Leiste oben auf der Karte */
+.map-incident-bar__count,
+.map-incident-chip {
+  background: color-mix(in srgb, var(--color-surface) 82%, transparent);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-color: var(--color-border-strong);
+  font-weight: 600;
+  transition: transform 0.15s ease, border-color 0.15s ease, box-shadow 0.2s ease;
+}
+
+.map-incident-bar__count {
+  background: var(--verlauf);
+  border-color: transparent;
+  color: #fff;
+  box-shadow: 0 8px 20px -8px color-mix(in srgb, var(--color-primary) 80%, transparent);
+}
+
+.map-incident-chip:hover {
+  transform: translateY(-1px);
+  border-color: var(--rand-hell);
+}
+
+.map-incident-chip--active {
+  border-color: var(--color-primary);
+  box-shadow: var(--leuchten);
+}
+
+.map-incident-chip--eskaliert {
+  box-shadow: 0 0 18px -4px rgba(255, 59, 92, 0.8);
+}
+
+.map-incident-chip__dot {
+  box-shadow: 0 0 8px currentColor;
+}
+
+.map-incident-chip--offen .map-incident-chip__dot { color: #f59e0b; animation: puls-punkt 1.6s ease-in-out infinite; }
+.map-incident-chip--alarmiert .map-incident-chip__dot { color: #3b82f6; }
+.map-incident-chip--in_bearbeitung .map-incident-chip__dot { color: #e5484d; }
+.map-incident-chip--transport .map-incident-chip__dot { color: #8b5cf6; }
+
+.map-incident-panel,
+.map-style-toggle {
+  background: var(--glas-hoch);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-color: var(--rand-hell);
+}
+
+.map-incident-panel {
+  border-radius: 18px;
+  animation: hereinschweben 0.25s ease-out;
+}
+
+/* ---------- Einsätze ---------- */
+
+.einsatz-eintrag {
+  border-radius: 14px;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--status-farbe, var(--color-border)) 10%, var(--color-surface)), var(--color-surface) 45%);
+  transition: transform 0.15s ease, border-color 0.15s ease, box-shadow 0.2s ease, background 0.2s ease;
+}
+
+.einsatz-eintrag:hover {
+  transform: translateX(3px);
+  background: linear-gradient(90deg, color-mix(in srgb, var(--status-farbe, var(--color-border)) 16%, var(--color-surface-raised)), var(--color-surface-raised) 50%);
+}
+
+.einsatz-eintrag--aktiv {
+  box-shadow: 0 0 0 1px var(--color-primary), 0 12px 30px -14px var(--color-primary);
+}
+
+.status-badge {
+  border-radius: 999px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.bedarf-chip {
+  border-radius: 999px;
+}
+
+.leerzustand {
+  border-radius: 16px;
+}
+
+/* ---------- Seiten (Finanzen, Wachen, Team …) ---------- */
+
+.seiten-inhalt {
+  animation: hereinschweben 0.3s ease-out;
+}
+
+.seiten-inhalt h2,
+.abschnitt-titel {
+  font-family: var(--font-titel);
+}
+
+.seiten-inhalt h2 {
+  font-size: 1.7rem;
+  font-weight: 800;
+}
+
+/* ---------- Tab-Leiste unten ---------- */
+
+.tab-leiste {
+  background: var(--glas);
+  backdrop-filter: blur(16px) saturate(140%);
+  -webkit-backdrop-filter: blur(16px) saturate(140%);
+  box-shadow: 0 -10px 30px -16px rgba(0, 0, 0, 0.7);
+}
+
+.tab-leiste__tab {
+  position: relative;
+  border-radius: 12px;
+  font-weight: 600;
+  transition: background 0.2s ease, color 0.2s ease, transform 0.15s ease;
+}
+
+.tab-leiste__tab:hover {
+  transform: translateY(-1px);
+}
+
+.tab-leiste__tab--aktiv,
+.tab-leiste__tab--aktiv:hover {
+  background: color-mix(in srgb, var(--color-primary) 16%, transparent);
+  color: var(--color-primary-text);
+}
+
+/* Leuchtender Strich über dem aktiven Tab */
+.tab-leiste__tab--aktiv::before {
+  content: '';
+  position: absolute;
+  top: -6px;
+  left: 22%;
+  right: 22%;
+  height: 3px;
+  border-radius: 0 0 3px 3px;
+  background: var(--verlauf);
+  box-shadow: 0 0 12px var(--color-primary);
+}
+
+.tab-leiste__zahl {
+  box-shadow: 0 0 10px rgba(217, 63, 63, 0.8);
+  animation: puls-punkt 1.6s ease-in-out infinite;
+}
+
+/* ---------- Tour, Hinweise, Fenster ---------- */
+
+.tour__rahmen {
+  border-radius: 14px;
+}
+
+.einsatz-hinweis,
+.erste-schritte,
+.ruf-fenster {
+  border-radius: 18px;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+
+.einsatz-hinweis {
+  animation: hereinschweben 0.3s ease-out;
+}
+
+/* ---------- Anmeldung ---------- */
+
+.anmeldung {
+  background: transparent;
+  overflow: hidden;
+  isolation: isolate;
+}
+
+/* Rundumlicht hinter der Anmeldung */
+.anmeldung::before {
+  content: '';
+  position: absolute;
+  top: 10%;
+  left: 50%;
+  z-index: -1;
+  width: 1100px;
+  height: 1100px;
+  margin-left: -550px;
+  border-radius: 50%;
+  background: conic-gradient(from 0deg, transparent 0deg, color-mix(in srgb, var(--color-primary) 22%, transparent) 40deg, transparent 90deg, transparent 180deg, rgba(255, 61, 90, 0.12) 220deg, transparent 270deg);
+  filter: blur(50px);
+  animation: drehen 16s linear infinite;
+  pointer-events: none;
+}
+
+/* Feines Raster */
+.anmeldung::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background-image:
+    linear-gradient(color-mix(in srgb, var(--color-primary) 7%, transparent) 1px, transparent 1px),
+    linear-gradient(90deg, color-mix(in srgb, var(--color-primary) 7%, transparent) 1px, transparent 1px);
+  background-size: 56px 56px;
+  mask-image: radial-gradient(ellipse at 50% 30%, black 15%, transparent 70%);
+  -webkit-mask-image: radial-gradient(ellipse at 50% 30%, black 15%, transparent 70%);
+  pointer-events: none;
+}
+
+.anmeldung__leiste {
+  background: var(--glas);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
+
+.anmeldung__kopf h1 {
+  font-size: clamp(2rem, 4.2vw, 3.4rem);
+  font-weight: 800;
+  background: linear-gradient(100deg, var(--color-text) 30%, var(--color-primary-text) 65%, var(--akzent-2));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.anmeldung__karte {
+  position: relative;
+  border-radius: 22px;
+  border: 1px solid transparent;
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--color-surface-raised) 94%, transparent), color-mix(in srgb, var(--color-surface) 94%, transparent)) padding-box,
+    linear-gradient(140deg, color-mix(in srgb, var(--color-primary) 70%, transparent), var(--color-border) 45%, color-mix(in srgb, var(--akzent-2) 50%, transparent)) border-box;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  box-shadow: 0 30px 80px -20px rgba(0, 0, 0, 0.8), 0 0 60px -25px var(--color-primary);
+  animation: hereinschweben 0.5s ease-out;
+}
+
+.anmeldung__merkmale li {
+  transition: transform 0.2s ease;
+}
+
+.anmeldung__merkmale li:hover {
+  transform: translateX(4px);
+}
+
+.anmeldung__merkmale li > span {
+  width: 42px;
+  height: 42px;
+  border-radius: 13px;
+  border-color: color-mix(in srgb, var(--color-primary) 35%, transparent);
+  background: linear-gradient(135deg, color-mix(in srgb, var(--color-primary) 30%, transparent), color-mix(in srgb, var(--akzent-2) 12%, transparent));
+  box-shadow: 0 8px 20px -10px var(--color-primary);
+}
+
+.anmeldung__merkmale strong {
+  font-family: var(--font-titel);
+}
+
+/* ---------- Bewegungen ---------- */
+
+@keyframes hereinschweben {
+  from { opacity: 0; transform: translateY(10px); }
+}
+
+@keyframes aufklappen {
+  from { opacity: 0; transform: translateY(-6px) scale(0.98); }
+}
+
+@keyframes drehen {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes puls-punkt {
+  50% { opacity: 0.45; }
+}
+
+/* ---------- Helles Design: weniger Leuchten, keine dunklen Schatten ---------- */
+
+html[data-design='hell'] .topbar,
+html[data-design='hell'] .tab-leiste,
+html[data-design='hell'] .map-view {
+  box-shadow: 0 6px 20px -12px rgba(0, 0, 0, 0.25);
+}
+
+html[data-design='hell'] .anmeldung__karte {
+  box-shadow: 0 20px 50px -20px rgba(0, 0, 0, 0.25);
+}
+
+/* ---------- Weniger Bewegung (Systemeinstellung) ---------- */
+
+@media (prefers-reduced-motion: reduce) {
+  .anmeldung::before,
+  .anmeldung__karte,
+  .seiten-inhalt,
+  .einsatz-hinweis,
+  .map-incident-panel,
+  .view-dropdown__menu,
+  .tab-leiste__zahl,
+  .map-incident-chip__dot {
+    animation: none !important;
+  }
+
+  .btn,
+  .btn--primary::after {
+    transition: none;
+  }
+}
+
+/* ---------- Kennzahlen über der Einsatzliste ---------- */
+
+.einsatz-kennzahlen {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.einsatz-kennzahl {
+  --kennzahl-farbe: var(--color-primary);
+  position: relative;
+  overflow: hidden;
+  display: grid;
+  gap: 2px;
+  padding: 14px 16px;
+  border: 1px solid var(--color-border);
+  border-radius: 14px;
+  background: linear-gradient(135deg, color-mix(in srgb, var(--kennzahl-farbe) 16%, var(--color-surface)), var(--color-surface) 60%);
+}
+
+/* Farbiger Streifen links */
+.einsatz-kennzahl::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 12px;
+  bottom: 12px;
+  width: 3px;
+  border-radius: 0 3px 3px 0;
+  background: var(--kennzahl-farbe);
+  box-shadow: 0 0 10px var(--kennzahl-farbe);
+}
+
+.einsatz-kennzahl span {
+  color: var(--color-text-muted);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.einsatz-kennzahl strong {
+  font-family: var(--font-titel);
+  font-size: 1.6rem;
+  font-weight: 800;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+}
+
+.einsatz-kennzahl--rd { --kennzahl-farbe: #f59e0b; }
+.einsatz-kennzahl--fw { --kennzahl-farbe: #e5484d; }
+.einsatz-kennzahl--geld { --kennzahl-farbe: #22c55e; }
+
+.leerzustand + .einsatz-layout {
+  margin-top: 12px;
+}

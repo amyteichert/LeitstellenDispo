@@ -439,21 +439,21 @@ export default function EinsaetzeView({
         </div>
       )}
 
-      <div style={{ marginBottom: 16, display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: 8 }}>
-        <div style={{ background: 'var(--color-surface)', padding: 10, borderRadius: 8, border: '1px solid var(--color-border)' }}>
-          <div style={{ fontSize: 12, color: 'var(--color-text-muted)' }}>Abgeschlossen</div>
+      <div className="einsatz-kennzahlen">
+        <div className="einsatz-kennzahl">
+          <span>Abgeschlossen</span>
           <strong>{stats.total}</strong>
         </div>
-        <div style={{ background: 'var(--color-surface)', padding: 10, borderRadius: 8, border: '1px solid var(--color-border)' }}>
-          <div style={{ fontSize: 12, color: 'var(--color-text-muted)' }}>RD</div>
+        <div className="einsatz-kennzahl einsatz-kennzahl--rd">
+          <span>RD</span>
           <strong>{stats.rettungsdienst}</strong>
         </div>
-        <div style={{ background: 'var(--color-surface)', padding: 10, borderRadius: 8, border: '1px solid var(--color-border)' }}>
-          <div style={{ fontSize: 12, color: 'var(--color-text-muted)' }}>FW</div>
+        <div className="einsatz-kennzahl einsatz-kennzahl--fw">
+          <span>FW</span>
           <strong>{stats.feuerwehr}</strong>
         </div>
-        <div style={{ background: 'var(--color-surface)', padding: 10, borderRadius: 8, border: '1px solid var(--color-border)' }}>
-          <div style={{ fontSize: 12, color: 'var(--color-text-muted)' }}>Verdient</div>
+        <div className="einsatz-kennzahl einsatz-kennzahl--geld">
+          <span>Verdient</span>
           <strong>{stats.earned} €</strong>
         </div>
       </div>

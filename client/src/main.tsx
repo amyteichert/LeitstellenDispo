@@ -5,6 +5,7 @@ import Anmeldung from './Anmeldung';
 import PasswortZuruecksetzen, { PASSWORT_SEITE } from './PasswortZuruecksetzen';
 import Rechtliches, { istRechtlicheSeite } from './Rechtliches';
 import './index.css';
+import './design.css';
 import { richteTonFreischaltungEin } from './ton';
 import { starteBesuchsMessung } from './besuchsMessung';
 import TestumgebungHinweis, { istTestumgebung } from './TestumgebungHinweis';
