@@ -155,7 +155,7 @@ export function erstelleAuthRouter(konten: KontenDienst, optionen: AuthOptionen 
           return void res.status(403).json({ fehler: 'Dieses Konto ist gesperrt.' });
         }
         if (ergebnis.grund === 'nicht_freigegeben') {
-          return void res.status(403).json({ fehler: 'Dein Konto wartet noch auf die Freischaltung durch das Team.' });
+          return void res.status(403).json({ fehler: 'Dein Konto wartet noch auf die Freischaltung durch das Team. Ohne Freischaltung wird es 7 Tage nach der Registrierung automatisch gelöscht.' });
         }
         anmeldeBremse.merkeFehlversuch(ip);
         return void res.status(401).json({ fehler: 'Benutzername oder Passwort ist falsch.' });

@@ -26,6 +26,7 @@ import { serverSpeicher, setzeGastmodus, uebernimmBrowserSpielstand } from './sp
 import { RechtlicheLinks } from './Rechtliches';
 import { Marke, Piktogramm, type SymbolName } from './Symbole';
 import { merkeBesuchsZiel } from './besuchsMessung';
+import { istTestumgebung } from './TestumgebungHinweis';
 import './App.css';
 
 type Zustand =
@@ -570,11 +571,18 @@ function AnmeldeFormular({ hinweis, onErfolg, onGast }: { hinweis?: string; onEr
           ))}
         </ul>
       )}
+      {istRegistrierung && istTestumgebung() && (
+        <p className="anmeldung__hinweis">
+          Testumgebung: Neue Konten schaltet das Team erst frei. Konten, die nicht innerhalb von 7 Tagen freigeschaltet werden,
+          werden automatisch gelöscht.
+        </p>
+      )}
 
       {fehler && <p className="anmeldung__fehler" role="alert">{fehler}</p>}
       {wartetAufFreischaltung && !fehler && (
         <p className="anmeldung__hinweis" role="status">
           ✓ Dein Konto ist angelegt und wartet auf die Freischaltung durch das Team. Danach kannst du dich hier anmelden.
+          Ohne Freischaltung wird es nach 7 Tagen automatisch gelöscht.
         </p>
       )}
 

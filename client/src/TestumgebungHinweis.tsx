@@ -11,11 +11,12 @@ function Balken({ platzhalter = false }: { platzhalter?: boolean }) {
       <strong>⚠ Testumgebung</strong>
       <span className="testumgebung-hinweis__lang">
         Hier werden neue Funktionen ausprobiert – Fehler und gelöschte Spielstände sind möglich.
+        Neue Konten müssen vom Team freigeschaltet werden, nicht freigeschaltete Konten werden nach 7 Tagen gelöscht.
         Das richtige Spiel findest du unter{' '}
         <a href="https://spiel.leitstellendispo.de" tabIndex={platzhalter ? -1 : undefined}>spiel.leitstellendispo.de</a>.
       </span>
       <span className="testumgebung-hinweis__kurz">
-        Richtiges Spiel: <a href="https://spiel.leitstellendispo.de" tabIndex={platzhalter ? -1 : undefined}>spiel.leitstellendispo.de</a>
+        Nicht freigeschaltete Konten werden nach 7 Tagen gelöscht. Richtiges Spiel: <a href="https://spiel.leitstellendispo.de" tabIndex={platzhalter ? -1 : undefined}>spiel.leitstellendispo.de</a>
       </span>
     </div>
   );
