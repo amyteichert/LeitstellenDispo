@@ -17,6 +17,7 @@ import type { FunkSpruch } from './funk.js';
 import type { AaoEintrag } from './aao.js';
 import type { GrafikAuswahl } from './fahrzeuggrafiken.js';
 import { getFehlendeQualifikationen, type Qualifikation } from './fahrzeuge.js';
+import { LAUFBAHN_START, erstelleLaufbahnFuerBestand, istGueltigeLaufbahn, type Laufbahn } from './laufbahn.js';
 import type { FinanceTransaction, MapLocation, Vehicle } from './typen.js';
 
 /** Wird erhöht, wenn sich der Aufbau des Spielstands ändert (ältere Versionen werden migriert). */
@@ -35,6 +36,8 @@ export interface Spielstand {
   krankenhaeuser: Krankenhaus[];
   /** Ruf der Leitstelle (0–100) – fehlt bei älteren Spielständen */
   ruf?: number;
+  /** Erfahrungspunkte, Rang und Erfolge – fehlt bei älteren Spielständen (wird beim Laden ergänzt) */
+  laufbahn?: Laufbahn;
   /** Personal aller Wachen – fehlt bei älteren Spielständen (wird dann für alle Fahrzeuge erzeugt) */
   personal?: Mitarbeiter[];
   /** Funkverkehr (neueste zuerst) – fehlt bei älteren Spielständen */
@@ -88,6 +91,7 @@ export const createNeuesSpiel = (jetzt: Date = new Date()): Spielstand => ergaen
   // Krankenhäuser gibt es nur, wenn der Spieler eigene baut
   krankenhaeuser: [],
   ruf: RUF_CONFIG.start,
+  laufbahn: LAUFBAHN_START,
 });
 
 /** Spielstände ohne Personal: Jedes Fahrzeug bekommt eine volle Besatzung (inkl. Pflicht-Qualifikation). */
@@ -196,7 +200,17 @@ function pruefeStruktur(spielstand: Spielstand | null): Spielstand | null {
   if (!Number.isFinite(spielstand.balance)) return null;
   if (!spielstand.vehicles.every(istGueltigesFahrzeug)) return null;
   if (!spielstand.incidents.every(istGueltigerEinsatz)) return null;
-  return entferneVerwaisteFahrzeuge(spielstand);
+  return ergaenzeLaufbahn(entferneVerwaisteFahrzeuge(spielstand));
+}
+
+/** Ältere oder beschädigte Spielstände: Laufbahn so ergänzen, dass alle vorhandenen Fahrzeugtypen freigeschaltet sind */
+function ergaenzeLaufbahn(spielstand: Spielstand): Spielstand {
+  if (istGueltigeLaufbahn(spielstand.laufbahn)) return spielstand;
+  const laufbahn = erstelleLaufbahnFuerBestand(
+    spielstand.vehicles.map((vehicle) => vehicle.type ?? ''),
+    spielstand.completedIncidentHistory?.length ?? 0,
+  );
+  return { ...spielstand, laufbahn };
 }
 
 type WachenZustand = Pick<Spielstand, 'locations' | 'vehicles' | 'incidents'> & { personal?: Mitarbeiter[] };

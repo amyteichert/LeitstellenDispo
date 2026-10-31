@@ -85,6 +85,7 @@ export default function WachenView({
   nowMs,
   buyVehicle,
   eigenesKrankenhaus,
+  xp,
   benenneFahrzeugUm,
   erweitereStellplaetze,
   passeWacheAn,
@@ -104,6 +105,8 @@ export default function WachenView({
   buyVehicle: (stationId: string, typ: string) => string | null;
   /** KTW gibt es erst mit eigenem Krankenhaus */
   eigenesKrankenhaus: boolean;
+  /** Erfahrungspunkte – bestimmen, welche Fahrzeuge der Rang schon kaufen darf */
+  xp: number;
   benenneFahrzeugUm: (fahrzeugId: string, name: string) => string | null;
   erweitereStellplaetze: (stationId: string) => string | null;
   passeWacheAn: WacheAnpassen;
@@ -130,6 +133,7 @@ export default function WachenView({
         nowMs={nowMs}
         buyVehicle={buyVehicle}
         eigenesKrankenhaus={eigenesKrankenhaus}
+        xp={xp}
         benenneFahrzeugUm={benenneFahrzeugUm}
         erweitereStellplaetze={erweitereStellplaetze}
         passeWacheAn={passeWacheAn}
@@ -248,6 +252,7 @@ function WacheVerwalten({
   nowMs,
   buyVehicle,
   eigenesKrankenhaus,
+  xp,
   benenneFahrzeugUm,
   erweitereStellplaetze,
   passeWacheAn,
@@ -263,6 +268,8 @@ function WacheVerwalten({
   buyVehicle: (stationId: string, typ: string) => string | null;
   /** KTW gibt es erst mit eigenem Krankenhaus */
   eigenesKrankenhaus: boolean;
+  /** Erfahrungspunkte – bestimmen, welche Fahrzeuge der Rang schon kaufen darf */
+  xp: number;
   benenneFahrzeugUm: (fahrzeugId: string, name: string) => string | null;
   erweitereStellplaetze: (stationId: string) => string | null;
   passeWacheAn: WacheAnpassen;
@@ -289,7 +296,7 @@ function WacheVerwalten({
   const erweiterungen = getStellplatzErweiterungen(wache);
   const stellplatzPreis = getStellplatzPreis(wache);
   const gewaehlterTyp = getFahrzeugTyp(kaufTyp);
-  const kaufSperre = gewaehlterTyp ? getKaufSperre(gewaehlterTyp, wache, eigenesKrankenhaus) : null;
+  const kaufSperre = gewaehlterTyp ? getKaufSperre(gewaehlterTyp, wache, eigenesKrankenhaus, xp) : null;
   const sonderErweiterungen = getSonderErweiterungenFuerWache(wache);
   const wachenPersonal = getPersonalDerWache(wache.id, personal);
   const personalLimit = getPersonalLimit(wache);
@@ -469,7 +476,7 @@ function WacheVerwalten({
               <>
                 <ul className="kauf-raster">
                   {kaufbareTypen.map((fahrzeugTyp) => {
-                    const sperre = getKaufSperre(fahrzeugTyp, wache, eigenesKrankenhaus);
+                    const sperre = getKaufSperre(fahrzeugTyp, wache, eigenesKrankenhaus, xp);
                     const erweiterung = fahrzeugTyp.brauchtErweiterung ? getSonderErweiterung(fahrzeugTyp.brauchtErweiterung) : undefined;
                     return (
                       <li key={fahrzeugTyp.typ}>
@@ -482,7 +489,7 @@ function WacheVerwalten({
                           <FahrzeugBild typ={fahrzeugTyp.typ} hoehe={40} />
                           <strong>{fahrzeugTyp.typ}</strong>
                           <small>{euro(fahrzeugTyp.preis)}</small>
-                          {sperre && <small className="kauf-karte__sperre">🔒 {erweiterung ? erweiterung.name : sperre}</small>}
+                          {sperre && <small className="kauf-karte__sperre">🔒 {erweiterung && !sperre.startsWith('ab Rang') ? erweiterung.name : sperre}</small>}
                         </button>
                       </li>
                     );
@@ -497,9 +504,13 @@ function WacheVerwalten({
                       {' · '}{gewaehlterTyp.faehigkeiten.map((f) => FAEHIGKEIT_LABELS[f]).join(', ')}
                     </p>
                     {kaufSperre ? (
-                      <button type="button" className="btn btn--secondary" onClick={() => setReiter('Ausbau')} disabled={!gewaehlterTyp.brauchtErweiterung}>
-                        {gewaehlterTyp.brauchtErweiterung ? `Erst „${getSonderErweiterung(gewaehlterTyp.brauchtErweiterung)?.name}“ bauen` : 'Erst mit eigenem Krankenhaus'}
-                      </button>
+                      kaufSperre.startsWith('ab Rang') ? (
+                        <button type="button" className="btn btn--secondary" disabled>🔒 {kaufSperre[0].toUpperCase()}{kaufSperre.slice(1)}</button>
+                      ) : (
+                        <button type="button" className="btn btn--secondary" onClick={() => setReiter('Ausbau')} disabled={!gewaehlterTyp.brauchtErweiterung}>
+                          {gewaehlterTyp.brauchtErweiterung ? `Erst „${getSonderErweiterung(gewaehlterTyp.brauchtErweiterung)?.name}“ bauen` : 'Erst mit eigenem Krankenhaus'}
+                        </button>
+                      )
                     ) : (
                       <button className="btn btn--primary" type="button" disabled={balance < gewaehlterTyp.preis} onClick={kaufen}>
                         {balance < gewaehlterTyp.preis ? `Es fehlen ${euro(gewaehlterTyp.preis - balance)}` : `${gewaehlterTyp.typ} kaufen · ${euro(gewaehlterTyp.preis)}`}

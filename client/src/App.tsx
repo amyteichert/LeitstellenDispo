@@ -15,6 +15,8 @@ import {
   getFahrzeugPosition,
   getFahrzeugTyp,
   FMS_STATUS,
+  getRang,
+  getRangFortschritt,
   getStartfahrzeugTypen,
   FUNKRUFNAME_MAX_LAENGE,
   getFunkKurzname,
@@ -58,6 +60,8 @@ import KrankenhaeuserView from './views/KrankenhaeuserView';
 import EinsaetzeView from './views/EinsaetzeView';
 import { KarteEinsatzLeiste, KarteEinsatzPanel } from './views/KarteEinsatzOverlay';
 import RufFenster from './views/RufFenster';
+import LaufbahnFenster, { BefoerderungFenster } from './views/LaufbahnFenster';
+import { BELOHNUNG_ANZEIGE_MS, type Belohnung } from './useSpiel';
 import WetterFenster from './views/WetterFenster';
 import FinanzenView from './views/FinanzenView';
 import StatistikView from './views/StatistikView';
@@ -129,6 +133,14 @@ const FAHRT_LINIEN_FARBEN: Record<FahrzeugFahrt['art'], string> = {
 const createVehicleMarkerIcon = (art: FahrzeugFahrt['art'], organisation: 'fw' | 'rd', fahrzeug: Vehicle) => L.divIcon({
   className: `vehicle-marker vehicle-marker--${art} vehicle-marker--${organisation}`,
   html: `<span>${fahrzeugSymbolHtml(fahrzeug)}</span>`,
+  iconSize: undefined,
+  iconAnchor: [0, 0],
+});
+
+/** Kurz aufsteigendes „+ 1.240 €“ am Einsatzort, wenn ein Einsatz bezahlt wird */
+const createBelohnungIcon = (belohnung: Belohnung) => L.divIcon({
+  className: 'belohnung-marker',
+  html: `<span>+${belohnung.betrag.toLocaleString('de-DE')} €<small>+${belohnung.xp} EP</small></span>`,
   iconSize: undefined,
   iconAnchor: [0, 0],
 });
@@ -300,6 +312,7 @@ function App({ konto, onAbmelden, gast = false, setKonto }: {
   // Einsatz, dessen Kurzinfo gerade als schwebendes Fenster auf der Karte angezeigt wird
   const [mapIncidentId, setMapIncidentId] = useState<string | null>(null);
   const [rufFensterOffen, setRufFensterOffen] = useState(false);
+  const [laufbahnFensterOffen, setLaufbahnFensterOffen] = useState(false);
   const [wetterFensterOffen, setWetterFensterOffen] = useState(false);
   const [wacheKaufenOffen, setWacheKaufenOffen] = useState(false);
   const [kaufMeldung, setKaufMeldung] = useState<string | null>(null);
@@ -381,7 +394,7 @@ function App({ konto, onAbmelden, gast = false, setKonto }: {
   const [draftStartVehicleCallsign, setDraftStartVehicleCallsign] = useState<string>('');
 
   useEffect(() => {
-    setDraftStartVehicleType(getStartfahrzeugTypen(draftStationKind)[0]?.typ ?? '');
+    setDraftStartVehicleType(getStartfahrzeugTypen(draftStationKind, spiel.laufbahn.xp)[0]?.typ ?? '');
   }, [draftStationKind]);
 
   const selectedLocation = useMemo(
@@ -617,7 +630,7 @@ Dein Guthaben: ${balance.toLocaleString('de-DE')} €`)) return;
       <label className="field">
         <span>Startfahrzeug</span>
         <select value={draftStartVehicleType} onChange={(e) => setDraftStartVehicleType(e.target.value)}>
-          {getStartfahrzeugTypen(draftStationKind).map((fahrzeugTyp) => (
+          {getStartfahrzeugTypen(draftStationKind, spiel.laufbahn.xp).map((fahrzeugTyp) => (
             <option key={fahrzeugTyp.typ} value={fahrzeugTyp.typ}>{fahrzeugTyp.typ}</option>
           ))}
         </select>
@@ -701,6 +714,18 @@ Dein Guthaben: ${balance.toLocaleString('de-DE')} €`)) return;
   return (
     <GrafikKontext.Provider value={grafikKontext}>
     <div className="app-shell">
+      {spiel.erfolgsMeldungen.length > 0 && (
+        <div className="erfolg-meldung" role="status" aria-live="polite">
+          <button type="button" className="erfolg-meldung__inhalt" onClick={() => { spiel.erfolgsMeldungenGesehen(); setLaufbahnFensterOffen(true); }}>
+            <span aria-hidden>🏅</span>
+            <span>
+              <strong>{spiel.erfolgsMeldungen.length === 1 ? `Erfolg: ${spiel.erfolgsMeldungen[0].titel}` : `${spiel.erfolgsMeldungen.length} Erfolge erreicht`}</strong>
+              <small>+{spiel.erfolgsMeldungen.reduce((summe, erfolg) => summe + erfolg.xp, 0).toLocaleString('de-DE')} EP · antippen für deine Laufbahn</small>
+            </span>
+          </button>
+          <button type="button" className="einsatz-hinweis__schliessen" onClick={spiel.erfolgsMeldungenGesehen} aria-label="Schließen">✕</button>
+        </div>
+      )}
       {hinweise.length > 0 && (
         <div className="einsatz-hinweise" role="status" aria-live="polite">
           {hinweise.map((hinweis) => (
@@ -753,7 +778,7 @@ Dein Guthaben: ${balance.toLocaleString('de-DE')} €`)) return;
         <div className="topbar__meta">
           <button
             type="button"
-            className={`chip ruf-chip status-chip ${balance < 0 ? 'status-chip--minus' : ''}`}
+            className={`chip ruf-chip status-chip ${balance < 0 ? 'status-chip--minus' : ''} ${spiel.belohnungen.some((b) => nowMs - b.zeit < 1500) ? 'status-chip--plus' : ''}`}
             title={`Guthaben – laufende Kosten ${spiel.laufendeKosten.gesamt.toLocaleString('de-DE')} €/Std. · antippen für die Finanzen`}
             onClick={() => setCurrentView('Finanzen')}
           >
@@ -792,6 +817,16 @@ Dein Guthaben: ${balance.toLocaleString('de-DE')} €`)) return;
             <Piktogramm name="stern" />
             <span className="status-chip__wert">{spiel.ruf}</span>
             <span className="nur-breit status-chip__label">{getRufLabel(spiel.ruf)}</span>
+          </button>
+          <button
+            type="button"
+            className="chip ruf-chip status-chip rang-chip"
+            title={`${getRang(spiel.laufbahn.xp).name} · ${spiel.laufbahn.xp.toLocaleString('de-DE')} EP – antippen für Ränge und Erfolge`}
+            onClick={() => setLaufbahnFensterOffen(true)}
+          >
+            <span className="rang-chip__abzeichen" aria-hidden>{getRang(spiel.laufbahn.xp).stufe}</span>
+            <span className="nur-breit status-chip__label">{getRang(spiel.laufbahn.xp).name}</span>
+            <span className="rang-chip__balken" aria-hidden><span style={{ width: `${getRangFortschritt(spiel.laufbahn.xp) * 100}%` }} /></span>
           </button>
 
           <div className="view-dropdown">
@@ -872,6 +907,9 @@ Dein Guthaben: ${balance.toLocaleString('de-DE')} €`)) return;
       {fehlerMeldenOffen && <FehlerMelden ansicht={currentView} onClose={() => setFehlerMeldenOffen(false)} />}
 
       {wetterFensterOffen && <WetterFenster wetter={wetter} onClose={() => setWetterFensterOffen(false)} />}
+
+      {laufbahnFensterOffen && <LaufbahnFenster laufbahn={spiel.laufbahn} onClose={() => setLaufbahnFensterOffen(false)} />}
+      {spiel.befoerderung && <BefoerderungFenster rang={spiel.befoerderung} onClose={spiel.befoerderungGesehen} />}
 
       {rufFensterOffen && (
         <RufFenster
@@ -1086,6 +1124,12 @@ Dein Guthaben: ${balance.toLocaleString('de-DE')} €`)) return;
                   />
                 ))}
 
+              {spiel.belohnungen
+                .filter((belohnung) => nowMs - belohnung.zeit < BELOHNUNG_ANZEIGE_MS)
+                .map((belohnung) => (
+                  <Marker key={belohnung.id} position={belohnung.coords} icon={createBelohnungIcon(belohnung)} zIndexOffset={3000} interactive={false} />
+                ))}
+
               {/* Fahrzeuge unterwegs: restliche Strecke zum Ziel (Straße, sonst Luftlinie) */}
               {vehicles.map((vehicle) => {
                 const fahrt = getFahrzeugPosition(vehicle, incidents, locations, nowMs);
@@ -1145,6 +1189,7 @@ Dein Guthaben: ${balance.toLocaleString('de-DE')} €`)) return;
                 nowMs={nowMs}
                 buyVehicle={spiel.buyVehicle}
                 eigenesKrankenhaus={spiel.eigenesKrankenhaus}
+                xp={spiel.laufbahn.xp}
                 benenneFahrzeugUm={spiel.benenneFahrzeugUm}
                 erweitereStellplaetze={spiel.erweitereStellplaetze}
                 passeWacheAn={spiel.passeWacheAn}
@@ -1212,6 +1257,7 @@ Dein Guthaben: ${balance.toLocaleString('de-DE')} €`)) return;
                 key={currentView}
                 bereich={currentView}
                 eigenesKrankenhaus={spiel.eigenesKrankenhaus}
+                xp={spiel.laufbahn.xp}
                 vehicles={vehicles}
                 stations={locations.filter((l) => l.type === 'station')}
                 grafiken={spiel.grafiken}

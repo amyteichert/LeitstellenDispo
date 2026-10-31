@@ -3449,3 +3449,165 @@ html[data-design='hell'] .versorgung-hinweis--ok { color: #166534; }
   align-items: center;
 }
 .ausbau-karte__fahrzeuge { display: flex; flex-wrap: wrap; gap: 8px; }
+
+/* ==========================================================================
+   Laufbahn: Belohnung, Rang, Erfolge, Beförderung
+   ========================================================================== */
+
+/* „+ 1.240 €“ steigt am Einsatzort auf und verblasst */
+.belohnung-marker span {
+  display: inline-grid;
+  justify-items: center;
+  transform: translate(-50%, -100%);
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: rgba(10, 40, 20, 0.9);
+  border: 1px solid #2ea043;
+  color: #5ee08a;
+  font-size: 0.85rem;
+  font-weight: 800;
+  white-space: nowrap;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
+  box-shadow: 0 0 12px rgba(46, 160, 67, 0.5);
+  animation: belohnung-steigt 2.5s ease-out forwards;
+  pointer-events: none;
+}
+.belohnung-marker small { font-size: 0.68rem; font-weight: 700; color: #f0c860; }
+@keyframes belohnung-steigt {
+  0% { opacity: 0; transform: translate(-50%, -60%) scale(0.8); }
+  12% { opacity: 1; transform: translate(-50%, -100%) scale(1.08); }
+  25% { transform: translate(-50%, -110%) scale(1); }
+  75% { opacity: 1; }
+  100% { opacity: 0; transform: translate(-50%, -260%); }
+}
+
+/* Guthaben leuchtet kurz grün, wenn Geld eingeht */
+.status-chip--plus {
+  border-color: #2ea043;
+  box-shadow: 0 0 10px rgba(46, 160, 67, 0.55);
+  transition: box-shadow 0.2s ease, border-color 0.2s ease;
+}
+.status-chip--plus .status-chip__wert { color: #5ee08a; }
+
+/* Rang in der Kopfzeile: Abzeichen mit Stufe, Name, kleiner Fortschrittsbalken */
+.rang-chip { gap: 7px; }
+.rang-chip__abzeichen {
+  display: inline-grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #f0c860, #c9972b);
+  color: #1a1306;
+  font-size: 0.72rem;
+  font-weight: 800;
+}
+.rang-chip__balken {
+  width: 42px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--color-border-strong);
+  overflow: hidden;
+}
+.rang-chip__balken span { display: block; height: 100%; background: #f0c860; }
+
+/* Erfolg erreicht: Meldung oben in der Mitte */
+.erfolg-meldung {
+  position: fixed;
+  top: 64px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 2600;
+  display: flex;
+  align-items: center;
+  width: min(380px, calc(100vw - 32px));
+  background: var(--color-surface-raised);
+  border: 1px solid #c9972b;
+  border-radius: var(--radius);
+  box-shadow: 0 0 18px rgba(240, 200, 96, 0.3), var(--shadow-md);
+  animation: hinweis-rein 0.25s ease-out;
+}
+.erfolg-meldung__inhalt {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  background: none;
+  border: 0;
+  color: var(--color-text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.erfolg-meldung__inhalt > span:first-child { font-size: 1.5rem; }
+.erfolg-meldung__inhalt span:last-child { display: grid; gap: 2px; }
+.erfolg-meldung__inhalt small { color: var(--color-text-muted); font-size: 0.75rem; }
+
+/* Laufbahn-Fenster */
+.laufbahn-fenster h4 { margin: 16px 0 8px; font-size: 0.9rem; }
+.laufbahn-raenge,
+.laufbahn-erfolge { list-style: none; display: grid; gap: 4px; }
+.laufbahn-raenge li {
+  display: grid;
+  gap: 2px;
+  padding: 7px 10px;
+  border-radius: var(--radius);
+  background: var(--color-surface-raised);
+  color: var(--color-text-muted);
+  font-size: 0.82rem;
+}
+.laufbahn-raenge__kopf { display: flex; justify-content: space-between; gap: 8px; }
+.laufbahn-raenge__erreicht { color: var(--color-text) !important; border-left: 3px solid #f0c860; }
+.laufbahn-erfolge { grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); }
+.laufbahn-erfolge li {
+  display: flex;
+  gap: 8px;
+  padding: 7px 10px;
+  border-radius: var(--radius);
+  background: var(--color-surface-raised);
+  opacity: 0.55;
+  font-size: 0.82rem;
+}
+.laufbahn-erfolge li > span:last-child { display: grid; gap: 1px; }
+.laufbahn-erfolge small { color: var(--color-text-muted); font-size: 0.72rem; }
+.laufbahn-erfolge__erreicht { opacity: 1 !important; border: 1px solid rgba(240, 200, 96, 0.45); }
+
+/* Beförderung: großer Glückwunsch-Moment */
+.befoerderung {
+  width: min(380px, 100%);
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+  padding: 28px 20px 20px;
+  text-align: center;
+  border-color: #c9972b;
+  box-shadow: 0 0 40px rgba(240, 200, 96, 0.35);
+  animation: befoerderung-rein 0.45s cubic-bezier(0.2, 1.4, 0.4, 1);
+}
+.befoerderung__abzeichen {
+  display: grid;
+  place-items: center;
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #f7dc8a, #c9972b);
+  color: #1a1306;
+  font-size: 2rem;
+  font-weight: 900;
+  box-shadow: 0 0 24px rgba(240, 200, 96, 0.6);
+}
+.befoerderung__titel { margin: 0; color: #f0c860; font-size: 0.8rem; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; }
+.befoerderung h3 { margin: 0; font-size: 1.4rem; }
+.befoerderung p { margin: 0; color: var(--color-text-muted); }
+.befoerderung .btn { margin-top: 8px; }
+@keyframes befoerderung-rein {
+  from { opacity: 0; transform: scale(0.7); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .belohnung-marker span { animation: none; }
+  .befoerderung,
+  .erfolg-meldung { animation: none; }
+}

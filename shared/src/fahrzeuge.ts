@@ -3,6 +3,7 @@
  * Alle anderen Stellen (Kaufen, Alarmierung, Einsatzbedarf, Fahrzeiten) lesen nur von hier.
  */
 import { GAME_CONFIG } from './konfig.js';
+import { getFreischaltRang, istFahrzeugFreigeschaltet } from './laufbahn.js';
 import type { EinsatzOrganisation, Vehicle, WachenArt } from './typen.js';
 import type { SonderErweiterungId } from './wachen.js';
 
@@ -362,22 +363,25 @@ export function getFehlendeQualifikationen(
 
 /**
  * Warum ein Typ an dieser Wache (noch) nicht kaufbar ist – oder null, wenn er kaufbar ist.
- * Prüft Wachenart, eigenes Krankenhaus und Sonder-Erweiterung (nicht Geld und Stellplatz).
+ * Prüft Wachenart, Rang (wenn `xp` angegeben), eigenes Krankenhaus und Sonder-Erweiterung (nicht Geld und Stellplatz).
  */
 export function getKaufSperre(
   typ: FahrzeugTyp,
   wache: { stationKind?: WachenArt; ausbau?: Record<string, number> },
   eigenesKrankenhaus: boolean,
+  xp?: number,
 ): string | null {
   if (typ.wachenArt !== (wache.stationKind ?? 'Rettungswache')) return `${typ.typ} passt nicht zu einer ${wache.stationKind ?? 'Rettungswache'}.`;
+  if (xp !== undefined && !istFahrzeugFreigeschaltet(typ.typ, xp)) return `ab Rang „${getFreischaltRang(typ.typ).name}“`;
   if (typ.brauchtEigenesKrankenhaus && !eigenesKrankenhaus) return 'erst mit eigenem Krankenhaus';
   if (typ.brauchtErweiterung && !(wache.ausbau?.[typ.brauchtErweiterung] ?? 0)) return 'Erweiterung nötig';
   return null;
 }
 
-/** Fahrzeugtypen, die beim Bau einer Wache als Startfahrzeug wählbar sind */
-export function getStartfahrzeugTypen(wachenArt: WachenArt): FahrzeugTyp[] {
-  return getFahrzeugTypenFuerWache(wachenArt).filter((eintrag) => !eintrag.keinStartfahrzeug);
+/** Fahrzeugtypen, die beim Bau einer Wache als Startfahrzeug wählbar sind (mit `xp`: nur freigeschaltete) */
+export function getStartfahrzeugTypen(wachenArt: WachenArt, xp?: number): FahrzeugTyp[] {
+  return getFahrzeugTypenFuerWache(wachenArt)
+    .filter((eintrag) => !eintrag.keinStartfahrzeug && (xp === undefined || istFahrzeugFreigeschaltet(eintrag.typ, xp)));
 }
 
 export function hatFaehigkeit(typ: string | undefined, faehigkeit: Faehigkeit): boolean {

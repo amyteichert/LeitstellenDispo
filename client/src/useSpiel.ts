@@ -2,6 +2,16 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   GAME_CONFIG,
   RUF_CONFIG,
+  LAUFBAHN_START,
+  findeNeueErfolge,
+  getEinsatzXp,
+  getRang,
+  istFahrzeugFreigeschaltet,
+  istPerfekterEinsatz,
+  type Erfolg,
+  type Koordinaten,
+  type Laufbahn,
+  type Rang,
   bucheLaufendeKosten,
   getLaufendeKosten,
   rechneLaufendeKostenAb,
@@ -107,6 +117,19 @@ import { bestaetigeKorrekturen, holeSchichtzulage, ladeKorrekturen } from './kon
 import type { FinanceTransaction, MapLocation, Vehicle } from './types';
 import { SPIELSTAND_VERSION, spielstandSpeicher, type Spielstand } from './spielstand';
 import { aufStrasseSetzen } from './strassenSnap';
+import { spieleFanfare, spieleKasse } from './ton';
+
+/** Ein gerade bezahlter Einsatz – für die kurze „+ €“-Einblendung auf der Karte */
+export interface Belohnung {
+  id: string;
+  coords: Koordinaten;
+  betrag: number;
+  xp: number;
+  zeit: number;
+}
+
+/** So lange bleibt eine Belohnung auf der Karte stehen */
+export const BELOHNUNG_ANZEIGE_MS = 2500;
 
 export interface NeueWache {
   name: string;
@@ -148,6 +171,10 @@ export function useSpiel(optionen: UseSpielOptionen = {}) {
   const [krankenhaeuser, setKrankenhaeuser] = useState<Krankenhaus[]>(startSpiel.krankenhaeuser);
   const [ruf, setRuf] = useState<number>(startSpiel.ruf ?? RUF_CONFIG.start);
   const [personal, setPersonal] = useState<Mitarbeiter[]>(startSpiel.personal ?? []);
+  const [laufbahn, setLaufbahn] = useState<Laufbahn>(startSpiel.laufbahn ?? LAUFBAHN_START);
+  const [belohnungen, setBelohnungen] = useState<Belohnung[]>([]);
+  const [befoerderung, setBefoerderung] = useState<Rang | null>(null);
+  const [erfolgsMeldungen, setErfolgsMeldungen] = useState<Erfolg[]>([]);
   // Für die Abrechnung im Tick immer den aktuellsten Ruf verwenden
   const rufRef = useRef(ruf);
   rufRef.current = ruf;
@@ -335,6 +362,7 @@ export function useSpiel(optionen: UseSpielOptionen = {}) {
     setCompletedIncidentHistory(spielstand.completedIncidentHistory);
     setKrankenhaeuser(spielstand.krankenhaeuser);
     setRuf(spielstand.ruf ?? RUF_CONFIG.start);
+    setLaufbahn(spielstand.laufbahn ?? LAUFBAHN_START);
     setPersonal(spielstand.personal ?? []);
     setFunk(spielstand.funk ?? []);
     setAao(ladeAao(spielstand.aao));
@@ -382,6 +410,7 @@ export function useSpiel(optionen: UseSpielOptionen = {}) {
         completedIncidentHistory,
         krankenhaeuser,
         ruf,
+        laufbahn,
         personal,
         funk,
         kostenAbgerechnetBis,
@@ -390,7 +419,7 @@ export function useSpiel(optionen: UseSpielOptionen = {}) {
       });
     }, 1000);
     return () => clearTimeout(timeout);
-  }, [spielstandGeladen, balance, transactions, locations, vehicles, incidents, completedIncidentHistory, krankenhaeuser, ruf, personal, funk, kostenAbgerechnetBis, aao, grafiken]);
+  }, [spielstandGeladen, balance, transactions, locations, vehicles, incidents, completedIncidentHistory, krankenhaeuser, ruf, laufbahn, personal, funk, kostenAbgerechnetBis, aao, grafiken]);
 
   // Spielzeit
   useEffect(() => {
@@ -402,8 +431,8 @@ export function useSpiel(optionen: UseSpielOptionen = {}) {
   // Neue Einsätze: Häufigkeit und Art nach deutscher Uhrzeit, Wochentag, Wachenzahl und Wetter.
   // Eigener Sekundentakt mit Refs – sonst würde jede Fahrzeugbewegung den Takt neu starten.
   const eigenesKrankenhaus = hatEigenesKrankenhaus(krankenhaeuser);
-  const erzeugungRef = useRef({ locations, vehicles, wetter: 'klar' as Wetter, krankenhaeuser });
-  erzeugungRef.current = { locations, vehicles, wetter: optionen.wetter ?? 'klar', krankenhaeuser };
+  const erzeugungRef = useRef({ locations, vehicles, wetter: 'klar' as Wetter, krankenhaeuser, xp: laufbahn.xp });
+  erzeugungRef.current = { locations, vehicles, wetter: optionen.wetter ?? 'klar', krankenhaeuser, xp: laufbahn.xp };
   /** Einsatzort auf die nächste Straße verschieben (nicht im Wasser/Wald), solange noch niemand alarmiert ist. */
   const strasseNachziehen = (einsatz: SpielEinsatz) => {
     if (einsatz.verlegung) return;
@@ -422,7 +451,7 @@ export function useSpiel(optionen: UseSpielOptionen = {}) {
       const jetzt = Date.now();
       const vergangen = jetzt - zuletzt;
       zuletzt = jetzt;
-      const { locations: orte, vehicles: fahrzeuge, wetter, krankenhaeuser: kliniken } = erzeugungRef.current;
+      const { locations: orte, vehicles: fahrzeuge, wetter, krankenhaeuser: kliniken, xp } = erzeugungRef.current;
       const wachen = orte.filter((location) => location.type === 'station').length;
       if (wachen === 0) return;
       const kontext: AufkommenKontext = { ...deutscheZeit(jetzt), wachen, wetter };
@@ -431,7 +460,7 @@ export function useSpiel(optionen: UseSpielOptionen = {}) {
       let neuerEinsatz: SpielEinsatz | undefined;
       setIncidents((current) => {
         if (current.filter((incident) => incident.status !== 'abgeschlossen').length >= maxOffeneEinsaetze(wachen)) return current;
-        const ergebnis = erzeugeZufallsEinsatz(orte, fahrzeuge, jetzt, kontext, kliniken);
+        const ergebnis = erzeugeZufallsEinsatz(orte, fahrzeuge, jetzt, kontext, kliniken, (typ) => istFahrzeugFreigeschaltet(typ, xp));
         if (!('einsatz' in ergebnis)) return current;
         neuerEinsatz = ergebnis.einsatz;
         return [ergebnis.einsatz, ...current];
@@ -462,6 +491,27 @@ export function useSpiel(optionen: UseSpielOptionen = {}) {
       ].slice(0, GAME_CONFIG.completedIncidentHistoryLimit));
       const summe = abrechnung.einsaetze.reduce((sum, incident) => sum + incident.reward + (incident.bewertung?.bonus ?? 0), 0);
       setBalance((cur) => cur + summe);
+      // Laufbahn: Erfahrungspunkte je Einsatz, dazu die kurze „+ €“-Einblendung auf der Karte
+      const xpJeEinsatz = abrechnung.einsaetze.map((incident) => getEinsatzXp(incident));
+      const perfekt = abrechnung.einsaetze.filter((incident) => istPerfekterEinsatz(incident.bewertung)).length;
+      setLaufbahn((cur) => ({
+        ...cur,
+        xp: cur.xp + xpJeEinsatz.reduce((a, b) => a + b, 0),
+        einsaetze: cur.einsaetze + abrechnung.einsaetze.length,
+        perfekt: cur.perfekt + perfekt,
+      }));
+      const angezeigtAb = Date.now();
+      setBelohnungen((cur) => [
+        ...cur.filter((b) => angezeigtAb - b.zeit < BELOHNUNG_ANZEIGE_MS),
+        ...abrechnung.einsaetze.map((incident, i) => ({
+          id: `${incident.id}-${angezeigtAb}`,
+          coords: incident.coords,
+          betrag: incident.reward + (incident.bewertung?.bonus ?? 0),
+          xp: xpJeEinsatz[i],
+          zeit: angezeigtAb,
+        })),
+      ]);
+      spieleKasse();
       abrechnung.einsaetze.forEach((incident) => {
         addTransaction('Einnahme', `${incident.organization} – ${formatEinsatzTitel(incident)} abgeschlossen`, incident.reward);
         if (incident.bewertung && incident.bewertung.bonus > 0) {
@@ -505,6 +555,9 @@ export function useSpiel(optionen: UseSpielOptionen = {}) {
     }
     if (fahrzeugTyp.brauchtEigenesKrankenhaus && !eigenesKrankenhaus) {
       return `Den ${typ} gibt es erst, wenn du ein eigenes Krankenhaus gebaut hast.`;
+    }
+    if (!istFahrzeugFreigeschaltet(typ, laufbahn.xp)) {
+      return `Den ${typ} kannst du erst ${getKaufSperre(fahrzeugTyp, station, eigenesKrankenhaus, laufbahn.xp)} kaufen.`;
     }
     if (getKaufSperre(fahrzeugTyp, station, eigenesKrankenhaus)) {
       return `Für den ${typ} braucht die Wache erst die Erweiterung „${getSonderErweiterung(fahrzeugTyp.brauchtErweiterung ?? '')?.name}“ (unter „Ausbau“).`;
@@ -600,6 +653,10 @@ export function useSpiel(optionen: UseSpielOptionen = {}) {
     const stationPrice = getWachenPreis(wache.stationKind, locations.filter((location) => location.type === 'station').length);
     const vehiclePrice = getFahrzeugTyp(wache.startFahrzeugTyp)?.preis ?? 0;
     const totalCost = stationPrice + vehiclePrice;
+
+    if (wache.startFahrzeugTyp && !istFahrzeugFreigeschaltet(wache.startFahrzeugTyp, laufbahn.xp)) {
+      return { fehler: `Den ${wache.startFahrzeugTyp} kannst du als Startfahrzeug erst mit höherem Rang wählen.` };
+    }
 
     if (balance < totalCost) {
       return { fehler: `Nicht genügend Guthaben für die Erstellung. Benötigt: ${totalCost} €, verfügbar: ${balance} €.` };
@@ -901,6 +958,43 @@ export function useSpiel(optionen: UseSpielOptionen = {}) {
     )));
   };
 
+  // Beförderung: Rang vergleichen (nicht beim Laden – erst Änderungen danach zählen)
+  const rangStufeRef = useRef<number | null>(null);
+  useEffect(() => {
+    if (!spielstandGeladen) return;
+    const rang = getRang(laufbahn.xp);
+    if (rangStufeRef.current !== null && rang.stufe > rangStufeRef.current) {
+      setBefoerderung(rang);
+      spieleFanfare();
+    }
+    rangStufeRef.current = rang.stufe;
+  }, [spielstandGeladen, laufbahn.xp]);
+
+  // Erfolge prüfen, sobald sich etwas Relevantes ändert; die EP gibt es gleich dazu
+  useEffect(() => {
+    if (!spielstandGeladen) return;
+    const wachen = locations.filter((location) => location.type === 'station');
+    const neu = findeNeueErfolge({
+      einsaetze: laufbahn.einsaetze,
+      perfekt: laufbahn.perfekt,
+      wachen: wachen.length,
+      feuerwachen: wachen.filter((w) => w.stationKind === 'Feuerwache').length,
+      fahrzeuge: vehicles.length,
+      fahrzeugTypen: vehicles.map((vehicle) => vehicle.type ?? ''),
+      ruf,
+      eigenesKrankenhaus,
+      guthaben: balance,
+    }, laufbahn.erfolge);
+    if (neu.length === 0) return;
+    setLaufbahn((cur) => ({
+      ...cur,
+      xp: cur.xp + neu.reduce((summe, erfolg) => summe + erfolg.xp, 0),
+      erfolge: [...cur.erfolge, ...neu.map((erfolg) => erfolg.id)],
+    }));
+    setErfolgsMeldungen((cur) => [...cur, ...neu]);
+    spieleFanfare();
+  }, [spielstandGeladen, laufbahn.einsaetze, laufbahn.perfekt, laufbahn.erfolge, locations, vehicles, ruf, eigenesKrankenhaus, balance]);
+
   const neuesSpiel = () => {
     // Den Spielstand sofort durch den neuen ersetzen – nicht löschen: Ein Konto ohne Spielstand würde beim
     // nächsten Laden einen alten Browser-Spielstand übernehmen (dann wären die alten Wachen wieder da).
@@ -957,6 +1051,12 @@ export function useSpiel(optionen: UseSpielOptionen = {}) {
     erweitereNotaufnahme,
     meldeNotaufnahme,
     ruf,
+    laufbahn,
+    belohnungen,
+    befoerderung,
+    befoerderungGesehen: () => setBefoerderung(null),
+    erfolgsMeldungen,
+    erfolgsMeldungenGesehen: () => setErfolgsMeldungen([]),
     nowMs,
     addVehicle,
     buyVehicle,

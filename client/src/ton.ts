@@ -120,3 +120,15 @@ export function testeTon() {
   spieleToene([660, 880], { abstand: 0.18, dauer: 0.16, form: 'sine', pegel: 0.35 });
   vibriere([200, 100, 200]);
 }
+
+/** Leises „Kling“, wenn ein Einsatz abgeschlossen und bezahlt wird. */
+export function spieleKasse() {
+  if (!getEinstellungen().ton) return;
+  spieleToene([1568, 2093], { abstand: 0.07, dauer: 0.12, form: 'triangle', pegel: 0.1 });
+}
+
+/** Kleine Fanfare bei Beförderung und neuen Erfolgen. */
+export function spieleFanfare() {
+  if (!getEinstellungen().ton) return;
+  spieleToene([523, 659, 784, 1047], { abstand: 0.11, dauer: 0.2, form: 'triangle', pegel: 0.2 });
+}

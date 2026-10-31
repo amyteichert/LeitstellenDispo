@@ -9,7 +9,9 @@ import {
   fahrzeugErfuelltBedarf,
   formatEuro,
   getFahrzeugTyp,
+  getFreischaltRang,
   getKaufSperre,
+  istFahrzeugFreigeschaltet,
   getMindestBesatzung,
   getSonderErweiterung,
   istTeamRolle,
@@ -29,11 +31,12 @@ const einsaetzeFuer = (typ: string) =>
 
 /** Zwei Menüpunkte: „Fahrzeuge“ (eigene Flotte) und „Fahrzeugkatalog“ (alle Typen mit Grafiken) */
 /** Ob der Spieler diesen Typ jetzt kaufen kann: an welchen Wachen, sonst was noch fehlt */
-function getKaufStatus(typ: FahrzeugTyp, stations: MapLocation[], eigenesKrankenhaus: boolean): { kaufbarAn: string[]; fehlt: string[] } {
+function getKaufStatus(typ: FahrzeugTyp, stations: MapLocation[], eigenesKrankenhaus: boolean, xp: number): { kaufbarAn: string[]; fehlt: string[] } {
   const passende = stations.filter((s) => (s.stationKind ?? 'Rettungswache') === typ.wachenArt);
-  const kaufbarAn = passende.filter((s) => !getKaufSperre(typ, s, eigenesKrankenhaus)).map((s) => s.name);
+  const kaufbarAn = passende.filter((s) => !getKaufSperre(typ, s, eigenesKrankenhaus, xp)).map((s) => s.name);
   if (kaufbarAn.length > 0) return { kaufbarAn, fehlt: [] };
   const fehlt: string[] = [];
+  if (!istFahrzeugFreigeschaltet(typ.typ, xp)) fehlt.push(`den Rang „${getFreischaltRang(typ.typ).name}“ (ab ${getFreischaltRang(typ.typ).abXp.toLocaleString('de-DE')} EP)`);
   if (passende.length === 0) fehlt.push(`eine ${typ.wachenArt}`);
   if (typ.brauchtEigenesKrankenhaus && !eigenesKrankenhaus) fehlt.push('ein eigenes Krankenhaus');
   const erweiterung = typ.brauchtErweiterung ? getSonderErweiterung(typ.brauchtErweiterung) : undefined;
@@ -44,6 +47,7 @@ function getKaufStatus(typ: FahrzeugTyp, stations: MapLocation[], eigenesKranken
 export default function FahrzeugeView({
   bereich,
   eigenesKrankenhaus,
+  xp,
   vehicles,
   stations,
   grafiken: auswahl,
@@ -53,6 +57,8 @@ export default function FahrzeugeView({
 }: {
   bereich: 'Fahrzeuge' | 'Fahrzeugkatalog';
   eigenesKrankenhaus: boolean;
+  /** Erfahrungspunkte – bestimmen, welche Typen der Rang schon kaufen darf */
+  xp: number;
   vehicles: Vehicle[];
   stations: MapLocation[];
   grafiken: GrafikAuswahl;
@@ -98,7 +104,7 @@ export default function FahrzeugeView({
           {offenerTyp && (
             <FahrzeugDetail
               typ={offenerTyp}
-              kaufStatus={getKaufStatus(offenerTyp, stations, eigenesKrankenhaus)}
+              kaufStatus={getKaufStatus(offenerTyp, stations, eigenesKrankenhaus, xp)}
               gewaehlt={auswahl[offenerTyp.typ]}
               waehle={(id) => waehleTypGrafik(offenerTyp.typ, id)}
               grafiken={(katalog.grafiken ?? []).filter((g) => g.fahrzeugTyp === offenerTyp.typ)}
@@ -126,7 +132,7 @@ export default function FahrzeugeView({
                     {formatEuro(typ.preis)} · {getMindestBesatzung(typ.typ)}–{typ.besatzung} Pers. · {typ.geschwindigkeitKmh} km/h
                   </span>
                   <span className="katalog-karte__marken">
-                    {getKaufStatus(typ, stations, eigenesKrankenhaus).kaufbarAn.length > 0
+                    {getKaufStatus(typ, stations, eigenesKrankenhaus, xp).kaufbarAn.length > 0
                       ? <span className="katalog-marke katalog-marke--kaufbar">✓ Kaufbar</span>
                       : <span className="katalog-marke katalog-marke--gesperrt">🔒 Gesperrt</span>}
                     {typ.brauchtErweiterung && <span className="katalog-marke">{getSonderErweiterung(typ.brauchtErweiterung)?.name}</span>}

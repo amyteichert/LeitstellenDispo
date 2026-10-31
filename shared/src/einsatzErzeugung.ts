@@ -46,10 +46,14 @@ const getIncidentSpawnRadiusKm = (stationCount: number) => {
   return INCIDENT_SPAWN_CONFIG.midPhaseMaxRadiusKm + Math.random() * (INCIDENT_SPAWN_CONFIG.latePhaseMaxRadiusKm - INCIDENT_SPAWN_CONFIG.midPhaseMaxRadiusKm);
 };
 
-/** Ließe sich der Bedarf mit Fahrzeugen decken, die an diesen Wachenarten gekauft werden können? */
-export const istVorlageKaufbar = (template: Pick<EinsatzVorlage, 'requiredVehicles'>, wachenArten: StationKind[]) =>
+/** Ließe sich der Bedarf mit Fahrzeugen decken, die an diesen Wachenarten gekauft werden können (und für den Rang freigeschaltet sind)? */
+export const istVorlageKaufbar = (
+  template: Pick<EinsatzVorlage, 'requiredVehicles'>,
+  wachenArten: StationKind[],
+  freigeschaltet: (typ: string) => boolean = () => true,
+) =>
   template.requiredVehicles.every((bedarf) => FAHRZEUG_TYPEN.some((typ) =>
-    wachenArten.includes(typ.wachenArt) && fahrzeugErfuelltBedarf(typ.typ, bedarf.category)));
+    wachenArten.includes(typ.wachenArt) && freigeschaltet(typ.typ) && fahrzeugErfuelltBedarf(typ.typ, bedarf.category)));
 
 /**
  * Einsatzdruck: Vorlagen dieser Wachenart, die der Spieler mit seinen Fahrzeugen noch NICHT schafft,
@@ -61,13 +65,14 @@ export const getDruckVorlagen = (
   wachenArten: StationKind[],
   krankenhaeuser: Krankenhaus[] = [],
   jetzt: number = Date.now(),
+  freigeschaltet?: (typ: string) => boolean,
 ): EinsatzVorlage[] => {
   const machbar = new Set(getAvailableIncidentTemplates(stationKind, vehicles, krankenhaeuser, jetzt).map((v) => v.id));
   const eigenesKrankenhaus = hatEigenesKrankenhaus(krankenhaeuser);
   return (EINSATZ_VORLAGEN[stationKind] ?? []).filter((template) => !machbar.has(template.id)
     && !template.verlegung
     && (eigenesKrankenhaus || !template.brauchtEigenesKrankenhaus)
-    && istVorlageKaufbar(template, wachenArten));
+    && istVorlageKaufbar(template, wachenArten, freigeschaltet));
 };
 
 /** Wache, an der die meisten passenden freien Fahrzeuge stehen (bei Gleichstand zufällig). */
@@ -193,10 +198,11 @@ export const erzeugeDruckEinsatz = (
   jetzt: number = Date.now(),
   kontext?: AufkommenKontext,
   krankenhaeuser: Krankenhaus[] = [],
+  freigeschaltet?: (typ: string) => boolean,
 ): SpielEinsatz | null => {
   const wachenArten = [...new Set(stations.map((station) => station.stationKind ?? 'Rettungswache'))];
   const arten = wachenArten
-    .map((art) => getDruckVorlagen(art, vehicles, wachenArten, krankenhaeuser, jetzt))
+    .map((art) => getDruckVorlagen(art, vehicles, wachenArten, krankenhaeuser, jetzt, freigeschaltet))
     .filter((vorlagen) => vorlagen.length > 0);
   if (arten.length === 0) return null;
   const vorlagen = arten[Math.floor(Math.random() * arten.length)];
@@ -219,6 +225,8 @@ export const erzeugeZufallsEinsatz = (
   kontext?: AufkommenKontext,
   /** Bestimmt Krankentransporte und Verlegungen (erst mit eigenem Krankenhaus) */
   krankenhaeuser: Krankenhaus[] = [],
+  /** Einsatzdruck nur für Fahrzeuge, die der Spieler mit seinem Rang auch kaufen kann */
+  freigeschaltet?: (typ: string) => boolean,
 ): EinsatzErzeugungErgebnis => {
   const stations = locations.filter((location) => location.type === 'station');
   if (stations.length === 0) return { fehler: 'keine-wache' };
@@ -233,7 +241,7 @@ export const erzeugeZufallsEinsatz = (
 
   // Ab einer gewissen Größe: manchmal ein Einsatz, für den noch Fahrzeuge fehlen
   if (stations.length >= EINSATZDRUCK_CONFIG.abWachen && Math.random() < EINSATZDRUCK_CONFIG.anteil) {
-    const druck = erzeugeDruckEinsatz(stations, vehicles, jetzt, kontext, krankenhaeuser);
+    const druck = erzeugeDruckEinsatz(stations, vehicles, jetzt, kontext, krankenhaeuser, freigeschaltet);
     if (druck) return { einsatz: druck };
   }
 
