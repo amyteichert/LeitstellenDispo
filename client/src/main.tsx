@@ -7,11 +7,14 @@ import Rechtliches, { istRechtlicheSeite } from './Rechtliches';
 import './index.css';
 import { richteTonFreischaltungEin } from './ton';
 import { starteBesuchsMessung } from './besuchsMessung';
+import TestumgebungHinweis, { istTestumgebung } from './TestumgebungHinweis';
 
 // Handy-Browser erlauben Töne erst nach einer Berührung: die erste Berührung schaltet den Gong frei
 richteTonFreischaltungEin();
 // Anonyme Besucherstatistik (nur auf spiel.leitstellendispo.de)
 starteBesuchsMessung();
+// Auf der Testumgebung schon im Tab-Titel erkennbar
+if (istTestumgebung()) document.title = `TEST – ${document.title}`;
 
 const pfad = window.location.pathname.replace(/\/+$/, '');
 
@@ -26,6 +29,7 @@ const oeffentlich = istRechtlicheSeite(pfad) || pfad === PASSWORT_SEITE;
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
+    <TestumgebungHinweis />
     {oeffentlich ? (
       <OeffentlicheSeite />
     ) : (
