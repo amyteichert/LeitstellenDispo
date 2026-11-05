@@ -43,4 +43,12 @@ describe('Straßen-Routen', () => {
     expect(spaet.linie).toEqual([spaet.position, nach]);
     expect(punktAufLinie(route.punkte, 1)).toEqual(nach);
   });
+
+  it('endet die Straße vor dem Einsatz (z. B. im Wald), fährt das Fahrzeug das letzte Stück bis zum Einsatz', () => {
+    const imWald: Koordinaten = [nach[0] + 0.004, nach[1]];
+    speichereRoute({ von, nach: imWald }, route);
+    const angekommen = getFahrtVerlauf(von, imWald, 0, 1000, 1000);
+    expect(angekommen.position).toEqual(imWald);
+    expect(getFahrtVerlauf(von, imWald, 0, 1000, 900).linie.at(-1)).toEqual(imWald);
+  });
 });

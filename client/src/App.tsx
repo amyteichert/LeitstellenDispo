@@ -122,11 +122,11 @@ const hospitalMarkerIcon = L.divIcon({
 });
 
 const FAHRT_LINIEN_FARBEN: Record<FahrzeugFahrt['art'], string> = {
-  anfahrt: '#3b82f6',
-  einsatzstelle: '#3b82f6',
-  transport: '#a78bfa',
-  krankenhaus: '#a78bfa',
-  rueckfahrt: '#9ca3af',
+  anfahrt: '#1d6ff2',
+  einsatzstelle: '#1d6ff2',
+  transport: '#8b3ff0',
+  krankenhaus: '#8b3ff0',
+  rueckfahrt: '#6b7280',
 };
 
 /** Fahrzeug auf der Karte: nur das Fahrzeugbild, der Punkt zeigt den Fahrtstatus – Name und Details beim Antippen */
@@ -1155,11 +1155,28 @@ Dein Guthaben: ${balance.toLocaleString('de-DE')} €`)) return;
                 const organisation = getFahrzeugTyp(vehicle.type)?.organisation === 'Feuerwehr' ? 'fw' : 'rd';
                 return (
                   <Fragment key={vehicle.id}>
+                    {/* Wie beim Navi: kräftige Linie mit hellem Rand – auf heller wie dunkler Karte gut zu sehen.
+                        Anfahrt und Transport durchgezogen, Rückfahrt gestrichelt. */}
                     {fahrt.unterwegs && (
-                      <Polyline
-                        positions={fahrt.linie}
-                        pathOptions={{ color: FAHRT_LINIEN_FARBEN[fahrt.art], weight: 2, dashArray: '6 6', opacity: 0.8 }}
-                      />
+                      <>
+                        <Polyline
+                          positions={fahrt.linie}
+                          interactive={false}
+                          pathOptions={{ color: '#ffffff', weight: fahrt.art === 'rueckfahrt' ? 5 : 8, opacity: 0.85, lineCap: 'round', lineJoin: 'round' }}
+                        />
+                        <Polyline
+                          positions={fahrt.linie}
+                          interactive={false}
+                          pathOptions={{
+                            color: FAHRT_LINIEN_FARBEN[fahrt.art],
+                            weight: fahrt.art === 'rueckfahrt' ? 3 : 5,
+                            opacity: 1,
+                            lineCap: 'round',
+                            lineJoin: 'round',
+                            dashArray: fahrt.art === 'rueckfahrt' ? '6 8' : undefined,
+                          }}
+                        />
+                      </>
                     )}
                     <Marker
                       position={fahrt.position}

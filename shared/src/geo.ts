@@ -46,12 +46,26 @@ export const getStationCoords = (stationId: string | undefined, locations: MapLo
 export const interpoliereFahrt = (von: Koordinaten, nach: Koordinaten, startAt: number, ankunftAt: number, jetzt: number, luftweg = false): Koordinaten =>
   getFahrtVerlauf(von, nach, startAt, ankunftAt, jetzt, luftweg).position;
 
+/** Ab dieser Lücke zwischen Straßenroute und Start/Ziel wird das letzte Stück ergänzt (ca. 5 m) */
+const LUECKE_KM = 0.005;
+
+/**
+ * Die Straßenroute beginnt/endet an der nächsten Straße – liegt der Einsatz daneben (z. B. im Wald),
+ * fährt das Fahrzeug das letzte Stück direkt hin. Sonst bliebe es am Straßenende stehen, weit weg vom Einsatz-Marker.
+ */
+const mitStartUndZiel = (punkte: Koordinaten[], von: Koordinaten, nach: Koordinaten): Koordinaten[] => [
+  ...(haversineKm(von, punkte[0]) > LUECKE_KM ? [von] : []),
+  ...punkte,
+  ...(haversineKm(punkte[punkte.length - 1], nach) > LUECKE_KM ? [nach] : []),
+];
+
 /** Position und restliche Strecke (für die Linie auf der Karte) einer Fahrt – `luftweg`: gerade Linie (Hubschrauber). */
 export const getFahrtVerlauf = (von: Koordinaten, nach: Koordinaten, startAt: number, ankunftAt: number, jetzt: number, luftweg = false) => {
   const anteil = clamp((jetzt - startAt) / Math.max(1, ankunftAt - startAt), 0, 1);
   const route = luftweg ? null : getRoute(von, nach);
   if (route && route.punkte.length >= 2) {
-    return { position: punktAufLinie(route.punkte, anteil), linie: restLinie(route.punkte, anteil) };
+    const punkte = mitStartUndZiel(route.punkte, von, nach);
+    return { position: punktAufLinie(punkte, anteil), linie: restLinie(punkte, anteil) };
   }
   const position: Koordinaten = [von[0] + (nach[0] - von[0]) * anteil, von[1] + (nach[1] - von[1]) * anteil];
   return { position, linie: [position, nach] };
