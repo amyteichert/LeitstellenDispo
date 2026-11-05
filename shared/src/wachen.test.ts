@@ -25,6 +25,15 @@ describe('Wache anpassen', () => {
     expect(mitWachenAnpassung(wache('rw-1'), { name: 'x'.repeat(WACHENNAME_MAX_LAENGE + 1) })).toHaveProperty('fehler');
     expect(mitWachenAnpassung(wache('rw-1'), { logoFarbe: 'red;background:url(x)' })).toHaveProperty('fehler');
   });
+
+  it('setzt ein Logo-Symbol, „standard“ oder null entfernt es, unbekannte werden abgelehnt', () => {
+    const ergebnis = mitWachenAnpassung(wache('fw-1', 'Feuerwache'), { logoSymbol: 'leiter' });
+    expect(ergebnis).toMatchObject({ wache: { logoSymbol: 'leiter' } });
+    if (!('wache' in ergebnis)) throw new Error('erwartet Wache');
+    expect(mitWachenAnpassung(ergebnis.wache, { logoSymbol: 'standard' })).not.toHaveProperty('wache.logoSymbol');
+    expect(mitWachenAnpassung(ergebnis.wache, { logoSymbol: null })).not.toHaveProperty('wache.logoSymbol');
+    expect(mitWachenAnpassung(wache('rw-1'), { logoSymbol: '<img src=x>' })).toHaveProperty('fehler');
+  });
 });
 
 describe('Stellplätze', () => {

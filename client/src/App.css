@@ -2261,17 +2261,20 @@
   color: var(--color-on-primary);
 }
 
-/* Geführte Tour: alles außer dem hervorgehobenen Element ist gesperrt */
+/* Geführte Tour: großer Hinweis, alles andere abgedunkelt, Pfeil auf das, was gerade dran ist */
 .tour {
   position: fixed;
   inset: 0;
   z-index: 6000;
+  pointer-events: none; /* gesperrt wird per Event in Tour.tsx – so bleiben die Löcher bedienbar */
+}
+.tour__dunkel {
+  position: fixed;
+  inset: 0;
   pointer-events: none;
 }
-.tour__sperre {
-  position: fixed;
-  background: rgba(0, 0, 0, 0.62);
-  pointer-events: auto;
+.tour__schleier {
+  fill: rgba(3, 6, 14, 0.72);
 }
 .tour__rahmen {
   position: fixed;
@@ -2279,41 +2282,65 @@
   border-radius: 10px;
   box-shadow: 0 0 0 4px color-mix(in srgb, var(--color-primary) 35%, transparent);
   transition: top 0.2s, left 0.2s, width 0.2s, height 0.2s;
+  pointer-events: none;
 }
-.tour__rahmen--tippen {
-  pointer-events: none; /* Klicks gehen ans Element darunter */
+.tour__rahmen--aktiv {
   animation: tour-puls 1.4s ease-in-out infinite;
 }
-.tour__rahmen--info {
-  pointer-events: auto; /* Element nur zeigen, nicht bedienen */
-}
 @keyframes tour-puls {
-  50% { box-shadow: 0 0 0 9px color-mix(in srgb, var(--color-primary) 15%, transparent); }
+  50% { box-shadow: 0 0 0 10px color-mix(in srgb, var(--color-primary) 12%, transparent); }
 }
-@media (prefers-reduced-motion: reduce) {
-  .tour__rahmen { transition: none; }
-  .tour__rahmen--tippen { animation: none; }
+.tour__pfeil {
+  fill: none;
+  stroke: var(--color-primary);
+  stroke-width: 4;
+  stroke-linecap: round;
+  stroke-dasharray: 10 8;
+  filter: drop-shadow(0 0 6px color-mix(in srgb, var(--color-primary) 70%, transparent));
+  animation: tour-pfeil 0.9s linear infinite;
+}
+.tour__pfeilspitze {
+  fill: var(--color-primary);
+}
+@keyframes tour-pfeil {
+  to { stroke-dashoffset: -18; }
 }
 .tour__box {
   position: fixed;
-  width: min(320px, calc(100vw - 24px));
-  padding: 14px;
+  width: min(460px, calc(100vw - 24px));
+  padding: 18px 18px 14px;
   background: var(--color-surface);
-  border: 1px solid var(--color-border-strong);
-  border-radius: 12px;
+  border: 1px solid var(--color-primary);
+  border-radius: 16px;
   color: var(--color-text);
   pointer-events: auto;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.6), 0 0 0 4px color-mix(in srgb, var(--color-primary) 18%, transparent);
+  transition: top 0.25s ease, left 0.25s ease;
+}
+.tour__fortschritt {
+  height: 4px;
+  margin-bottom: 10px;
+  border-radius: 2px;
+  background: var(--color-border, rgba(255, 255, 255, 0.12));
+  overflow: hidden;
+}
+.tour__fortschritt span {
+  display: block;
+  height: 100%;
+  background: var(--color-primary);
+  transition: width 0.3s ease;
 }
 .tour__box small {
   color: var(--color-text-muted);
 }
 .tour__box h3 {
-  margin: 4px 0 6px;
+  margin: 4px 0 8px;
+  font-size: 1.25rem;
 }
 .tour__box p {
-  margin: 0 0 12px;
-  line-height: 1.45;
+  margin: 0 0 14px;
+  line-height: 1.5;
+  font-size: 1rem;
 }
 .tour__knoepfe {
   display: flex;
@@ -2324,7 +2351,18 @@
 }
 .tour__tipp {
   color: var(--color-primary-text);
-  font-size: 0.9rem;
+  font-size: 0.92rem;
+  font-weight: 600;
+}
+.tour__aufgabe {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .tour__rahmen, .tour__box, .tour__fortschritt span { transition: none; }
+  .tour__rahmen--aktiv, .tour__pfeil { animation: none; }
 }
 
 /* Einstellungen: Konto-Formulare */
@@ -3159,6 +3197,7 @@ a.btn { text-decoration: none; }
 .wache-anpassen { display: grid; gap: 8px; margin-bottom: 12px; }
 .wache-anpassen__farben { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 .wache-anpassen__farbe { width: 32px; height: 32px; border-radius: 8px; border: 2px solid var(--color-border, #444); cursor: pointer; padding: 0; }
+.wache-anpassen__symbol { padding: 2px; border-radius: 8px; border: 2px solid transparent; background: none; cursor: pointer; line-height: 0; }
 .wache-anpassen__farbe--aktiv { outline: 2px solid var(--color-primary); outline-offset: 2px; }
 .wache-anpassen__eigene input { width: 40px; height: 32px; padding: 0; border: none; background: none; cursor: pointer; }
 .aao-formular__gruppe { margin: 12px 0 6px; font-size: 13px; color: var(--color-text-muted); }

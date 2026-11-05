@@ -105,10 +105,10 @@ const createIncidentMarkerIcon = (incident: SpielEinsatz, selected: boolean) => 
 };
 
 /** Wache als Quadrat mit Symbol: Feuerwehrhelm (rot) bzw. Stern des Lebens (orange) */
-const createWachenMarkerIcon = (location: Pick<MapLocation, 'stationKind' | 'logoFarbe'>, groesse = 32) =>
+const createWachenMarkerIcon = (location: Pick<MapLocation, 'stationKind' | 'logoFarbe' | 'logoSymbol'>, groesse = 32) =>
   L.divIcon({
     className: 'custom-marker',
-    html: wachenMarkerHtml(location.stationKind, groesse, location.logoFarbe),
+    html: wachenMarkerHtml(location.stationKind, groesse, location.logoFarbe, location.logoSymbol),
     iconSize: [groesse, groesse],
     iconAnchor: [groesse / 2, groesse / 2],
   });
@@ -627,6 +627,7 @@ Dein Guthaben: ${balance.toLocaleString('de-DE')} €`)) return;
       <p className="map-hint">Adresse eingeben → Adresse suchen → Karte zeigt Position (Vorschau). Klicke auf die Karte, um Vorschau zu verschieben.</p>
 
       {/* Startfahrzeug Auswahl (genau EIN Fahrzeug) */}
+      <div data-tour="wache-start">
       <label className="field">
         <span>Startfahrzeug</span>
         <select value={draftStartVehicleType} onChange={(e) => setDraftStartVehicleType(e.target.value)}>
@@ -654,6 +655,7 @@ Dein Guthaben: ${balance.toLocaleString('de-DE')} €`)) return;
         {' '}({draftStationKind} {wachenPreis.toLocaleString('de-DE')} € + {draftStartVehicleType} {startFahrzeugPreis.toLocaleString('de-DE')} €)
         {balance < wachenPreis + startFahrzeugPreis && <span className="field-error"> – nicht genug Guthaben</span>}
       </p>
+      </div>
 
       <div style={{ marginTop: 8 }}>
         <button className="btn btn--primary" type="button" data-tour="wache-erstellen" onClick={createLocationFromTemp} disabled={!tempCoords}>
@@ -741,16 +743,31 @@ Dein Guthaben: ${balance.toLocaleString('de-DE')} €`)) return;
       )}
       {spiel.ladeFehler && <div className="lade-fehler" role="alert">{spiel.ladeFehler}</div>}
       {/* Die Schritte beziehen sich auf die Karte – auf anderen Seiten würde die Box Inhalte verdecken */}
-      {spiel.spielstandGeladen && currentView === 'Karte' && (
+      {spiel.spielstandGeladen && currentView === 'Karte' && !tourOffen && (
         <ErsteSchritte kontoId={konto.id} stand={{ incidents, completedIncidentHistory, vehicles, locations }} />
       )}
       {spiel.spielstandGeladen && tourOffen && (
         <Tour
           kontoId={konto.id}
           hatWache={locations.some((location) => location.type === 'station')}
-          onAnsicht={setCurrentView}
-          onStandorteOeffnen={() => setSidebarOpen(true)}
-          onEnde={() => setTourOffen(false)}
+          zustand={{
+            wachen: locations.filter((location) => location.type === 'station').length,
+            positionGewaehlt: tempCoords !== null,
+            offeneEinsaetze: incidents.filter((incident) => incident.status !== 'abgeschlossen').length,
+            kartenEinsatzOffen: mapIncidentId !== null,
+            alarmierungen: incidents.reduce((summe, incident) => summe + incident.alarmedVehicles.length, 0),
+          }}
+          onAnsicht={selectView}
+          onStandorte={setSidebarOpen}
+          onErsterNotruf={() => {
+            // Kein Dev-Einsatz: ein ganz normaler Notruf, nur sofort statt irgendwann
+            spiel.erzeugeTestEinsatz();
+          }}
+          onEnde={() => {
+            setTourOffen(false);
+            // Die Tour hat den Start schon erklärt – der Willkommens-Hinweis wäre jetzt doppelt
+            if (spiel.willkommen && locations.some((location) => location.type === 'station')) spiel.willkommenGesehen();
+          }}
         />
       )}
       {!gast && !email && currentView !== 'Einstellungen' && (
@@ -821,6 +838,7 @@ Dein Guthaben: ${balance.toLocaleString('de-DE')} €`)) return;
           <button
             type="button"
             className="chip ruf-chip status-chip rang-chip"
+            data-tour="rang"
             title={`${getRang(spiel.laufbahn.xp).name} · ${spiel.laufbahn.xp.toLocaleString('de-DE')} EP – antippen für Ränge und Erfolge`}
             onClick={() => setLaufbahnFensterOffen(true)}
           >
@@ -867,7 +885,7 @@ Dein Guthaben: ${balance.toLocaleString('de-DE')} €`)) return;
 
       <AnkuendigungsBanner />
 
-      {spiel.willkommen && (
+      {spiel.willkommen && !tourOffen && (
         <div className="gast-leiste gast-leiste--meldung" role="status">
           <span><strong>Willkommen in deiner Leitstelle!</strong> Zum Start bekommst du {START_GUTHABEN.toLocaleString('de-DE')} € – bau damit deine erste Wache.</span>
           <StartStadt
@@ -925,7 +943,7 @@ Dein Guthaben: ${balance.toLocaleString('de-DE')} €`)) return;
       )}
 
       <main className={`dashboard ${currentView === 'Karte' ? '' : 'dashboard--full'}`}>
-        {kaufMeldung && createPortal(<div className="aktion-rueckmeldung kauf-meldung" role="status">{kaufMeldung}</div>, document.body)}
+        {kaufMeldung && !tourOffen && createPortal(<div className="aktion-rueckmeldung kauf-meldung" role="status">{kaufMeldung}</div>, document.body)}
         {currentView === 'Karte' && (
           <aside className={`sidebar ${sidebarOpen ? '' : 'sidebar--collapsed'}`}>
             <div className="panel-header">

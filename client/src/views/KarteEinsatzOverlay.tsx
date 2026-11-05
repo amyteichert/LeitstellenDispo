@@ -35,7 +35,7 @@ export function KarteEinsatzLeiste({
   if (incidents.length === 0) return null;
 
   return (
-    <div className="map-incident-bar">
+    <div className="map-incident-bar" data-tour="karte-einsaetze">
       <span className="map-incident-bar__count">Einsätze: {incidents.length}</span>
       {incidents.map((incident) => {
         const eskaliert = istEskaliert(incident);
@@ -115,7 +115,7 @@ export function KarteEinsatzPanel({
   }, [verfuegbareIds]);
 
   return (
-    <aside className="map-incident-panel">
+    <aside className="map-incident-panel" data-tour="einsatz-panel">
       <div className="map-incident-panel__header">
         <h3 className="mit-kennzeichen"><Kennzeichen art="einsatz" einsatz={incident} groesse={26} />{formatEinsatzTitel(incident)}</h3>
         <button type="button" className="map-incident-panel__close" onClick={onClose} aria-label="Schließen">✕</button>
@@ -150,7 +150,7 @@ export function KarteEinsatzPanel({
       </ul>
 
       {kannAlarmieren && passende.length > 0 && (
-        <>
+        <div data-tour="alarm-auswahl">
           {/* Knöpfe über der Liste, damit man bei vielen Fahrzeugen nicht nach unten scrollen muss */}
           <AaoKnoepfe aao={aao} verfuegbar={passende} auswahl={auswahl} onAuswahl={setAuswahl} onMeldung={setRueckmeldung} />
           <div className="fahrzeug-auswahl__knoepfe">
@@ -195,7 +195,7 @@ export function KarteEinsatzPanel({
               </li>
             ))}
           </ul>
-        </>
+        </div>
       )}
       {kannAlarmieren && vorschlag.nichtVerfuegbar.length > 0 && (
         <p className="einsatz-eintrag__zeile">Kein freies Fahrzeug für: {formatBedarfsListe(vorschlag.nichtVerfuegbar)}</p>

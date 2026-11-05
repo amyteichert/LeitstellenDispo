@@ -5,6 +5,7 @@ import {
   STELLPLATZ_CONFIG,
   WACHENNAME_MAX_LAENGE,
   WACHEN_LOGO_FARBEN,
+  WACHEN_LOGO_SYMBOLE,
   formatAdresse,
   getBelegteStellplaetze,
   getWachenKostenJeStunde,
@@ -73,7 +74,7 @@ export interface PersonalAktionen extends AusbildungAktionen {
   baueRuheraum: (wacheId: string) => string | null;
 }
 
-type WacheAnpassen = (wacheId: string, aenderung: { name?: string; logoFarbe?: string | null; fahrzeugFarbe?: string | null }) => string | null;
+type WacheAnpassen = (wacheId: string, aenderung: { name?: string; logoFarbe?: string | null; logoSymbol?: string | null; fahrzeugFarbe?: string | null }) => string | null;
 
 export default function WachenView({
   locations,
@@ -161,7 +162,7 @@ export default function WachenView({
           const plaetze = getStellplaetze(s);
           return (
             <li key={s.id} className={`wachen-karte ${selectedId === s.id ? 'wachen-karte--aktiv' : ''}`}>
-              <Kennzeichen art="wache" wachenArt={s.stationKind} logoFarbe={s.logoFarbe} groesse={40} />
+              <Kennzeichen art="wache" wachenArt={s.stationKind} logoFarbe={s.logoFarbe} logoSymbol={s.logoSymbol} groesse={40} />
               <button type="button" className="wachen-karte__info" onClick={() => setSelectedId(s.id)}>
                 <strong>{s.name}</strong>
                 <small>{s.adresse ? formatAdresse(s.adresse) : s.details}</small>
@@ -193,6 +194,7 @@ function WacheAnpassenFormular({
   const standard = WACHEN_LOGO_FARBEN[0].farbe;
   const [name, setName] = useState(wache.name);
   const [farbe, setFarbe] = useState<string>(wache.logoFarbe ?? standard);
+  const [symbol, setSymbol] = useState<string>(wache.logoSymbol ?? 'standard');
   const [fahrzeugFarbe, setFahrzeugFarbe] = useState<string | undefined>(wache.fahrzeugFarbe);
 
   return (
@@ -200,7 +202,7 @@ function WacheAnpassenFormular({
       className="einsatz-abschnitt wache-anpassen"
       onSubmit={(event) => {
         event.preventDefault();
-        const fehler = passeWacheAn(wache.id, { name, logoFarbe: farbe, fahrzeugFarbe: fahrzeugFarbe ?? null });
+        const fehler = passeWacheAn(wache.id, { name, logoFarbe: farbe, logoSymbol: symbol, fahrzeugFarbe: fahrzeugFarbe ?? null });
         if (fehler) onFehler(fehler);
         else onFertig('✓ Wache angepasst.');
       }}
@@ -213,7 +215,7 @@ function WacheAnpassenFormular({
       <div className="field">
         <span>Logo-Farbe</span>
         <div className="wache-anpassen__farben">
-          <Kennzeichen art="wache" wachenArt={wache.stationKind} logoFarbe={farbe} groesse={40} />
+          <Kennzeichen art="wache" wachenArt={wache.stationKind} logoFarbe={farbe} logoSymbol={symbol} groesse={40} />
           {WACHEN_LOGO_FARBEN.map((vorschlag) => (
             <button
               key={vorschlag.farbe}
@@ -229,6 +231,24 @@ function WacheAnpassenFormular({
           <label className="wache-anpassen__eigene" title="Eigene Farbe">
             <input type="color" value={farbe} onChange={(e) => setFarbe(e.target.value)} aria-label="Eigene Farbe" />
           </label>
+        </div>
+      </div>
+      <div className="field">
+        <span>Logo-Symbol</span>
+        <div className="wache-anpassen__farben" role="radiogroup" aria-label="Logo-Symbol">
+          {WACHEN_LOGO_SYMBOLE.map((eintrag) => (
+            <button
+              key={eintrag.id}
+              type="button"
+              role="radio"
+              className={`wache-anpassen__symbol ${symbol === eintrag.id ? 'wache-anpassen__farbe--aktiv' : ''}`}
+              aria-checked={symbol === eintrag.id}
+              title={eintrag.name}
+              onClick={() => setSymbol(eintrag.id)}
+            >
+              <Kennzeichen art="wache" wachenArt={wache.stationKind} logoFarbe={farbe} logoSymbol={eintrag.id} groesse={30} />
+            </button>
+          ))}
         </div>
       </div>
       <div className="field">
@@ -325,7 +345,7 @@ function WacheVerwalten({
         <button type="button" className="btn" onClick={onZurueck}>← Zurück</button>
         <div>
           <h2 className="mit-kennzeichen" style={{ margin: 0 }}>
-            <Kennzeichen art="wache" wachenArt={wache.stationKind} logoFarbe={wache.logoFarbe} groesse={32} />{wache.name}
+            <Kennzeichen art="wache" wachenArt={wache.stationKind} logoFarbe={wache.logoFarbe} logoSymbol={wache.logoSymbol} groesse={32} />{wache.name}
             <button
               type="button"
               className="btn btn--klein"

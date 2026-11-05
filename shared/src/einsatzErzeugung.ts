@@ -258,3 +258,25 @@ export const erzeugeZufallsEinsatz = (
   const ort = erzeugeEinsatzort(station, stations.length, template);
   return { einsatz: createSpielEinsatz(template, station, ort, jetzt) };
 };
+
+/** Neue Einsätze halten so viel Abstand zu offenen Einsätzen – sonst liegen die Marker übereinander. */
+export const EINSATZ_MINDESTABSTAND_KM = 0.3;
+
+export const liegtZuNahAnEinsatz = (coords: Koordinaten, einsaetze: Pick<SpielEinsatz, 'coords' | 'status'>[]) =>
+  einsaetze.some((einsatz) => einsatz.status !== 'abgeschlossen' && haversineKm(coords, einsatz.coords) < EINSATZ_MINDESTABSTAND_KM);
+
+/**
+ * Würfelt einen Einsatz neu, solange er direkt neben einem offenen Einsatz läge (höchstens `versuche`-mal).
+ * Klappt es nie (sehr volles Gebiet), bleibt es beim letzten Versuch.
+ */
+export function erzeugeMitAbstand(
+  einsaetze: Pick<SpielEinsatz, 'coords' | 'status'>[],
+  erzeugen: () => EinsatzErzeugungErgebnis,
+  versuche = 6,
+): EinsatzErzeugungErgebnis {
+  let ergebnis = erzeugen();
+  for (let i = 1; i < versuche && 'einsatz' in ergebnis && liegtZuNahAnEinsatz(ergebnis.einsatz.coords, einsaetze); i++) {
+    ergebnis = erzeugen();
+  }
+  return ergebnis;
+}

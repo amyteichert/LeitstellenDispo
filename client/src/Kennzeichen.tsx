@@ -4,7 +4,9 @@
  * (Flaticon – Bildnachweis im Impressum). Leaflet bekommt sie als HTML, React-Listen zeigen sie über <Kennzeichen …/>.
  */
 import { FahrzeugBild, fahrzeugBildHtml, type FahrzeugAussehen } from './fahrzeugGrafik';
-import { getEinsatzSymbol, istLogoFarbe, type EinsatzSymbol, type SpielEinsatz, type StationKind } from '@leitstellendispo/shared';
+import {
+  getEinsatzSymbol, getSchriftFarbe, istLogoFarbe, istLogoSymbol, type EinsatzSymbol, type SpielEinsatz, type StationKind, type WachenLogoSymbol,
+} from '@leitstellendispo/shared';
 
 const LINIE = 'fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"';
 const svg = (inhalt: string) => `<svg viewBox="0 0 24 24" width="100%" height="100%" ${LINIE} aria-hidden="true">${inhalt}</svg>`;
@@ -37,6 +39,27 @@ const WACHE_GRAFIK: Record<StationKind, string> = {
 };
 const KRANKENHAUS_GRAFIK = bild('krankenhaus');
 
+/**
+ * Wählbare Logo-Symbole: Linien dunkel auf hellem, weiß auf dunklem Logo-Grund,
+ * Herz und Blaulicht immer in ihrer eigenen Farbe.
+ */
+const LOGO_SYMBOL_GRAFIK: Record<Exclude<WachenLogoSymbol, 'standard'>, string> = {
+  leiter: '<path d="M8 3v18M16 3v18M8 6.5h8M8 10.5h8M8 14.5h8M8 18.5h8"/>',
+  flamme: '<path d="M12 3c.8 2.8 5 4.8 5 10a5 5 0 0 1-10 0c0-2.6 1.4-3.8 2-5.2.6 1.6 1.4 2.2 2 2.2-.3-2.9.2-5.1 1-7z" fill="#f97316" stroke="#c2410c"/>',
+  helm: '<path d="M4.5 16.5a7.5 7.5 0 0 1 15 0z"/><path d="M2.5 16.5h19M12 9v7.5M8.5 10.5l1.2 6M15.5 10.5l-1.2 6"/>',
+  herz: '<path d="M12 20s-8-4.8-8-10.2A4.2 4.2 0 0 1 12 7.4a4.2 4.2 0 0 1 8 2.4C20 15.2 12 20 12 20z" fill="#e53935" stroke="#b71c1c"/>',
+  lebensstern: `<g fill="#1e66d0" stroke="none"><rect x="10" y="2.5" width="4" height="19" rx=".6"/><rect x="10" y="2.5" width="4" height="19" rx=".6" transform="rotate(60 12 12)"/><rect x="10" y="2.5" width="4" height="19" rx=".6" transform="rotate(-60 12 12)"/></g><path d="M12 6.5v11" stroke="#fff" stroke-width="1.3"/><path d="M10.6 9c1.8.4 1.8 1.6 1.4 2.2-.4.6-1.4 1-1.4 1.8s1 1.2 1.4 1.4" stroke="#fff" stroke-width="1"/>`,
+  koffer: '<rect x="3.5" y="7.5" width="17" height="12" rx="2"/><path d="M9 7.5V5.5h6v2M12 10.5v6M9 13.5h6"/>',
+  blaulicht: '<path d="M7 17.5v-5.5a5 5 0 0 1 10 0v5.5z" fill="#2f6fde" stroke="#1d4ed8"/><path d="M5 17.5h14M12 2.5v2.2M4.5 6l1.6 1.4M19.5 6l-1.6 1.4"/>',
+};
+
+/** Grafik im Wachen-Logo: gewähltes Symbol oder das Bild der Wachenart (unbekannte Werte → Standard, landet im HTML) */
+const wachenGrafik = (art: StationKind | undefined, logoSymbol: string | undefined, grund: string) => {
+  if (!istLogoSymbol(logoSymbol) || logoSymbol === 'standard') return WACHE_GRAFIK[art ?? 'Rettungswache'];
+  const linie = getSchriftFarbe(grund);
+  return `<svg viewBox="0 0 24 24" width="100%" height="100%" fill="none" stroke="${linie}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${LOGO_SYMBOL_GRAFIK[logoSymbol]}</svg>`;
+};
+
 /** Wachen und Krankenhäuser: bunte Symbole auf hellem Kästchen (Gebäude), Fahrzeuge weiß auf Organisationsfarbe */
 const HELL = '#f4f6f8';
 
@@ -53,8 +76,9 @@ const kastenStil = (groesse: number, farbe: string) =>
 const wachenFarbe = (logoFarbe: string | undefined) => (istLogoFarbe(logoFarbe) ? logoFarbe : HELL);
 
 /** HTML für Leaflet: Wache als farbiges Quadrat mit Symbol */
-export const wachenMarkerHtml = (art: StationKind | undefined, groesse = 28, logoFarbe?: string) => {
-  return `<span class="kennzeichen kennzeichen--wache" style="${kastenStil(groesse, wachenFarbe(logoFarbe))}">${WACHE_GRAFIK[art ?? 'Rettungswache']}</span>`;
+export const wachenMarkerHtml = (art: StationKind | undefined, groesse = 28, logoFarbe?: string, logoSymbol?: string) => {
+  const grund = wachenFarbe(logoFarbe);
+  return `<span class="kennzeichen kennzeichen--wache" style="${kastenStil(groesse, grund)}">${wachenGrafik(art, logoSymbol, grund)}</span>`;
 };
 
 export const krankenhausMarkerHtml = (groesse = 26) =>
@@ -68,7 +92,7 @@ export const einsatzMarkerHtml = (einsatz: Pick<SpielEinsatz, 'stichwort' | 'mel
 export const fahrzeugSymbolHtml = (fahrzeug: FahrzeugAussehen) => fahrzeugBildHtml(fahrzeug);
 
 type KennzeichenProps =
-  | { art: 'wache'; wachenArt: StationKind | undefined; logoFarbe?: string }
+  | { art: 'wache'; wachenArt: StationKind | undefined; logoFarbe?: string; logoSymbol?: string }
   | { art: 'krankenhaus' }
   | { art: 'fahrzeug'; typ: string | undefined; fahrzeug?: FahrzeugAussehen }
   | { art: 'einsatz'; einsatz: Pick<SpielEinsatz, 'stichwort' | 'meldebild' | 'organization'> };
@@ -83,8 +107,8 @@ export function Kennzeichen(props: KennzeichenProps & { groesse?: number }) {
   let rund = false;
   let titel: string;
   if (props.art === 'wache') {
-    grafik = WACHE_GRAFIK[props.wachenArt ?? 'Rettungswache'];
     farbe = wachenFarbe(props.logoFarbe);
+    grafik = wachenGrafik(props.wachenArt, props.logoSymbol, farbe);
     titel = props.wachenArt ?? 'Rettungswache';
   } else if (props.art === 'krankenhaus') {
     grafik = KRANKENHAUS_GRAFIK;

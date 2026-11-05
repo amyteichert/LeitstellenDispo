@@ -36,6 +36,8 @@ export type MapLocation = {
   bewerber?: BewerberPool;
   /** Vom Spieler gewählte Hintergrundfarbe des Wachen-Logos (#rrggbb) – fehlt = Standard */
   logoFarbe?: string;
+  /** Vom Spieler gewähltes Symbol im Wachen-Logo (siehe WACHEN_LOGO_SYMBOLE) – fehlt = Bild der Wachenart */
+  logoSymbol?: string;
   /** Lackfarbe aller Fahrzeuge dieser Wache (#rrggbb) – fehlt = Farbe der Organisation */
   fahrzeugFarbe?: string;
 };

@@ -177,7 +177,7 @@ export default function AaoView({
   }
 
   return (
-    <div className="aao-seite">
+    <div className="aao-seite" data-tour="aao">
       <div className="wachen-kopf">
         <h2>AAO <AaoHilfe /></h2>
         <button type="button" className="btn btn--primary" onClick={() => setBearbeitet(neuerEintrag())}>＋ Neuer Knopf</button>

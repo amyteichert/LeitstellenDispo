@@ -85,6 +85,7 @@ import {
   createNeuesSpiel,
   entferneWache,
   erzeugeZufallsEinsatz,
+  erzeugeMitAbstand,
   hatEigenesKrankenhaus,
   EIGENES_KRANKENHAUS,
   FACHRICHTUNGEN,
@@ -461,7 +462,8 @@ export function useSpiel(optionen: UseSpielOptionen = {}) {
       let neuerEinsatz: SpielEinsatz | undefined;
       setIncidents((current) => {
         if (current.filter((incident) => incident.status !== 'abgeschlossen').length >= maxOffeneEinsaetze(wachen)) return current;
-        const ergebnis = erzeugeZufallsEinsatz(orte, fahrzeuge, jetzt, kontext, kliniken, (typ) => istFahrzeugFreigeschaltet(typ, xp));
+        const ergebnis = erzeugeMitAbstand(current, () =>
+          erzeugeZufallsEinsatz(orte, fahrzeuge, jetzt, kontext, kliniken, (typ) => istFahrzeugFreigeschaltet(typ, xp)));
         if (!('einsatz' in ergebnis)) return current;
         neuerEinsatz = ergebnis.einsatz;
         return [ergebnis.einsatz, ...current];
@@ -713,7 +715,7 @@ export function useSpiel(optionen: UseSpielOptionen = {}) {
   };
 
   /** Name und Logo-Farbe einer Wache ändern. Gibt eine Fehlermeldung zurück oder null bei Erfolg. */
-  const passeWacheAn = (wacheId: string, aenderung: { name?: string; logoFarbe?: string | null; fahrzeugFarbe?: string | null }): string | null => {
+  const passeWacheAn = (wacheId: string, aenderung: { name?: string; logoFarbe?: string | null; logoSymbol?: string | null; fahrzeugFarbe?: string | null }): string | null => {
     const wache = locations.find((location) => location.id === wacheId && location.type === 'station');
     if (!wache) return 'Wache nicht gefunden.';
     const ergebnis = mitWachenAnpassung(wache, aenderung);
@@ -910,7 +912,7 @@ export function useSpiel(optionen: UseSpielOptionen = {}) {
 
   /** Erzeugt sofort einen Test-Einsatz. Gibt die Einsatz-ID oder eine Fehlermeldung zurück. */
   const erzeugeTestEinsatz = (): { id: string } | { fehler: string } => {
-    const ergebnis = erzeugeZufallsEinsatz(locations, vehicles, Date.now(), undefined, krankenhaeuser);
+    const ergebnis = erzeugeMitAbstand(incidents, () => erzeugeZufallsEinsatz(locations, vehicles, Date.now(), undefined, krankenhaeuser));
     if ('fehler' in ergebnis) {
       return {
         fehler: ergebnis.fehler === 'keine-wache'

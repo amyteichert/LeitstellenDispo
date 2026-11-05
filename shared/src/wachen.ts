@@ -31,6 +31,21 @@ export const WACHEN_LOGO_FARBEN = [
 
 export const istLogoFarbe = (farbe: unknown): farbe is string => typeof farbe === 'string' && /^#[0-9a-f]{6}$/i.test(farbe);
 
+/** Symbole fürs Wachen-Logo – „standard“ = Bild der Wachenart (Feuerwache/Rettungswache) */
+export const WACHEN_LOGO_SYMBOLE = [
+  { id: 'standard', name: 'Standard' },
+  { id: 'leiter', name: 'Leiter' },
+  { id: 'flamme', name: 'Flamme' },
+  { id: 'helm', name: 'Feuerwehrhelm' },
+  { id: 'herz', name: 'Rotes Herz' },
+  { id: 'lebensstern', name: 'Stern des Lebens' },
+  { id: 'koffer', name: 'Notfallkoffer' },
+  { id: 'blaulicht', name: 'Blaulicht' },
+] as const;
+export type WachenLogoSymbol = (typeof WACHEN_LOGO_SYMBOLE)[number]['id'];
+export const istLogoSymbol = (symbol: unknown): symbol is WachenLogoSymbol =>
+  WACHEN_LOGO_SYMBOLE.some((eintrag) => eintrag.id === symbol);
+
 /** Vorschläge für die Lackfarbe der Fahrzeuge – frei wählen geht auch */
 export const FAHRZEUG_FARBEN = [
   { name: 'Feuerwehrrot', farbe: '#c62828' },
@@ -66,12 +81,12 @@ export function getFahrzeugFarbe(
 }
 
 /**
- * Name und Logo-Farbe einer Wache ändern. `logoFarbe: null` setzt auf Standard zurück.
+ * Name, Logo (Farbe und Symbol) und Fahrzeugfarbe einer Wache ändern. `null` setzt auf Standard zurück.
  * Gibt die geänderte Wache oder eine Fehlermeldung zurück.
  */
 export function mitWachenAnpassung(
   wache: MapLocation,
-  aenderung: { name?: string; logoFarbe?: string | null; fahrzeugFarbe?: string | null },
+  aenderung: { name?: string; logoFarbe?: string | null; logoSymbol?: string | null; fahrzeugFarbe?: string | null },
 ): { wache: MapLocation } | { fehler: string } {
   const neu = { ...wache };
   if (aenderung.name !== undefined) {
@@ -85,6 +100,12 @@ export function mitWachenAnpassung(
   } else if (aenderung.logoFarbe !== undefined) {
     if (!istLogoFarbe(aenderung.logoFarbe)) return { fehler: 'Ungültige Farbe.' };
     neu.logoFarbe = aenderung.logoFarbe.toLowerCase();
+  }
+  if (aenderung.logoSymbol === null || aenderung.logoSymbol === 'standard') {
+    delete neu.logoSymbol;
+  } else if (aenderung.logoSymbol !== undefined) {
+    if (!istLogoSymbol(aenderung.logoSymbol)) return { fehler: 'Unbekanntes Logo-Symbol.' };
+    neu.logoSymbol = aenderung.logoSymbol;
   }
   if (aenderung.fahrzeugFarbe === null) {
     delete neu.fahrzeugFarbe;
