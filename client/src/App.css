@@ -760,6 +760,13 @@
   background: #0e0e10; /* Farbe, solange Kacheln laden */
 }
 
+/* Kacheln 1 px überlappen lassen: Auf dem iPhone entstehen sonst durch Rundung haarfeine Lücken,
+   durch die der dunkle Hintergrund als schwarze Striche quer über die Karte scheint (bekannter Leaflet-Fehler) */
+.leaflet-container .leaflet-tile-container img.leaflet-tile {
+  width: 257px !important;
+  height: 257px !important;
+}
+
 /* OSM-Karte nur leicht abdunkeln, damit sie farbig bleibt und sich klar vom Satellitenbild unterscheidet */
 .map-tiles--dunkel {
   filter: brightness(0.85) contrast(1.05) saturate(0.9);
