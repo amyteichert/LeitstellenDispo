@@ -190,6 +190,12 @@ const MIGRATIONEN: Array<string | ((db: Datenbank) => void)> = [
   `
   ALTER TABLE benutzer ADD COLUMN freigegeben INTEGER NOT NULL DEFAULT 1;
   `,
+  // Verknüpfung mit Discord (Anmeldung über Discord) – ein Discord-Konto gehört zu höchstens einem Spielkonto
+  `
+  ALTER TABLE benutzer ADD COLUMN discord_id TEXT;
+  ALTER TABLE benutzer ADD COLUMN discord_name TEXT;
+  CREATE UNIQUE INDEX benutzer_discord ON benutzer(discord_id) WHERE discord_id IS NOT NULL;
+  `,
 ];
 
 /** Öffnet (bzw. erstellt) die Datenbank und bringt das Schema auf den neuesten Stand. */

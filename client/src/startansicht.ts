@@ -18,6 +18,8 @@ export const STARTANSICHTEN: readonly Ansicht[] = ANSICHTEN.filter(
 const STARTANSICHT_KEY = 'leitstellendispo.startansicht';
 
 export function ladeStartansicht(): Ansicht {
+  // Rückkehr von „Mit Discord verknüpfen“: dort zeigt das Profil das Ergebnis
+  if (new URLSearchParams(window.location.search).has('discord')) return 'Profil';
   try {
     const gespeichert = localStorage.getItem(STARTANSICHT_KEY);
     return STARTANSICHTEN.find((ansicht) => ansicht === gespeichert) ?? 'Karte';

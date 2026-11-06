@@ -5,13 +5,14 @@ import type { Datenbank } from './datenbank.js';
 import { ladeKonto, nurAngemeldet, spielBasisUrl, type AuthOptionen } from './auth.js';
 import type { KontenDienst } from './konten.js';
 import { KEIN_MAILVERSAND } from './mail.js';
+import type { Ereignisse } from './ereignisse.js';
 
 /** Höchstens so viele Meldungen pro Konto und Stunde */
 const MAX_PRO_STUNDE = 5;
 
 const kurz = (wert: unknown, max = 200) => (typeof wert === 'string' ? wert.slice(0, max) : '');
 
-export function erstelleFehlermeldungRouter(db: Datenbank, konten: KontenDienst, optionen: AuthOptionen = {}): Router {
+export function erstelleFehlermeldungRouter(db: Datenbank, konten: KontenDienst, optionen: AuthOptionen = {}, ereignisse?: Ereignisse): Router {
   const router = Router();
   const mailversand = optionen.mailversand ?? KEIN_MAILVERSAND;
   const sql = {
@@ -40,6 +41,7 @@ export function erstelleFehlermeldungRouter(db: Datenbank, konten: KontenDienst,
     } satisfies Fehlermeldung['kontext'] & FehlermeldungKontext;
     sql.anlegen.run(konto.id, konto.name, text, JSON.stringify(kontext));
     res.status(201).json({ ok: true });
+    ereignisse?.melde('fehlermeldung', { spieler: konto.name, text: text.slice(0, 1000), ansicht: kontext.ansicht, geraet: kontext.geraet });
 
     // Owner per Mail benachrichtigen – Fehler beim Versand dürfen die Meldung nicht kaputtmachen
     if (mailversand.aktiv) {

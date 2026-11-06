@@ -202,6 +202,34 @@ export async function holeSchichtzulage(): Promise<SchichtzulageAntwort | null> 
   }
 }
 
+// ---------------------------------------------------------------------------
+// Discord: Konto verknüpfen (der Knopf ist ein normaler Link auf /api/discord/verbinden)
+// ---------------------------------------------------------------------------
+
+export interface DiscordStatus {
+  verfuegbar: boolean;
+  verknuepft: boolean;
+  name: string | null;
+}
+
+/** `null`, wenn der Server nicht erreichbar ist */
+export async function ladeDiscordStatus(): Promise<DiscordStatus | null> {
+  try {
+    const res = await fetch('/api/discord/status');
+    return res.ok ? ((await res.json()) as DiscordStatus) : null;
+  } catch {
+    return null;
+  }
+}
+
+export async function trenneDiscord(): Promise<boolean> {
+  try {
+    return (await fetch('/api/discord/trennen', { method: 'POST' })).ok;
+  } catch {
+    return false;
+  }
+}
+
 /** Bestätigt eingebuchte Korrekturen – danach liefert der Server sie nicht mehr aus. */
 export async function bestaetigeKorrekturen(ids: number[]): Promise<boolean> {
   try {

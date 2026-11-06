@@ -4,14 +4,15 @@ import type { Server } from 'node:http';
 import { erstelleApp } from './app.js';
 import { oeffneDatenbank, type Datenbank } from './datenbank.js';
 import type { AuthOptionen } from './auth.js';
+import type { DiscordOptionen } from './discord.js';
 
 export interface TestServer {
   db: Datenbank;
-  anfrage(methode: string, pfad: string, optionen?: { body?: unknown; cookie?: string }): Promise<Response>;
+  anfrage(methode: string, pfad: string, optionen?: { body?: unknown; cookie?: string; headers?: Record<string, string>; weiterleitungFolgen?: boolean }): Promise<Response>;
   beenden(): Promise<void>;
 }
 
-export async function starteTestServer(optionen: AuthOptionen & { sicherungsOrdner?: string; osrmUrl?: string; freischaltungNoetig?: boolean } = {}): Promise<TestServer> {
+export async function starteTestServer(optionen: AuthOptionen & DiscordOptionen & { sicherungsOrdner?: string; osrmUrl?: string; freischaltungNoetig?: boolean } = {}): Promise<TestServer> {
   const db = oeffneDatenbank(':memory:');
   const server: Server = erstelleApp(db, { bcryptRunden: 4, ...optionen }).listen(0);
   await new Promise<void>((fertig) => server.once('listening', fertig));
@@ -19,10 +20,11 @@ export async function starteTestServer(optionen: AuthOptionen & { sicherungsOrdn
 
   return {
     db,
-    anfrage(methode, pfad, { body, cookie } = {}) {
+    anfrage(methode, pfad, { body, cookie, headers, weiterleitungFolgen = true } = {}) {
       return fetch(basis + pfad, {
         method: methode,
-        headers: { 'Content-Type': 'application/json', ...(cookie ? { Cookie: cookie } : {}) },
+        redirect: weiterleitungFolgen ? 'follow' : 'manual',
+        headers: { 'Content-Type': 'application/json', ...(cookie ? { Cookie: cookie } : {}), ...headers },
         body: body === undefined ? undefined : typeof body === 'string' ? body : JSON.stringify(body),
       });
     },

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   AVATAR_VORLAGEN,
   KONTO_REGELN,
@@ -14,7 +14,7 @@ import {
 } from '@leitstellendispo/shared';
 import SpielerName from '../SpielerName';
 import ProfilBild, { AVATAR_FIGUREN, bereiteProfilbildVor } from '../ProfilBild';
-import { KontoFehler, aendereName, entferneProfilbild, ladeProfilbildHoch, setzeProfil } from '../konto';
+import { KontoFehler, aendereName, entferneProfilbild, ladeDiscordStatus, ladeProfilbildHoch, setzeProfil, trenneDiscord, type DiscordStatus } from '../konto';
 
 const euro = (betrag: number) => `${Math.round(betrag).toLocaleString('de-DE')} €`;
 
@@ -89,6 +89,7 @@ export default function ProfilView({
       </section>
 
       {!gast && <ProfilBearbeiten konto={konto} setKonto={setKonto} />}
+      {!gast && <DiscordVerknuepfen />}
 
       <section className="ausbau-karte">
         <span className="ausbau-karte__kategorie">Deine Leitstelle</span>
@@ -109,6 +110,66 @@ export default function ProfilView({
         {gast && <small className="einsatz-eintrag__zeile">Fehler melden geht mit einem Konto.</small>}
       </section>
     </div>
+  );
+}
+
+/** Ergebnis der Rückkehr von Discord (?discord=…) */
+const DISCORD_ERGEBNISSE: Record<string, { art: 'ok' | 'fehler'; text: string }> = {
+  verknuepft: { art: 'ok', text: '✓ Dein Discord ist verknüpft – auf dem Discord-Server bekommst du gleich die Rolle „Disponent“.' },
+  vergeben: { art: 'fehler', text: 'Dieses Discord-Konto ist schon mit einem anderen Spielkonto verknüpft.' },
+  abgebrochen: { art: 'fehler', text: 'Verknüpfen abgebrochen.' },
+  abgelaufen: { art: 'fehler', text: 'Das hat zu lange gedauert – bitte noch einmal versuchen.' },
+  fehler: { art: 'fehler', text: 'Discord hat gerade nicht geantwortet – bitte später noch einmal versuchen.' },
+  'nicht-verfuegbar': { art: 'fehler', text: 'Die Discord-Verknüpfung ist gerade nicht verfügbar.' },
+};
+
+/** Spielkonto mit Discord verknüpfen: Anmeldung bei Discord, danach Rolle „Disponent“ und /profil im Discord */
+function DiscordVerknuepfen() {
+  const [status, setStatus] = useState<DiscordStatus | null>(null);
+  const [meldung, setMeldung] = useState<{ art: 'ok' | 'fehler'; text: string } | null>(null);
+
+  useEffect(() => {
+    void ladeDiscordStatus().then(setStatus);
+    // Ergebnis einmal anzeigen und aus der Adresse entfernen (sonst erscheint es bei jedem Neuladen)
+    const url = new URL(window.location.href);
+    const ergebnis = url.searchParams.get('discord');
+    if (ergebnis) {
+      setMeldung(DISCORD_ERGEBNISSE[ergebnis] ?? null);
+      url.searchParams.delete('discord');
+      window.history.replaceState(null, '', url.pathname + url.search + url.hash);
+    }
+  }, []);
+
+  if (!status?.verfuegbar) return null;
+
+  return (
+    <section className="ausbau-karte">
+      <span className="ausbau-karte__kategorie">Discord</span>
+      {meldung && (
+        <div className={meldung.art === 'ok' ? 'aktion-rueckmeldung' : 'versorgung-hinweis versorgung-hinweis--fehlt'} role="status">{meldung.text}</div>
+      )}
+      {status.verknuepft ? (
+        <>
+          <p>Verknüpft mit <strong>{status.name}</strong>. Im Discord zeigt <code>/profil</code> deinen Rang, und du hast die Rolle „Disponent“.</p>
+          <button
+            type="button"
+            className="btn btn--secondary"
+            onClick={async () => {
+              if (!(await trenneDiscord())) return setMeldung({ art: 'fehler', text: 'Trennen hat nicht geklappt – bitte später noch einmal.' });
+              setStatus({ ...status, verknuepft: false, name: null });
+              setMeldung({ art: 'ok', text: 'Discord getrennt.' });
+            }}
+          >
+            Trennen
+          </button>
+        </>
+      ) : (
+        <>
+          <p>Verknüpfe dein Konto mit unserem Discord-Server: Du bekommst die Rolle „Disponent“, und andere sehen mit <code>/profil</code> deinen Rang.</p>
+          <a className="btn btn--primary" href="/api/discord/verbinden">Mit Discord verknüpfen</a>
+        </>
+      )}
+    </section>
   );
 }
 

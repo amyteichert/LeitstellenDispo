@@ -17,6 +17,10 @@ starteAutomatischeSicherung(db, sicherungsOrdner);
 const app = erstelleApp(db, { mailversand: mailversandAusUmgebung(), freischaltungNoetig: process.env.KONTEN_FREISCHALTEN === '1', spielUrl: process.env.SPIEL_URL || undefined, sicherungsOrdner, osrmUrl: process.env.OSRM_URL || undefined,
   // EINSAETZE_AUFRAEUMEN_BIS: z. B. 2026-10-26T01:00:00+01:00 – alle Einsätze, die vorher entstanden sind, verschwinden bei allen Spielern
   einsaetzeAufraeumenBis: Date.parse(process.env.EINSAETZE_AUFRAEUMEN_BIS ?? '') || undefined,
+  // Discord: DISCORD_CLIENT_ID (Application-ID), DISCORD_BOT_URL (z. B. http://127.0.0.1:3010), BOT_API_TOKEN (gemeinsames Geheimnis mit dem Bot)
+  discordClientId: process.env.DISCORD_CLIENT_ID || undefined,
+  discordBotUrl: process.env.DISCORD_BOT_URL || undefined,
+  botApiToken: process.env.BOT_API_TOKEN || undefined,
 });
 
 // HOST=127.0.0.1 auf dem Server: nur nginx auf demselben Rechner erreicht die API, nicht das Internet
@@ -28,4 +32,5 @@ app.listen(Number(PORT), HOST, () => {
   if (process.env.EINSAETZE_AUFRAEUMEN_BIS) console.log(`Einsätze aufräumen bis: ${process.env.EINSAETZE_AUFRAEUMEN_BIS}`);
   if (process.env.KONTEN_FREISCHALTEN === '1') console.log('Neue Konten brauchen eine Freischaltung durchs Team');
   console.log(`Straßen-Routing: ${process.env.OSRM_URL || 'aus (Luftlinie)'}`);
+  console.log(`Discord-Bot: ${process.env.BOT_API_TOKEN && process.env.DISCORD_BOT_URL ? process.env.DISCORD_BOT_URL : 'aus'}`);
 });

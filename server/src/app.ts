@@ -12,6 +12,8 @@ import { erstelleWebsiteRouter } from './website.js';
 import { erstelleFehlermeldungRouter } from './fehlermeldungen.js';
 import { erstelleRoutenRouter } from './routen.js';
 import { erstelleFahrzeuggrafikRouter } from './fahrzeuggrafiken.js';
+import { erstelleBotRouter, erstelleDiscordRouter, erstelleGrosseinsatzWaechter, type DiscordOptionen } from './discord.js';
+import { erstelleEreignisse } from './ereignisse.js';
 
 // Feste Beispieldaten für den ersten Durchstich – wird später durch echte Einsatzlogik ersetzt.
 const beispielEinsaetze: Einsatz[] = [
@@ -21,9 +23,12 @@ const beispielEinsaetze: Einsatz[] = [
 ];
 
 /** Baut die Express-App. Getrennt vom Serverstart, damit Tests sie mit einer eigenen Datenbank nutzen können. */
-export function erstelleApp(db: Datenbank, optionen: { bcryptRunden?: number; freischaltungNoetig?: boolean; sicherungsOrdner?: string; osrmUrl?: string; einsaetzeAufraeumenBis?: number } & AuthOptionen = {}) {
+export function erstelleApp(db: Datenbank, optionen: { bcryptRunden?: number; freischaltungNoetig?: boolean; sicherungsOrdner?: string; osrmUrl?: string; einsaetzeAufraeumenBis?: number } & AuthOptionen & DiscordOptionen = {}) {
   const app = express();
   const konten = erstelleKontenDienst(db, optionen);
+  // Für den Discord-Bot: Großeinsätze, Serverfehler, Fehlermeldungen
+  const ereignisse = erstelleEreignisse();
+  const grosseinsaetze = erstelleGrosseinsatzWaechter(db, ereignisse);
   if (optionen.freischaltungNoetig) {
     // Nicht freigeschaltete Konten nach 7 Tagen entfernen: beim Start und dann stündlich
     konten.loescheUnfreigegebene();
@@ -37,7 +42,7 @@ export function erstelleApp(db: Datenbank, optionen: { bcryptRunden?: number; fr
   app.use(cors());
   app.use(cookieParser());
   // Vor dem allgemeinen JSON-Parser einhängen: braucht ein größeres Limit für den Spielstand
-  app.use('/api/spielstand', erstelleSpielstandRouter(db, konten, optionen.einsaetzeAufraeumenBis));
+  app.use('/api/spielstand', erstelleSpielstandRouter(db, konten, optionen.einsaetzeAufraeumenBis, (konto, stand) => grosseinsaetze(konto, stand.incidents)));
   // Besucherstatistik: Die Website (andere Domain) meldet Aufrufe als Text – eigener Parser im Router
   app.use('/api/website', erstelleWebsiteRouter(db));
   // Fahrzeuggrafiken: Bilder brauchen ebenfalls ein größeres Limit als der allgemeine JSON-Parser
@@ -46,8 +51,10 @@ export function erstelleApp(db: Datenbank, optionen: { bcryptRunden?: number; fr
 
   app.use('/api/auth', erstelleAuthRouter(konten, optionen));
   app.use('/api/team', erstelleTeamRouter(db, konten, optionen));
-  app.use('/api/fehlermeldung', erstelleFehlermeldungRouter(db, konten, optionen));
+  app.use('/api/fehlermeldung', erstelleFehlermeldungRouter(db, konten, optionen, ereignisse));
   app.use('/api/routen', erstelleRoutenRouter(optionen.osrmUrl));
+  app.use('/api/discord', erstelleDiscordRouter(db, konten, optionen));
+  app.use('/api/bot', erstelleBotRouter(db, ereignisse, optionen));
 
   // Ankündigung des Teams – für alle sichtbar (auch auf der Anmeldeseite möglich)
   app.get('/api/ankuendigung', (_req, res) => {
@@ -72,7 +79,7 @@ export function erstelleApp(db: Datenbank, optionen: { bcryptRunden?: number; fr
   });
 
   // Unerwartete Fehler als JSON melden, ohne Interna preiszugeben
-  app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
+  app.use((err: unknown, req: Request, res: Response, _next: NextFunction) => {
     // Fehler des JSON-Parsers (kaputtes JSON, zu groß) sind Fehler der Anfrage, nicht des Servers
     const status = (err as { status?: number }).status;
     if (typeof status === 'number' && status >= 400 && status < 500) {
@@ -80,6 +87,7 @@ export function erstelleApp(db: Datenbank, optionen: { bcryptRunden?: number; fr
       return;
     }
     console.error(err);
+    ereignisse.melde('fehler', { nachricht: String((err as Error)?.message ?? err).slice(0, 500), pfad: `${req.method} ${req.path}` });
     res.status(500).json({ fehler: 'Interner Serverfehler.' });
   });
 

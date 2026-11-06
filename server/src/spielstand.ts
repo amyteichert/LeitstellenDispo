@@ -9,7 +9,8 @@ import { ladeOffeneKorrekturen } from './team.js';
 /** Ein Spielstand mit langer Einsatzhistorie und Funkverkehr kann deutlich über das Express-Standardlimit (100 kB) wachsen */
 export const SPIELSTAND_MAX_GROESSE = '5mb';
 
-export function erstelleSpielstandRouter(db: Datenbank, konten: KontenDienst, einsaetzeAufraeumenBis?: number): Router {
+/** `nachSpeichern`: wird nach jedem gespeicherten Stand aufgerufen (z. B. Großeinsätze für den Discord-Bot erkennen) */
+export function erstelleSpielstandRouter(db: Datenbank, konten: KontenDienst, einsaetzeAufraeumenBis?: number, nachSpeichern?: (konto: Konto, stand: Spielstand) => void): Router {
   const router = Router();
   const sql = {
     laden: db.prepare('SELECT daten FROM spielstaende WHERE benutzer_id = ?'),
@@ -74,6 +75,7 @@ export function erstelleSpielstandRouter(db: Datenbank, konten: KontenDienst, ei
     // Offenes Spiel mit alten Einsätzen: aufgeräumt speichern und das Spiel neu laden lassen
     const ohneAlte = aufgeraeumt(neu);
     sql.speichern.run(kontoId(res), JSON.stringify(ohneAlte ?? neu));
+    nachSpeichern?.(res.locals.konto as Konto, ohneAlte ?? neu);
     if (ohneAlte) return void res.json({ neuLaden: true });
     res.status(204).end();
   });
