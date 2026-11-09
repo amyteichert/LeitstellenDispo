@@ -19,6 +19,7 @@ import type { GrafikAuswahl } from './fahrzeuggrafiken.js';
 import { getFehlendeQualifikationen, type Qualifikation } from './fahrzeuge.js';
 import { LAUFBAHN_START, erstelleLaufbahnFuerBestand, istGueltigeLaufbahn, type Laufbahn } from './laufbahn.js';
 import type { FinanceTransaction, MapLocation, Vehicle } from './typen.js';
+import { istGueltigerKredit, type Kredit } from './kredite.js';
 
 /** Wird erhöht, wenn sich der Aufbau des Spielstands ändert (ältere Versionen werden migriert). */
 export const SPIELSTAND_VERSION = 5;
@@ -48,6 +49,8 @@ export interface Spielstand {
   aao?: AaoEintrag[];
   /** Gewählte Fahrzeuggrafiken je Fahrzeugtyp – fehlt = überall die Standardgrafik */
   grafiken?: GrafikAuswahl;
+  /** Laufender Kredit – fehlt/`null` = keiner */
+  kredit?: Kredit | null;
 }
 
 export const START_WACHEN: MapLocation[] = [
@@ -200,6 +203,10 @@ function pruefeStruktur(spielstand: Spielstand | null): Spielstand | null {
   if (!Number.isFinite(spielstand.balance)) return null;
   if (!spielstand.vehicles.every(istGueltigesFahrzeug)) return null;
   if (!spielstand.incidents.every(istGueltigerEinsatz)) return null;
+  // Ein kaputter Kredit darf weder das Spiel abstürzen lassen noch Geld erzeugen – er wird verworfen
+  if (spielstand.kredit !== undefined && spielstand.kredit !== null && !istGueltigerKredit(spielstand.kredit)) {
+    spielstand = { ...spielstand, kredit: null };
+  }
   return ergaenzeLaufbahn(entferneVerwaisteFahrzeuge(spielstand));
 }
 

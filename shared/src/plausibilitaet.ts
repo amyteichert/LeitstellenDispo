@@ -1,5 +1,6 @@
 // Schutz gegen Schummeln: Der Server prüft beim Speichern, ob die Guthaben-Änderung zu den Buchungen passt.
 import type { FinanceTransaction } from './typen.js';
+import { KREDIT_AUSZAHLUNG_LABEL, KREDIT_HOECHSTBETRAG } from './kredite.js';
 
 export const PLAUSIBILITAET = {
   /** Rundungsspielraum, bevor ein Unterschied als unerklärt gilt */
@@ -16,6 +17,9 @@ export const PLAUSIBILITAET = {
 /** Vom Server vergebene Buchungen und Dev-Werkzeuge (Konto ist dann ohnehin markiert) – zählen nicht zur Einnahmen-Obergrenze */
 const istServerBuchung = (tx: FinanceTransaction) =>
   tx.label.startsWith('Schichtzulage') || tx.label.startsWith('Korrektur durch das Team') || tx.label.startsWith('Dev-Werkzeug');
+
+/** Kreditauszahlungen sind keine Einnahmen aus dem Spiel (solange sie in den größten Kreditrahmen passen) */
+const istKreditAuszahlung = (tx: FinanceTransaction) => tx.label === KREDIT_AUSZAHLUNG_LABEL && tx.amount <= KREDIT_HOECHSTBETRAG;
 
 const vorzeichen = (tx: FinanceTransaction) => (tx.kind === 'Einnahme' ? tx.amount : -tx.amount);
 
@@ -45,7 +49,7 @@ export function pruefeGuthaben(
     const vorher = bisher.get(tx.id);
     const differenz = vorzeichen(tx) - (vorher ? vorzeichen(vorher) : 0);
     erklaert += differenz;
-    if (differenz > 0 && !istServerBuchung(tx)) neueEinnahmen += differenz;
+    if (differenz > 0 && !istServerBuchung(tx) && !istKreditAuszahlung(tx)) neueEinnahmen += differenz;
   }
   const unerklaert = neu.balance - alt.balance - erklaert;
   const erlaubtesGuthaben = unerklaert > PLAUSIBILITAET.toleranz ? alt.balance + erklaert : neu.balance;

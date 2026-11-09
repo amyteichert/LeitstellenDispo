@@ -116,16 +116,25 @@ export function rechneLaufendeKostenAb(
 export const LAUFENDE_KOSTEN_LABEL = 'Laufende Kosten (Gehälter & Unterhalt)';
 
 /**
- * Bucht laufende Kosten: eine Sammelbuchung je Stunde, damit die Buchungsliste nicht minütlich wächst.
+ * Sammelbuchung je Stunde (z. B. laufende Kosten, Kreditraten), damit die Buchungsliste nicht minütlich wächst.
  * Läuft die Buchung der aktuellen Stunde schon, wird sie erhöht.
  */
-export function bucheLaufendeKosten(transactions: FinanceTransaction[], betrag: number, jetzt: number): FinanceTransaction[] {
+export function bucheJeStunde(
+  transactions: FinanceTransaction[],
+  betrag: number,
+  jetzt: number,
+  art: { idPrefix: string; label: string },
+): FinanceTransaction[] {
   if (betrag <= 0) return transactions;
   const stunde = new Date(Math.floor(jetzt / STUNDE) * STUNDE).toISOString();
-  const id = `laufende-kosten-${stunde}`;
+  const id = `${art.idPrefix}-${stunde}`;
   const index = transactions.findIndex((tx) => tx.id === id);
   if (index >= 0) {
     return transactions.map((tx, i) => (i === index ? { ...tx, amount: tx.amount + betrag } : tx));
   }
-  return [{ id, kind: 'Ausgabe', label: LAUFENDE_KOSTEN_LABEL, amount: betrag, createdAt: stunde }, ...transactions];
+  return [{ id, kind: 'Ausgabe', label: art.label, amount: betrag, createdAt: stunde }, ...transactions];
 }
+
+/** Bucht laufende Kosten (eine Sammelbuchung je Stunde) */
+export const bucheLaufendeKosten = (transactions: FinanceTransaction[], betrag: number, jetzt: number): FinanceTransaction[] =>
+  bucheJeStunde(transactions, betrag, jetzt, { idPrefix: 'laufende-kosten', label: LAUFENDE_KOSTEN_LABEL });

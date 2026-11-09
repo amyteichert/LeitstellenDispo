@@ -14,6 +14,14 @@ import {
   type Laufbahn,
   type Rang,
   bucheLaufendeKosten,
+  bucheKreditrate,
+  erstelleKredit,
+  pruefeKreditAbloesung,
+  pruefeKreditAufnahme,
+  rechneKreditrateAb,
+  KREDIT_ABLOESUNG_LABEL,
+  KREDIT_AUSZAHLUNG_LABEL,
+  type Kredit,
   getLaufendeKosten,
   rechneLaufendeKostenAb,
   getWachenPreis,
@@ -174,6 +182,7 @@ export function useSpiel(optionen: UseSpielOptionen = {}) {
   const [ruf, setRuf] = useState<number>(startSpiel.ruf ?? RUF_CONFIG.start);
   const [personal, setPersonal] = useState<Mitarbeiter[]>(startSpiel.personal ?? []);
   const [laufbahn, setLaufbahn] = useState<Laufbahn>(startSpiel.laufbahn ?? LAUFBAHN_START);
+  const [kredit, setKredit] = useState<Kredit | null>(startSpiel.kredit ?? null);
   const [belohnungen, setBelohnungen] = useState<Belohnung[]>([]);
   const [befoerderung, setBefoerderung] = useState<Rang | null>(null);
   const [erfolgsMeldungen, setErfolgsMeldungen] = useState<Erfolg[]>([]);
@@ -220,6 +229,38 @@ export function useSpiel(optionen: UseSpielOptionen = {}) {
       setTransactions((cur) => bucheLaufendeKosten(cur, ergebnis.betrag, nowMs));
     }
   }, [spielstandGeladen, nowMs, laufendeKosten.gesamt, kostenAbgerechnetBis]);
+
+  // Kreditraten: wie die laufenden Kosten minütlich, nur solange das Spiel offen ist
+  useEffect(() => {
+    if (!spielstandGeladen || !kredit) return;
+    const ergebnis = rechneKreditrateAb(kredit, nowMs);
+    if (ergebnis.kredit === kredit) return;
+    setKredit(ergebnis.kredit);
+    if (ergebnis.betrag > 0) {
+      setBalance((cur) => cur - ergebnis.betrag);
+      setTransactions((cur) => bucheKreditrate(cur, ergebnis.betrag, nowMs));
+    }
+  }, [spielstandGeladen, nowMs, kredit]);
+
+  /** Kredit aufnehmen – Fehlermeldung oder `null` */
+  const nimmKredit = (betrag: number, laufzeitStunden: number): string | null => {
+    const fehler = pruefeKreditAufnahme(kredit, betrag, laufzeitStunden, laufbahn.xp);
+    if (fehler) return fehler;
+    setKredit(erstelleKredit(betrag, laufzeitStunden, Date.now()));
+    setBalance((cur) => cur + betrag);
+    addTransaction('Einnahme', KREDIT_AUSZAHLUNG_LABEL, betrag);
+    return null;
+  };
+
+  /** Restschuld auf einmal zurückzahlen – Fehlermeldung oder `null` */
+  const loeseKreditAb = (): string | null => {
+    const fehler = pruefeKreditAbloesung(kredit, balance);
+    if (fehler || !kredit) return fehler;
+    setKredit(null);
+    setBalance((cur) => cur - kredit.restSchuld);
+    addTransaction('Ausgabe', KREDIT_ABLOESUNG_LABEL, kredit.restSchuld);
+    return null;
+  };
 
   // Fällige Lehrgänge abschließen (auch solche, die während das Spiel geschlossen war, geendet haben)
   const [ausbildungsAbschluesse, setAusbildungsAbschluesse] = useState<AbgeschlossenerLehrgang[]>([]);
@@ -370,6 +411,7 @@ export function useSpiel(optionen: UseSpielOptionen = {}) {
     setAao(ladeAao(spielstand.aao));
     setGrafiken(spielstand.grafiken ?? {});
     setKostenAbgerechnetBis(spielstand.kostenAbgerechnetBis);
+    setKredit(spielstand.kredit ?? null);
     // Nach dem Laden neu einlesen, ohne alte Meldungen und Status nochmal zu funken
     statusStand.current = null;
     bekannteMeldungen.current = null;
@@ -418,10 +460,11 @@ export function useSpiel(optionen: UseSpielOptionen = {}) {
         kostenAbgerechnetBis,
         aao,
         grafiken,
+        kredit,
       });
     }, 1000);
     return () => clearTimeout(timeout);
-  }, [spielstandGeladen, balance, transactions, locations, vehicles, incidents, completedIncidentHistory, krankenhaeuser, ruf, laufbahn, personal, funk, kostenAbgerechnetBis, aao, grafiken]);
+  }, [spielstandGeladen, balance, transactions, locations, vehicles, incidents, completedIncidentHistory, krankenhaeuser, ruf, laufbahn, personal, funk, kostenAbgerechnetBis, aao, grafiken, kredit]);
 
   // Spielzeit
   useEffect(() => {
@@ -1050,6 +1093,9 @@ export function useSpiel(optionen: UseSpielOptionen = {}) {
     balance,
     transactions,
     laufendeKosten,
+    kredit,
+    nimmKredit,
+    loeseKreditAb,
     incidents,
     completedIncidentHistory,
     completedIncidentStats,

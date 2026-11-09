@@ -1,4 +1,5 @@
-import { KOSTEN_CONFIG, formatEuro, type LaufendeKosten } from '@leitstellendispo/shared';
+import { KOSTEN_CONFIG, KREDIT_AUSZAHLUNG_LABEL, formatEuro, type Kredit, type LaufendeKosten } from '@leitstellendispo/shared';
+import KreditBereich from './KreditBereich';
 import type { FinanceTransaction, MapLocation, Vehicle } from '../types';
 
 const STUNDE = 60 * 60 * 1000;
@@ -13,24 +14,29 @@ function Kachel({ titel, wert, hinweis, ton }: { titel: string; wert: string; hi
   );
 }
 
-export default function FinanzenView({ balance, locations, vehicles, transactions, laufendeKosten, nowMs }: {
+export default function FinanzenView({ balance, locations, vehicles, transactions, laufendeKosten, nowMs, kredit, xp, nimmKredit, loeseKreditAb }: {
   balance: number;
   locations: MapLocation[];
   vehicles: Vehicle[];
   transactions: FinanceTransaction[];
   laufendeKosten: LaufendeKosten;
   nowMs: number;
+  kredit: Kredit | null;
+  xp: number;
+  nimmKredit: (betrag: number, laufzeitStunden: number) => string | null;
+  loeseKreditAb: () => string | null;
 }) {
   const stationAssets = locations.filter(l => l.type === 'station');
   const totalStationValue = stationAssets.reduce((s, it) => s + (it.price ?? 0), 0);
   const totalVehicleValue = vehicles.reduce((s, v) => s + (v.price ?? 0), 0);
   const einnahmen = transactions.filter((tx) => tx.kind === 'Einnahme').reduce((s, tx) => s + tx.amount, 0);
   const ausgaben = transactions.filter((tx) => tx.kind === 'Ausgabe').reduce((s, tx) => s + tx.amount, 0);
-  // Einnahmen der letzten Stunde (ohne Startguthaben) – zum Vergleich mit den laufenden Kosten
+  // Einnahmen der letzten Stunde (ohne Startguthaben und Kredite) – zum Vergleich mit den laufenden Kosten
   const einnahmenLetzteStunde = transactions
-    .filter((tx) => tx.kind === 'Einnahme' && tx.id !== 'initial-balance' && nowMs - new Date(tx.createdAt).getTime() <= STUNDE)
+    .filter((tx) => tx.kind === 'Einnahme' && tx.id !== 'initial-balance' && tx.label !== KREDIT_AUSZAHLUNG_LABEL && nowMs - new Date(tx.createdAt).getTime() <= STUNDE)
     .reduce((s, tx) => s + tx.amount, 0);
-  const bilanz = einnahmenLetzteStunde - laufendeKosten.gesamt;
+  const kreditRate = kredit?.rateJeStunde ?? 0;
+  const bilanz = einnahmenLetzteStunde - laufendeKosten.gesamt - kreditRate;
 
   const posten: Array<[string, number, string]> = [
     ['Gehälter', laufendeKosten.gehaelter, `${formatEuro(KOSTEN_CONFIG.gehaltJeStunde)} je Person, Zulagen für Notarzt, Führung u. a.`],
@@ -60,7 +66,7 @@ export default function FinanzenView({ balance, locations, vehicles, transaction
         <Kachel
           titel="Bilanz (Schätzung)"
           wert={`${bilanz >= 0 ? '+' : '−'} ${formatEuro(Math.abs(bilanz))} / Std.`}
-          hinweis="Einnahmen letzte Stunde minus Kosten"
+          hinweis={kreditRate > 0 ? 'Einnahmen letzte Stunde minus Kosten und Kreditrate' : 'Einnahmen letzte Stunde minus Kosten'}
           ton={bilanz >= 0 ? 'plus' : 'minus'}
         />
       </div>
@@ -81,6 +87,9 @@ export default function FinanzenView({ balance, locations, vehicles, transaction
           <span>{formatEuro(laufendeKosten.gesamt)}</span>
         </li>
       </ul>
+
+      <h3 className="abschnitt-titel">Kredit</h3>
+      <KreditBereich kredit={kredit} balance={balance} xp={xp} nimmKredit={nimmKredit} loeseKreditAb={loeseKreditAb} />
 
       <h3 className="abschnitt-titel">Vermögen &amp; Summen</h3>
       <div className="finanz-kacheln">

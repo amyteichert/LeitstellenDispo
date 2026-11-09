@@ -3682,3 +3682,10 @@ html[data-design='hell'] .versorgung-hinweis--ok { color: #166534; }
 .bestenliste__name small, .bestenliste__wert small { font-size: 0.75rem; color: var(--color-text-muted); }
 .bestenliste__wert { display: grid; gap: 2px; text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
 .bestenliste__info { color: var(--color-text-muted); font-size: 0.85rem; margin: 8px 0 12px; }
+
+/* Kredit (Finanzen) */
+.kredit { display: grid; gap: 12px; margin-bottom: 16px; }
+.kredit__info { color: var(--color-text-muted); font-size: 0.9rem; max-width: 70ch; margin: 0; }
+.kredit__wahl { display: grid; gap: 6px; }
+.kredit__wahl > span { font-size: 0.8rem; font-weight: 600; color: var(--color-text-muted); }
+.kredit > .btn { justify-self: start; }

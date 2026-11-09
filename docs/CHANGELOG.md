@@ -6,6 +6,20 @@ Format basiert auf [Keep a Changelog](https://keepachangelog.com/).
 
 ---
 
+## [Unreleased] – Kredite
+
+### Hinzugefügt
+- **Kredite** (Finanzen → „Kredit“): Betrag wählen (Kreditrahmen wächst mit dem Rang: 10.000 € bis 500.000 €) und
+  Laufzeit 4 / 12 / 24 Spielstunden mit 5 / 10 / 15 % Zinsen. Zurückgezahlt wird in festen Raten je Stunde –
+  minütlich abgebucht wie die laufenden Kosten, nur solange das Spiel offen ist. Höchstens ein Kredit gleichzeitig,
+  Restschuld jederzeit ohne Aufpreis ablösbar. Vorschau mit Zinsen, Rate und Gesamtbetrag vor dem Abschließen
+- Logik in `shared/src/kredite.ts`, Spielstand-Feld `kredit` (manipulierte Kredite werden beim Laden/Speichern verworfen)
+- Laufende Kosten und Kreditraten nutzen dieselbe stündliche Sammelbuchung (`bucheJeStunde`)
+
+### Geändert
+- Plausibilitätsprüfung: Kreditauszahlungen zählen nicht als „auffällige Einnahmen“
+- Finanzen: „Einnahmen letzte Stunde“ ohne Kreditauszahlung, Bilanz zieht die Kreditrate ab
+
 ## [Unreleased] – Bestenliste
 
 ### Hinzugefügt

@@ -1354,7 +1354,18 @@ Dein Guthaben: ${balance.toLocaleString('de-DE')} €`)) return;
             )}
 
             {currentView === 'Finanzen' && (
-              <FinanzenView balance={balance} locations={locations} vehicles={vehicles} transactions={transactions} laufendeKosten={spiel.laufendeKosten} nowMs={nowMs} />
+              <FinanzenView
+                balance={balance}
+                locations={locations}
+                vehicles={vehicles}
+                transactions={transactions}
+                laufendeKosten={spiel.laufendeKosten}
+                nowMs={nowMs}
+                kredit={spiel.kredit}
+                xp={spiel.laufbahn.xp}
+                nimmKredit={spiel.nimmKredit}
+                loeseKreditAb={spiel.loeseKreditAb}
+              />
             )}
 
             {currentView === 'Statistik' && <StatistikView verlauf={completedIncidentHistory} ruf={spiel.ruf} />}
