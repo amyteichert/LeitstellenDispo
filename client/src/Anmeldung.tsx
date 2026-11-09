@@ -21,7 +21,7 @@ import {
   type Spielstand,
 } from '@leitstellendispo/shared';
 import ProfilBild from './ProfilBild';
-import { KontoFehler, SITZUNG_ABGELAUFEN, abmelden, anmelden, holeFunktionen, holeKonto, passwortVergessen, registrieren } from './konto';
+import { DISCORD_EINLADUNG, KontoFehler, SITZUNG_ABGELAUFEN, abmelden, anmelden, holeFunktionen, holeKonto, passwortVergessen, registrieren } from './konto';
 import { serverSpeicher, setzeGastmodus, uebernimmBrowserSpielstand } from './spielstand';
 import { RechtlicheLinks } from './Rechtliches';
 import { Marke, Piktogramm, type SymbolName } from './Symbole';
@@ -687,7 +687,8 @@ function PasswortVergessen({ email, setEmail, onZurueck }: { email: string; setE
 
       {verfuegbar === false ? (
         <p className="anmeldung__hinweis">
-          Das Zurücksetzen per E-Mail kommt bald. Bis dahin hilft dir das Team weiter – melde dich im Discord.
+          Das Zurücksetzen per E-Mail kommt bald. Bis dahin hilft dir das Team weiter – melde dich im{' '}
+          <a href={DISCORD_EINLADUNG} target="_blank" rel="noopener noreferrer">Discord</a>.
         </p>
       ) : erledigt ? (
         <p className="anmeldung__hinweis" role="status">✓ {erledigt} Schau auch im Spam-Ordner nach.</p>

@@ -1821,6 +1821,11 @@
   background: var(--color-primary-light);
   border: 1px solid color-mix(in srgb, var(--color-primary) 35%, transparent);
 }
+.anmeldung__hinweis a {
+  color: inherit;
+  font-weight: 600;
+  text-decoration: underline;
+}
 
 .anmeldung__fehler {
   font-size: 0.85rem;

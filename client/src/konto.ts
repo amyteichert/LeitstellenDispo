@@ -206,6 +206,9 @@ export async function holeSchichtzulage(): Promise<SchichtzulageAntwort | null> 
 // Discord: Konto verknüpfen (der Knopf ist ein normaler Link auf /api/discord/verbinden)
 // ---------------------------------------------------------------------------
 
+/** Dauerhafter Einladungslink zum Discord-Server (läuft nicht ab) */
+export const DISCORD_EINLADUNG = 'https://discord.gg/KMWrWCFdTn';
+
 export interface DiscordStatus {
   verfuegbar: boolean;
   verknuepft: boolean;
