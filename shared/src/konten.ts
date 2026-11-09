@@ -151,9 +151,10 @@ export const VERGEBBARE_ROLLEN: UserRole[] = ['player', 'tester', 'admin', 'co_o
 
 /**
  * Ende der Alpha (ISO-Zeitpunkt). Wer sich vorher registriert, ist Gründungs-Spieler und bekommt das Abzeichen.
- * `null`: Alpha läuft noch – alle Konten bekommen es. Zum Alpha-Ende hier den Zeitpunkt eintragen, z. B. '2027-01-01T00:00:00Z'.
+ * `null`: Alpha läuft noch – alle Konten bekommen es.
+ * Beta-Start: Freitag, 20.11.2026, 18 Uhr deutscher Zeit (MEZ = UTC+1).
  */
-export const ALPHA_ENDE: string | null = null;
+export const ALPHA_ENDE: string | null = '2026-11-20T17:00:00Z';
 
 /** Gründungs-Spieler: Konto aus der Alpha-Zeit */
 export const istGruendungsSpieler = (konto: Pick<Konto, 'erstellt'>, alphaEnde: string | null = ALPHA_ENDE): boolean =>
