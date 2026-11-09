@@ -11,37 +11,40 @@ import type { FinanceTransaction, MapLocation, Vehicle, WachenArt } from './type
 const MINUTE = 60 * 1000;
 const STUNDE = 60 * MINUTE;
 
+/**
+ * Werte am 09.11.2026 um 50 % erhöht: laufende Kosten sollen spürbar sein (Ziel ca. 15–20 % der Einnahmen, vorher 2–10 %).
+ * Nachrechnen mit dem Bot: `starteSimulation` / `simulationsSchritt` aus `bot/simulation.ts`. */
 export const KOSTEN_CONFIG = {
   /** Grundgehalt je Person und Stunde */
-  gehaltJeStunde: 90,
+  gehaltJeStunde: 135,
   /** Zulage je Qualifikation und Stunde (zusätzlich zum Grundgehalt) */
   zulageJeStunde: {
-    rettungssanitaeter: 5,
-    notfallsanitaeter: 20,
-    notarzt: 80,
-    technische_hilfe: 5,
-    maschinist_dlk: 10,
-    gruppenfuehrer: 20,
-    zugfuehrer: 40,
-    lna: 100,
-    orgl: 40,
-    pilot: 80,
-    gefahrgut: 10,
-    wasserrettung: 10,
-    hoehenretter: 15,
+    rettungssanitaeter: 8,
+    notfallsanitaeter: 30,
+    notarzt: 120,
+    technische_hilfe: 8,
+    maschinist_dlk: 15,
+    gruppenfuehrer: 30,
+    zugfuehrer: 60,
+    lna: 150,
+    orgl: 60,
+    pilot: 120,
+    gefahrgut: 15,
+    wasserrettung: 15,
+    hoehenretter: 23,
   } as Record<Qualifikation, number>,
   /** Unterhalt (Strom, Miete, Reinigung) je Wache und Stunde */
-  wacheJeStunde: { Rettungswache: 80, Feuerwache: 150 } as Record<WachenArt, number>,
+  wacheJeStunde: { Rettungswache: 120, Feuerwache: 225 } as Record<WachenArt, number>,
   /** Unterhalt je Ausbaustufe einer Wache (Stellplatz, Aufenthaltsraum, Küche …) */
-  ausbaustufeJeStunde: 10,
+  ausbaustufeJeStunde: 15,
   /** Unterhalt je Ausbildungsraum */
-  ausbildungsraumJeStunde: 40,
+  ausbildungsraumJeStunde: 60,
   /** Wartung, Versicherung, Kraftstoff je Fahrzeug */
-  fahrzeugJeStunde: 20,
+  fahrzeugJeStunde: 30,
   /** Grundbetrieb eines eigenen Krankenhauses (ohne Pflegepersonal) */
-  krankenhausJeStunde: 300,
+  krankenhausJeStunde: 450,
   /** Gehalt je Pflegekraft im eigenen Krankenhaus */
-  pflegekraftJeStunde: 60,
+  pflegekraftJeStunde: 90,
   /** Längere Lücken (Spiel war geschlossen, Rechner im Ruhezustand) werden nicht abgerechnet */
   maxLueckeMs: 5 * MINUTE,
 } as const;

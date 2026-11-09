@@ -6,6 +6,16 @@ Format basiert auf [Keep a Changelog](https://keepachangelog.com/).
 
 ---
 
+## [Unreleased] – Balancing: laufende Kosten
+
+### Geändert
+- **Laufende Kosten um 50 % erhöht** (Gehälter, Zulagen, Unterhalt von Wachen, Fahrzeugen, Ausbildungsräumen und
+  eigenen Krankenhäusern). Laut Bot-Simulation lagen die Kosten nur bei 2–10 % der Einnahmen, jetzt je nach Ausbau
+  bei ca. 3–15 % (Rettungsdienst) bzw. 8–40 % (großer Feuerwehr-Ausbau) für einen perfekt spielenden Bot –
+  Wachstum will also etwas geplant sein. Der frühere Hinweis „frühe Rettungsdienst-Phase defizitär“ trifft nicht mehr zu.
+
+---
+
 ## [Unreleased] – Bot & Härtetest (Dev-Werkzeuge)
 
 ### Hinzugefügt
