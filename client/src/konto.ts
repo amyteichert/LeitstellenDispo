@@ -1,5 +1,7 @@
 import type {
   Ankuendigung,
+  BestenlisteAntwort,
+  BestenlisteKategorie,
   AnkuendigungsArt,
   Konto,
   KontoNotiz,
@@ -167,6 +169,20 @@ export async function ladeAnkuendigung(): Promise<Ankuendigung | null> {
   } catch {
     return null;
   }
+}
+
+/** Bestenliste einer Wertung – wirft `KontoFehler`, wenn sie nicht geladen werden kann. */
+export async function ladeBestenliste(kategorie: BestenlisteKategorie): Promise<BestenlisteAntwort> {
+  let res: Response;
+  try {
+    res = await fetch(`/api/bestenliste?kategorie=${kategorie}`);
+  } catch {
+    throw new KontoFehler(SERVER_NICHT_ERREICHBAR);
+  }
+  if (res.status === 401) meldeSitzungAbgelaufen();
+  const daten = await res.json().catch(() => null);
+  if (!res.ok) throw new KontoFehler(fehlerText(res, daten));
+  return daten as BestenlisteAntwort;
 }
 
 /** Offene Korrekturen des Teams am eigenen Spielstand (leer, wenn der Server nicht erreichbar ist). */

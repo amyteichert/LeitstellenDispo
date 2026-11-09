@@ -29,3 +29,4 @@ export * from './routen.js';
 export * from './aao.js';
 export * from './fahrzeuggrafiken.js';
 export * from './laufbahn.js';
+export * from './bestenliste.js';

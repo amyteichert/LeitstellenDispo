@@ -196,6 +196,42 @@ const MIGRATIONEN: Array<string | ((db: Datenbank) => void)> = [
   ALTER TABLE benutzer ADD COLUMN discord_name TEXT;
   CREATE UNIQUE INDEX benutzer_discord ON benutzer(discord_id) WHERE discord_id IS NOT NULL;
   `,
+  // Bestenliste: Kurzfassung jedes Spielstands. Trigger halten sie bei jedem Speichern/Löschen aktuell –
+  // so muss die Bestenliste nie alle (großen) Spielstände lesen. Kaputtes JSON wird übersprungen statt das Speichern zu blockieren.
+  `
+  CREATE TABLE bestenliste (
+    benutzer_id INTEGER PRIMARY KEY REFERENCES benutzer(id) ON DELETE CASCADE,
+    xp          INTEGER NOT NULL DEFAULT 0,
+    einsaetze   INTEGER NOT NULL DEFAULT 0,
+    perfekt     INTEGER NOT NULL DEFAULT 0,
+    ruf         INTEGER NOT NULL DEFAULT 50,
+    wachen      INTEGER NOT NULL DEFAULT 0,
+    fahrzeuge   INTEGER NOT NULL DEFAULT 0
+  );
+
+  CREATE VIEW bestenliste_aus_spielstand AS
+    SELECT benutzer_id,
+      CAST(coalesce(json_extract(daten, '$.laufbahn.xp'), 0) AS INTEGER) AS xp,
+      CAST(coalesce(json_extract(daten, '$.laufbahn.einsaetze'), 0) AS INTEGER) AS einsaetze,
+      CAST(coalesce(json_extract(daten, '$.laufbahn.perfekt'), 0) AS INTEGER) AS perfekt,
+      CAST(round(coalesce(json_extract(daten, '$.ruf'), 50)) AS INTEGER) AS ruf,
+      (SELECT count(*) FROM json_each(daten, '$.locations') WHERE json_extract(value, '$.type') = 'station') AS wachen,
+      coalesce(json_array_length(daten, '$.vehicles'), 0) AS fahrzeuge
+    FROM spielstaende WHERE json_valid(daten);
+
+  INSERT INTO bestenliste SELECT * FROM bestenliste_aus_spielstand;
+
+  CREATE TRIGGER bestenliste_nach_speichern_neu AFTER INSERT ON spielstaende BEGIN
+    INSERT OR REPLACE INTO bestenliste SELECT * FROM bestenliste_aus_spielstand WHERE benutzer_id = new.benutzer_id;
+  END;
+  CREATE TRIGGER bestenliste_nach_speichern AFTER UPDATE OF daten ON spielstaende BEGIN
+    DELETE FROM bestenliste WHERE benutzer_id = new.benutzer_id;
+    INSERT INTO bestenliste SELECT * FROM bestenliste_aus_spielstand WHERE benutzer_id = new.benutzer_id;
+  END;
+  CREATE TRIGGER bestenliste_nach_loeschen AFTER DELETE ON spielstaende BEGIN
+    DELETE FROM bestenliste WHERE benutzer_id = old.benutzer_id;
+  END;
+  `,
 ];
 
 /** Öffnet (bzw. erstellt) die Datenbank und bringt das Schema auf den neuesten Stand. */

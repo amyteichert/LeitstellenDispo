@@ -14,6 +14,7 @@ import { erstelleRoutenRouter } from './routen.js';
 import { erstelleFahrzeuggrafikRouter } from './fahrzeuggrafiken.js';
 import { erstelleBotRouter, erstelleDiscordRouter, erstelleGrosseinsatzWaechter, type DiscordOptionen } from './discord.js';
 import { erstelleEreignisse } from './ereignisse.js';
+import { erstelleBestenlisteRouter } from './bestenliste.js';
 
 // Feste Beispieldaten für den ersten Durchstich – wird später durch echte Einsatzlogik ersetzt.
 const beispielEinsaetze: Einsatz[] = [
@@ -55,6 +56,7 @@ export function erstelleApp(db: Datenbank, optionen: { bcryptRunden?: number; fr
   app.use('/api/routen', erstelleRoutenRouter(optionen.osrmUrl));
   app.use('/api/discord', erstelleDiscordRouter(db, konten, optionen));
   app.use('/api/bot', erstelleBotRouter(db, ereignisse, optionen));
+  app.use('/api/bestenliste', erstelleBestenlisteRouter(db, konten));
 
   // Ankündigung des Teams – für alle sichtbar (auch auf der Anmeldeseite möglich)
   app.get('/api/ankuendigung', (_req, res) => {

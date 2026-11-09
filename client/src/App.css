@@ -3662,3 +3662,23 @@ html[data-design='hell'] .versorgung-hinweis--ok { color: #166534; }
   .befoerderung,
   .erfolg-meldung { animation: none; }
 }
+
+/* Bestenliste */
+.bestenliste { list-style: none; display: grid; gap: 6px; margin: 0 0 12px; padding: 0; }
+.bestenliste__zeile {
+  display: grid;
+  grid-template-columns: 2.4rem auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  padding: 8px 10px;
+}
+.bestenliste__zeile--eigen { border-color: var(--color-primary); box-shadow: inset 3px 0 0 var(--color-primary); }
+.bestenliste__platz { font-weight: 700; text-align: center; font-variant-numeric: tabular-nums; font-size: 1.05rem; }
+.bestenliste__name { display: grid; gap: 2px; min-width: 0; }
+.bestenliste__name .spieler-name, .bestenliste__name small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bestenliste__name small, .bestenliste__wert small { font-size: 0.75rem; color: var(--color-text-muted); }
+.bestenliste__wert { display: grid; gap: 2px; text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.bestenliste__info { color: var(--color-text-muted); font-size: 0.85rem; margin: 8px 0 12px; }

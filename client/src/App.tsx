@@ -65,6 +65,7 @@ import { BELOHNUNG_ANZEIGE_MS, type Belohnung } from './useSpiel';
 import WetterFenster from './views/WetterFenster';
 import FinanzenView from './views/FinanzenView';
 import StatistikView from './views/StatistikView';
+import BestenlisteView from './views/BestenlisteView';
 import AnkuendigungsBanner from './AnkuendigungsBanner';
 import EinstellungenView from './views/EinstellungenView';
 import ProfilView from './views/ProfilView';
@@ -1357,6 +1358,8 @@ Dein Guthaben: ${balance.toLocaleString('de-DE')} €`)) return;
             )}
 
             {currentView === 'Statistik' && <StatistikView verlauf={completedIncidentHistory} ruf={spiel.ruf} />}
+
+            {currentView === 'Bestenliste' && <BestenlisteView konto={konto} gast={gast} />}
 
             {currentView === 'Profil' && (
               <ProfilView

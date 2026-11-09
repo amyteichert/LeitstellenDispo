@@ -6,6 +6,16 @@ Format basiert auf [Keep a Changelog](https://keepachangelog.com/).
 
 ---
 
+## [Unreleased] – Bestenliste
+
+### Hinzugefügt
+- **Bestenliste** (Menü → „Bestenliste“): Wertungen nach Erfahrung, Einsätzen, perfekten Einsätzen, Ruf (ab 25 Einsätzen)
+  und Fuhrpark; Top 50 mit Medaillen, Rang, Profilbild und Abzeichen, der eigene Platz ist hervorgehoben und erscheint
+  auch außerhalb der Top 50. Gesperrte, nicht freigeschaltete und mit Dev-Werkzeugen gespielte Konten zählen nicht.
+  Gäste sehen einen Hinweis auf das kostenlose Konto
+- Server: Tabelle `bestenliste` mit einer Kurzfassung je Spielstand – Datenbank-Trigger halten sie bei jedem Speichern
+  und Löschen aktuell, vorhandene Spielstände werden beim Update übernommen; API `GET /api/bestenliste?kategorie=…`
+
 ## [Unreleased] – Balancing: laufende Kosten
 
 ### Geändert
