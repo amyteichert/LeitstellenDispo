@@ -35,6 +35,9 @@ Format basiert auf [Keep a Changelog](https://keepachangelog.com/).
   verworfen, fehlende Listen ergänzt, und eine Fehleranzeige bietet „Neu laden“ / „Spielstand zurücksetzen“
 - Wachen-Ansicht auf dem Handy war breiter als der Bildschirm
 - Server: JSON-Fehlerantworten ohne Stacktrace/Dateipfade, kein `X-Powered-By`-Header
+- **Transaktionsverlauf wuchs unbegrenzt**, bis der Browser-Speicher voll war und das Speichern still scheiterte
+  (ab ca. 25.000 Buchungen) – jetzt werden die neuesten 500 Buchungen behalten
+- Adresssuche per Kartenklick fragt Nominatim erst nach 1 s Ruhe ab (Nutzungsregel: max. 1 Anfrage/Sekunde)
 - Abhängigkeiten mit bekannten Sicherheitslücken aktualisiert (vite, express, qs, body-parser, shell-quote u. a.; nur Patch-Versionen)
 
 ---

@@ -66,7 +66,7 @@ export function useSpiel(optionen: UseSpielOptionen = {}) {
       label,
       amount,
       createdAt: new Date().toISOString(),
-    }, ...cur]);
+    }, ...cur].slice(0, GAME_CONFIG.transaktionsVerlaufLimit));
   };
 
   const addVehicle = (v: Omit<Vehicle, 'id'>) => {

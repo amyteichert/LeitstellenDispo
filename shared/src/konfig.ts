@@ -5,6 +5,8 @@ export const GAME_CONFIG = {
   maxOpenIncidents: 4,
   incidentGenerationMs: 20000,
   completedIncidentHistoryLimit: 100,
+  /** Nur die neuesten Buchungen behalten – sonst wächst der Spielstand, bis der Browser-Speicher voll ist */
+  transaktionsVerlaufLimit: 500,
   /** Ein nie alarmierter Einsatz verschwindet frühestens nach dieser Zeit */
   einsatzVerfallNachMs: 12 * 60 * 60 * 1000,
   /** Zeitfenster, in dem ein nicht alarmierter Einsatz (evtl.) eskaliert */

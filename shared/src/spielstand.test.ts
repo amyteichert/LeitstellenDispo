@@ -5,6 +5,7 @@ import { berechneSpielTick } from './spielTick.js';
 import { SPIELSTAND_VERSION, createNeuesSpiel, migriereSpielstand, type Spielstand } from './spielstand.js';
 import { T0, einsatz, fahrzeug, krankenhaus, wache } from './testHilfen.js';
 import { haversineKm } from './geo.js';
+import { GAME_CONFIG } from './konfig.js';
 
 describe('Krankenhäuser', () => {
   it('findet das nächste aufnahmebereite Krankenhaus', () => {
@@ -122,5 +123,15 @@ describe('Spielstand speichern und laden', () => {
     expect(geladen.vehicles).toEqual(gut.vehicles);
     expect(geladen.incidents.map((incident) => incident.id)).toEqual([e.id]);
     expect(geladen.krankenhaeuser).toEqual(gut.krankenhaeuser);
+  });
+
+  it('kürzt einen riesigen Transaktionsverlauf auf die neuesten Buchungen', () => {
+    const gut = createNeuesSpiel(new Date(T0));
+    const transactions = Array.from({ length: GAME_CONFIG.transaktionsVerlaufLimit + 50 }, (_, i) => ({
+      id: `txn-${i}`, kind: 'Einnahme' as const, label: 'Einsatz', amount: 1, createdAt: new Date(T0).toISOString(),
+    }));
+    const geladen = migriereSpielstand(JSON.parse(JSON.stringify({ ...gut, transactions })))!;
+    expect(geladen.transactions).toHaveLength(GAME_CONFIG.transaktionsVerlaufLimit);
+    expect(geladen.transactions[0].id).toBe('txn-0');
   });
 });

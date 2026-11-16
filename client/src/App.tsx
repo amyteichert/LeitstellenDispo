@@ -229,6 +229,9 @@ function App() {
   const letzteRueckwaertsSuche = useRef(0);
   const sucheAdresseZuPosition = async (coords: [number, number]) => {
     const anfrage = ++letzteRueckwaertsSuche.current;
+    // Erst fragen, wenn eine Sekunde nicht mehr geklickt wurde: Nominatim erlaubt höchstens 1 Anfrage pro Sekunde
+    await new Promise((fertig) => setTimeout(fertig, 1000));
+    if (anfrage !== letzteRueckwaertsSuche.current) return;
     try {
       const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${coords[0]}&lon=${coords[1]}&addressdetails=1&zoom=18`;
       const res = await fetch(url);

@@ -10,6 +10,7 @@ import {
   type SpielEinsatz,
 } from './daten.js';
 import { STANDARD_KRANKENHAEUSER, ergaenzeKrankenhaeuser, type Krankenhaus } from './krankenhaeuser.js';
+import { GAME_CONFIG } from './konfig.js';
 import { erzeugePatienten } from './patienten.js';
 import type { FinanceTransaction, MapLocation, Vehicle } from './typen.js';
 
@@ -128,7 +129,8 @@ const filtereEintraege = <T>(liste: unknown, pruefe: (eintrag: Record<string, un
  */
 const bereinigeSpielstand = (spielstand: Record<string, unknown>) => ({
   ...spielstand,
-  transactions: filtereEintraege<FinanceTransaction>(spielstand.transactions),
+  // Neueste zuerst – ältere Spielstände mit riesigem Verlauf werden dabei gekürzt
+  transactions: filtereEintraege<FinanceTransaction>(spielstand.transactions).slice(0, GAME_CONFIG.transaktionsVerlaufLimit),
   locations: filtereEintraege<MapLocation>(spielstand.locations, (location) => sindKoordinaten(location.coords)),
   vehicles: filtereEintraege<Vehicle>(spielstand.vehicles),
   incidents: filtereEintraege<SpielEinsatz>(spielstand.incidents, (incident) => sindKoordinaten(incident.coords)
