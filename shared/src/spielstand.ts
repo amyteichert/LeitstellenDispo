@@ -113,19 +113,46 @@ const migriereV2 = (alt: Omit<Spielstand, 'krankenhaeuser'>): Spielstand => {
   };
 };
 
+const istObjekt = (wert: unknown): wert is Record<string, unknown> => Boolean(wert) && typeof wert === 'object' && !Array.isArray(wert);
+
+const sindKoordinaten = (wert: unknown): boolean =>
+  Array.isArray(wert) && wert.length === 2 && wert.every((zahl) => typeof zahl === 'number' && Number.isFinite(zahl));
+
+/** Behält nur Einträge, die ein Objekt mit Text-ID sind und die Zusatzprüfung bestehen. */
+const filtereEintraege = <T>(liste: unknown, pruefe: (eintrag: Record<string, unknown>) => boolean = () => true): T[] =>
+  (Array.isArray(liste) ? liste : []).filter((eintrag) => istObjekt(eintrag) && typeof eintrag.id === 'string' && pruefe(eintrag)) as T[];
+
+/**
+ * Entfernt kaputte Einträge und ergänzt fehlende Listen, damit ein beschädigter Spielstand
+ * das Spiel nicht zum Absturz bringt (z. B. Wache ohne Koordinaten, fehlender Transaktionsverlauf).
+ */
+const bereinigeSpielstand = (spielstand: Record<string, unknown>) => ({
+  ...spielstand,
+  transactions: filtereEintraege<FinanceTransaction>(spielstand.transactions),
+  locations: filtereEintraege<MapLocation>(spielstand.locations, (location) => sindKoordinaten(location.coords)),
+  vehicles: filtereEintraege<Vehicle>(spielstand.vehicles),
+  incidents: filtereEintraege<SpielEinsatz>(spielstand.incidents, (incident) => sindKoordinaten(incident.coords)
+    && Array.isArray(incident.alarmedVehicles) && Array.isArray(incident.requiredVehicles) && Array.isArray(incident.meldungen)),
+  completedIncidentHistory: filtereEintraege<AbgeschlossenerSpielEinsatz>(spielstand.completedIncidentHistory, (incident) => Array.isArray(incident.meldungen)
+    && Array.isArray(incident.alarmedVehicles) && Array.isArray(incident.requiredVehicles)),
+});
+
 /**
  * Prüft und migriert einen geladenen Spielstand.
  * Liefert null, wenn er unbrauchbar oder von einer unbekannten Version ist.
+ * Einzelne kaputte Einträge werden verworfen, fehlende Listen leer ergänzt.
  */
 export function migriereSpielstand(roh: unknown): Spielstand | null {
-  if (!roh || typeof roh !== 'object') return null;
-  const spielstand = roh as Spielstand;
-  if (!Array.isArray(spielstand.locations) || !Array.isArray(spielstand.vehicles) || !Array.isArray(spielstand.incidents)) return null;
+  if (!istObjekt(roh)) return null;
+  if (!Array.isArray(roh.locations) || !Array.isArray(roh.vehicles) || !Array.isArray(roh.incidents)) return null;
+  if (typeof roh.balance !== 'number' || !Number.isFinite(roh.balance)) return null;
+  if (roh.version !== 2 && roh.version !== SPIELSTAND_VERSION) return null;
 
+  const spielstand = bereinigeSpielstand(roh) as unknown as Spielstand;
   if (spielstand.version === 2) return migriereV2(spielstand);
-  if (spielstand.version !== SPIELSTAND_VERSION) return null;
+  const krankenhaeuser = filtereEintraege<Krankenhaus>(roh.krankenhaeuser, (krankenhaus) => sindKoordinaten(krankenhaus.coords));
   return {
     ...spielstand,
-    krankenhaeuser: Array.isArray(spielstand.krankenhaeuser) ? spielstand.krankenhaeuser : STANDARD_KRANKENHAEUSER,
+    krankenhaeuser: Array.isArray(roh.krankenhaeuser) ? krankenhaeuser : STANDARD_KRANKENHAEUSER,
   };
 }

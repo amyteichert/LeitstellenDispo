@@ -75,10 +75,14 @@ const FAHRT_LINIEN_FARBEN: Record<FahrzeugFahrt['art'], string> = {
   rueckfahrt: '#9ca3af',
 };
 
+/** Text für Leaflet-`html` maskieren – Funkrufnamen sind frei eingebbar und dürfen kein HTML ausführen. */
+const escapeHtml = (text: string) =>
+  text.replace(/[&<>"']/g, (zeichen) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[zeichen] ?? zeichen);
+
 const createVehicleMarkerIcon = (label: string, art: FahrzeugFahrt['art'], organisation: 'fw' | 'rd') =>
   L.divIcon({
     className: `vehicle-marker vehicle-marker--${art} vehicle-marker--${organisation}`,
-    html: `<span>${label}</span>`,
+    html: `<span>${escapeHtml(label)}</span>`,
     iconSize: undefined,
     iconAnchor: [0, 0],
   });
@@ -737,6 +741,7 @@ function App() {
                 selectedIncidentId={selectedIncidentId}
                 setSelectedIncidentId={setSelectedIncidentId}
                 alarmIncidentVehicles={alarmIncidentVehicles}
+                zieheFahrzeugZurueck={spiel.zieheZurueck}
                 markiereMeldungGelesen={markiereMeldungGelesen}
                 triggerTestIncident={triggerTestIncident}
                 nowMs={nowMs}

@@ -6,6 +6,7 @@ import {
   berechneSpielTick,
   createNeuesSpiel,
   ergaenzeKrankenhaeuser,
+  zieheFahrzeugZurueck,
   erzeugeZufallsEinsatz,
   formatEinsatzTitel,
   getFahrzeugTyp,
@@ -124,24 +125,27 @@ export function useSpiel(optionen: UseSpielOptionen = {}) {
     return () => clearInterval(interval);
   }, []);
 
-  // Neue Einsätze in regelmäßigen Abständen
+  // Neue Einsätze in regelmäßigen Abständen.
+  // Der Takt darf NICHT bei jeder Änderung von Fahrzeugen/Einsätzen neu starten – sonst kommen bei viel Betrieb
+  // (Fahrzeuge kehren laufend zurück) gar keine Einsätze mehr. Deshalb liest der Takt den aktuellen Stand aus einer Ref.
+  const erzeugungsDaten = useRef({ locations, vehicles });
+  erzeugungsDaten.current = { locations, vehicles };
   useEffect(() => {
     if (!spielstandGeladen) return;
-    if (!locations.some((location) => location.type === 'station')) return;
-    if (incidents.filter((incident) => incident.status !== 'abgeschlossen').length >= GAME_CONFIG.maxOpenIncidents) return;
 
     const interval = setInterval(() => {
+      const { locations: aktuelleLocations, vehicles: aktuelleVehicles } = erzeugungsDaten.current;
       setIncidents((current) => {
         if (current.filter((incident) => incident.status !== 'abgeschlossen').length >= GAME_CONFIG.maxOpenIncidents) {
           return current;
         }
-        const ergebnis = erzeugeZufallsEinsatz(locations, vehicles);
+        const ergebnis = erzeugeZufallsEinsatz(aktuelleLocations, aktuelleVehicles);
         return 'einsatz' in ergebnis ? [ergebnis.einsatz, ...current] : current;
       });
     }, GAME_CONFIG.incidentGenerationMs);
 
     return () => clearInterval(interval);
-  }, [spielstandGeladen, locations, incidents, vehicles]);
+  }, [spielstandGeladen]);
 
   // Spiel-Tick: Ankunft, Lagemeldungen, Bearbeitung, Eskalation, Transport, Abschluss, Rückfahrt
   useEffect(() => {
@@ -269,6 +273,13 @@ export function useSpiel(optionen: UseSpielOptionen = {}) {
     setVehicles(ergebnis.vehicles);
   };
 
+  /** Zieht ein alarmiertes Fahrzeug vom Einsatz ab (nur vor Beginn der Bearbeitung möglich). */
+  const zieheZurueck = (incidentId: string, vehicleId: string) => {
+    const ergebnis = zieheFahrzeugZurueck({ incidents, vehicles, locations }, incidentId, vehicleId);
+    setIncidents(ergebnis.incidents);
+    setVehicles(ergebnis.vehicles);
+  };
+
   const markiereMeldungGelesen = (incidentId: string) => {
     setIncidents((current) => current.map((incident) => (
       incident.id === incidentId ? { ...incident, neueMeldung: false } : incident
@@ -297,6 +308,7 @@ export function useSpiel(optionen: UseSpielOptionen = {}) {
     loescheWache,
     erzeugeTestEinsatz,
     alarmieren,
+    zieheZurueck,
     markiereMeldungGelesen,
     neuesSpiel,
   };

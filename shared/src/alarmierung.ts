@@ -6,7 +6,7 @@ import {
   istAusreichendBesetzt,
   type BedarfsKlasse,
 } from './fahrzeuge.js';
-import { getFahrzeitSekunden, getStationCoords, haversineKm } from './geo.js';
+import { getFahrzeitSekunden, getPositionAufAnfahrt, getStationCoords, haversineKm } from './geo.js';
 import type { MapLocation, Vehicle } from './typen.js';
 
 export interface AlarmierungErgebnis {
@@ -82,6 +82,47 @@ export const alarmiereFahrzeuge = (
     vehicles: vehicles.map((vehicle) => (
       alarmierteIds.includes(vehicle.id) ? { ...vehicle, status: 'Alarmiert / auf Anfahrt' } : vehicle
     )),
+  };
+};
+
+/**
+ * Zieht ein alarmiertes Fahrzeug wieder vom Einsatz ab (Rückalarmierung), solange die Bearbeitung noch nicht läuft.
+ * Wichtig, damit sich der Spieler nicht festfährt – z. B. RTW wartet an Einsatz A auf ein NEF,
+ * das NEF an Einsatz B auf einen RTW. Das Fahrzeug fährt von seiner aktuellen Position zurück zur Wache.
+ * Ohne verbleibende Fahrzeuge ist der Einsatz wieder „offen“ und kann neu disponiert werden.
+ */
+export const zieheFahrzeugZurueck = (
+  zustand: AlarmierungsZustand,
+  incidentId: string,
+  vehicleId: string,
+  jetzt: number = Date.now(),
+): AlarmierungErgebnis => {
+  const { incidents, vehicles, locations } = zustand;
+  const incident = incidents.find((entry) => entry.id === incidentId);
+  if (!incident || (incident.status !== 'offen' && incident.status !== 'alarmiert')) return { incidents, vehicles };
+  const assignment = getAktiveZuteilungen(incident).find((entry) => entry.vehicleId === vehicleId);
+  const vehicle = vehicles.find((item) => item.id === vehicleId);
+  if (!assignment || !vehicle) return { incidents, vehicles };
+
+  const verbleibend = incident.alarmedVehicles.filter((entry) => entry.vehicleId !== vehicleId);
+  const wache = getStationCoords(vehicle.stationId, locations);
+  const position = !wache || assignment.arrivalAt <= jetzt ? incident.coords : getPositionAufAnfahrt(wache, incident.coords, assignment, jetzt);
+
+  return {
+    incidents: incidents.map((entry) => (
+      entry.id !== incidentId ? entry : {
+        ...entry,
+        alarmedVehicles: verbleibend,
+        // Wieder offen: keine sofortige „verspätete“ Eskalation aus der ursprünglichen Planung
+        ...(verbleibend.length === 0 ? { status: 'offen' as const, eskalationOhneAlarmAt: undefined } : {}),
+      }
+    )),
+    vehicles: vehicles.map((item) => {
+      if (item.id !== vehicleId) return item;
+      if (!wache) return { ...item, status: 'Einsatzbereit', rueckfahrt: undefined };
+      const fahrzeit = getFahrzeitSekunden(position, wache, getFahrzeugGeschwindigkeit(item.type));
+      return { ...item, status: 'Rückfahrt', rueckfahrt: { von: position, startAt: jetzt, ankunftAt: jetzt + fahrzeit * 1000 } };
+    }),
   };
 };
 

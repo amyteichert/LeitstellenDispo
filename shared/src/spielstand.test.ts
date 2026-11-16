@@ -99,5 +99,28 @@ describe('Spielstand speichern und laden', () => {
     expect(migriereSpielstand('kaputt')).toBeNull();
     expect(migriereSpielstand({ version: 1, locations: [], vehicles: [], incidents: [] })).toBeNull();
     expect(migriereSpielstand({ version: SPIELSTAND_VERSION })).toBeNull();
+    // Ohne gültiges Guthaben ist der Spielstand nicht zu retten
+    expect(migriereSpielstand({ version: SPIELSTAND_VERSION, locations: [], vehicles: [], incidents: [] })).toBeNull();
+    expect(migriereSpielstand({ version: SPIELSTAND_VERSION, balance: 'viel', locations: [], vehicles: [], incidents: [] })).toBeNull();
+  });
+
+  it('ergänzt fehlende Listen und verwirft kaputte Einträge, statt das Spiel abstürzen zu lassen', () => {
+    const gut = createNeuesSpiel(new Date(T0));
+    const e = einsatz('sturz');
+    const geladen = migriereSpielstand({
+      version: SPIELSTAND_VERSION,
+      balance: 500,
+      locations: [null, { id: 'ohne-koordinaten', type: 'station' }, ...gut.locations],
+      vehicles: ['kaputt', ...gut.vehicles],
+      incidents: [{ id: 'ohne-listen', coords: [48.7, 9.1] }, e],
+      krankenhaeuser: [{ id: 'kh-kaputt' }, ...gut.krankenhaeuser],
+    })!;
+    expect(geladen).not.toBeNull();
+    expect(geladen.transactions).toEqual([]);
+    expect(geladen.completedIncidentHistory).toEqual([]);
+    expect(geladen.locations).toEqual(gut.locations);
+    expect(geladen.vehicles).toEqual(gut.vehicles);
+    expect(geladen.incidents.map((incident) => incident.id)).toEqual([e.id]);
+    expect(geladen.krankenhaeuser).toEqual(gut.krankenhaeuser);
   });
 });

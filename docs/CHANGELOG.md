@@ -27,6 +27,15 @@ Format basiert auf [Keep a Changelog](https://keepachangelog.com/).
 
 ### Behoben
 - Einsatzansicht auf dem Handy war breiter als der Bildschirm
+- **Festgefahrene Einsätze**: Alarmierte Fahrzeuge können vor Beginn der Bearbeitung wieder abgezogen werden
+  („Zurückziehen“ in den Einsatzdetails) – vorher blockierten sich z. B. RTW (wartet auf NEF) und NEF (wartet auf RTW) dauerhaft
+- **Einsatzerzeugung stockte** bei viel Betrieb: Der 20-s-Takt startete bei jeder Fahrzeug-/Einsatzänderung neu
+- **Funkrufname mit HTML** wurde auf der Karte als HTML ausgeführt (Script-Injection) – wird jetzt maskiert
+- **Beschädigter Spielstand** (z. B. fehlender Transaktionsverlauf) führte zu einer weißen Seite; kaputte Einträge werden
+  verworfen, fehlende Listen ergänzt, und eine Fehleranzeige bietet „Neu laden“ / „Spielstand zurücksetzen“
+- Wachen-Ansicht auf dem Handy war breiter als der Bildschirm
+- Server: JSON-Fehlerantworten ohne Stacktrace/Dateipfade, kein `X-Powered-By`-Header
+- Abhängigkeiten mit bekannten Sicherheitslücken aktualisiert (vite, express, qs, body-parser, shell-quote u. a.; nur Patch-Versionen)
 
 ---
 

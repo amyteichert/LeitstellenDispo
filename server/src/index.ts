@@ -1,9 +1,11 @@
 import cors from 'cors';
-import express from 'express';
+import express, { type NextFunction, type Request, type Response } from 'express';
 import { FAHRZEUG_TYPEN, STANDARD_KRANKENHAEUSER, getAppInfo } from '@leitstellendispo/shared';
 import type { Einsatz } from '@leitstellendispo/shared';
 
 const app = express();
+// Kein Hinweis auf die Server-Software in den Antworten
+app.disable('x-powered-by');
 const PORT = process.env.PORT ?? 3001;
 
 app.use(cors());
@@ -35,6 +37,18 @@ app.get('/api/fahrzeugtypen', (_req, res) => {
 
 app.get('/api/krankenhaeuser', (_req, res) => {
   res.json(STANDARD_KRANKENHAEUSER);
+});
+
+// Unbekannte API-Pfade: JSON statt HTML-Fehlerseite
+app.use('/api', (_req, res) => {
+  res.status(404).json({ error: 'Nicht gefunden' });
+});
+
+// Fehler (z. B. kaputtes JSON im Request) ohne Stacktrace und Dateipfade beantworten
+app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
+  const status = typeof err === 'object' && err !== null && 'status' in err && typeof err.status === 'number' ? err.status : 500;
+  if (status >= 500) console.error(err);
+  res.status(status).json({ error: status >= 500 ? 'Interner Serverfehler' : 'Ungültige Anfrage' });
 });
 
 app.listen(PORT, () => {

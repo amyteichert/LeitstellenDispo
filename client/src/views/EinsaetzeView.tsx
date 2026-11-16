@@ -58,6 +58,7 @@ export default function EinsaetzeView({
   selectedIncidentId,
   setSelectedIncidentId,
   alarmIncidentVehicles,
+  zieheFahrzeugZurueck,
   markiereMeldungGelesen,
   triggerTestIncident,
   nowMs,
@@ -70,6 +71,8 @@ export default function EinsaetzeView({
   selectedIncidentId: string | null;
   setSelectedIncidentId: (id: string | null) => void;
   alarmIncidentVehicles: (incidentId: string, selectedVehicleIds: string[]) => void;
+  /** Fahrzeug vom Einsatz abziehen (Rückalarmierung), solange die Bearbeitung noch nicht läuft */
+  zieheFahrzeugZurueck: (incidentId: string, vehicleId: string) => void;
   markiereMeldungGelesen: (incidentId: string) => void;
   triggerTestIncident: () => void;
   nowMs: number;
@@ -423,6 +426,20 @@ export default function EinsaetzeView({
                           <strong>{callSign}</strong>
                           {selectedIncident.status !== 'abgeschlossen' && (
                             <span> – {fms !== undefined ? `S${fms} · ` : ''}{beschreibeZuteilung(selectedIncident, assignment, nowMs)}</span>
+                          )}
+                          {kannAlarmieren && assignment.freigegebenAt === undefined && (
+                            <button
+                              type="button"
+                              className="btn btn--secondary btn--klein"
+                              style={{ marginLeft: 8 }}
+                              title="Fahrzeug vom Einsatz abziehen – es fährt zurück zur Wache"
+                              onClick={() => {
+                                zieheFahrzeugZurueck(selectedIncident.id, assignment.vehicleId);
+                                setRueckmeldung(`↩ ${callSign} wurde vom Einsatz abgezogen.`);
+                              }}
+                            >
+                              Zurückziehen
+                            </button>
                           )}
                         </li>
                       );

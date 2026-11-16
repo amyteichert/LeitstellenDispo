@@ -28,8 +28,9 @@ export default function WachenView({
   return (
     <div>
       <h2>Wachen</h2>
-      <div style={{ display: 'flex', gap: 16 }}>
-        <div style={{ flex: 1 }}>
+      {/* Auf schmalen Bildschirmen untereinander statt nebeneinander (sonst breiter als das Handy) */}
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16 }}>
+        <div style={{ flex: '1 1 220px', minWidth: 0 }}>
           <ul style={{ listStyle: 'none', padding: 0 }}>
             {stations.map((s) => (
               <li key={s.id} style={{ marginBottom: 10 }}>
@@ -46,7 +47,7 @@ export default function WachenView({
           </ul>
         </div>
 
-        <div style={{ flex: 2 }}>
+        <div style={{ flex: '2 1 280px', minWidth: 0 }}>
           {selected ? (
             <div style={{ padding: 12, borderRadius: 8, background: 'var(--color-surface)', boxShadow: 'var(--shadow-card)' }}>
               <h3>{selected.name}</h3>
