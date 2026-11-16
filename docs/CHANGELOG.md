@@ -6,6 +6,19 @@ Format basiert auf [Keep a Changelog](https://keepachangelog.com/).
 
 ---
 
+## [Unreleased] – QA: Schummelschutz für Bestenliste und Guthaben
+
+### Behoben (Sicherheit)
+- **Erfundene Schichtzulagen/Team-Korrekturen** wurden ungeprüft anerkannt – der Server prüft sie jetzt gegen die von ihm
+  vergebenen Beträge; unbestätigte Buchungen werden nicht gespeichert
+- **„Dev-Werkzeug“-Gutschriften** zählen nur noch bei Team und Testern, **Kreditauszahlungen** nur mit neuem Kredit
+- **„Neues Spiel“-Umgehung**: Mit neu datierter Startbuchung wurde das Guthaben nicht geprüft – jetzt Prüfung gegen einen
+  leeren Start (Startbuchung höchstens 20.000 €); auch der erste Spielstand eines Kontos wird geprüft
+- **Bestenliste**: EP, Einsätze und perfekte Einsätze dürfen nur so schnell wachsen, wie es das Einsatzaufkommen zulässt
+  (2.000 Einsätze/Std., 150 EP je Einsatz, Sockel für Erfolge) – mehr wird gekappt und im Team-Protokoll vermerkt.
+  Kaputte Laufbahn (z. B. EP als Text) → bisheriger Stand, Ruf auf 0–100 begrenzt. Team/Tester ausgenommen
+- Abhängigkeiten per Patch-Update aktualisiert (vite, express, qs, body-parser, nodemailer 7.0.13 u. a.)
+
 ## [Unreleased] – Kredite
 
 ### Hinzugefügt
