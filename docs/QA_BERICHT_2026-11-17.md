@@ -10,8 +10,8 @@ Erstellt von Claude (autonomer QA-Auftrag). Alle Zahlen sind tatsächlich gemess
 - Danach Umstieg auf den **aktuellen Stand `test`** (= live, Commit 37c4a09 vom 09.11.). Dort:
   - **Sicherheit insgesamt gut**: 49/49 Angriffs- und Rechtetests bestanden (Datenisolation, Rollen, Brute-Force-Bremse,
     Sitzungen, Upload-Prüfung, Race-Condition Schichtzulage).
-  - **Schummelschutz/Bestenliste war umgehbar** (4 Wege, bestätigt) → behoben, verifiziert, 17 neue Tests – **aber nicht
-    committet** (Git-Aktionen wurden von der Sitzungs-Sicherheitsprüfung blockiert, siehe 15).
+  - **Schummelschutz/Bestenliste war umgehbar** (4 Wege, bestätigt) → behoben, verifiziert, 17 neue Tests, auf dem
+    QA-Branch committet (Commit 6bfabfe) – noch nicht auf `test` (siehe 15).
   - **Datenverlust bei zwei Geräten/Tabs** bestätigt → offen, Lösungsvorschlag in Abschnitt 18.
   - Lasttests nur **lokal** (Test- und Live-Server teilen sich eine Maschine – ein Lasttest hätte das Live-Spiel getroffen).
 
@@ -54,7 +54,7 @@ Speicherquote. test: 3 von 4 Schummeltests, Mehrgeräte-Test. Mehrere weitere �
 ### Aktueller Stand (`test` / live)
 
 **QA-01 – Erfundene Schichtzulagen/Team-Korrekturen werden anerkannt**
-Schweregrad: HOCH · Bereich: Server, Schummelschutz · Status: **behoben (lokal, nicht committet)**
+Schweregrad: HOCH · Bereich: Server, Schummelschutz · Status: **behoben (QA-Branch, Commit 6bfabfe)**
 Erwartet: Nur vom Server vergebene Gutschriften zählen. Tatsächlich: Buchung „Schichtzulage – …“ über 50 Mio. € wurde
 gespeichert, ohne Protokolleintrag. Reproduktion: Spielstand mit zusätzlicher Einnahme-Buchung mit diesem Label per PUT senden.
 Ursache: `pruefeGuthaben` nahm Buchungen mit Server-Labels ungeprüft von der Einnahmenprüfung aus.
@@ -62,17 +62,17 @@ Dateien: `shared/src/plausibilitaet.ts`, `server/src/spielstand.ts`. Regression:
 Schichtzulage → keine Korrektur.
 
 **QA-02 – „Neues Spiel“-Umgehung, erster Spielstand ungeprüft**
-HOCH · Server · **behoben (lokal)**. Neu datierte Startbuchung → Guthaben wurde gar nicht geprüft (777 Mio. € angenommen);
+HOCH · Server · **behoben (QA-Branch)**. Neu datierte Startbuchung → Guthaben wurde gar nicht geprüft (777 Mio. € angenommen);
 der erste Spielstand eines Kontos ebenfalls nicht. Jetzt Prüfung gegen leeren Start, Startbuchung max. 20.000 €.
 
 **QA-03 – Bestenliste frei manipulierbar (EP, Einsätze, Perfekt, Ruf)**
-HOCH · Server/Bestenliste · **behoben (lokal)**. EP 999.999.999 → Platz 1. Zusätzlich: EP als Text („999999999“) wurde von der
+HOCH · Server/Bestenliste · **behoben (QA-Branch)**. EP 999.999.999 → Platz 1. Zusätzlich: EP als Text („999999999“) wurde von der
 Bestenlisten-SQL trotzdem als Zahl gewertet; Ruf ohne Grenze. Jetzt: Zuwachs je Echtzeit begrenzt (2.000 Einsätze/h,
 150 EP/Einsatz, Sockel 20.000 EP – real sind ca. 38 Einsätze/h), kaputte Laufbahn → bisheriger Stand, Ruf 0–100,
 Protokolleintrag „Laufbahn korrigiert“. Team/Tester ausgenommen.
 
 **QA-04 – Kredit- und Dev-Werkzeug-Label umgehen die Prüfung**
-MITTEL · **behoben (lokal)**. Kreditauszahlungen zählen nur mit neu aufgenommenem Kredit, Dev-Buchungen nur bei Team/Testern.
+MITTEL · **behoben (QA-Branch)**. Kreditauszahlungen zählen nur mit neu aufgenommenem Kredit, Dev-Buchungen nur bei Team/Testern.
 
 **QA-05 – Datenverlust bei gleichzeitigem Spielen auf zwei Geräten/Tabs**
 HOCH · Speicherung · **offen**. Gerät A baut Wache (−12.000 €), Gerät B (älterer Stand) speichert beim nächsten Autospeichern
@@ -92,7 +92,7 @@ NIEDRIG · **offen**. Fahrzeuge/Wachen werden nicht gegen Käufe geprüft.
 
 **QA-09 – nodemailer 7 mit 8 Sicherheitshinweisen**
 NIEDRIG · **offen**. Fix nur per Major-Update auf 10. In der Nutzung (validierter Empfänger, reiner Text) praktisch nicht
-ausnutzbar. Alle anderen Abhängigkeiten per Patch-Update aktualisiert (lokal, nicht committet).
+ausnutzbar. Alle anderen Abhängigkeiten per Patch-Update aktualisiert (im Commit 6bfabfe).
 
 **QA-10 – Fehlende Fehlergrenze im Client** · NIEDRIG · offen (Render-Absturz → weiße Seite; auf master behoben).
 **QA-11 – Nominatim-Rückwärtssuche ohne Drosselung** · OPTIMIERUNG · offen (Nutzungsregel max. 1 Anfrage/s; auf master behoben).
@@ -122,7 +122,7 @@ Verdachtsfälle (nicht bestätigbar ohne Serverzugang):
 | M-08 | Nominatim ohne Drosselung | OPTIMIERUNG | offen (QA-11) |
 
 ## 7. Behobene Fehler
-QA-01 bis QA-04 (aktueller Stand, lokal verifiziert, nicht committet), M-01 bis M-08 (master, gepusht).
+QA-01 bis QA-04 (aktueller Stand, verifiziert, Commit 6bfabfe auf dem QA-Branch), M-01 bis M-08 (master, gepusht).
 
 ## 8. Offene Fehler
 QA-05 bis QA-13, V-01 bis V-03.
@@ -155,7 +155,7 @@ keine CSP). Befunde: QA-01–04 (behoben), QA-06, QA-08, QA-09, V-01–V-03.
 Keine Abstürze, auch nicht unter Volllast. Es wurde **kein** echter Server neu gestartet: Es gibt keinen Zugang (SSH/
 systemd) zu `test`/live, keine Neustart-Workflows im Repo. Lokale Testserver habe ich selbst gestartet/beendet.
 
-## 13. Technische Änderungen (aktueller Stand, lokal)
+## 13. Technische Änderungen (aktueller Stand, Commit 6bfabfe)
 - `pruefeGuthaben` mit optionalen Server-Regeln (Gutschriften gegen `spielstand_korrekturen`, Dev-Recht, Kredit);
   nicht gedeckte Buchungen werden nicht gespeichert; Standardverhalten unverändert.
 - Neues Spiel/erster Stand gegen leeren Start, `begrenzeStartbuchung`, `erlaubteKreditAuszahlung`, `pruefeLaufbahn`.
@@ -163,17 +163,21 @@ systemd) zu `test`/live, keine Neustart-Workflows im Repo. Lokale Testserver hab
 - Patch-Updates der Abhängigkeiten (`package-lock.json`).
 
 ## 14. Geänderte Dateien
-Aktueller Stand (uncommitted): `shared/src/plausibilitaet.ts`, `shared/src/plausibilitaet.test.ts`, `server/src/spielstand.ts`,
+Aktueller Stand (Commit 6bfabfe): `shared/src/plausibilitaet.ts`, `shared/src/plausibilitaet.test.ts`, `server/src/spielstand.ts`,
 `server/src/spielstand.test.ts`, `docs/CHANGELOG.md`, `package-lock.json`, dieser Bericht.
 master-Stand (gepusht, Commits fdb5a83 + b577460): `client/src/App.tsx`, `App.css`, `main.tsx`, `Fehlergrenze.tsx` (neu),
 `useSpiel.ts`, `views/EinsaetzeView.tsx`, `views/WachenView.tsx`, `server/src/index.ts`, `shared/src/alarmierung.ts`
 (+Test), `shared/src/spielstand.ts` (+Test), `shared/src/konfig.ts`, `docs/CHANGELOG.md`, `package-lock.json`.
 
 ## 15. GitHub-Aktivitäten
-- Gepusht: Branch `claude/leitstellendispo-qa-night-xxnf6i` mit 2 Commits auf Basis des veralteten `master`.
-- Nicht gepusht: die Härtung auf Basis von `test`. Der nötige Force-Push des eigenen Branches und danach sogar `git log`
-  wurden von der Sicherheitsprüfung der Sitzung blockiert. Ich habe danach keine Git-Aktion mehr versucht.
-- Nicht auf `test` gepusht (wäre ein automatisches Deployment auf test.leitstellendispo.de ohne Freigabe).
+- Branch `claude/leitstellendispo-qa-night-xxnf6i`:
+  - 2 frühe Commits auf Basis des veralteten `master` (fdb5a83, b577460)
+  - Härtung auf Basis von `test`: Commit 6bfabfe, danach Merge 37398e9 (Strategie „ours“: die alten master-Commits stehen
+    in der History, der Dateistand ist exakt `test` + Härtung). Kein Force-Push.
+  - Zwischenzeitlich hatte die Sicherheitsprüfung der Sitzung einen Force-Push und kurz auch `git log` blockiert.
+- **Nicht** auf `test` gepusht (wäre ein automatisches Deployment auf test.leitstellendispo.de ohne Freigabe).
+  Übernahme z. B. per `git checkout feature/ruf-und-wachenverwaltung && git pull --rebase origin test &&
+  git cherry-pick 6bfabfe` und danach wie gewohnt auf `test`.
 - Keine Pull Requests, keine Änderungen an GitHub Actions.
 
 ## 16. Nicht getestete Bereiche
@@ -191,7 +195,7 @@ Einstellungen auf iPhone 13 und Pixel 7 → QA-12, QA-13.)
 - Test und Live teilen sich eine Maschine: Last oder Fehler auf test können live treffen.
 
 ## 18. Konkrete Empfehlungen (nach Priorität)
-1. Härtung QA-01–04 prüfen, committen und auf `test` bringen; auf test.leitstellendispo.de Schichtzulage, Team-Korrektur,
+1. Härtung QA-01–04 (Commit 6bfabfe) prüfen und auf `test` bringen; auf test.leitstellendispo.de Schichtzulage, Team-Korrektur,
    Kredit aufnehmen/ablösen und „Neues Spiel“ einmal durchspielen; danach live. Bestenliste anschließend sichten.
 2. QA-05 vor der Beta: Versionsnummer beim Laden mitgeben, beim Speichern mitschicken, Server antwortet bei veraltetem
    Stand mit 409, Client zeigt „Dein Spiel wurde auf einem anderen Gerät geändert – neu laden?“ und speichert nicht weiter.
