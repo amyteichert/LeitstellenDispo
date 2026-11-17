@@ -34,13 +34,17 @@ Erstellt von Claude (autonomer QA-Auftrag). Alle Zahlen sind tatsächlich gemess
 ## 3. Anzahl der Tests
 
 - Automatische Unit-Tests aktueller Stand: **395** (vorher 378, +17 neu). Auf master: 86 (vorher 80, +6 neu).
-- Eigene Szenario-/Angriffs-/Browserprüfungen: **ca. 172 Einzelfälle** (69 auf master, 103 auf test), viele davon mehrfach
+- Eigene Szenario-/Angriffs-/Browserprüfungen: **ca. 192 Einzelfälle** (69 auf master, 123 auf test), viele davon mehrfach
   (vor und nach einer Reparatur).
 
 ## 4. Erfolgreiche Tests
 
 - Alle 395 Unit-Tests (aktuell) und 86 (master) grün, Builds grün.
 - Sicherheit test: 49/49. Website: 23/23. Ehrlicher Spielablauf im echten Client nach der Härtung: keine Fehlkorrektur.
+- Gegenprobe der Härtung im echten Client (Kontrollpunkt 03:30): Kredit aufnehmen, Kredit ablösen, Team-Korrektur
+  (+7.777 €) und „Neues Spiel starten“ übernimmt der Server korrekt – keine Fehlkorrektur im Team-Protokoll.
+- Rundgang durch alle 14 Ansichten (Karte, Wachen, Krankenhäuser, Fahrzeuge, Fahrzeugkatalog, Einsätze, AAO, Funk,
+  Finanzen, Statistik, Bestenliste, Profil, Einstellungen, Fehler melden): keine Fehler.
 - Langzeit-Simulator: keine Doppelbelegung, keine Doppelabrechnung, keine inkonsistenten Fahrzeugzustände (bis 60.000 Takte).
 
 ## 5. Fehlgeschlagene Tests (= echte Befunde beim ersten Lauf)
@@ -182,8 +186,8 @@ master-Stand (gepusht, Commits fdb5a83 + b577460): `client/src/App.tsx`, `App.cs
 
 ## 16. Nicht getestete Bereiche
 Echter Mailversand (SMTP), Discord-Bot selbst (eigener Dienst), OSRM-Straßenrouting (lokal nicht vorhanden),
-Funktionstests auf test.leitstellendispo.de (dort brauchen Konten eine Freischaltung), Live-Server, Wetter/Kredit/Ausbildung/
-AAO/Krankenhausbau in der Oberfläche einzeln (nur über Unit-Tests abgedeckt), Team-Bereich in der Oberfläche,
+Funktionstests auf test.leitstellendispo.de (dort brauchen Konten eine Freischaltung), Live-Server, Wetter/Ausbildung/
+AAO/Krankenhausbau in der Oberfläche im Detail (nur geöffnet bzw. über Unit-Tests abgedeckt), Team-Bereich in der Oberfläche,
 Bot-Werkzeug, Datensicherung/Wiederherstellung. (Handy-Ansicht der neuen Oberfläche nachträglich geprüft: Karte, Einsätze,
 Einstellungen auf iPhone 13 und Pixel 7 → QA-12, QA-13.)
 
