@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   GAME_CONFIG,
   RUF_CONFIG,
+  kappeBuchungen,
   LAUFBAHN_START,
   RAENGE,
   findeNeueErfolge,
@@ -465,6 +466,15 @@ export function useSpiel(optionen: UseSpielOptionen = {}) {
     }, 1000);
     return () => clearTimeout(timeout);
   }, [spielstandGeladen, balance, transactions, locations, vehicles, incidents, completedIncidentHistory, krankenhaeuser, ruf, laufbahn, personal, funk, kostenAbgerechnetBis, aao, grafiken, kredit]);
+
+  // Buchungsliste begrenzen: Ältere Buchungen werden zu Sammelbuchungen zusammengefasst,
+  // damit der Spielstand nicht endlos wächst (die Summen in den Finanzen bleiben dabei richtig).
+  useEffect(() => {
+    setTransactions((cur) => {
+      const gekappt = kappeBuchungen(cur);
+      return gekappt === cur ? cur : gekappt;
+    });
+  }, [transactions]);
 
   // Spielzeit
   useEffect(() => {

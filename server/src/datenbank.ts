@@ -232,6 +232,42 @@ const MIGRATIONEN: Array<string | ((db: Datenbank) => void)> = [
     DELETE FROM bestenliste WHERE benutzer_id = old.benutzer_id;
   END;
   `,
+  // Schreibstand je Spielstand: erkennt, wenn zwei Geräte denselben Spielstand überschreiben wollen
+  `
+  ALTER TABLE spielstaende ADD COLUMN stand_version INTEGER NOT NULL DEFAULT 1;
+  `,
+  // Bestenliste: Wachen und Fuhrpark aus den vom Server geprüften Werten (`bestenlisteWerte`).
+  // Fehlen sie (Stand von vor dieser Änderung), wird wie bisher gezählt.
+  `
+  DROP TRIGGER bestenliste_nach_speichern_neu;
+  DROP TRIGGER bestenliste_nach_speichern;
+  DROP VIEW bestenliste_aus_spielstand;
+
+  CREATE VIEW bestenliste_aus_spielstand AS
+    SELECT benutzer_id,
+      CAST(coalesce(json_extract(daten, '$.laufbahn.xp'), 0) AS INTEGER) AS xp,
+      CAST(coalesce(json_extract(daten, '$.laufbahn.einsaetze'), 0) AS INTEGER) AS einsaetze,
+      CAST(coalesce(json_extract(daten, '$.laufbahn.perfekt'), 0) AS INTEGER) AS perfekt,
+      CAST(round(coalesce(json_extract(daten, '$.ruf'), 50)) AS INTEGER) AS ruf,
+      CAST(coalesce(
+        json_extract(daten, '$.bestenlisteWerte.wachen'),
+        (SELECT count(*) FROM json_each(daten, '$.locations') WHERE json_extract(value, '$.type') = 'station')
+      ) AS INTEGER) AS wachen,
+      CAST(coalesce(
+        json_extract(daten, '$.bestenlisteWerte.fahrzeuge'),
+        json_array_length(daten, '$.vehicles'),
+        0
+      ) AS INTEGER) AS fahrzeuge
+    FROM spielstaende WHERE json_valid(daten);
+
+  CREATE TRIGGER bestenliste_nach_speichern_neu AFTER INSERT ON spielstaende BEGIN
+    INSERT OR REPLACE INTO bestenliste SELECT * FROM bestenliste_aus_spielstand WHERE benutzer_id = new.benutzer_id;
+  END;
+  CREATE TRIGGER bestenliste_nach_speichern AFTER UPDATE OF daten ON spielstaende BEGIN
+    DELETE FROM bestenliste WHERE benutzer_id = new.benutzer_id;
+    INSERT INTO bestenliste SELECT * FROM bestenliste_aus_spielstand WHERE benutzer_id = new.benutzer_id;
+  END;
+  `,
 ];
 
 /** Öffnet (bzw. erstellt) die Datenbank und bringt das Schema auf den neuesten Stand. */

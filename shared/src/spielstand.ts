@@ -51,6 +51,11 @@ export interface Spielstand {
   grafiken?: GrafikAuswahl;
   /** Laufender Kredit – fehlt/`null` = keiner */
   kredit?: Kredit | null;
+  /**
+   * Werte für die Bestenliste, die der Server beim Speichern selbst setzt (geprüfter Fuhrpark/Wachenbestand).
+   * Wird nie vom Spiel gesetzt – ein manipulierter Wert wird beim nächsten Speichern überschrieben.
+   */
+  bestenlisteWerte?: { wachen: number; fahrzeuge: number };
 }
 
 export const START_WACHEN: MapLocation[] = [

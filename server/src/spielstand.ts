@@ -1,29 +1,43 @@
 // Spielstand pro Konto: laden, speichern, löschen
 import express, { Router, type Request, type Response } from 'express';
 import {
-  LAUFBAHN_START, LEERER_FINANZSTAND, RUF_CONFIG, istGueltigeLaufbahn, begrenzeStartbuchung, darfDevWerkzeuge, deutscherTag, einnahmenAuffaellig, entferneAlteEinsaetze,
+  LAUFBAHN_START, LEERER_FINANZSTAND, RUF_CONFIG, istGueltigeLaufbahn, pruefeBestand, zaehleWachen, begrenzeStartbuchung, darfDevWerkzeuge, deutscherTag, einnahmenAuffaellig, entferneAlteEinsaetze,
   erlaubteKreditAuszahlung, istServerGutschrift, migriereSpielstand, pruefeGuthaben, pruefeLaufbahn, naechsteSerie, schichtzulageBetrag,
   type Konto, type SchichtzulageAntwort, type Spielstand,
 } from '@leitstellendispo/shared';
 import type { Datenbank } from './datenbank.js';
 import { ladeKonto, nurAngemeldet } from './auth.js';
+import { erstelleFehlversuchBremse } from './fehlversuchBremse.js';
 import type { KontenDienst } from './konten.js';
 import { ladeOffeneKorrekturen } from './team.js';
 
 /** Ein Spielstand mit langer Einsatzhistorie und Funkverkehr kann deutlich über das Express-Standardlimit (100 kB) wachsen */
 export const SPIELSTAND_MAX_GROESSE = '5mb';
 
+/** Drosselung je Konto: so viele Speichervorgänge sind in diesem Zeitfenster erlaubt */
+export const SPEICHERN_MAX_PRO_FENSTER = 15;
+export const SPEICHERN_FENSTER_MS = 10_000;
+
 /** `nachSpeichern`: wird nach jedem gespeicherten Stand aufgerufen (z. B. Großeinsätze für den Discord-Bot erkennen) */
+/** Anfrage mit Konflikterkennung: { spielstand, version } statt nur dem Spielstand */
+const istSpeicherAnfrage = (body: unknown): body is { spielstand: unknown; version: number } =>
+  Boolean(body) && typeof body === 'object' && 'spielstand' in (body as object)
+  && typeof (body as { version?: unknown }).version === 'number';
+
 export function erstelleSpielstandRouter(db: Datenbank, konten: KontenDienst, einsaetzeAufraeumenBis?: number, nachSpeichern?: (konto: Konto, stand: Spielstand) => void): Router {
   const router = Router();
+  // Je Konto: höchstens SPEICHERN_MAX_PRO_FENSTER Speichervorgänge im Zeitfenster (das Spiel braucht ca. 1 pro 3 s)
+  const speicherBremse = erstelleFehlversuchBremse({ maxVersuche: SPEICHERN_MAX_PRO_FENSTER, fensterMs: SPEICHERN_FENSTER_MS });
   const sql = {
-    laden: db.prepare('SELECT daten FROM spielstaende WHERE benutzer_id = ?'),
-    ladenMitZeit: db.prepare('SELECT daten, aktualisiert FROM spielstaende WHERE benutzer_id = ?'),
+    laden: db.prepare('SELECT daten, stand_version AS standVersion FROM spielstaende WHERE benutzer_id = ?'),
+    ladenMitZeit: db.prepare('SELECT daten, aktualisiert, stand_version AS standVersion FROM spielstaende WHERE benutzer_id = ?'),
+    version: db.prepare('SELECT stand_version AS standVersion FROM spielstaende WHERE benutzer_id = ?'),
     protokollieren: db.prepare("INSERT INTO team_protokoll (von_name, aktion, ziel_name, details) VALUES ('System', ?, ?, ?)"),
     speichern: db.prepare(`
-      INSERT INTO spielstaende (benutzer_id, daten, aktualisiert)
-      VALUES (?, ?, strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
-      ON CONFLICT (benutzer_id) DO UPDATE SET daten = excluded.daten, aktualisiert = excluded.aktualisiert`),
+      INSERT INTO spielstaende (benutzer_id, daten, aktualisiert, stand_version)
+      VALUES (?, ?, strftime('%Y-%m-%dT%H:%M:%fZ', 'now'), 1)
+      ON CONFLICT (benutzer_id) DO UPDATE SET daten = excluded.daten, aktualisiert = excluded.aktualisiert,
+        stand_version = spielstaende.stand_version + 1`),
     loeschen: db.prepare('DELETE FROM spielstaende WHERE benutzer_id = ?'),
     zulageLaden: db.prepare('SELECT letzter_tag AS letzterTag, serie FROM schichtzulage WHERE benutzer_id = ?'),
     zulageMerken: db.prepare(`
@@ -78,6 +92,19 @@ export function erstelleSpielstandRouter(db: Datenbank, konten: KontenDienst, ei
       neu.ruf = typeof neu.ruf === 'number' && Number.isFinite(neu.ruf) ? Math.min(RUF_CONFIG.max, Math.max(RUF_CONFIG.min, neu.ruf)) : RUF_CONFIG.start;
     }
 
+    // Fuhrpark und Wachen für die Bestenliste: Der Server rechnet sie selbst aus und deckelt den Zuwachs.
+    // Die Listen im Spielstand bleiben unangetastet – niemand verliert Fahrzeuge, nur die Rangliste bleibt sauber.
+    const bestandAlt = alt && !neuerStart
+      ? alt.bestenlisteWerte ?? { wachen: zaehleWachen(alt.locations), fahrzeuge: alt.vehicles.length }
+      : { wachen: 0, fahrzeuge: 0 };
+    const bestand = pruefeBestand(bestandAlt, { wachen: zaehleWachen(neu.locations), fahrzeuge: neu.vehicles.length }, vergangeneMs);
+    if (bestand.gekappt) {
+      sql.protokollieren.run('Fuhrpark korrigiert', konto.name,
+        `${neu.vehicles.length} Fahrzeuge / ${zaehleWachen(neu.locations)} Wachen in zu kurzer Zeit – `
+        + `in der Bestenliste zählen ${bestand.werte.fahrzeuge} Fahrzeuge / ${bestand.werte.wachen} Wachen`);
+    }
+    neu.bestenlisteWerte = bestand.werte;
+
     // Laufbahn (Bestenliste): Fehlt sie oder ist sie kaputt (z. B. EP als Text), gilt der bisherige Stand –
     // die Bestenliste liest den gespeicherten Text direkt aus und würde sonst auch "999999999" als Zahl werten
     const laufbahnBasis = neuerStart ? LAUFBAHN_START : (alt?.laufbahn ?? LAUFBAHN_START);
@@ -100,26 +127,58 @@ export function erstelleSpielstandRouter(db: Datenbank, konten: KontenDienst, ei
   const aufgeraeumt = (stand: Spielstand) => (einsaetzeAufraeumenBis ? entferneAlteEinsaetze(stand, einsaetzeAufraeumenBis) : null);
 
   router.get('/', (_req, res) => {
-    const zeile = sql.laden.get(kontoId(res)) as { daten: string } | undefined;
+    const zeile = sql.laden.get(kontoId(res)) as { daten: string; standVersion: number } | undefined;
     const stand = zeile ? JSON.parse(zeile.daten) as Spielstand : null;
     const neu = stand && aufgeraeumt(stand);
     if (neu) sql.speichern.run(kontoId(res), JSON.stringify(neu));
-    res.json({ spielstand: neu ?? stand });
+    // `version` zählt jeden gespeicherten Stand. Das Spiel schickt sie beim Speichern zurück –
+    // so merkt der Server, wenn inzwischen ein anderes Gerät gespeichert hat (siehe PUT).
+    res.json({ spielstand: neu ?? stand, version: zeile ? zeile.standVersion + (neu ? 1 : 0) : 0 });
   });
 
   router.put('/', (req: Request, res) => {
+    const id = kontoId(res);
+    // Drosselung je Konto: Das Spiel speichert höchstens alle 3 Sekunden, hier sind kurze Spitzen erlaubt.
+    // Schützt den Server davor, dass ein einzelnes Konto mit großen Ständen alle anderen ausbremst.
+    const warten = speicherBremse.gesperrtFuer(String(id));
+    if (warten > 0) {
+      res.setHeader('Retry-After', String(warten));
+      return void res.status(429).json({ fehler: 'Zu viele Speichervorgänge. Bitte kurz warten.' });
+    }
+    speicherBremse.merkeFehlversuch(String(id));
+
+    // Das Spiel schickt den Stand entweder direkt oder als { spielstand, version } (mit Konflikterkennung)
+    const mitVersion = istSpeicherAnfrage(req.body);
+    const roh: unknown = mitVersion ? req.body.spielstand : req.body;
+
     // Grobe Formprüfung über dieselbe Funktion, mit der der Client lädt – kaputte Stände gar nicht erst speichern
-    if (!migriereSpielstand(req.body)) {
+    if (!migriereSpielstand(roh)) {
       return void res.status(400).json({ fehler: 'Ungültiger Spielstand.' });
     }
-    const neu = req.body as Spielstand;
+    const neu = roh as Spielstand;
+
+    // Konflikt: Seit dem Laden hat ein anderes Gerät (oder ein anderer Tab) gespeichert.
+    // Ohne Versionsangabe (älteres Spiel im Browser) wird wie bisher gespeichert.
+    if (mitVersion) {
+      const aktuell = (sql.version.get(id) as { standVersion: number } | undefined)?.standVersion ?? 0;
+      if (req.body.version !== aktuell) {
+        return void res.status(409).json({
+          fehler: 'Dein Spielstand wurde auf einem anderen Gerät geändert.',
+          version: aktuell,
+        });
+      }
+    }
+
     pruefePlausibilitaet(res.locals.konto as Konto, neu);
     // Offenes Spiel mit alten Einsätzen: aufgeräumt speichern und das Spiel neu laden lassen
     const ohneAlte = aufgeraeumt(neu);
-    sql.speichern.run(kontoId(res), JSON.stringify(ohneAlte ?? neu));
+    sql.speichern.run(id, JSON.stringify(ohneAlte ?? neu));
     nachSpeichern?.(res.locals.konto as Konto, ohneAlte ?? neu);
-    if (ohneAlte) return void res.json({ neuLaden: true });
-    res.status(204).end();
+    const version = (sql.version.get(id) as { standVersion: number }).standVersion;
+    if (ohneAlte) return void res.json({ neuLaden: true, version });
+    // Ohne Versionsangabe antwortet der Server wie bisher mit 204 (ältere Spiele im Browser)
+    if (!mitVersion) return void res.status(204).end();
+    res.json({ version });
   });
 
   // Vom Team angelegte Korrekturen: Das Spiel holt sie ab, bucht sie ein und bestätigt sie danach

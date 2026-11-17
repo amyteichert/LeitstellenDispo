@@ -9,6 +9,7 @@ import './design.css';
 import { richteTonFreischaltungEin } from './ton';
 import { starteBesuchsMessung } from './besuchsMessung';
 import TestumgebungHinweis, { istTestumgebung } from './TestumgebungHinweis';
+import Fehlergrenze from './Fehlergrenze';
 
 // Handy-Browser erlauben Töne erst nach einer Berührung: die erste Berührung schaltet den Gong frei
 richteTonFreischaltungEin();
@@ -31,6 +32,7 @@ const oeffentlich = istRechtlicheSeite(pfad) || pfad === PASSWORT_SEITE;
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <TestumgebungHinweis />
+    <Fehlergrenze>
     {oeffentlich ? (
       <OeffentlicheSeite />
     ) : (
@@ -39,5 +41,6 @@ createRoot(document.getElementById('root')!).render(
         {(konto, onAbmelden, gast, setKonto) => <App key={konto.id} konto={konto} onAbmelden={onAbmelden} gast={gast} setKonto={setKonto} />}
       </Anmeldung>
     )}
+    </Fehlergrenze>
   </StrictMode>,
 );

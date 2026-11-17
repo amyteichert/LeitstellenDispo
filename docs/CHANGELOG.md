@@ -6,6 +6,27 @@ Format basiert auf [Keep a Changelog](https://keepachangelog.com/).
 
 ---
 
+## [Unreleased] – QA-Nacht 2: Datenverlust, Drosselung, Bestenliste, Oberfläche
+
+### Behoben
+- **Spielstand-Verlust bei zwei Geräten** (QA-05): Jeder gespeicherte Stand bekommt eine laufende Version. Das Spiel schickt
+  sie beim Speichern mit; ist sie veraltet (ein anderes Gerät war schneller), antwortet der Server mit 409, das Spiel
+  speichert nicht weiter und zeigt „Auf einem anderen Gerät weitergespielt“ mit „Neu laden“. Ältere Spiele im Browser
+  (ohne Versionsangabe) speichern wie bisher – ein Deployment unterbricht also niemanden.
+- **Drosselung der Speichervorgänge je Konto** (QA-06): höchstens 15 Speicherungen pro 10 Sekunden (das Spiel braucht ~1 pro 3 s),
+  darüber 429 mit `Retry-After`. Andere Konten sind davon nicht betroffen.
+- **Buchungsliste wächst nicht mehr endlos** (QA-07): Ab 1.000 Buchungen werden ältere zu zwei Sammelbuchungen
+  zusammengefasst („Frühere Einnahmen/Ausgaben“). Die Summen in den Finanzen bleiben dadurch richtig; die
+  Sammelbuchungen können kein Guthaben erklären (kein neues Schlupfloch).
+- **Bestenliste: Fuhrpark und Wachen** (QA-08) kommen jetzt aus vom Server geprüften Werten mit gedeckeltem Zuwachs.
+  Der Spielstand selbst bleibt unangetastet – niemand verliert Fahrzeuge, nur die Rangliste bleibt sauber.
+- **nodemailer auf 10.6** (QA-09): keine offenen Sicherheitshinweise mehr (`npm audit`: 0). Mit echtem SMTP-Test abgesichert.
+- **Fehlergrenze für die Oberfläche** (QA-10): Ein Absturz zeigt eine Meldung mit „Neu laden“ statt einer weißen Seite.
+- **Adresssuche beim Kartenklick gedrosselt** (QA-11): erst nach 1 Sekunde Ruhe – so bleibt die Nutzungsregel von
+  Nominatim (höchstens 1 Anfrage pro Sekunde) eingehalten.
+- **Kopfzeile auf dem Handy** (QA-12): Der Menü-Knopf wird nicht mehr abgeschnitten.
+- **Checkliste „Erste Schritte“** (QA-13) startet auf dem Handy eingeklappt und verdeckt die Karte nicht mehr.
+
 ## [Unreleased] – QA: Schummelschutz für Bestenliste und Guthaben
 
 ### Behoben (Sicherheit)

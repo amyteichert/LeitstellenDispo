@@ -26,6 +26,16 @@ export function meldeSitzungAbgelaufen() {
   window.dispatchEvent(new Event(SITZUNG_ABGELAUFEN));
 }
 
+/**
+ * Wird ausgelöst, wenn der Server das Speichern ablehnt, weil derselbe Spielstand
+ * inzwischen auf einem anderen Gerät (oder in einem anderen Tab) geändert wurde.
+ */
+export const SPIELSTAND_KONFLIKT = 'leitstellendispo:spielstand-konflikt';
+
+export function meldeSpielstandKonflikt() {
+  window.dispatchEvent(new Event(SPIELSTAND_KONFLIKT));
+}
+
 export class KontoFehler extends Error {}
 
 const SERVER_NICHT_ERREICHBAR = 'Der Server ist nicht erreichbar. Läuft er?';

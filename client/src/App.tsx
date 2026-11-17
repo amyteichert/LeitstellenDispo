@@ -67,6 +67,7 @@ import FinanzenView from './views/FinanzenView';
 import StatistikView from './views/StatistikView';
 import BestenlisteView from './views/BestenlisteView';
 import AnkuendigungsBanner from './AnkuendigungsBanner';
+import SpielstandKonflikt from './SpielstandKonflikt';
 import EinstellungenView from './views/EinstellungenView';
 import ProfilView from './views/ProfilView';
 import FehlerMelden from './FehlerMelden';
@@ -451,6 +452,9 @@ function App({ konto, onAbmelden, gast = false, setKonto }: {
   const letzteRueckwaertsSuche = useRef(0);
   const sucheAdresseZuPosition = async (coords: [number, number]) => {
     const anfrage = ++letzteRueckwaertsSuche.current;
+    // Erst fragen, wenn eine Sekunde lang nicht mehr geklickt wurde: Nominatim erlaubt höchstens 1 Anfrage pro Sekunde
+    await new Promise((fertig) => setTimeout(fertig, 1000));
+    if (anfrage !== letzteRueckwaertsSuche.current) return;
     try {
       const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${coords[0]}&lon=${coords[1]}&addressdetails=1&zoom=18`;
       const res = await fetch(url);
@@ -717,6 +721,7 @@ Dein Guthaben: ${balance.toLocaleString('de-DE')} €`)) return;
   return (
     <GrafikKontext.Provider value={grafikKontext}>
     <div className="app-shell">
+      <SpielstandKonflikt />
       {spiel.erfolgsMeldungen.length > 0 && (
         <div className="erfolg-meldung" role="status" aria-live="polite">
           <button type="button" className="erfolg-meldung__inhalt" onClick={() => { spiel.erfolgsMeldungenGesehen(); setLaufbahnFensterOffen(true); }}>

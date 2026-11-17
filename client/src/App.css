@@ -121,6 +121,7 @@
 @media (max-width: 700px) {
   .topbar {
     padding: 8px 12px;
+    gap: 6px;
   }
 
   .topbar .marke__text,
@@ -130,6 +131,30 @@
 
   .chip {
     padding: 0 8px;
+  }
+
+  /* Der Menü-Knopf bleibt immer vollständig sichtbar; die Statuschips davor dürfen schrumpfen
+     und notfalls seitlich scrollen (vorher war der Knopf am rechten Rand abgeschnitten). */
+  .topbar__meta {
+    min-width: 0;
+    flex: 1;
+    justify-content: flex-end;
+  }
+
+  .topbar__meta > .chip {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .topbar .view-dropdown,
+  .topbar .view-trigger {
+    flex: 0 0 auto;
+  }
+
+  /* Der Rang-Fortschrittsbalken ist auf dem Handy entbehrlich – die Stufe bleibt sichtbar */
+  .topbar .rang-chip__balken {
+    display: none;
   }
 }
 

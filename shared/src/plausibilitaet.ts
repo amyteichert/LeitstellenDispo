@@ -2,6 +2,7 @@
 import type { FinanceTransaction } from './typen.js';
 import { KREDIT_ABLOESUNG_LABEL, KREDIT_AUSZAHLUNG_LABEL, KREDIT_HOECHSTBETRAG } from './kredite.js';
 import type { Laufbahn } from './laufbahn.js';
+import { istSammelBuchung } from './buchungen.js';
 import { START_GUTHABEN } from './daten.js';
 
 export const PLAUSIBILITAET = {
@@ -24,6 +25,15 @@ export const PLAUSIBILITAET = {
   xpJeEinsatzMax: 150,
   /** Sockel für Erfolge (einmalige EP, zusammen deutlich unter diesem Wert) */
   xpSockel: 20_000,
+  /**
+   * Fuhrpark und Wachen für die Bestenliste: So viel Zuwachs ist je Stunde Echtzeit höchstens möglich.
+   * Eine Simulation über 24 Stunden kommt auf 5 Wachen und 10 Fahrzeuge – die Grenzen sind ein Vielfaches davon,
+   * damit auch ein sehr schneller Spieler (oder ein übernommener Browser-Spielstand) nie auffällt.
+   */
+  fahrzeugeProStundeMax: 60,
+  fahrzeugeSockel: 200,
+  wachenProStundeMax: 20,
+  wachenSockel: 50,
 } as const;
 
 /** Vom Server vergebene Buchungen (Schichtzulage, Team-Korrektur) – der Server kann sie gegen seine Datenbank prüfen */
@@ -79,6 +89,8 @@ export function pruefeGuthaben(
   let neueEinnahmen = 0;
   const pruefbar = { server: { summe: 0, ids: [] as string[] }, dev: { summe: 0, ids: [] as string[] }, kredit: { summe: 0, ids: [] as string[] } };
   for (const tx of neu.transactions) {
+    // Sammelbuchungen fassen nur Vergangenes zusammen – sie dürfen kein neues Guthaben erklären
+    if (istSammelBuchung(tx)) continue;
     const vorher = bisher.get(tx.id);
     const differenz = vorzeichen(tx) - (vorher ? vorzeichen(vorher) : 0);
     erklaert += differenz;
@@ -143,6 +155,33 @@ export function pruefeLaufbahn(alt: Laufbahn, neu: Laufbahn, vergangeneMs: numbe
   const xp = Math.min(neu.xp, Math.floor(alt.xp + PLAUSIBILITAET.xpSockel + PLAUSIBILITAET.xpJeEinsatzMax * einsaetzeMax));
   const gekappt = einsaetze !== neu.einsaetze || perfekt !== neu.perfekt || xp !== neu.xp;
   return { laufbahn: gekappt ? { ...neu, einsaetze, perfekt, xp } : neu, gekappt };
+}
+
+/** Zählt die Wachen eines Spielstands (nur echte Standorte) */
+export const zaehleWachen = (locations: Array<{ type?: string }>): number =>
+  locations.filter((location) => location.type === 'station').length;
+
+export interface BestandsWerte {
+  wachen: number;
+  fahrzeuge: number;
+}
+
+export interface BestandsPruefung {
+  /** Werte, die in die Bestenliste dürfen */
+  werte: BestandsWerte;
+  gekappt: boolean;
+}
+
+/**
+ * Fuhrpark und Wachen für die Bestenliste: Beide können nur so schnell wachsen, wie man sie bezahlen kann.
+ * Die tatsächlichen Listen im Spielstand bleiben unangetastet – hier entstehen nur die Werte für die Rangliste,
+ * damit ein manipulierter Spielstand nicht die Bestenliste verfälscht.
+ */
+export function pruefeBestand(alt: BestandsWerte, neu: BestandsWerte, vergangeneMs: number): BestandsPruefung {
+  const stunden = Math.max(vergangeneMs, 0) / 3_600_000;
+  const fahrzeuge = Math.min(neu.fahrzeuge, Math.floor(alt.fahrzeuge + PLAUSIBILITAET.fahrzeugeSockel + PLAUSIBILITAET.fahrzeugeProStundeMax * stunden));
+  const wachen = Math.min(neu.wachen, Math.floor(alt.wachen + PLAUSIBILITAET.wachenSockel + PLAUSIBILITAET.wachenProStundeMax * stunden));
+  return { werte: { wachen, fahrzeuge }, gekappt: fahrzeuge !== neu.fahrzeuge || wachen !== neu.wachen };
 }
 
 /** Sind die neuen Einnahmen für die vergangene Zeit unrealistisch hoch? */

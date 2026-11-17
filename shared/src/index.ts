@@ -19,6 +19,7 @@ export * from './funk.js';
 export * from './konten.js';
 export * from './schichtzulage.js';
 export * from './plausibilitaet.js';
+export * from './buchungen.js';
 export * from './ersteSchritte.js';
 export * from './aufkommen.js';
 export * from './kosten.js';

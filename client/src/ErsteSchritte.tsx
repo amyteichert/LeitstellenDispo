@@ -8,12 +8,16 @@ function speicherKey(kontoId: number) {
   return `leitstellendispo.erste-schritte.${kontoId}`;
 }
 
+/** Auf dem Handy verdeckt die offene Liste die halbe Karte – dort startet sie eingeklappt. */
+const standardAnzeige = (): Anzeige =>
+  (typeof window !== 'undefined' && window.matchMedia('(max-width: 700px)').matches ? 'zu' : 'offen');
+
 function ladeAnzeige(kontoId: number): Anzeige {
   try {
     const wert = localStorage.getItem(speicherKey(kontoId));
-    return wert === 'zu' || wert === 'aus' ? wert : 'offen';
+    return wert === 'zu' || wert === 'aus' ? wert : standardAnzeige();
   } catch {
-    return 'offen';
+    return standardAnzeige();
   }
 }
 

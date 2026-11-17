@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { createNeuesSpiel, deutscherTag, vortag } from '@leitstellendispo/shared';
+import { PLAUSIBILITAET, createNeuesSpiel, deutscherTag, vortag } from '@leitstellendispo/shared';
 import { cookieAus, testmail, starteTestServer, type TestServer } from './testServer.js';
+import { SPEICHERN_MAX_PRO_FENSTER } from './spielstand.js';
 
 let server: TestServer;
 let spieler: string;
@@ -19,13 +20,14 @@ describe('Spielstand pro Konto', () => {
   it('ist für ein neues Konto leer', async () => {
     const res = await laden(spieler);
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ spielstand: null });
+    expect(await res.json()).toMatchObject({ spielstand: null });
   });
 
   it('speichert und lädt den Spielstand', async () => {
     const spielstand = { ...createNeuesSpiel(), balance: 4711 };
     expect((await speichern(spielstand, spieler)).status).toBe(204);
-    expect((await (await laden(spieler)).json()).spielstand).toEqual(spielstand);
+    // Der Server ergänzt die geprüften Bestenlisten-Werte, sonst bleibt der Stand unverändert
+    expect((await (await laden(spieler)).json()).spielstand).toEqual({ ...spielstand, bestenlisteWerte: { wachen: 0, fahrzeuge: 0 } });
 
     // Zweites Speichern überschreibt
     expect((await speichern({ ...spielstand, balance: 1 }, spieler)).status).toBe(204);
@@ -92,6 +94,84 @@ describe('Schichtzulage', () => {
 
   it('gibt es nur mit Anmeldung', async () => {
     expect((await abholen()).status).toBe(401);
+  });
+});
+
+describe('Zwei Geräte: Versionsprüfung beim Speichern (QA-05)', () => {
+  const ladenMitVersion = async () => (await (await laden(spieler)).json()) as { spielstand: unknown; version: number };
+
+  it('gibt beim Laden eine Version mit und zählt sie bei jedem Speichern hoch', async () => {
+    expect((await ladenMitVersion()).version).toBe(0);
+    await speichern(createNeuesSpiel(), spieler);
+    expect((await ladenMitVersion()).version).toBe(1);
+    await speichern(createNeuesSpiel(), spieler);
+    expect((await ladenMitVersion()).version).toBe(2);
+  });
+
+  it('lehnt das Speichern mit veralteter Version ab (409) und behält den neueren Stand', async () => {
+    const start = createNeuesSpiel();
+    await speichern(start, spieler);
+    // Gerät A und Gerät B laden denselben Stand
+    const geraetA = (await ladenMitVersion()).version;
+    const geraetB = geraetA;
+
+    // Gerät A speichert zuerst
+    const a = await server.anfrage('PUT', '/spielstand', { body: { spielstand: { ...start, balance: 19_000 }, version: geraetA }, cookie: spieler });
+    expect(a.status).toBe(200);
+    expect(await a.json()).toMatchObject({ version: geraetA + 1 });
+
+    // Gerät B hat den alten Stand und darf ihn nicht mehr überschreiben
+    const b = await server.anfrage('PUT', '/spielstand', { body: { spielstand: { ...start, balance: 18_000 }, version: geraetB }, cookie: spieler });
+    expect(b.status).toBe(409);
+    expect(await b.json()).toMatchObject({ version: geraetA + 1 });
+    expect((await (await laden(spieler)).json()).spielstand.balance).toBe(19_000);
+
+    // Nach dem Neuladen darf Gerät B wieder speichern
+    const frisch = await ladenMitVersion();
+    const c = await server.anfrage('PUT', '/spielstand', { body: { spielstand: { ...start, balance: 17_000 }, version: frisch.version }, cookie: spieler });
+    expect(c.status).toBe(200);
+    expect((await (await laden(spieler)).json()).spielstand.balance).toBe(17_000);
+  });
+
+  it('speichert ohne Versionsangabe weiterhin (älteres Spiel im Browser nach einem Deployment)', async () => {
+    const start = createNeuesSpiel();
+    expect((await speichern(start, spieler)).status).toBe(204);
+    expect((await speichern({ ...start, balance: 4711 }, spieler)).status).toBe(204);
+    expect((await (await laden(spieler)).json()).spielstand.balance).toBe(4711);
+  });
+
+  it('trennt die Versionen verschiedener Konten', async () => {
+    const gast = cookieAus(await server.anfrage('POST', '/auth/registrieren', { body: { name: 'Gast', email: testmail('Gast'), passwort: 'geheim123' } }));
+    await speichern(createNeuesSpiel(), spieler);
+    await speichern(createNeuesSpiel(), spieler);
+    expect((await (await laden(gast)).json()).version).toBe(0);
+    const eigener = await server.anfrage('PUT', '/spielstand', { body: { spielstand: createNeuesSpiel(), version: 0 }, cookie: gast });
+    expect(eigener.status).toBe(200);
+  });
+});
+
+describe('Drosselung der Speichervorgänge je Konto (QA-06)', () => {
+  it('bremst ein flutendes Konto mit 429, ohne andere Konten zu behindern', async () => {
+    const stand = createNeuesSpiel();
+    let gebremst = 0;
+    for (let i = 0; i < SPEICHERN_MAX_PRO_FENSTER + 5; i++) {
+      const res = await speichern(stand, spieler);
+      if (res.status === 429) {
+        gebremst++;
+        expect(res.headers.get('retry-after')).toBeTruthy();
+      }
+    }
+    expect(gebremst).toBeGreaterThan(0);
+
+    // Anderes Konto ist davon nicht betroffen
+    const gast = cookieAus(await server.anfrage('POST', '/auth/registrieren', { body: { name: 'Gast', email: testmail('Gast'), passwort: 'geheim123' } }));
+    expect((await speichern(stand, gast)).status).toBe(204);
+  });
+
+  it('lässt das normale Spieltempo (alle 3 Sekunden) unbegrenzt durch', async () => {
+    const stand = createNeuesSpiel();
+    // Im Zeitfenster von 10 s speichert das Spiel höchstens 4-mal
+    for (let i = 0; i < 4; i++) expect((await speichern(stand, spieler)).status).toBe(204);
   });
 });
 
@@ -225,6 +305,34 @@ describe('Schutz gegen Schummeln', () => {
       expect((await gespeichert()).laufbahn).toEqual(laufbahn(500, 10));
       const zeile = server.db.prepare('SELECT xp FROM bestenliste').get() as { xp: number };
       expect(zeile.xp).toBe(500);
+    });
+
+    it('deckelt Fuhrpark und Wachen in der Bestenliste, ohne Fahrzeuge zu löschen', async () => {
+      const start = createNeuesSpiel();
+      await speichern(start, spieler);
+      // Manipulierter Stand: 5.000 Fahrzeuge und 900 Wachen
+      const fahrzeuge = Array.from({ length: 5000 }, (_, i) => ({ id: `v${i}`, name: 'RTW', type: 'RTW', stationId: start.locations[0]?.id, price: 0 }));
+      const wachen = Array.from({ length: 900 }, (_, i) => ({ ...start.locations[0], id: `w${i}`, type: 'station' as const }));
+      await speichern({ ...start, vehicles: fahrzeuge, locations: wachen }, spieler);
+
+      const gespeicherterStand = await gespeichert();
+      // Der Spielstand selbst bleibt vollständig – niemand verliert Fahrzeuge
+      expect(gespeicherterStand.vehicles).toHaveLength(5000);
+      // ... aber die Bestenliste bekommt gedeckelte Werte
+      const zeile = server.db.prepare('SELECT wachen, fahrzeuge FROM bestenliste').get() as { wachen: number; fahrzeuge: number };
+      expect(zeile.fahrzeuge).toBeLessThanOrEqual(PLAUSIBILITAET.fahrzeugeSockel + PLAUSIBILITAET.fahrzeugeProStundeMax);
+      expect(zeile.wachen).toBeLessThanOrEqual(PLAUSIBILITAET.wachenSockel + PLAUSIBILITAET.wachenProStundeMax);
+      expect(protokoll()).toContainEqual({ aktion: 'Fuhrpark korrigiert', ziel: 'Disponent' });
+    });
+
+    it('lässt einen normal gewachsenen Fuhrpark unangetastet', async () => {
+      const start = createNeuesSpiel();
+      await speichern(start, spieler);
+      const fahrzeuge = Array.from({ length: 12 }, (_, i) => ({ id: `v${i}`, name: 'RTW', type: 'RTW', stationId: start.locations[0]?.id, price: 0 }));
+      await speichern({ ...start, vehicles: fahrzeuge }, spieler);
+      const zeile = server.db.prepare('SELECT fahrzeuge FROM bestenliste').get() as { fahrzeuge: number };
+      expect(zeile.fahrzeuge).toBe(12);
+      expect(protokoll()).toEqual([]);
     });
 
     it('begrenzt den Ruf auf den erlaubten Bereich', async () => {

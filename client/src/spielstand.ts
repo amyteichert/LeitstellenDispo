@@ -1,5 +1,5 @@
 import { migriereSpielstand, type Spielstand } from '@leitstellendispo/shared';
-import { meldeSitzungAbgelaufen } from './konto';
+import { meldeSitzungAbgelaufen, meldeSpielstandKonflikt } from './konto';
 
 // Aufbau, Version und Migration des Spielstands liegen in shared (reine Funktionen, getestet)
 export { SPIELSTAND_VERSION, type Spielstand } from '@leitstellendispo/shared';
@@ -66,6 +66,10 @@ function pruefe(roh: unknown): Spielstand | null {
 function erstelleServerSpeicher() {
   let ausstehend: Spielstand | null = null;
   let timer: ReturnType<typeof setTimeout> | null = null;
+  /** Stand, den dieses Gerät zuletzt gesehen hat. Der Server lehnt ein Speichern mit veralteter Version ab. */
+  let version: number | null = null;
+  /** Nach einem Konflikt wird nicht weiter gespeichert – sonst überschreibt dieses Gerät das andere doch noch. */
+  let konflikt = false;
 
   const planen = () => {
     if (!timer) timer = setTimeout(senden, SERVER_SPEICHER_INTERVALL_MS);
@@ -76,17 +80,33 @@ function erstelleServerSpeicher() {
     timer = null;
     const spielstand = ausstehend;
     ausstehend = null;
-    if (!spielstand) return;
+    if (!spielstand || konflikt) return;
     try {
       const res = await fetch('/api/spielstand', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(spielstand),
+        // Mit Version: Der Server erkennt, wenn inzwischen ein anderes Gerät gespeichert hat
+        body: JSON.stringify(version === null ? spielstand : { spielstand, version }),
       });
       if (res.status === 401) return meldeSitzungAbgelaufen();
+      if (res.status === 409) {
+        // Anderes Gerät war schneller: nichts mehr schicken, der Spieler entscheidet (neu laden)
+        konflikt = true;
+        ausstehend = null;
+        meldeSpielstandKonflikt();
+        return;
+      }
+      if (res.status === 429) {
+        // Server drosselt – später noch einmal versuchen
+        ausstehend ??= spielstand;
+        planen();
+        return;
+      }
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const antwort = res.status === 204 ? null : (await res.json()) as { neuLaden?: boolean; version?: number };
+      if (typeof antwort?.version === 'number') version = antwort.version;
       // Das Team hat die Einsätze aufgeräumt: aufgeräumten Stand vom Server laden
-      if (res.status === 200 && ((await res.json()) as { neuLaden?: boolean }).neuLaden) window.location.reload();
+      if (antwort?.neuLaden) window.location.reload();
     } catch (error) {
       console.error('Spielstand konnte nicht gespeichert werden, neuer Versuch folgt:', error);
       ausstehend ??= spielstand; // nur wiederholen, wenn inzwischen nichts Neueres ansteht
@@ -105,7 +125,10 @@ function erstelleServerSpeicher() {
       const res = await fetch('/api/spielstand');
       if (res.status === 401) meldeSitzungAbgelaufen();
       if (!res.ok) throw new Error(`Spielstand konnte nicht geladen werden (HTTP ${res.status}).`);
-      return pruefe(((await res.json()) as { spielstand: unknown }).spielstand);
+      const daten = (await res.json()) as { spielstand: unknown; version?: number };
+      version = typeof daten.version === 'number' ? daten.version : null;
+      konflikt = false;
+      return pruefe(daten.spielstand);
     },
 
     async speichern(spielstand) {
@@ -117,6 +140,8 @@ function erstelleServerSpeicher() {
       ausstehend = null;
       if (timer) clearTimeout(timer);
       timer = null;
+      version = null;
+      konflikt = false;
       try {
         await fetch('/api/spielstand', { method: 'DELETE' });
       } catch (error) {
