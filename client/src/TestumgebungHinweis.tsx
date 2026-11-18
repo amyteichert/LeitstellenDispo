@@ -35,13 +35,18 @@ export default function TestumgebungHinweis() {
   useEffect(() => {
     const balken = balkenRef.current;
     if (!balken || typeof ResizeObserver === 'undefined') return;
-    const setzeAbstand = () => { document.documentElement.style.scrollPaddingTop = `${balken.offsetHeight}px`; };
+    const setzeAbstand = () => {
+      document.documentElement.style.scrollPaddingTop = `${balken.offsetHeight}px`;
+      // Auch für feste Elemente nutzbar (z. B. der Tour-Hinweis, der sonst unter dem Balken liegt)
+      document.documentElement.style.setProperty('--fester-balken', `${balken.offsetHeight}px`);
+    };
     setzeAbstand();
     const beobachter = new ResizeObserver(setzeAbstand);
     beobachter.observe(balken);
     return () => {
       beobachter.disconnect();
       document.documentElement.style.scrollPaddingTop = '';
+      document.documentElement.style.removeProperty('--fester-balken');
     };
   }, []);
 

@@ -2357,6 +2357,12 @@
 .tour__box {
   position: fixed;
   width: min(460px, calc(100vw - 24px));
+  /* Nie höher als der freie Bereich – auf kleinen Handys (320 px) mit festem Balken sonst oben abgeschnitten.
+     Nur der Fließtext scrollt, damit Titel und Knöpfe immer sichtbar bleiben. */
+  max-height: calc(100vh - var(--fester-balken, 0px) - 24px);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
   padding: 18px 18px 14px;
   background: var(--color-surface);
   border: 1px solid var(--color-primary);
@@ -2366,7 +2372,13 @@
   box-shadow: 0 18px 50px rgba(0, 0, 0, 0.6), 0 0 0 4px color-mix(in srgb, var(--color-primary) 18%, transparent);
   transition: top 0.25s ease, left 0.25s ease;
 }
+.tour__box > p {
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
 .tour__fortschritt {
+  flex-shrink: 0;
   height: 4px;
   margin-bottom: 10px;
   border-radius: 2px;

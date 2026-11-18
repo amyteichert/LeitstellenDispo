@@ -22,6 +22,14 @@ Format basiert auf [Keep a Changelog](https://keepachangelog.com/).
 
 ---
 
+## [Unreleased] – Tour-Hinweis auf sehr kleinen Handys
+
+### Behoben
+- Auf 320 px breiten Handys lag der Tour-Hinweis auf der Testumgebung teilweise unter dem gelben Balken
+  (Titel und Textanfang nicht lesbar). Der Balken meldet seine Höhe jetzt als `--fester-balken`; die Tour platziert
+  ihren Hinweis darunter und begrenzt seine Höhe auf den freien Bereich. Gescrollt wird nur der Fließtext –
+  Fortschritt, Titel und Knöpfe bleiben immer sichtbar (vorher schob der Fokus auf „Weiter“ den Titel aus dem Bild).
+
 ## [Unreleased] – QA-Nacht 2: Datenverlust, Drosselung, Bestenliste, Oberfläche
 
 ### Behoben

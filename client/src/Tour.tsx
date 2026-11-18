@@ -196,7 +196,15 @@ const ueberlappFlaeche = (a: Rechteck, b: Rechteck) =>
  * Platz für den Hinweis: am liebsten mittig, sonst neben dem Hervorgehobenen (darunter, darüber, rechts, links),
  * im Notfall dort, wo er am wenigsten verdeckt.
  */
+/** Höhe eines festen Balkens am oberen Rand (Testumgebungs-Hinweis) – dort darf der Hinweis nicht liegen */
+function obererBalken(): number {
+  if (typeof document === 'undefined') return 0;
+  const wert = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--fester-balken'));
+  return Number.isFinite(wert) ? wert : 0;
+}
+
 function findeBoxPlatz(breite: number, hoehe: number, loecher: Rechteck[], vw: number, vh: number): Punkt {
+  const obenFrei = obererBalken() + 12;
   const mitte = (start: number, laenge: number, groesse: number) => start + Math.max(0, (laenge - groesse) / 2);
   const kandidaten: Punkt[] = [{ x: (vw - breite) / 2, y: (vh - hoehe) / 2 }];
   const haupt = loecher[0];
@@ -212,7 +220,11 @@ function findeBoxPlatz(breite: number, hoehe: number, loecher: Rechteck[], vw: n
   }
   kandidaten.push({ x: (vw - breite) / 2, y: vh - hoehe - 12 }, { x: (vw - breite) / 2, y: 12 });
   const passend = kandidaten
-    .map((p) => ({ x: Math.min(Math.max(12, p.x), vw - breite - 12), y: Math.min(Math.max(12, p.y), vh - hoehe - 12) }))
+    .map((p) => ({
+      x: Math.min(Math.max(12, p.x), vw - breite - 12),
+      // Nach oben erst unterhalb des festen Balkens, nach unten nie aus dem Bild (bei sehr hoher Box gewinnt oben)
+      y: Math.max(obenFrei, Math.min(p.y, vh - hoehe - 12)),
+    }))
     .map((p) => {
       const box = { left: p.x, top: p.y, width: breite, height: hoehe };
       return { p, frei: !loecher.some((loch) => ueberlappen(box, loch, 8)), verdeckt: loecher.reduce((s, loch) => s + ueberlappFlaeche(box, loch), 0) };
