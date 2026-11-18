@@ -6,6 +6,22 @@ Format basiert auf [Keep a Changelog](https://keepachangelog.com/).
 
 ---
 
+## [Unreleased] – Anfänger-Test: Tutorial auf kleinen Handys und auf test
+
+### Behoben
+- **Wachenverwaltung auf kleinen Handys zu breit** (iPhone SE/mini, 320–375 px): Die Seite war breiter als der Bildschirm,
+  rechts rutschten Reiter und der ✎-Knopf raus. Im Tutorial verdeckte dadurch die Hinweisbox genau den Reiter „Personal“,
+  den man antippen sollte – die Tour ging nicht weiter. Ursache: Seiteninhalt als Grid-Element ohne `min-width: 0`.
+- Kopf der Wachenverwaltung: „Zurück“ wird nicht mehr zusammengequetscht, lange Wachennamen werden sauber getrennt.
+- **Testumgebung: Menü-Knopf unter dem gelben Balken**: Die Tour scrollte die Kopfzeile unter den festen Hinweisbalken,
+  Schritt „Das Menü“ war nicht antippbar. Der Balken setzt jetzt `scroll-padding-top` auf seine Höhe.
+
+### Geändert
+- Tutorial-Texte für Einsteiger: RTW (Rettungswagen), HLF (Löschfahrzeug) und AAO (Alarm- und Ausrückeordnung) werden erklärt,
+  der Funk-Schritt nennt den Knopf „Sprechaufforderung“ beim Namen.
+
+---
+
 ## [Unreleased] – QA-Nacht 2: Datenverlust, Drosselung, Bestenliste, Oberfläche
 
 ### Behoben

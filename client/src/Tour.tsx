@@ -69,7 +69,7 @@ export const TOUR_SCHRITTE: TourSchritt[] = [
     ziel: '[data-tour="wache-bauen"]',
     bedienbar: true,
     titel: 'Schritt 1: Deine erste Wache',
-    text: 'Gib ihr einen Namen (oder lass den Vorschlag stehen) und wähle die Art. Rettungswache: Notrufe für den Rettungsdienst, z. B. mit dem RTW – für den Anfang die einfachste Wahl. Feuerwache: Brände und technische Hilfe, z. B. mit dem HLF.',
+    text: 'Gib ihr einen Namen (oder lass den Vorschlag stehen) und wähle die Art. Rettungswache: Notrufe für den Rettungsdienst, z. B. mit dem RTW (Rettungswagen) – für den Anfang die einfachste Wahl. Feuerwache: Brände und technische Hilfe, z. B. mit dem HLF (Löschfahrzeug).',
   },
   {
     nurOhneWache: true,
@@ -148,8 +148,8 @@ export const TOUR_SCHRITTE: TourSchritt[] = [
   { brauchtWache: true, ziel: '[data-tour="reiter-Personal"]', tippen: true, titel: 'Personal', text: 'Ein Fahrzeug fährt nur mit Besatzung los. Tippe auf „Personal“: Hier stellst du Bewerber ein (neue kommen alle 24 Stunden) und teilst sie den Fahrzeugen zu. Suche und Filter helfen bei vielen Leuten.' },
   { brauchtWache: true, ziel: '[data-tour="reiter-Ausbau"]', titel: 'Ausbildung & Ausbau', text: 'Unter „Ausbildung“ qualifizierst du dein Personal weiter (z. B. zum Notfallsanitäter). Unter „Ausbau“ gibt es mehr Stellplätze, Ruheräume für mehr Personal und Räume, die dein Team zufrieden halten.' },
   { ansicht: 'Einsätze', ziel: '[data-tour="einsatz-liste"]', titel: 'Alle Einsätze', text: 'Hier stehen alle Notrufe mit allen Details. Du kannst von hier genauso alarmieren wie auf der Karte.' },
-  { ansicht: 'AAO', ziel: '[data-tour="aao"]', titel: 'AAO – deine Alarm-Knöpfe', text: 'Lege eigene Knöpfe an, z. B. „Löschzug“ oder „RTW + NEF“. Beim Einsatz wählt ein Tipp darauf gleich alle passenden Fahrzeuge aus – spart viel Zeit, wenn du größer wirst.' },
-  { ansicht: 'Funk', ziel: '[data-tour="funk"]', titel: 'Funk', text: 'Statusmeldungen deiner Fahrzeuge. Meldet sich eins mit Status 5 (Sprechwunsch), gib ihm eine Sprechaufforderung – dann erfährst du, was es braucht, z. B. Verstärkung.' },
+  { ansicht: 'AAO', ziel: '[data-tour="aao"]', titel: 'AAO – deine Alarm-Knöpfe', text: 'AAO heißt Alarm- und Ausrückeordnung. Lege eigene Knöpfe an, z. B. „Löschzug“ oder „RTW + NEF“. Beim Einsatz wählt ein Tipp darauf gleich alle passenden Fahrzeuge aus – spart viel Zeit, wenn du größer wirst.' },
+  { ansicht: 'Funk', ziel: '[data-tour="funk"]', titel: 'Funk', text: 'Hier melden deine Fahrzeuge, was sie gerade tun. Zeigt eins Status 5, will es dir etwas sagen: Tippe dann auf „Sprechaufforderung“ – so erfährst du, was es braucht, z. B. Verstärkung.' },
   { ansicht: 'Finanzen', ziel: '[data-tour="finanzen"]', titel: 'Finanzen', text: 'Alle Einnahmen und Ausgaben auf einen Blick. Jeder Einsatz bringt Geld – je besser dein Ruf, desto mehr Bonus.' },
   { ansicht: 'Wachen', ziel: '[data-tour="wache-kaufen"]', titel: 'Weitere Wachen', text: 'Wird dein Gebiet zu groß oder die Anfahrt zu lang? Hier kaufst du weitere Wachen. Vor dem Kauf siehst du immer den Preis.' },
   {

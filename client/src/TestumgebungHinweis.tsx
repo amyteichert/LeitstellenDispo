@@ -1,9 +1,12 @@
+import { useEffect, useRef, type Ref } from 'react';
+
 /** Läuft das Spiel auf der Testumgebung (test.leitstellendispo.de)? */
 export const istTestumgebung = () => window.location.hostname.startsWith('test.');
 
-function Balken({ platzhalter = false }: { platzhalter?: boolean }) {
+function Balken({ platzhalter = false, balkenRef }: { platzhalter?: boolean; balkenRef?: Ref<HTMLDivElement> }) {
   return (
     <div
+      ref={balkenRef}
       className={`testumgebung-hinweis${platzhalter ? ' testumgebung-hinweis--platzhalter' : ''}`}
       role={platzhalter ? undefined : 'alert'}
       aria-hidden={platzhalter || undefined}
@@ -26,10 +29,26 @@ function Balken({ platzhalter = false }: { platzhalter?: boolean }) {
  * Der unsichtbare Platzhalter ist genauso hoch wie der feste Balken, damit nichts darunter verschwindet.
  */
 export default function TestumgebungHinweis() {
+  const balkenRef = useRef<HTMLDivElement>(null);
+
+  // Hervorgehobenes (z. B. in der Tour) nie unter den festen Balken scrollen
+  useEffect(() => {
+    const balken = balkenRef.current;
+    if (!balken || typeof ResizeObserver === 'undefined') return;
+    const setzeAbstand = () => { document.documentElement.style.scrollPaddingTop = `${balken.offsetHeight}px`; };
+    setzeAbstand();
+    const beobachter = new ResizeObserver(setzeAbstand);
+    beobachter.observe(balken);
+    return () => {
+      beobachter.disconnect();
+      document.documentElement.style.scrollPaddingTop = '';
+    };
+  }, []);
+
   if (!istTestumgebung()) return null;
   return (
     <>
-      <Balken />
+      <Balken balkenRef={balkenRef} />
       <Balken platzhalter />
     </>
   );

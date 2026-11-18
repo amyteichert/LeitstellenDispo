@@ -1429,6 +1429,16 @@
 .verwalten-kopf small {
   color: var(--color-text-muted);
 }
+/* Schmale Handys: Zurück-Knopf nicht zusammenquetschen, langer Wachenname bricht um statt den Stift rauszuschieben */
+.verwalten-kopf > .btn { flex-shrink: 0; }
+.verwalten-kopf > div { min-width: 0; }
+.verwalten-kopf h2 { overflow-wrap: break-word; hyphens: auto; }
+@media (max-width: 480px) {
+  .verwalten-kopf { gap: 8px; }
+  .seiten-inhalt .verwalten-kopf h2 { font-size: 1.2rem; }
+  .verwalten-kopf > .btn { padding: 0 10px; }
+}
+.verwalten-kopf h2 .btn { flex-shrink: 0; }
 .verwalten-reiter {
   display: flex;
   gap: 8px;
@@ -2079,6 +2089,8 @@
 /* Inhaltsseiten (alles außer der Karte): begrenzte Breite, einheitliche Überschriften */
 .seiten-inhalt {
   width: 100%;
+  /* Als Grid-Element sonst mindestens so breit wie der Inhalt – auf 320–375 px wurde die Seite breiter als der Bildschirm */
+  min-width: 0;
   max-width: 1240px;
   margin: 0 auto;
   padding: 24px 24px 48px;
