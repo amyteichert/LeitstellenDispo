@@ -675,11 +675,13 @@ function WacheVerwalten({
 
       {reiter === 'Personal' && (
         <PersonalReiter
+          // Zuerst die Aktionen: `personalAktionen` ist das ganze Spiel-Objekt und enthält auch `personal`
+          // (alle Wachen) – die Werte dieser Wache darunter müssen es überschreiben, nicht umgekehrt.
+          {...personalAktionen}
           wache={wache}
           fahrzeuge={wachenFahrzeuge}
           personal={wachenPersonal}
           balance={balance}
-          {...personalAktionen}
           zufriedenheit={zufriedenheit}
           kuendigungen={wachenKuendigungen}
           onMeldung={setMeldung}
