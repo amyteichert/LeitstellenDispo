@@ -129,6 +129,19 @@ describe('Schnittstelle für den Bot', () => {
     expect(daten.rangliste.map((s: { name: string; platz: number }) => [s.platz, s.name])).toEqual([[1, 'Gast'], [2, 'Amy']]);
   });
 
+  it('Rangliste ohne Claude-Testkonten', async () => {
+    const mitXp = (xp: number) => ({ ...createNeuesSpiel(), laufbahn: { xp, einsaetze: 0, perfekt: 0, erfolge: [] } });
+    const qa = await registriere('QA_Claude');
+    await server.anfrage('PUT', '/spielstand', { body: mitXp(100), cookie: amy });
+    await server.anfrage('PUT', '/spielstand', { body: mitXp(9000), cookie: qa });
+
+    const { daten } = await json(await server.anfrage('GET', '/bot/rangliste', { headers: BOT }));
+    expect(daten.rangliste.map((s: { name: string }) => s.name)).not.toContain('QA_Claude');
+    expect(daten.rangliste[0].name).toBe('Amy');
+    // Das Profil bleibt abrufbar
+    expect((await server.anfrage('GET', '/bot/spieler?name=QA_Claude', { headers: BOT })).status).toBe(200);
+  });
+
   it('Sperren meldet sofort ab und landet im Protokoll; Team-Konten nicht', async () => {
     const res = await json(await server.anfrage('POST', '/bot/sperren', { headers: BOT, body: { name: 'Gast', gesperrt: true, von: 'Mod', grund: 'Spam' } }));
     expect(res.daten.spieler.gesperrt).toBe(true);

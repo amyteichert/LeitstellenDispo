@@ -9,6 +9,7 @@ import type { Datenbank } from './datenbank.js';
 import { ladeKonto, nurAngemeldet, spielBasisUrl } from './auth.js';
 import type { KontenDienst } from './konten.js';
 import type { Ereignisse } from './ereignisse.js';
+import { ZAEHLT_IN_RANGLISTE } from './bestenliste.js';
 
 export interface DiscordOptionen {
   /** Application-ID des Discord-Bots (DISCORD_CLIENT_ID) */
@@ -191,7 +192,7 @@ export function erstelleBotRouter(db: Datenbank, ereignisse: Ereignisse, optione
   const sql = {
     perDiscord: db.prepare(`SELECT ${SPIELER_SPALTEN} WHERE b.discord_id = ?`),
     perName: db.prepare(`SELECT ${SPIELER_SPALTEN} WHERE b.name = ? COLLATE NOCASE`),
-    ranglisteKandidaten: db.prepare(`SELECT ${SPIELER_SPALTEN} WHERE b.dev_markiert = 0 AND b.gesperrt = 0 AND b.freigegeben = 1 AND s.daten IS NOT NULL`),
+    ranglisteKandidaten: db.prepare(`SELECT ${SPIELER_SPALTEN} WHERE ${ZAEHLT_IN_RANGLISTE} AND s.daten IS NOT NULL`),
     verknuepfungen: db.prepare('SELECT discord_id AS discordId, name, gesperrt FROM benutzer WHERE discord_id IS NOT NULL'),
     online: db.prepare('SELECT COUNT(*) AS n FROM spielstaende WHERE aktualisiert > ?'),
     konten: db.prepare('SELECT COUNT(*) AS n, COUNT(discord_id) AS verknuepft FROM benutzer'),

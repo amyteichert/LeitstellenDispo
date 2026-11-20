@@ -63,6 +63,18 @@ describe('Bestenliste', () => {
     expect(liste.eintraege.map((e) => e.konto.name)).toEqual(['Anna']);
   });
 
+  it('lässt Claude-Testkonten weg (egal wie geschrieben)', async () => {
+    const anna = await registrieren('Anna');
+    const qa = await registrieren('QA_Claude');
+    const tester = await registrieren('claudetester');
+    await speichern(anna, 100);
+    await speichern(qa, 900);
+    await speichern(tester, 800);
+    const liste = await bestenliste(anna);
+    expect(liste.eintraege.map((e) => e.konto.name)).toEqual(['Anna']);
+    expect(liste.teilnehmer).toBe(1);
+  });
+
   it('nimmt beim Anlegen der Tabelle vorhandene Spielstände mit', async () => {
     const anna = await registrieren('Anna');
     await speichern(anna, 300);

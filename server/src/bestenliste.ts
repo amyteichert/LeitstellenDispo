@@ -26,14 +26,21 @@ interface Zeile {
   fahrzeuge: number;
 }
 
+/**
+ * Wer in Ranglisten zählt (Spiel und Discord-Bot): nicht gesperrt, freigeschaltet, nicht mit Dev-Werkzeugen gespielt
+ * und keine Test-/QA-Konten mit „claude“ im Namen (LIKE ist in SQLite bei Buchstaben a–z unabhängig von Groß/Klein).
+ * Erwartet die Tabelle benutzer unter dem Kürzel b.
+ */
+export const ZAEHLT_IN_RANGLISTE = `b.gesperrt = 0 AND b.dev_markiert = 0 AND b.freigegeben = 1 AND b.name NOT LIKE '%claude%'`;
+
 export function erstelleBestenlisteRouter(db: Datenbank, konten: KontenDienst): Router {
   const router = Router();
-  // Gesperrte, nicht freigeschaltete und mit Dev-Werkzeugen gespielte Konten zählen nicht
+  // Gesperrte, nicht freigeschaltete, mit Dev-Werkzeugen gespielte und Claude-Testkonten zählen nicht
   const alle = db.prepare(`
     SELECT b.id, b.name, b.spitzname, b.avatar, b.erstellt,
            l.xp, l.einsaetze, l.perfekt, l.ruf, l.wachen, l.fahrzeuge
     FROM bestenliste l JOIN benutzer b ON b.id = l.benutzer_id
-    WHERE b.gesperrt = 0 AND b.dev_markiert = 0 AND b.freigegeben = 1`);
+    WHERE ${ZAEHLT_IN_RANGLISTE}`);
 
   // Die Tabelle enthält nur Kurzfassungen – sie bei jedem Aufruf zu lesen ist günstig
   const ladeSpieler = (): Array<Pick<BestenlisteEintrag, 'konto' | 'werte'>> =>
