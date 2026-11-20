@@ -52,7 +52,7 @@ export default function ProfilView({
         {gast ? (
           <>
             <p><strong>Gast</strong> – ohne Konto wird nichts gespeichert.</p>
-            <p>Mit einem Konto bleibt deine Leitstelle erhalten, und in der Alpha bekommst du das Abzeichen als Gründungs-Spieler.</p>
+            <p>Mit einem Konto bleibt deine Leitstelle erhalten.</p>
             <button type="button" className="btn btn--primary" onClick={onZurAnmeldung}>Anmelden / Registrieren</button>
           </>
         ) : (

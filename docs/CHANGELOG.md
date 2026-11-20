@@ -6,6 +6,12 @@ Format basiert auf [Keep a Changelog](https://keepachangelog.com/).
 
 ---
 
+## [0.2.0-beta] – 20.11.2026 – Beta-Start
+
+### Geändert
+- **Die Alpha ist vorbei, die Beta läuft.** Version 0.2.0-beta. Alle Einträge unten bis 0.1.0-alpha sind Teil dieser Version.
+- Gäste-Profil verspricht kein Gründungs-Abzeichen mehr (gibt es nur für Konten aus der Alpha).
+
 ## [Unreleased] – Antwort auf Meldungen
 
 ### Neu
