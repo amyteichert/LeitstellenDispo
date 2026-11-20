@@ -2583,6 +2583,7 @@
 .ankuendigung p { flex: 1; margin: 0; }
 .ankuendigung--wartung { border-left-color: #f59e0b; }
 .ankuendigung--wichtig { border-left-color: #ef4444; }
+.ankuendigung--erledigt { border-left-color: #22c55e; }
 .ankuendigung__schliessen {
   min-width: 32px;
   min-height: 32px;

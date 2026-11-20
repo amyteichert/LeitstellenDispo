@@ -7,6 +7,7 @@ import type {
   KontoNotiz,
   Fehlermeldung,
   FehlermeldungKontext,
+  MeldungsAntwort,
   SchichtzulageAntwort,
   SpielstandKorrektur,
   SpielstandZusammenfassung,
@@ -136,8 +137,8 @@ async function team<T>(methode: string, pfad: string, body?: unknown): Promise<T
 
 export const teamApi = {
   fehlermeldungen: () => team<{ meldungen: Fehlermeldung[] }>('GET', '/fehlermeldungen').then((d) => d.meldungen),
-  fehlermeldungErledigt: (id: number, erledigt: boolean) =>
-    team<{ meldungen: Fehlermeldung[] }>('POST', `/fehlermeldungen/${id}/erledigt`, { erledigt }).then((d) => d.meldungen),
+  fehlermeldungErledigt: (id: number, erledigt: boolean, antwort?: string) =>
+    team<{ meldungen: Fehlermeldung[] }>('POST', `/fehlermeldungen/${id}/erledigt`, { erledigt, antwort }).then((d) => d.meldungen),
   uebersicht: () => team<{ uebersicht: TeamUebersicht }>('GET', '/uebersicht').then((d) => d.uebersicht),
   konten: (suche = '') => team<{ konten: TeamKonto[] }>('GET', `/konten?suche=${encodeURIComponent(suche)}`).then((d) => d.konten),
   spielstand: (id: number) => team<{ zusammenfassung: SpielstandZusammenfassung | null }>('GET', `/konten/${id}/spielstand`).then((d) => d.zusammenfassung),
@@ -179,6 +180,26 @@ export async function ladeAnkuendigung(): Promise<Ankuendigung | null> {
   } catch {
     return null;
   }
+}
+
+/** Erledigte eigene Meldungen, die noch nicht gesehen wurden (leer, wenn der Server nicht erreichbar ist – nur Komfort). */
+export async function ladeMeldungsAntworten(): Promise<MeldungsAntwort[]> {
+  try {
+    const res = await fetch('/api/fehlermeldung/antworten');
+    if (!res.ok) return [];
+    return ((await res.json()) as { antworten: MeldungsAntwort[] }).antworten;
+  } catch {
+    return [];
+  }
+}
+
+/** Hinweise zu erledigten Meldungen als gesehen markieren */
+export async function markiereMeldungsAntwortenGesehen(ids: number[]): Promise<void> {
+  await fetch('/api/fehlermeldung/antworten/gesehen', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ ids }),
+  }).catch(() => undefined);
 }
 
 /** Bestenliste einer Wertung – wirft `KontoFehler`, wenn sie nicht geladen werden kann. */

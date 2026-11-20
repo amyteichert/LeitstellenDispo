@@ -44,6 +44,41 @@ describe('Fehler melden', () => {
   });
 });
 
+describe('Fehler melden – Antwort an den Spieler', () => {
+  const antworten = async (cookie: string) => (await (await server.anfrage('GET', '/fehlermeldung/antworten', { cookie })).json()).antworten;
+  const ersteId = async () => (await (await server.anfrage('GET', '/team/fehlermeldungen', { cookie: team })).json()).meldungen[0].id;
+
+  it('zeigt dem Spieler erledigte Meldungen mit Antwort, bis er sie als gesehen markiert', async () => {
+    await melden('Kann man Fahrzeuge verkaufen?', spieler);
+    expect(await antworten(spieler)).toEqual([]);
+
+    const id = await ersteId();
+    const res = await server.anfrage('POST', `/team/fehlermeldungen/${id}/erledigt`, { cookie: team, body: { erledigt: true, antwort: 'Geht jetzt, danke!' } });
+    expect((await res.json()).meldungen[0]).toMatchObject({ erledigt: true, antwort: 'Geht jetzt, danke!' });
+
+    expect(await antworten(spieler)).toEqual([{ id, text: 'Kann man Fahrzeuge verkaufen?', antwort: 'Geht jetzt, danke!' }]);
+    // Andere sehen die Antwort nicht und können sie nicht wegklicken
+    expect(await antworten(team)).toEqual([]);
+    expect((await server.anfrage('POST', '/fehlermeldung/antworten/gesehen', { cookie: team, body: { ids: [id] } })).status).toBe(204);
+    expect(await antworten(spieler)).toHaveLength(1);
+
+    expect((await server.anfrage('POST', '/fehlermeldung/antworten/gesehen', { cookie: spieler, body: { ids: [id] } })).status).toBe(204);
+    expect(await antworten(spieler)).toEqual([]);
+  });
+
+  it('wieder geöffnete Meldungen erscheinen nicht, zu lange Antworten werden abgelehnt, Gäste haben keinen Zugriff', async () => {
+    await melden('Fahrzeug hängt', spieler);
+    const id = await ersteId();
+    await server.anfrage('POST', `/team/fehlermeldungen/${id}/erledigt`, { cookie: team, body: { erledigt: true } });
+    await server.anfrage('POST', `/team/fehlermeldungen/${id}/erledigt`, { cookie: team, body: { erledigt: false } });
+    expect(await antworten(spieler)).toEqual([]);
+
+    const zuLang = await server.anfrage('POST', `/team/fehlermeldungen/${id}/erledigt`, { cookie: team, body: { erledigt: true, antwort: 'x'.repeat(301) } });
+    expect(zuLang.status).toBe(400);
+    expect((await server.anfrage('GET', '/fehlermeldung/antworten')).status).toBe(401);
+  });
+});
+
 describe('Fehler melden – Mail an den Owner', () => {
   it('schickt jedem Owner eine Mail mit dem Text der Meldung, sonst niemandem', async () => {
     await server.beenden();

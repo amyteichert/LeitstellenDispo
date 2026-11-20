@@ -336,4 +336,17 @@ export interface Fehlermeldung {
   kontext: FehlermeldungKontext & { spielstand?: SpielstandZusammenfassung | null };
   zeit: string;
   erledigt: boolean;
+  /** Kurze Antwort des Teams an den Spieler (beim Erledigen) */
+  antwort: string | null;
+}
+
+/** Höchstens so lang darf die Antwort des Teams auf eine Meldung sein */
+export const FEHLERMELDUNG_ANTWORT_MAX_LAENGE = 300;
+
+/** Erledigte Meldung, die der Spieler noch nicht gesehen hat – er bekommt sie als Hinweis im Spiel */
+export interface MeldungsAntwort {
+  id: number;
+  /** Anfang seiner Meldung, damit er sie wiedererkennt */
+  text: string;
+  antwort: string | null;
 }

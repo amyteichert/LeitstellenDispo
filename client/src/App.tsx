@@ -67,6 +67,7 @@ import FinanzenView from './views/FinanzenView';
 import StatistikView from './views/StatistikView';
 import BestenlisteView from './views/BestenlisteView';
 import AnkuendigungsBanner from './AnkuendigungsBanner';
+import MeldungsAntworten from './MeldungsAntworten';
 import SpielstandKonflikt from './SpielstandKonflikt';
 import EinstellungenView from './views/EinstellungenView';
 import ProfilView from './views/ProfilView';
@@ -890,6 +891,7 @@ Dein Guthaben: ${balance.toLocaleString('de-DE')} €`)) return;
       </header>
 
       <AnkuendigungsBanner />
+      {!gast && <MeldungsAntworten />}
 
       {spiel.willkommen && !tourOffen && (
         <div className="gast-leiste gast-leiste--meldung" role="status">

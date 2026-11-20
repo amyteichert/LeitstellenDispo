@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import SpielerName from '../SpielerName';
 import ProfilBild from '../ProfilBild';
 import {
+  FEHLERMELDUNG_ANTWORT_MAX_LAENGE,
   ANKUENDIGUNG_MAX_LAENGE,
   NOTIZ_MAX_LAENGE,
   RAENGE,
@@ -461,8 +462,15 @@ function Fehlermeldungen({ melde }: { melde: Melde }) {
     teamApi.fehlermeldungen().then(setMeldungen).catch((e) => melde('fehler', fehlerText(e)));
   }, []);
   useEffect(laden, [laden]);
+  // Antwort-Entwürfe je Meldung – der Spieler sieht sie beim nächsten Spielen als Hinweis
+  const [antworten, setAntworten] = useState<Record<number, string>>({});
   const umschalten = (m: Fehlermeldung) =>
-    teamApi.fehlermeldungErledigt(m.id, !m.erledigt).then(setMeldungen).catch((e) => melde('fehler', fehlerText(e)));
+    teamApi.fehlermeldungErledigt(m.id, !m.erledigt, m.erledigt ? undefined : antworten[m.id])
+      .then((liste) => {
+        setMeldungen(liste);
+        if (!m.erledigt) melde('ok', `Erledigt – ${m.name} bekommt beim nächsten Spielen einen Hinweis.`);
+      })
+      .catch((e) => melde('fehler', fehlerText(e)));
 
   if (!meldungen) return <p className="einsatz-eintrag__zeile">Lade …</p>;
   return (
@@ -481,6 +489,18 @@ function Fehlermeldungen({ melde }: { melde: Melde }) {
                 {m.kontext.spielstand && ` · ${m.kontext.spielstand.wachen} Wachen, ${m.kontext.spielstand.fahrzeuge} Fahrzeuge, ${m.kontext.spielstand.guthaben.toLocaleString('de-DE')} €`}
               </small>
               <small title={m.kontext.geraet}>{m.kontext.geraet.slice(0, 90)}</small>
+              {m.erledigt && m.antwort && <small>Antwort: {m.antwort}</small>}
+              {!m.erledigt && (
+                <label className="field" style={{ margin: 0 }}>
+                  <input
+                    value={antworten[m.id] ?? ''}
+                    maxLength={FEHLERMELDUNG_ANTWORT_MAX_LAENGE}
+                    placeholder="Antwort an den Spieler (optional), z. B. „Ist behoben, danke!“"
+                    aria-label={`Antwort an ${m.name}`}
+                    onChange={(e) => setAntworten((alt) => ({ ...alt, [m.id]: e.target.value }))}
+                  />
+                </label>
+              )}
               <button type="button" className="btn btn--klein" style={{ justifySelf: 'start' }} onClick={() => void umschalten(m)}>
                 {m.erledigt ? 'Wieder öffnen' : 'Erledigt'}
               </button>

@@ -6,6 +6,14 @@ Format basiert auf [Keep a Changelog](https://keepachangelog.com/).
 
 ---
 
+## [Unreleased] – Antwort auf Meldungen
+
+### Neu
+- **Spieler erfahren, wenn ihre Meldung erledigt ist:** Im Team-Bereich (Team → Meldungen) lässt sich beim Erledigen eine
+  kurze Antwort schreiben (optional). Der Spieler sieht beim nächsten Spielen oben einen grünen Hinweis mit seiner Meldung
+  und der Antwort und klickt ihn mit „Danke“ weg. Gilt auch für /bug aus Discord, wenn das Discord-Konto verknüpft ist.
+  Ältere, schon erledigte Meldungen lösen keinen Hinweis aus.
+
 ## [Unreleased] – Spieler-Meldungen: Nachalarmieren, Fahrzeuge verkaufen, CBRN-Erkunder
 
 ### Behoben

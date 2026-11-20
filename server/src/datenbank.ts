@@ -268,6 +268,13 @@ const MIGRATIONEN: Array<string | ((db: Datenbank) => void)> = [
     INSERT INTO bestenliste SELECT * FROM bestenliste_aus_spielstand WHERE benutzer_id = new.benutzer_id;
   END;
   `,
+  // Antwort des Teams auf Fehlermeldungen; `gesehen` = 0: der Spieler bekommt beim nächsten Spielen einen Hinweis.
+  // Ältere Meldungen gelten als gesehen (keine Flut alter Hinweise).
+  `
+  ALTER TABLE fehlermeldungen ADD COLUMN antwort TEXT;
+  ALTER TABLE fehlermeldungen ADD COLUMN gesehen INTEGER NOT NULL DEFAULT 1;
+  CREATE INDEX fehlermeldungen_ungesehen ON fehlermeldungen(benutzer_id) WHERE gesehen = 0;
+  `,
 ];
 
 /** Öffnet (bzw. erstellt) die Datenbank und bringt das Schema auf den neuesten Stand. */
