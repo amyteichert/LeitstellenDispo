@@ -1,6 +1,6 @@
 {
   "name": "leitstellendispo",
-  "version": "0.1.0-alpha",
+  "version": "0.2.0-beta",
   "private": true,
   "description": "LeitstellenDispo – Deine Leitstelle. Deine Einsätze. Deine Entscheidungen.",
   "workspaces": [

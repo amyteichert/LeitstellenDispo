@@ -4,7 +4,7 @@
 
 Browserbasierte Leitstellen-Simulation – eigenständiges Projekt, inspiriert vom Spielprinzip von Leitstellenspiel.de.
 
-**Aktuelle Version:** V0.1.0-alpha (Phase 0 – Projekt-Setup)
+**Aktuelle Version:** V0.2.0-beta (Beta seit 20.11.2026)
 
 ---
 
@@ -80,9 +80,8 @@ Prüft die Typen und führt alle Tests der Spiellogik (`shared`) aus.
 
 | Phase | Version         | Status |
 |-------|-----------------|--------|
-| 0     | V0.1.0-alpha    | ✅ Aktuell |
-| 1     | V0.2.0-alpha    | Geplant |
-| 2     | V0.3.0-alpha    | Geplant |
+| 0     | V0.1.0-alpha    | ✅ Abgeschlossen |
+| Beta  | V0.2.0-beta     | ✅ Aktuell |
 
 Details siehe `docs/CHANGELOG.md`.
 

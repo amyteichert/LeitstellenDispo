@@ -6,7 +6,7 @@ Format basiert auf [Keep a Changelog](https://keepachangelog.com/).
 
 ---
 
-## [Unreleased] – Einsatzorte, Fahrzeugbedarf, Rettungsdienst
+## [0.2.0-beta] – 20.11.2026 – Beta-Start: Einsatzorte, Fahrzeugbedarf, Rettungsdienst
 
 ### Hinzugefügt
 - **Echte Einsatzadressen**: Jeder Einsatz hat eine Adresse (Straße, Hausnummer, PLZ, Ort) passend zu seinen Koordinaten;

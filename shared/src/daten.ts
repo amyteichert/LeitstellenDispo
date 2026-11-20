@@ -13,7 +13,7 @@ import type { EinsatzOrganisation, WachenArt } from './typen.js';
 
 export const APP_NAME = 'LeitstellenDispo';
 export const APP_SUBTITLE = 'Deine Leitstelle. Deine Einsätze. Deine Entscheidungen.';
-export const APP_VERSION = '0.1.0-alpha';
+export const APP_VERSION = '0.2.0-beta';
 
 export type UserRole = 'player' | 'admin' | 'co_owner' | 'owner';
 
