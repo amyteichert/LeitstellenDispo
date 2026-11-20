@@ -49,7 +49,7 @@ export default function Rueckalarmierung({
     return () => window.clearTimeout(timer);
   }, [vorgemerkt]);
 
-  const aktiv = getAktiveZuteilungen(incident).filter((a) => kannRueckalarmieren(incident, a.vehicleId));
+  const aktiv = getAktiveZuteilungen(incident).filter((a) => kannRueckalarmieren(incident, a.vehicleId, nowMs));
   if (aktiv.length === 0) return null;
 
   const name = (id: string) => {

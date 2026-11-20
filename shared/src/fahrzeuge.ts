@@ -306,6 +306,13 @@ export const FAHRZEUG_TYPEN: FahrzeugTyp[] = [
     beschreibung: 'Misst Gase und Schadstoffe – klärt, ob es gefährlich ist und wie weit evakuiert werden muss.',
   },
   {
+    // Zählt als Messfahrzeug (Kategorie GW-Mess): schneller und kleiner, dafür etwas teurer
+    typ: 'CBRN-ErkW', bezeichnung: 'CBRN-Erkundungswagen', kategorie: 'GW-Mess', organisation: 'Feuerwehr', wachenArt: 'Feuerwache',
+    preis: 8000, geschwindigkeitKmh: 70, besatzung: 4, faehigkeiten: ['messtechnik'], pflichtQualifikationen: ['gefahrgut'],
+    keinStartfahrzeug: true, brauchtErweiterung: 'gefahrgut',
+    beschreibung: 'Erkundet und misst bei Gefahrgut- und CBRN-Lagen schon während der Fahrt – ersetzt einen GW-Mess.',
+  },
+  {
     typ: 'GW-Wasserrettung', bezeichnung: 'Gerätewagen Wasserrettung', kategorie: 'Wasserrettung', organisation: 'Feuerwehr', wachenArt: 'Feuerwache',
     preis: 6000, geschwindigkeitKmh: 55, besatzung: 4, faehigkeiten: ['wasserrettung'], pflichtQualifikationen: ['wasserrettung'],
     keinStartfahrzeug: true, brauchtErweiterung: 'wasserrettung',
@@ -442,7 +449,7 @@ const EINFACHE_KLASSEN: Array<[FahrzeugKategorie, string]> = [
   ['GW-L2', 'GW-L2'],
   ['Kran', 'Kran'],
   ['GW-G', 'GW-G'],
-  ['GW-Mess', 'GW-Mess'],
+  ['GW-Mess', 'GW-Mess/CBRN-ErkW'],
   ['Wasserrettung', 'GW-Wasserrettung'],
   ['Höhenrettung', 'GW-Höhenrettung'],
 ];

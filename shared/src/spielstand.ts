@@ -6,17 +6,18 @@ import { erzeugeAdresse, ermittleOrtFuerWache, formatAdresse } from './adressen.
 import {
   START_GUTHABEN,
   findeEinsatzVorlage,
+  getAktiveZuteilungen,
   type AbgeschlossenerSpielEinsatz,
   type SpielEinsatz,
 } from './daten.js';
 import type { Krankenhaus } from './krankenhaeuser.js';
 import { erzeugePatienten } from './patienten.js';
 import { RUF_CONFIG } from './bewertung.js';
-import { erzeugeBesatzungFuer, synchronisiereBesatzung, type Mitarbeiter } from './personal.js';
+import { erzeugeBesatzungFuer, kannUmbesetzen, synchronisiereBesatzung, type Mitarbeiter } from './personal.js';
 import type { FunkSpruch } from './funk.js';
 import type { AaoEintrag } from './aao.js';
 import type { GrafikAuswahl } from './fahrzeuggrafiken.js';
-import { getFehlendeQualifikationen, type Qualifikation } from './fahrzeuge.js';
+import { getFahrzeugTyp, getFehlendeQualifikationen, type Qualifikation } from './fahrzeuge.js';
 import { LAUFBAHN_START, erstelleLaufbahnFuerBestand, istGueltigeLaufbahn, type Laufbahn } from './laufbahn.js';
 import type { FinanceTransaction, MapLocation, Vehicle } from './typen.js';
 import { istGueltigerKredit, type Kredit } from './kredite.js';
@@ -240,6 +241,36 @@ function ohneFahrzeuge<T extends WachenZustand>(zustand: T, fahrzeugIds: Set<str
       return { ...einsatz, alarmedVehicles, status: nochZugeteilt ? einsatz.status : 'offen' };
     }),
   };
+}
+
+/** Beim Verkauf gibt es diesen Anteil des Kaufpreises zurück */
+export const FAHRZEUG_VERKAUF_ANTEIL = 0.5;
+
+/** Erlös beim Verkauf eines Fahrzeugs (Anteil des bezahlten Preises, ersatzweise des Listenpreises) */
+export const getVerkaufserloes = (vehicle: Pick<Vehicle, 'price' | 'type'>): number => {
+  const preis = Number.isFinite(vehicle.price) && vehicle.price > 0 ? vehicle.price : getFahrzeugTyp(vehicle.type)?.preis ?? 0;
+  return Math.round(preis * FAHRZEUG_VERKAUF_ANTEIL);
+};
+
+/** Warum ein Fahrzeug gerade nicht verkauft werden kann – oder null, wenn es geht. */
+export function getVerkaufsSperre(vehicle: Vehicle, incidents: SpielEinsatz[]): string | null {
+  const imEinsatz = incidents.some((einsatz) => einsatz.status !== 'abgeschlossen'
+    && getAktiveZuteilungen(einsatz).some((assignment) => assignment.vehicleId === vehicle.id));
+  if (imEinsatz || !kannUmbesetzen(vehicle)) return 'Verkaufen geht nur, wenn das Fahrzeug einsatzbereit an der Wache steht.';
+  return null;
+}
+
+/**
+ * Verkauft ein Fahrzeug: Es verschwindet aus dem Spiel, die Besatzung bleibt als Personal ohne Fahrzeug an der Wache
+ * (kann dann z. B. ein neues Fahrzeug besetzen). Den Erlös bucht der Aufrufer.
+ */
+export function verkaufeFahrzeug<T extends WachenZustand>(zustand: T, fahrzeugId: string): T {
+  const vehicle = zustand.vehicles.find((v) => v.id === fahrzeugId);
+  if (!vehicle || getVerkaufsSperre(vehicle, zustand.incidents)) return zustand;
+  return ohneFahrzeuge({
+    ...zustand,
+    personal: zustand.personal?.map((p) => (p.fahrzeugId === fahrzeugId ? { ...p, fahrzeugId: undefined } : p)),
+  }, new Set([fahrzeugId]));
 }
 
 /** Löscht eine Wache samt ihren Fahrzeugen und ihrem Personal. */

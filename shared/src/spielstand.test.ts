@@ -2,7 +2,10 @@ import { describe, expect, it } from 'vitest';
 import { alarmiereFahrzeuge } from './alarmierung.js';
 import { findeZielKrankenhaus } from './krankenhaeuser.js';
 import { berechneSpielTick } from './spielTick.js';
-import { SPIELSTAND_VERSION, createNeuesSpiel, entferneAlteEinsaetze, entferneWache, migriereSpielstand, type Spielstand } from './spielstand.js';
+import {
+  SPIELSTAND_VERSION, createNeuesSpiel, entferneAlteEinsaetze, entferneWache, getVerkaufserloes, getVerkaufsSperre, migriereSpielstand,
+  verkaufeFahrzeug, type Spielstand,
+} from './spielstand.js';
 import { T0, einsatz, fahrzeug, krankenhaus, wache } from './testHilfen.js';
 import { haversineKm } from './geo.js';
 import { erzeugeBesatzungFuer, synchronisiereBesatzung } from './personal.js';
@@ -147,6 +150,38 @@ describe('Wache löschen', () => {
     const geladen = migriereSpielstand(JSON.parse(JSON.stringify(alt)))!;
     expect(geladen.vehicles.map((v) => v.id)).toEqual(['rtw-b']);
     expect(geladen.incidents[0].alarmedVehicles).toHaveLength(0);
+  });
+});
+
+describe('Fahrzeug verkaufen', () => {
+  const zustand = () => {
+    const mlf = { ...fahrzeug('mlf', 'MLF', 'rw-1'), price: 4000 };
+    const rtw = fahrzeug('rtw', 'RTW', 'rw-1');
+    const e = einsatz('sturz');
+    const alarmiert = alarmiereFahrzeuge({ incidents: [e], vehicles: [mlf, rtw], locations: [wache('rw-1')] }, e.id, ['rtw'], T0);
+    return { locations: [wache('rw-1')], vehicles: alarmiert.vehicles, incidents: alarmiert.incidents, personal: erzeugeBesatzungFuer(mlf) };
+  };
+
+  it('gibt die Hälfte des Kaufpreises zurück (ersatzweise des Listenpreises)', () => {
+    expect(getVerkaufserloes({ price: 4000, type: 'MLF' })).toBe(2000);
+    expect(getVerkaufserloes({ price: 0, type: 'RTW' })).toBeGreaterThan(0);
+  });
+
+  it('nimmt das Fahrzeug heraus, die Besatzung bleibt ohne Fahrzeug an der Wache', () => {
+    const z = zustand();
+    const nach = verkaufeFahrzeug(z, 'mlf');
+    expect(nach.vehicles.map((v) => v.id)).toEqual(['rtw']);
+    expect(nach.personal).toHaveLength(z.personal.length);
+    expect(nach.personal!.every((p) => p.fahrzeugId === undefined && p.wacheId === 'rw-1')).toBe(true);
+  });
+
+  it('verkauft keine Fahrzeuge, die im Einsatz oder unterwegs sind', () => {
+    const z = zustand();
+    const rtw = z.vehicles.find((v) => v.id === 'rtw')!;
+    expect(getVerkaufsSperre(rtw, z.incidents)).not.toBeNull();
+    expect(verkaufeFahrzeug(z, 'rtw')).toBe(z);
+    const rueckfahrt = { ...fahrzeug('x', 'RTW'), status: 'Rückfahrt' as const, rueckfahrt: { von: [0, 0] as [number, number], startAt: T0, ankunftAt: T0 + 1 } };
+    expect(getVerkaufsSperre(rueckfahrt, [])).not.toBeNull();
   });
 });
 

@@ -28,7 +28,7 @@ export const RAENGE: Rang[] = [
   { stufe: 2, name: 'Disponent-Anwärter', abXp: 300, fahrzeuge: ['NEF', 'HLF 10', 'TLF 3000', 'GW-Öl'] },
   { stufe: 3, name: 'Disponent', abXp: 1200, fahrzeuge: ['DLK 23/12', 'RW', 'ELW 1', 'GW-A', 'HLF 20'] },
   { stufe: 4, name: 'Erfahrener Disponent', abXp: 4000, fahrzeuge: ['ITW', 'GW-San', 'TLF 4000', 'SW 2000', 'GW-L2', 'GW-Wasserrettung'] },
-  { stufe: 5, name: 'Schichtführer', abXp: 10000, fahrzeuge: ['KdoW-LNA', 'KdoW-OrgL', 'ELW 2', 'GW-G', 'GW-Mess', 'GW-Höhenrettung'] },
+  { stufe: 5, name: 'Schichtführer', abXp: 10000, fahrzeuge: ['KdoW-LNA', 'KdoW-OrgL', 'ELW 2', 'GW-G', 'GW-Mess', 'CBRN-ErkW', 'GW-Höhenrettung'] },
   { stufe: 6, name: 'Lagedienstführer', abXp: 25000, fahrzeuge: ['FwK', 'RTH'] },
   { stufe: 7, name: 'Leiter der Leitstelle', abXp: 60000, fahrzeuge: [] },
 ];

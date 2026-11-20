@@ -6,6 +6,21 @@ Format basiert auf [Keep a Changelog](https://keepachangelog.com/).
 
 ---
 
+## [Unreleased] – Spieler-Meldungen: Nachalarmieren, Fahrzeuge verkaufen, CBRN-Erkunder
+
+### Behoben
+- **Nachalarmieren während „In Bearbeitung“** (Meldung von Kyle): Sobald ein Einsatz lief, ließen sich keine Kräfte mehr
+  hinzufügen. Jetzt geht das bis zum Transport; der Einsatz bleibt in Bearbeitung, die Restzeit ändert sich nicht.
+  Ein später eintreffender RTW kann z. B. einen weiteren Patienten transportieren. Versehentlich nachalarmierte Fahrzeuge
+  lassen sich zurückholen, solange sie noch auf Anfahrt sind. Der AAO-Vorschlag bleibt in dieser Phase leer (Bedarf gedeckt).
+
+### Neu
+- **Fahrzeuge verkaufen** (Wunsch von Kyle): Wache › Verwalten › Fahrzeuge › Fahrzeug antippen › „Verkaufen“.
+  Es gibt die Hälfte des Kaufpreises zurück, der Stellplatz wird frei, die Besatzung bleibt als Personal ohne Fahrzeug an der Wache.
+  Nur möglich, wenn das Fahrzeug einsatzbereit an der Wache steht.
+- **CBRN-Erkundungswagen (CBRN-ErkW)** für den Gefahrgutzug (Meldung von Marcel): schneller als der GW-Mess, 4 Plätze,
+  braucht Gefahrgut-Ausbildung, ab Rang Schichtführer. Zählt bei Einsätzen als Messfahrzeug („GW-Mess/CBRN-ErkW“).
+
 ## [Unreleased] – Anfänger-Test: Tutorial auf kleinen Handys und auf test
 
 ### Behoben

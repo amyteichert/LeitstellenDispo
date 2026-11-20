@@ -52,6 +52,7 @@ const ZEICHNUNGEN: Record<string, Zeichnung> = {
   FwK: { bauform: 'kran', aufschrift: 'FwK', ...FW },
   'GW-G': { bauform: 'lkw', aufschrift: 'GW-G', ...FW, zubehoer: ['warntafel'] },
   'GW-Mess': { bauform: 'bus', aufschrift: 'GW-Mess', ...FW, zubehoer: ['mast'] },
+  'CBRN-ErkW': { bauform: 'transporter', aufschrift: 'ErkW', ...FW, zubehoer: ['warntafel'] },
   'GW-Wasserrettung': { bauform: 'lkwKurz', aufschrift: 'GW-W', ...FW, zubehoer: ['boot'] },
   'GW-Höhenrettung': { bauform: 'bus', aufschrift: 'GW-H', ...FW, zubehoer: ['seil'] },
 };

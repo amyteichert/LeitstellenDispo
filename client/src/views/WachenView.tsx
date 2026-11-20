@@ -71,6 +71,7 @@ export interface PersonalAktionen extends AusbildungAktionen {
   entlassePersonal: (personId: string) => string | null;
   weisePersonalZu: (personId: string, fahrzeugId?: string) => string | null;
   besetzeFahrzeugAutomatisch: (fahrzeugId: string) => string | null;
+  verkaufeFahrzeug: (fahrzeugId: string) => string | null;
   baueRuheraum: (wacheId: string) => string | null;
 }
 
@@ -474,6 +475,7 @@ function WacheVerwalten({
                         besetzeFahrzeugAutomatisch={personalAktionen.besetzeFahrzeugAutomatisch}
                         waehleFahrzeugGrafik={personalAktionen.waehleFahrzeugGrafik}
                         waehleFahrzeugFarbe={personalAktionen.waehleFahrzeugFarbe}
+                        verkaufeFahrzeug={personalAktionen.verkaufeFahrzeug}
                         onMeldung={setMeldung}
                       />
                     )}

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { GAME_CONFIG } from './konfig.js';
-import { alarmiereFahrzeuge, getWarteLage, rueckalarmiereAlle, rueckalarmiereFahrzeug } from './alarmierung.js';
+import { alarmiereFahrzeuge, getWarteLage, kannRueckalarmieren, rueckalarmiereAlle, rueckalarmiereFahrzeug } from './alarmierung.js';
 import { getAktiveZuteilungen } from './daten.js';
 import { getFahrzeugGeschwindigkeit } from './fahrzeuge.js';
 import { getFahrzeitSekunden } from './geo.js';
@@ -35,12 +35,36 @@ describe('alarmiereFahrzeuge', () => {
     expect(nach.incidents[0].alarmedVehicles.map((a) => a.vehicleId)).toEqual(['rtw', 'nef']);
   });
 
-  it('erlaubt keine Alarmierung mehr, sobald der Einsatz bearbeitet wird', () => {
-    const e = { ...einsatz('sturz'), status: 'in_bearbeitung' as const };
+  it('erlaubt Nachalarmieren während der Bearbeitung – der Einsatz bleibt in Bearbeitung', () => {
+    const e = { ...einsatz('sturz'), status: 'in_bearbeitung' as const, processingStartedAt: T0, processingEndsAt: T0 + 600_000 };
     const vehicles = [fahrzeug('rtw', 'RTW')];
-    const ergebnis = alarmiereFahrzeuge({ incidents: [e], vehicles, locations }, e.id, ['rtw'], T0);
-    expect(ergebnis.incidents[0]).toBe(e);
-    expect(ergebnis.vehicles).toBe(vehicles);
+    const ergebnis = alarmiereFahrzeuge({ incidents: [e], vehicles, locations }, e.id, ['rtw'], T0 + 1000);
+    expect(ergebnis.incidents[0].alarmedVehicles.map((a) => a.vehicleId)).toEqual(['rtw']);
+    expect(ergebnis.incidents[0].status).toBe('in_bearbeitung');
+    expect(ergebnis.incidents[0].processingEndsAt).toBe(T0 + 600_000);
+    expect(ergebnis.vehicles[0].status).toBe('Alarmiert / auf Anfahrt');
+  });
+
+  it('erlaubt keine Alarmierung mehr im Transport oder nach dem Abschluss', () => {
+    for (const status of ['transport', 'abgeschlossen'] as const) {
+      const e = { ...einsatz('sturz'), status };
+      const vehicles = [fahrzeug('rtw', 'RTW')];
+      const ergebnis = alarmiereFahrzeuge({ incidents: [e], vehicles, locations }, e.id, ['rtw'], T0);
+      expect(ergebnis.incidents[0]).toBe(e);
+      expect(ergebnis.vehicles).toBe(vehicles);
+    }
+  });
+});
+
+describe('kannRueckalarmieren – während der Bearbeitung', () => {
+  it('nur Fahrzeuge, die noch auf Anfahrt sind', () => {
+    const e = einsatz('sturz');
+    const erst = alarmiereFahrzeuge({ incidents: [e], vehicles: [fahrzeug('rtw', 'RTW'), fahrzeug('rtw2', 'RTW')], locations }, e.id, ['rtw'], T0);
+    const ankunft = erst.incidents[0].alarmedVehicles[0].arrivalAt;
+    const inBearbeitung = { ...erst.incidents[0], status: 'in_bearbeitung' as const, processingStartedAt: ankunft, processingEndsAt: ankunft + 600_000 };
+    const nach = alarmiereFahrzeuge({ incidents: [inBearbeitung], vehicles: erst.vehicles, locations }, e.id, ['rtw2'], ankunft + 1000);
+    expect(kannRueckalarmieren(nach.incidents[0], 'rtw', ankunft + 2000)).toBe(false);
+    expect(kannRueckalarmieren(nach.incidents[0], 'rtw2', ankunft + 2000)).toBe(true);
   });
 });
 

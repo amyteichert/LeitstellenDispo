@@ -93,6 +93,9 @@ import {
   berechneSpielTick,
   createNeuesSpiel,
   entferneWache,
+  getVerkaufserloes,
+  getVerkaufsSperre,
+  verkaufeFahrzeug,
   erzeugeZufallsEinsatz,
   erzeugeMitAbstand,
   hatEigenesKrankenhaus,
@@ -637,6 +640,23 @@ export function useSpiel(optionen: UseSpielOptionen = {}) {
     return null;
   };
 
+  /** Verkauft ein Fahrzeug (Teil des Kaufpreises zurück). Gibt eine Fehlermeldung zurück oder null bei Erfolg. */
+  const verkaufeFahrzeugAnWache = (fahrzeugId: string): string | null => {
+    const vehicle = vehicles.find((entry) => entry.id === fahrzeugId);
+    if (!vehicle) return 'Fahrzeug nicht gefunden.';
+    const sperre = getVerkaufsSperre(vehicle, incidents);
+    if (sperre) return sperre;
+    const erloes = getVerkaufserloes(vehicle);
+    const ergebnis = verkaufeFahrzeug({ locations, vehicles, incidents, personal }, fahrzeugId);
+    setVehicles(ergebnis.vehicles);
+    setIncidents(ergebnis.incidents);
+    setPersonal(ergebnis.personal ?? []);
+    setBalance((cur) => cur + erloes);
+    const station = locations.find((location) => location.id === vehicle.stationId);
+    addTransaction('Einnahme', `${vehicle.callsign ?? vehicle.name} (${vehicle.type ?? 'Fahrzeug'})${station ? ` von ${station.name}` : ''} verkauft`, erloes);
+    return null;
+  };
+
   /** Baut eine neue Wache mit Startfahrzeug. Gibt die neue Wachen-ID oder eine Fehlermeldung zurück. */
   /** Eigenes Krankenhaus bauen (Voraussetzungen: Wachen, Ruf, Geld) */
   const baueKrankenhaus = (name: string, coords: [number, number], adresse?: Adresse): string | null => {
@@ -1125,6 +1145,7 @@ export function useSpiel(optionen: UseSpielOptionen = {}) {
     nowMs,
     addVehicle,
     buyVehicle,
+    verkaufeFahrzeug: verkaufeFahrzeugAnWache,
     benenneFahrzeugUm,
     eigenesKrankenhaus,
     erstelleWache,

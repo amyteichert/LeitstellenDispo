@@ -5,6 +5,7 @@ import {
   PATIENTEN_STATUS_LABELS,
   PATIENTEN_ZUSTAND_LABELS,
   erstelleAlarmVorschlag,
+  kannAlarmieren,
   formatBedarfsListe,
   formatEinsatzTitel,
   getBedarfsLabel,
@@ -128,11 +129,11 @@ export default function EinsaetzeView({
     }
   }, [selectedIncident]);
 
-  const kannAlarmieren = selectedIncident?.status === 'offen' || selectedIncident?.status === 'alarmiert';
+  const alarmierbar = selectedIncident ? kannAlarmieren(selectedIncident) : false;
 
   const passendeFahrzeuge = useMemo(
-    () => (selectedIncident && kannAlarmieren ? getVerfuegbareFahrzeugeFuerEinsatz(selectedIncident, { incidents, vehicles, locations }) : []),
-    [selectedIncident, kannAlarmieren, vehicles, locations, incidents],
+    () => (selectedIncident && alarmierbar ? getVerfuegbareFahrzeugeFuerEinsatz(selectedIncident, { incidents, vehicles, locations }) : []),
+    [selectedIncident, alarmierbar, vehicles, locations, incidents],
   );
 
   // Häkchen bei Fahrzeugen entfernen, die inzwischen nicht mehr verfügbar sind
@@ -291,7 +292,7 @@ export default function EinsaetzeView({
                 </section>
               )}
 
-              {kannAlarmieren ? (
+              {alarmierbar ? (
                 <section className="einsatz-abschnitt">
                   <h4>Verfügbare Fahrzeuge</h4>
                   <AaoKnoepfe
@@ -344,7 +345,7 @@ export default function EinsaetzeView({
                       onClick={alarmieren}
                       disabled={selectedVehicleIds.length === 0}
                     >
-                      {selectedIncident.status === 'alarmiert' ? 'Nachalarmieren' : 'Alarmieren'}
+                      {selectedIncident.status === 'offen' ? 'Alarmieren' : 'Nachalarmieren'}
                       {selectedVehicleIds.length > 0 ? ` (${selectedVehicleIds.length})` : ''}
                     </button>
                   </div>

@@ -8,6 +8,7 @@ import {
   getFahrzeugTyp,
   getFehlendeQualifikationen,
   getMindestBesatzung,
+  getVerkaufserloes,
   istInAusbildung,
   kannUmbesetzen,
   type Mitarbeiter,
@@ -19,7 +20,7 @@ import FarbWahl from './FarbWahl';
 type Melde = (meldung: { art: 'ok' | 'fehler'; text: string }) => void;
 
 /**
- * Bearbeiten eines Fahrzeugs an der Wache: Funkrufname, Besatzung (manuell oder automatisch).
+ * Bearbeiten eines Fahrzeugs an der Wache: Funkrufname, Besatzung (manuell oder automatisch), Verkaufen.
  * Ausbauten (z. B. größerer Wassertank) kommen später hier dazu.
  */
 export default function FahrzeugBearbeiten({
@@ -30,6 +31,7 @@ export default function FahrzeugBearbeiten({
   besetzeFahrzeugAutomatisch,
   waehleFahrzeugGrafik,
   waehleFahrzeugFarbe,
+  verkaufeFahrzeug,
   onMeldung,
 }: {
   fahrzeug: Vehicle;
@@ -40,9 +42,12 @@ export default function FahrzeugBearbeiten({
   besetzeFahrzeugAutomatisch: (fahrzeugId: string) => string | null;
   waehleFahrzeugGrafik: (fahrzeugId: string, grafikId: number | undefined) => void;
   waehleFahrzeugFarbe: (fahrzeugId: string, farbe: string | undefined) => void;
+  verkaufeFahrzeug: (fahrzeugId: string) => string | null;
   onMeldung: Melde;
 }) {
   const [name, setName] = useState(fahrzeug.callsign ?? fahrzeug.name);
+  // Zweistufig wie bei der Rückalarmierung: erster Tipp fragt nach, zweiter verkauft
+  const [verkaufFragen, setVerkaufFragen] = useState(false);
   const typ = getFahrzeugTyp(fahrzeug.type);
   const soll = typ?.besatzung ?? 0;
   const besatzung = wachenPersonal.filter((person) => person.fahrzeugId === fahrzeug.id);
@@ -179,6 +184,38 @@ export default function FahrzeugBearbeiten({
       <section className="einsatz-abschnitt">
         <h4>Ausbau</h4>
         <small className="einsatz-eintrag__zeile">Kommt bald: Fahrzeuge verbessern, z. B. größerer Wassertank für Löschfahrzeuge.</small>
+      </section>
+
+      <section className="einsatz-abschnitt">
+        <h4>Verkaufen</h4>
+        <small className="einsatz-eintrag__zeile">
+          Du bekommst {getVerkaufserloes(fahrzeug).toLocaleString('de-DE')} € (die Hälfte des Kaufpreises). Der Stellplatz wird frei,
+          die Besatzung bleibt als Personal ohne Fahrzeug an der Wache – praktisch, um z. B. ein MLF durch ein HLF zu ersetzen.
+        </small>
+        {!umbesetzbar && <small className="einsatz-eintrag__zeile">Unterwegs – Verkaufen erst nach der Rückkehr.</small>}
+        <div className="fahrzeug-bearbeiten__zeile">
+          {verkaufFragen ? (
+            <>
+              <button
+                type="button"
+                className="btn btn--danger"
+                disabled={!umbesetzbar}
+                onClick={() => {
+                  const fehler = verkaufeFahrzeug(fahrzeug.id);
+                  setVerkaufFragen(false);
+                  melde(fehler, `✓ ${fahrzeug.callsign ?? fahrzeug.name} verkauft (+${getVerkaufserloes(fahrzeug).toLocaleString('de-DE')} €).`);
+                }}
+              >
+                Ja, wirklich verkaufen
+              </button>
+              <button type="button" className="btn btn--secondary" onClick={() => setVerkaufFragen(false)}>Abbrechen</button>
+            </>
+          ) : (
+            <button type="button" className="btn btn--secondary" disabled={!umbesetzbar} onClick={() => setVerkaufFragen(true)}>
+              Fahrzeug verkaufen …
+            </button>
+          )}
+        </div>
       </section>
     </div>
   );

@@ -56,8 +56,16 @@ export const getAnfahrtSekunden = (
 };
 
 /**
+ * Darf zu diesem Einsatz (nach)alarmiert werden? Auch während der Bearbeitung – z. B. ein weiterer RTW
+ * für einen zusätzlichen Patienten. Erst ab dem Transport bzw. Abschluss nicht mehr.
+ */
+export const kannAlarmieren = (einsatz: Pick<SpielEinsatz, 'status'>): boolean =>
+  einsatz.status === 'offen' || einsatz.status === 'alarmiert' || einsatz.status === 'in_bearbeitung';
+
+/**
  * Alarmiert (bzw. alarmiert nach) Fahrzeuge zu einem Einsatz.
- * Nur möglich, solange der Einsatz offen oder alarmiert ist; nicht verfügbare Fahrzeuge werden ignoriert.
+ * Nur möglich, solange der Einsatz offen, alarmiert oder in Bearbeitung ist; nicht verfügbare Fahrzeuge werden ignoriert.
+ * Während der Bearbeitung bleibt der Einsatz in Bearbeitung (die Zeit läuft weiter).
  */
 export const alarmiereFahrzeuge = (
   zustand: AlarmierungsZustand,
@@ -68,7 +76,7 @@ export const alarmiereFahrzeuge = (
   const { incidents, vehicles, locations } = zustand;
   const incident = incidents.find((entry) => entry.id === incidentId);
   if (!incident || vehicleIds.length === 0) return { incidents, vehicles };
-  if (incident.status !== 'offen' && incident.status !== 'alarmiert') return { incidents, vehicles };
+  if (!kannAlarmieren(incident)) return { incidents, vehicles };
 
   const neueZuteilungen = [...new Set(vehicleIds)]
     .filter((vehicleId) => !getAktiveZuteilungen(incident).some((existing) => existing.vehicleId === vehicleId))
@@ -100,7 +108,12 @@ export const alarmiereFahrzeuge = (
   return {
     incidents: incidents.map((entry) => (
       entry.id === incidentId
-        ? { ...entry, alarmedVehicles: [...entry.alarmedVehicles, ...neueZuteilungen], status: 'alarmiert', besteAnfahrtSekunden }
+        ? {
+          ...entry,
+          alarmedVehicles: [...entry.alarmedVehicles, ...neueZuteilungen],
+          status: entry.status === 'in_bearbeitung' ? 'in_bearbeitung' : 'alarmiert',
+          besteAnfahrtSekunden,
+        }
         : entry
     )),
     vehicles: vehicles.map((vehicle) => (
@@ -109,10 +122,16 @@ export const alarmiereFahrzeuge = (
   };
 };
 
-/** Darf ein zugeteiltes Fahrzeug gerade zurückalarmiert werden? Nur solange der Einsatz noch nicht bearbeitet wird. */
-export const kannRueckalarmieren = (einsatz: SpielEinsatz, vehicleId: string): boolean =>
-  (einsatz.status === 'offen' || einsatz.status === 'alarmiert')
-  && getAktiveZuteilungen(einsatz).some((assignment) => assignment.vehicleId === vehicleId);
+/**
+ * Darf ein zugeteiltes Fahrzeug gerade zurückalarmiert werden? Solange der Einsatz noch nicht bearbeitet wird;
+ * während der Bearbeitung nur Fahrzeuge, die noch auf Anfahrt sind (z. B. versehentlich nachalarmiert).
+ */
+export const kannRueckalarmieren = (einsatz: SpielEinsatz, vehicleId: string, jetzt: number = Date.now()): boolean => {
+  const assignment = getAktiveZuteilungen(einsatz).find((entry) => entry.vehicleId === vehicleId);
+  if (!assignment) return false;
+  if (einsatz.status === 'offen' || einsatz.status === 'alarmiert') return true;
+  return einsatz.status === 'in_bearbeitung' && assignment.arrivalAt > jetzt;
+};
 
 /**
  * Holt ein Fahrzeug vom Einsatz zurück (Rückalarmierung): Es fährt von seiner aktuellen Position zur Wache
@@ -128,7 +147,7 @@ export const rueckalarmiereFahrzeug = (
   const einsatz = incidents.find((entry) => entry.id === incidentId);
   const vehicle = vehicles.find((entry) => entry.id === vehicleId);
   const wache = getStationCoords(vehicle?.stationId, locations);
-  if (!einsatz || !vehicle || !wache || !kannRueckalarmieren(einsatz, vehicleId)) return { incidents, vehicles };
+  if (!einsatz || !vehicle || !wache || !kannRueckalarmieren(einsatz, vehicleId, jetzt)) return { incidents, vehicles };
   const assignment = getAktiveZuteilungen(einsatz).find((entry) => entry.vehicleId === vehicleId)!;
 
   const von = assignment.arrivalAt <= jetzt ? einsatz.coords : getPositionAufAnfahrt(wache, einsatz.coords, assignment, jetzt, istLuftfahrzeug(vehicle.type));
@@ -256,6 +275,7 @@ export interface AlarmVorschlag {
  * damit z. B. ein LF nicht als Löschfahrzeug „verbraucht“ wird, wenn es für die Technische Hilfe gebraucht wird.
  */
 export function erstelleAlarmVorschlag(einsatz: SpielEinsatz, zustand: AlarmierungsZustand): AlarmVorschlag {
+  // Während der Bearbeitung ist der Bedarf gedeckt – Nachalarmieren geht dann nur von Hand
   if (einsatz.status !== 'offen' && einsatz.status !== 'alarmiert') return { fahrzeugIds: [], nichtVerfuegbar: [] };
 
   const zugeteilt = getAktiveZuteilungen(einsatz).map((assignment) => ({

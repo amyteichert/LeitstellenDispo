@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import {
   EINSATZ_STATUS_LABELS,
   erstelleAlarmVorschlag,
+  kannAlarmieren,
   getVerfuegbareFahrzeugeFuerEinsatz,
   getMeldungKey,
   getVerborgeneMeldungen,
@@ -98,8 +99,8 @@ export function KarteEinsatzPanel({
   const [rueckmeldung, setRueckmeldung] = useState<string | null>(null);
   const letzteMeldung = incident.meldungen[incident.meldungen.length - 1];
   const letzterSprechwunsch = letzteMeldung ? getVerborgeneMeldungen(funk).get(getMeldungKey(incident.id, letzteMeldung)) : undefined;
-  const kannAlarmieren = incident.status === 'offen' || incident.status === 'alarmiert';
-  const passende = kannAlarmieren ? getVerfuegbareFahrzeugeFuerEinsatz(incident, { incidents, vehicles, locations }) : [];
+  const alarmierbar = kannAlarmieren(incident);
+  const passende = alarmierbar ? getVerfuegbareFahrzeugeFuerEinsatz(incident, { incidents, vehicles, locations }) : [];
   const [auswahl, setAuswahl] = useState<string[]>([]);
   const toggle = (vehicleId: string) =>
     setAuswahl((current) => (current.includes(vehicleId) ? current.filter((id) => id !== vehicleId) : [...current, vehicleId]));
@@ -149,7 +150,7 @@ export function KarteEinsatzPanel({
         })}
       </ul>
 
-      {kannAlarmieren && passende.length > 0 && (
+      {alarmierbar && passende.length > 0 && (
         <div data-tour="alarm-auswahl">
           {/* Knöpfe über der Liste, damit man bei vielen Fahrzeugen nicht nach unten scrollen muss */}
           <AaoKnoepfe aao={aao} verfuegbar={passende} auswahl={auswahl} onAuswahl={setAuswahl} onMeldung={setRueckmeldung} />
@@ -168,7 +169,7 @@ export function KarteEinsatzPanel({
                 setRueckmeldung(`✓ ${namen.join(', ')} alarmiert.`);
               }}
             >
-              {incident.status === 'alarmiert' ? 'Nachalarmieren' : 'Alarmieren'}{auswahl.length > 0 ? ` (${auswahl.length})` : ''}
+              {incident.status === 'offen' ? 'Alarmieren' : 'Nachalarmieren'}{auswahl.length > 0 ? ` (${auswahl.length})` : ''}
             </button>
             {vorschlag.fahrzeugIds.length > 0 && (
               <button type="button" className="btn" onClick={() => setAuswahl((current) => [...new Set([...current, ...vorschlag.fahrzeugIds])])}>
@@ -197,7 +198,7 @@ export function KarteEinsatzPanel({
           </ul>
         </div>
       )}
-      {kannAlarmieren && vorschlag.nichtVerfuegbar.length > 0 && (
+      {alarmierbar && vorschlag.nichtVerfuegbar.length > 0 && (
         <p className="einsatz-eintrag__zeile">Kein freies Fahrzeug für: {formatBedarfsListe(vorschlag.nichtVerfuegbar)}</p>
       )}
       {rueckmeldung && <div className="aktion-rueckmeldung" role="status">{rueckmeldung}</div>}
@@ -228,7 +229,7 @@ export function KarteEinsatzPanel({
       )}
 
       <button type="button" className="btn btn--secondary map-incident-panel__open" onClick={onOpenInEinsaetze}>
-        {kannAlarmieren ? 'Details & Fahrzeugauswahl' : 'In Einsätze öffnen'}
+        {alarmierbar ? 'Details & Fahrzeugauswahl' : 'In Einsätze öffnen'}
       </button>
     </aside>
   );
