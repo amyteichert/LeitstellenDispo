@@ -67,6 +67,7 @@ import FinanzenView from './views/FinanzenView';
 import StatistikView from './views/StatistikView';
 import BestenlisteView from './views/BestenlisteView';
 import AnkuendigungsBanner from './AnkuendigungsBanner';
+import BetaFeier from './BetaFeier';
 import MeldungsAntworten from './MeldungsAntworten';
 import SpielstandKonflikt from './SpielstandKonflikt';
 import EinstellungenView from './views/EinstellungenView';
@@ -891,6 +892,8 @@ Dein Guthaben: ${balance.toLocaleString('de-DE')} €`)) return;
       </header>
 
       <AnkuendigungsBanner />
+      {/* Erst nach der Tour, damit neue Spieler nicht zwei Fenster übereinander haben */}
+      {spiel.spielstandGeladen && !tourOffen && <BetaFeier konto={konto} gast={gast} />}
       {!gast && <MeldungsAntworten />}
 
       {spiel.willkommen && !tourOffen && (
