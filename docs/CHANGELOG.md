@@ -6,6 +6,14 @@ Format basiert auf [Keep a Changelog](https://keepachangelog.com/).
 
 ---
 
+## [Unreleased] – Pause für neue Einsätze
+
+### Neu
+- **Pause-Knopf in der Kopfzeile** (Spieler-Vorschlag): Solange er an ist, gehen keine neuen Einsätze ein – praktisch für
+  Einsteiger mit wenigen Fahrzeugen, um offene Einsätze in Ruhe abzuarbeiten. Laufende Einsätze, Fahrten, Nachforderungen
+  und Timer laufen normal weiter (die Spielzeit ist echte Uhrzeit). Pausiert leuchtet der Knopf gelb („Pausiert“), antippen
+  geht weiter. Auch als Schalter in den Einstellungen unter „Einsatztempo“. Gilt nur auf diesem Gerät.
+
 ## [0.2.0-beta] – 20.11.2026 – Beta-Start
 
 ### Geändert

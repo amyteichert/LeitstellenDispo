@@ -170,6 +170,12 @@ export default function EinstellungenView({
             ))}
           </div>
           <small className="einsatz-eintrag__zeile">{EINSATZ_TEMPI.find((t) => t.wert === einstellungen.einsatzTempo)?.info}</small>
+          <Schalter
+            text="Pause – keine neuen Einsätze"
+            info="Zum Durchatmen: Laufende Einsätze, Fahrten und Nachforderungen gehen normal weiter. Geht auch schnell über den Pause-Knopf oben in der Kopfzeile."
+            an={einstellungen.einsatzPause}
+            onChange={(einsatzPause) => setEinstellungen({ einsatzPause })}
+          />
         </section>
 
         <section className="ausbau-karte">

@@ -3804,3 +3804,13 @@ html[data-design='hell'] .versorgung-hinweis--ok { color: #166534; }
 @media (prefers-reduced-motion: reduce) {
   .beta-feier, .beta-feier__karte { animation: none; }
 }
+
+/* Pause-Knopf in der Kopfzeile: unauffällig, solange das Spiel läuft – deutlich, wenn pausiert */
+.pause-chip--aktiv {
+  border-color: #e3b341;
+  box-shadow: 0 0 10px rgba(227, 179, 65, 0.45);
+}
+.pause-chip--aktiv .symbol,
+.pause-chip--aktiv .status-chip__label { color: #f2cc60; }
+html[data-design='hell'] .pause-chip--aktiv .symbol,
+html[data-design='hell'] .pause-chip--aktiv .status-chip__label { color: #8a5a00; }

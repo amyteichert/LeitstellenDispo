@@ -50,7 +50,7 @@ import Tour, { tourGesehen } from './Tour';
 import { teamApi } from './konto';
 import { useEinsatzHinweise } from './useEinsatzHinweise';
 import { spieleFunkPiep } from './ton';
-import { getEinstellungen, useEinstellungen } from './einstellungen';
+import { getEinstellungen, setEinstellungen, useEinstellungen } from './einstellungen';
 import FunkView from './views/FunkView';
 import FahrzeugeView from './views/FahrzeugeView';
 import { GrafikKontext, setzeModulAuswahl } from './fahrzeugGrafik';
@@ -819,6 +819,20 @@ Dein Guthaben: ${balance.toLocaleString('de-DE')} €`)) return;
             >
               <Piktogramm name="funk" />
               <span className="status-chip__wert">S5 × {offeneSprechwuensche.length}</span>
+            </button>
+          )}
+          {spiel.locations.some((location) => location.type === 'station') && (
+            <button
+              type="button"
+              className={`chip ruf-chip status-chip pause-chip ${einstellungen.einsatzPause ? 'pause-chip--aktiv' : ''}`}
+              aria-pressed={einstellungen.einsatzPause}
+              title={einstellungen.einsatzPause
+                ? 'Pause: Es gehen keine neuen Einsätze ein – antippen, um weiterzuspielen'
+                : 'Neue Einsätze pausieren – laufende Einsätze und Fahrten gehen weiter'}
+              onClick={() => setEinstellungen({ einsatzPause: !einstellungen.einsatzPause })}
+            >
+              <Piktogramm name={einstellungen.einsatzPause ? 'weiter' : 'pause'} />
+              {einstellungen.einsatzPause && <span className="status-chip__label">Pausiert</span>}
             </button>
           )}
           {spiel.locations.some((location) => location.type === 'station') && (

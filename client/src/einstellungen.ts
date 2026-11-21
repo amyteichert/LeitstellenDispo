@@ -14,6 +14,8 @@ export interface GeraeteEinstellungen {
   karteMerken: boolean;
   /** Wie oft neue Einsätze kommen: Faktor auf das normale Aufkommen */
   einsatzTempo: number;
+  /** Pause: Es gehen keine neuen Einsätze ein – laufende Einsätze, Fahrten und Timer laufen normal weiter */
+  einsatzPause: boolean;
   /** Farbdesign des Spiels (Farben stehen in index.css unter html[data-design=…]) */
   design: Design;
 }
@@ -46,6 +48,7 @@ export const STANDARD_EINSTELLUNGEN: GeraeteEinstellungen = {
   hinweisDauerSekunden: 7,
   karteMerken: true,
   einsatzTempo: 1,
+  einsatzPause: false,
   design: 'blau',
 };
 

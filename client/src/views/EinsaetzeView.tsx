@@ -29,6 +29,7 @@ import type { MapLocation, Vehicle } from '../types';
 import { Kennzeichen } from '../Kennzeichen';
 import { useIstSchmal } from '../useIstSchmal';
 import { formatDauer } from '../zeitformat';
+import { useEinstellungen } from '../einstellungen';
 
 const formatUhrzeit = (zeit: number) => new Date(zeit).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
 
@@ -96,6 +97,7 @@ export default function EinsaetzeView({
   const [rueckmeldung, setRueckmeldung] = useState<string | null>(null);
 
   const istSchmal = useIstSchmal();
+  const { einsatzPause } = useEinstellungen();
 
   // Rückmeldung nach einer Aktion nach ein paar Sekunden wieder ausblenden
   useEffect(() => {
@@ -479,7 +481,9 @@ export default function EinsaetzeView({
               {visibleIncidents.length === 0 && (
                 <div className="leerzustand">
                   <strong>Keine aktiven Einsätze</strong>
-                  Neue Einsätze gehen automatisch ein – du hörst einen Gong und siehst eine Einblendung.
+                  {einsatzPause
+                    ? 'Pause ist an – es gehen keine neuen Einsätze ein. Zum Weiterspielen oben in der Kopfzeile auf „Pausiert“ tippen.'
+                    : 'Neue Einsätze gehen automatisch ein – du hörst einen Gong und siehst eine Einblendung.'}
                 </div>
               )}
               <ul className="einsatz-liste">

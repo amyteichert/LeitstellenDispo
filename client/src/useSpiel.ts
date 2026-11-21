@@ -512,6 +512,8 @@ export function useSpiel(optionen: UseSpielOptionen = {}) {
       const { locations: orte, vehicles: fahrzeuge, wetter, krankenhaeuser: kliniken, xp } = erzeugungRef.current;
       const wachen = orte.filter((location) => location.type === 'station').length;
       if (wachen === 0) return;
+      // Pause (Einstellungen/Kopfzeile): keine neuen Einsätze. `zuletzt` läuft weiter, damit danach nichts nachgeholt wird.
+      if (getEinstellungen().einsatzPause) return;
       const kontext: AufkommenKontext = { ...deutscheZeit(jetzt), wachen, wetter };
       // Einsatztempo aus den Einstellungen: kürzerer Abstand = mehr Einsätze
       if (!entstehtEinsatz(Math.min(vergangen, 5000), einsatzIntervallMs(kontext) / getEinstellungen().einsatzTempo)) return;

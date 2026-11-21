@@ -1,7 +1,7 @@
 // Schlichte Linien-Symbole (16 px, Farbe = Textfarbe) für Kopfzeile und Anmeldung – ruhiger als Emojis
 import type { ReactNode } from 'react';
 
-export type SymbolName = 'geld' | 'stern' | 'wetter' | 'funk' | 'einsatz' | 'wache' | 'krankenhaus' | 'karte' | 'einstellungen';
+export type SymbolName = 'geld' | 'stern' | 'wetter' | 'funk' | 'einsatz' | 'wache' | 'krankenhaus' | 'karte' | 'einstellungen' | 'pause' | 'weiter';
 
 const PFADE: Record<SymbolName, ReactNode> = {
   geld: (
@@ -57,6 +57,8 @@ const PFADE: Record<SymbolName, ReactNode> = {
       <circle cx="8" cy="6.5" r="1.6" />
     </>
   ),
+  pause: <path d="M5.5 3v10M10.5 3v10" />,
+  weiter: <path d="M5 2.8v10.4L13 8z" />,
 };
 
 export function Piktogramm({ name, groesse = 16 }: { name: SymbolName; groesse?: number }) {
