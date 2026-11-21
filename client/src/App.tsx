@@ -881,8 +881,10 @@ Dein Guthaben: ${balance.toLocaleString('de-DE')} €`)) return;
               onClick={() => setDropdownOpen((s) => !s)}
               aria-haspopup="true"
               aria-expanded={dropdownOpen}
+              aria-label={`Menü – aktuell: ${currentView}`}
             >
-            {currentView} <span className="chev" aria-hidden></span>
+            <span className="view-trigger__menue" aria-hidden><Piktogramm name="menue" /></span>
+            <span className="view-trigger__text">{currentView}</span> <span className="chev" aria-hidden></span>
             </button>
 
             {/* portal-based dropdown */}
