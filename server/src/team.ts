@@ -22,6 +22,8 @@ import {
   type TeamProtokollEintrag,
   type TeamRecht,
   type TeamUebersicht,
+  type OnlineSpieler,
+  ONLINE_FENSTER_MS,
   type UserRole,
 } from '@leitstellendispo/shared';
 import type { Datenbank } from './datenbank.js';
@@ -97,6 +99,8 @@ export function erstelleTeamRouter(db: Datenbank, konten: KontenDienst, optionen
         SUM(s.aktualisiert >= ?) AS aktivLetzte7Tage,
         SUM(s.benutzer_id IS NOT NULL) AS mitSpielstand
       FROM benutzer b LEFT JOIN spielstaende s ON s.benutzer_id = b.id`),
+    online: db.prepare(`SELECT b.id, b.name, b.rolle, s.aktualisiert AS zuletzt FROM spielstaende s JOIN benutzer b ON b.id = s.benutzer_id
+      WHERE s.aktualisiert > ? ORDER BY b.name COLLATE NOCASE LIMIT 200`),
     spielstand: db.prepare('SELECT daten FROM spielstaende WHERE benutzer_id = ?'),
     sperren: db.prepare('UPDATE benutzer SET gesperrt = ? WHERE id = ?'),
     rolle: db.prepare('UPDATE benutzer SET rolle = ? WHERE id = ?'),
@@ -165,9 +169,10 @@ export function erstelleTeamRouter(db: Datenbank, konten: KontenDienst, optionen
     const jetzt = Date.now();
     const heute = new Date(jetzt - 24 * 60 * 60 * 1000).toISOString();
     const woche = new Date(jetzt - 7 * 24 * 60 * 60 * 1000).toISOString();
-    const z = sql.uebersicht.get(woche, heute, woche) as Record<keyof TeamUebersicht, number | null>;
-    const uebersicht = Object.fromEntries(Object.entries(z).map(([k, v]) => [k, v ?? 0])) as unknown as TeamUebersicht;
-    res.json({ uebersicht });
+    const z = sql.uebersicht.get(woche, heute, woche) as Record<Exclude<keyof TeamUebersicht, 'online'>, number | null>;
+    const zahlen = Object.fromEntries(Object.entries(z).map(([k, v]) => [k, v ?? 0])) as Omit<TeamUebersicht, 'online'>;
+    const online = sql.online.all(new Date(jetzt - ONLINE_FENSTER_MS).toISOString()) as OnlineSpieler[];
+    res.json({ uebersicht: { ...zahlen, online } satisfies TeamUebersicht });
   });
 
   router.get('/konten', (req, res) => {

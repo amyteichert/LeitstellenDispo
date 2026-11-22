@@ -3,6 +3,7 @@ import SpielerName from '../SpielerName';
 import ProfilBild from '../ProfilBild';
 import {
   FEHLERMELDUNG_ANTWORT_MAX_LAENGE,
+  istGeradeOnline,
   ANKUENDIGUNG_MAX_LAENGE,
   NOTIZ_MAX_LAENGE,
   RAENGE,
@@ -128,10 +129,16 @@ function Uebersicht({ melde }: { melde: Melde }) {
   const laden = useCallback(() => {
     teamApi.uebersicht().then(setDaten).catch((e) => melde('fehler', fehlerText(e)));
   }, []);
-  useEffect(laden, [laden]);
+  useEffect(() => {
+    laden();
+    // Online-Liste aktuell halten
+    const interval = setInterval(laden, 30_000);
+    return () => clearInterval(interval);
+  }, [laden]);
 
   if (!daten) return <p className="einsatz-eintrag__zeile">Lade …</p>;
   const kacheln: Array<[string, number, string?]> = [
+    ['Online jetzt', daten.online.length, 'letzte 2 Min. gespielt'],
     ['Konten gesamt', daten.konten],
     ['Neu (7 Tage)', daten.neuLetzte7Tage],
     ['Aktiv (24 Std.)', daten.aktivHeute, 'Spielstand gespeichert'],
@@ -152,6 +159,19 @@ function Uebersicht({ melde }: { melde: Melde }) {
           </div>
         ))}
       </div>
+      <h4 style={{ margin: '16px 0 6px' }}>🟢 Gerade online ({daten.online.length})</h4>
+      {daten.online.length === 0 ? (
+        <div className="leerzustand">Gerade spielt niemand.</div>
+      ) : (
+        <ul className="team-protokoll">
+          {daten.online.map((s) => (
+            <li key={s.id}>
+              <span><strong>{s.name}</strong>{s.rolle !== 'player' && <small> · {s.rolle}</small>}</span>
+              <small>zuletzt gespeichert {new Date(s.zuletzt).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</small>
+            </li>
+          ))}
+        </ul>
+      )}
       <button type="button" className="btn" style={{ marginTop: 12 }} onClick={laden}>↻ Aktualisieren</button>
     </>
   );
@@ -238,7 +258,7 @@ function KontoZeile({ konto, ich, offen, umschalten, melde, ersetze, entferne }:
         {konto.wartetAufFreischaltung && <span className="quali-chip team-chip--warnung" title="Ohne Freischaltung wird das Konto nach 7 Tagen gelöscht">Wartet auf Freischaltung</span>}
         {konto.devMarkiert && <span className="quali-chip quali-chip--keine" title="Hat Dev-Werkzeuge benutzt – zählt nicht für die Bestenliste">Dev</span>}
         <small>
-          {konto.email ?? 'keine E-Mail'} · seit {datum(konto.erstellt)} · zuletzt gespielt {datum(konto.zuletztGespielt)}
+          {konto.email ?? 'keine E-Mail'} · seit {datum(konto.erstellt)} · {istGeradeOnline(konto.zuletztGespielt) ? '🟢 gerade online' : `zuletzt gespielt ${datum(konto.zuletztGespielt)}`}
         </small>
       </button>
 

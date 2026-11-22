@@ -4,7 +4,7 @@
 // 2. Interne Schnittstelle für den Bot (/api/bot): Profile, Rangliste, Sperren, Ereignisse. Nur mit BOT_API_TOKEN.
 import { randomBytes, timingSafeEqual } from 'node:crypto';
 import { Router, type NextFunction, type Request, type Response } from 'express';
-import { getNaechsterRang, getRang, type Konto, type Laufbahn, type SpielEinsatz } from '@leitstellendispo/shared';
+import { getNaechsterRang, getRang, istGeradeOnline, ONLINE_FENSTER_MS, type Konto, type Laufbahn, type SpielEinsatz } from '@leitstellendispo/shared';
 import type { Datenbank } from './datenbank.js';
 import { ladeKonto, nurAngemeldet, spielBasisUrl } from './auth.js';
 import type { KontenDienst } from './konten.js';
@@ -24,8 +24,6 @@ export interface DiscordOptionen {
 
 /** So lange gilt ein angefangenes „Mit Discord verknüpfen“ */
 const VERKNUEPFEN_GUELTIG_MS = 10 * 60 * 1000;
-/** Wer in dieser Zeit gespeichert hat (das Spiel speichert alle paar Sekunden), gilt als online */
-const ONLINE_FENSTER_MS = 2 * 60 * 1000;
 /** Ab so vielen angeforderten Fahrzeugen (oder bei MANV) gilt ein Einsatz als Großeinsatz */
 const GROSSEINSATZ_AB_FAHRZEUGEN = 8;
 
@@ -41,7 +39,7 @@ interface SpielerZeile {
   aktualisiert: string | null;
 }
 
-const istOnline = (aktualisiert: string | null) => Boolean(aktualisiert && Date.now() - Date.parse(aktualisiert) < ONLINE_FENSTER_MS);
+const istOnline = (aktualisiert: string | null) => istGeradeOnline(aktualisiert);
 
 /** Laufbahn und Zahlen aus dem gespeicherten Spielstand (ohne Spielstand: alles 0) */
 function zahlenAus(daten: string | null) {

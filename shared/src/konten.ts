@@ -227,7 +227,23 @@ export interface TeamKonto extends Konto {
   zuletztGespielt: string | null;
 }
 
+/** Wer in dieser Zeit gespeichert hat (das Spiel speichert alle paar Sekunden), gilt als online */
+export const ONLINE_FENSTER_MS = 2 * 60 * 1000;
+export const istGeradeOnline = (zuletzt: string | null | undefined, jetzt = Date.now()) =>
+  Boolean(zuletzt && jetzt - Date.parse(zuletzt) < ONLINE_FENSTER_MS);
+
+/** Spieler, der gerade online ist (Team-Übersicht) */
+export interface OnlineSpieler {
+  id: number;
+  name: string;
+  rolle: string;
+  /** Zuletzt gespeichert (ISO) */
+  zuletzt: string;
+}
+
 export interface TeamUebersicht {
+  /** Wer gerade spielt – die Liste selbst */
+  online: OnlineSpieler[];
   konten: number;
   team: number;
   gesperrt: number;

@@ -37,6 +37,10 @@ describe('Zugang zum Team-Bereich', () => {
     await server.anfrage('PUT', '/spielstand', { body: createNeuesSpiel(), cookie: spieler });
     const { daten } = await json(await server.anfrage('GET', '/team/uebersicht', { cookie: owner }));
     expect(daten.uebersicht).toMatchObject({ konten: 4, team: 2, gesperrt: 0, neuLetzte7Tage: 4, aktivHeute: 1, mitSpielstand: 1 });
+    // Wer gerade gespeichert hat, steht namentlich in der Online-Liste
+    expect(daten.uebersicht.online).toHaveLength(1);
+    expect(daten.uebersicht.online[0]).toMatchObject({ rolle: 'player' });
+    expect(typeof daten.uebersicht.online[0].name).toBe('string');
   });
 });
 
