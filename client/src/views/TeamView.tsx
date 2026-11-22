@@ -409,6 +409,7 @@ function AnkuendigungVerwalten({ ich, melde }: { ich: Konto; melde: Melde }) {
   const [text, setText] = useState('');
   const [art, setArt] = useState<AnkuendigungsArt>('info');
   const [dauer, setDauer] = useState<number | null>(60);
+  const [fenster, setFenster] = useState(true);
 
   useEffect(() => {
     ladeAnkuendigung().then((a) => {
@@ -416,13 +417,14 @@ function AnkuendigungVerwalten({ ich, melde }: { ich: Konto; melde: Melde }) {
       if (a) {
         setText(a.text);
         setArt(a.art);
+        setFenster(a.fenster);
       }
     });
   }, []);
 
   const veroeffentlichen = async () => {
     try {
-      setAktuell(await teamApi.ankuendigungSetzen(text, art, dauer));
+      setAktuell(await teamApi.ankuendigungSetzen(text, art, dauer, fenster));
       melde('ok', 'Ankündigung ist für alle Spieler sichtbar.');
     } catch (e) {
       melde('fehler', fehlerText(e));
@@ -444,7 +446,7 @@ function AnkuendigungVerwalten({ ich, melde }: { ich: Konto; melde: Melde }) {
     <div className="einstellungen-raster">
       <section className="ausbau-karte">
         <span className="ausbau-karte__kategorie">Ankündigung an alle</span>
-        <p>Erscheint bei allen Spielern oben im Spiel (z. B. Wartung, neue Version) und verschwindet nach der gewählten Zeit von selbst. Jeder kann sie für sich wegklicken.</p>
+        <p>Erscheint bei allen Spielern oben im Spiel – auf Wunsch einmal als Fenster in der Mitte – (z. B. Wartung, neue Version) und verschwindet nach der gewählten Zeit von selbst. Jeder kann sie für sich wegklicken.</p>
         {!darf && <small className="einsatz-eintrag__zeile">Ankündigungen veröffentlichen Co-Owner und Owner. Du siehst hier die aktuelle.</small>}
         <label className="field">
           <span>Art</span>
@@ -464,13 +466,17 @@ function AnkuendigungVerwalten({ ich, melde }: { ich: Konto; melde: Melde }) {
           <span>Text <small>({text.length}/{ANKUENDIGUNG_MAX_LAENGE})</small></span>
           <textarea rows={3} readOnly={!darf} maxLength={ANKUENDIGUNG_MAX_LAENGE} value={text} onChange={(e) => setText(e.target.value)} placeholder="z. B. Heute ab 20 Uhr kurze Wartung (ca. 10 Minuten)." />
         </label>
+        <label style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '8px 0' }}>
+          <input type="checkbox" disabled={!darf} checked={fenster} onChange={(e) => setFenster(e.target.checked)} />
+          <span>Zusätzlich als Fenster in der Mitte anzeigen <small>(ohne Haken nur als Banner oben)</small></span>
+        </label>
         {darf && <div className="team-konto__aktionen">
           <button type="button" className="btn btn--primary" disabled={!text.trim()} onClick={() => void veroeffentlichen()}>
             {aktuell ? 'Aktualisieren' : 'Veröffentlichen'}
           </button>
           {aktuell && <button type="button" className="btn btn--danger" onClick={() => void entfernen()}>Entfernen</button>}
         </div>}
-        {aktuell && <small className="einsatz-eintrag__zeile">Aktiv seit {datum(aktuell.zeit)} · von {aktuell.vonName} · {aktuell.laeuftAb ? `läuft ab ${datum(aktuell.laeuftAb)}` : 'ohne Ablauf'}</small>}
+        {aktuell && <small className="einsatz-eintrag__zeile">Aktiv seit {datum(aktuell.zeit)} · von {aktuell.vonName} · {aktuell.laeuftAb ? `läuft ab ${datum(aktuell.laeuftAb)}` : 'ohne Ablauf'} · {aktuell.fenster ? 'mit Fenster' : 'nur Banner'}</small>}
         {aktuell === null && <small className="einsatz-eintrag__zeile">Gerade ist keine Ankündigung aktiv.</small>}
       </section>
     </div>

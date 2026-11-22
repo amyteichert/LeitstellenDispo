@@ -3,7 +3,7 @@ import type { Ankuendigung } from '@leitstellendispo/shared';
 import { ANKUENDIGUNG_GEAENDERT, ladeAnkuendigung } from './konto';
 
 const AUSGEBLENDET_KEY = 'leitstellendispo.ankuendigung-ausgeblendet';
-/** Jede neue Ankündigung erscheint einmal als Fenster in der Mitte, danach nur noch als Banner oben */
+/** Ankündigungen mit „Als Fenster“ erscheinen einmal in der Mitte, danach nur noch als Banner oben */
 const FENSTER_GESEHEN_KEY = 'leitstellendispo.ankuendigung-fenster-gesehen';
 const NEU_LADEN_MS = 15 * 1000; // kurz, damit z. B. „Neustart in 1 Minute“ rechtzeitig ankommt
 
@@ -38,7 +38,7 @@ export default function AnkuendigungsBanner() {
       if (!aktiv) return;
       setAnkuendigung(neu);
       setAusgeblendet(neu ? gespeichertFuer(AUSGEBLENDET_KEY, neu) : false);
-      setFensterOffen(neu ? !gespeichertFuer(FENSTER_GESEHEN_KEY, neu) && !gespeichertFuer(AUSGEBLENDET_KEY, neu) : false);
+      setFensterOffen(neu ? neu.fenster && !gespeichertFuer(FENSTER_GESEHEN_KEY, neu) && !gespeichertFuer(AUSGEBLENDET_KEY, neu) : false);
     });
     void laden();
     const interval = setInterval(() => void laden(), NEU_LADEN_MS);

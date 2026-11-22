@@ -118,10 +118,10 @@ export function erstelleTeamRouter(db: Datenbank, konten: KontenDienst, optionen
     notiz: db.prepare('SELECT id, benutzer_id, von_name AS vonName FROM konto_notizen WHERE id = ?'),
     notizLoeschen: db.prepare('DELETE FROM konto_notizen WHERE id = ?'),
     ankuendigungSetzen: db.prepare(`
-      INSERT INTO ankuendigung (id, text, art, von_name, zeit, laeuft_ab)
-      VALUES (1, ?, ?, ?, strftime('%Y-%m-%dT%H:%M:%fZ', 'now'), strftime('%Y-%m-%dT%H:%M:%fZ', 'now', '+' || ? || ' minutes'))
+      INSERT INTO ankuendigung (id, text, art, von_name, zeit, laeuft_ab, fenster)
+      VALUES (1, ?, ?, ?, strftime('%Y-%m-%dT%H:%M:%fZ', 'now'), strftime('%Y-%m-%dT%H:%M:%fZ', 'now', '+' || ? || ' minutes'), ?)
       ON CONFLICT (id) DO UPDATE SET text = excluded.text, art = excluded.art, von_name = excluded.von_name, zeit = excluded.zeit,
-        laeuft_ab = excluded.laeuft_ab`),
+        laeuft_ab = excluded.laeuft_ab, fenster = excluded.fenster`),
     ankuendigungLoeschen: db.prepare('DELETE FROM ankuendigung'),
     korrekturAnlegen: db.prepare('INSERT INTO spielstand_korrekturen (benutzer_id, guthaben_aenderung, ruf_neu, grund, von_name) VALUES (?, ?, ?, ?, ?)'),
     korrekturen: db.prepare(`
@@ -348,7 +348,8 @@ export function erstelleTeamRouter(db: Datenbank, konten: KontenDienst, optionen
     if (dauerMinuten !== null && (!Number.isInteger(dauerMinuten) || dauerMinuten < 1 || dauerMinuten > ANKUENDIGUNG_MAX_DAUER_MINUTEN)) {
       return void res.status(400).json({ fehler: 'Ungültige Dauer.' });
     }
-    sql.ankuendigungSetzen.run(text, art, ich(res).name, dauerMinuten);
+    // Fenster in der Mitte nur, wenn ausdrücklich gewünscht (sonst nur Banner oben)
+    sql.ankuendigungSetzen.run(text, art, ich(res).name, dauerMinuten, req.body?.fenster === true ? 1 : 0);
     protokolliere(ich(res), 'Ankündigung veröffentlicht', null, text);
     res.json({ ankuendigung: ladeAnkuendigung(db) });
   });
@@ -393,9 +394,9 @@ export function erstelleTeamRouter(db: Datenbank, konten: KontenDienst, optionen
 /** Aktuelle Ankündigung des Teams – `null`, wenn keine aktiv oder sie abgelaufen ist. */
 export function ladeAnkuendigung(db: Datenbank): Ankuendigung | null {
   const zeile = db.prepare(`
-    SELECT text, art, von_name AS vonName, zeit, laeuft_ab AS laeuftAb FROM ankuendigung
-    WHERE id = 1 AND (laeuft_ab IS NULL OR laeuft_ab > strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))`).get() as Ankuendigung | undefined;
-  return zeile ?? null;
+    SELECT text, art, von_name AS vonName, zeit, laeuft_ab AS laeuftAb, fenster FROM ankuendigung
+    WHERE id = 1 AND (laeuft_ab IS NULL OR laeuft_ab > strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))`).get() as (Omit<Ankuendigung, 'fenster'> & { fenster: number }) | undefined;
+  return zeile ? { ...zeile, fenster: zeile.fenster === 1 } : null;
 }
 
 /** Offene (noch nicht eingebuchte) Korrekturen eines Spielers */

@@ -282,6 +282,8 @@ export interface Ankuendigung {
   zeit: string;
   /** Ab hier wird sie nicht mehr angezeigt – `null`: bis das Team sie entfernt */
   laeuftAb: string | null;
+  /** Erscheint einmal als Fenster in der Mitte (sonst nur als Banner oben) */
+  fenster: boolean;
 }
 
 export const ANKUENDIGUNG_MAX_LAENGE = 300;

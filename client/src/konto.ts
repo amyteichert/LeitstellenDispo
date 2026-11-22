@@ -161,8 +161,8 @@ export const teamApi = {
   notizen: (id: number) => team<{ notizen: KontoNotiz[] }>('GET', `/konten/${id}/notizen`).then((d) => d.notizen),
   notizAnlegen: (id: number, text: string) => team<{ notizen: KontoNotiz[] }>('POST', `/konten/${id}/notizen`, { text }).then((d) => d.notizen),
   notizLoeschen: (notizId: number) => team<null>('DELETE', `/notizen/${notizId}`),
-  ankuendigungSetzen: (text: string, art: AnkuendigungsArt, dauerMinuten: number | null) =>
-    team<{ ankuendigung: Ankuendigung }>('PUT', '/ankuendigung', { text, art, dauerMinuten }).then((d) => {
+  ankuendigungSetzen: (text: string, art: AnkuendigungsArt, dauerMinuten: number | null, fenster: boolean) =>
+    team<{ ankuendigung: Ankuendigung }>('PUT', '/ankuendigung', { text, art, dauerMinuten, fenster }).then((d) => {
       meldeAnkuendigungGeaendert();
       return d.ankuendigung;
     }),

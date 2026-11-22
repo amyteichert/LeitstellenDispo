@@ -153,7 +153,10 @@ describe('Team-Werkzeuge: Protokoll, Notizen, Ankündigung, Korrekturen', () => 
     expect((await server.anfrage('PUT', '/team/ankuendigung', { body: { text: 'Heute 20 Uhr Wartung', art: 'wartung' }, cookie: admin })).status).toBe(403);
     await server.anfrage('PUT', '/team/ankuendigung', { body: { text: 'Heute 20 Uhr Wartung', art: 'wartung' }, cookie: owner });
     const gelesen = await json(await server.anfrage('GET', '/ankuendigung', { cookie: spieler }));
-    expect(gelesen.daten.ankuendigung).toMatchObject({ text: 'Heute 20 Uhr Wartung', art: 'wartung', vonName: 'Amy', laeuftAb: null });
+    expect(gelesen.daten.ankuendigung).toMatchObject({ text: 'Heute 20 Uhr Wartung', art: 'wartung', vonName: 'Amy', laeuftAb: null, fenster: false });
+    // Mit Haken „Als Fenster“ erscheint sie zusätzlich in der Mitte
+    await server.anfrage('PUT', '/team/ankuendigung', { body: { text: 'Neues Update!', art: 'info', fenster: true }, cookie: owner });
+    expect((await json(await server.anfrage('GET', '/ankuendigung'))).daten.ankuendigung).toMatchObject({ text: 'Neues Update!', fenster: true });
     expect((await server.anfrage('DELETE', '/team/ankuendigung', { cookie: admin })).status).toBe(403);
     await server.anfrage('DELETE', '/team/ankuendigung', { cookie: owner });
     expect((await json(await server.anfrage('GET', '/ankuendigung'))).daten.ankuendigung).toBeNull();

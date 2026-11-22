@@ -283,6 +283,10 @@ const MIGRATIONEN: Array<string | ((db: Datenbank) => void)> = [
   `
   ALTER TABLE fehlermeldungen ADD COLUMN antwort_von TEXT;
   `,
+  // Ankündigung zusätzlich als Fenster in der Mitte (1) oder nur als Banner oben (0)
+  `
+  ALTER TABLE ankuendigung ADD COLUMN fenster INTEGER NOT NULL DEFAULT 0;
+  `,
 ];
 
 /** Öffnet (bzw. erstellt) die Datenbank und bringt das Schema auf den neuesten Stand. */
