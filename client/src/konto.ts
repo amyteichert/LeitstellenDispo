@@ -178,6 +178,17 @@ export const teamApi = {
 // ---------------------------------------------------------------------------
 
 /** Aktuelle Ankündigung – `null`, wenn keine aktiv ist oder der Server nicht erreichbar ist (nur Komfort). */
+/** Wie viele gerade spielen (null, wenn der Server nicht erreichbar ist – nur Komfort) */
+export async function ladeOnlineAnzahl(): Promise<number | null> {
+  try {
+    const res = await fetch('/api/online', { cache: 'no-store' });
+    if (!res.ok) return null;
+    return ((await res.json()) as { online: number }).online;
+  } catch {
+    return null;
+  }
+}
+
 /** Das Banner im selben Tab lädt sofort neu, wenn das Team die Ankündigung ändert */
 export const ANKUENDIGUNG_GEAENDERT = 'leitstellendispo:ankuendigung-geaendert';
 const meldeAnkuendigungGeaendert = () => window.dispatchEvent(new Event(ANKUENDIGUNG_GEAENDERT));

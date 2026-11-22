@@ -41,6 +41,8 @@ describe('Zugang zum Team-Bereich', () => {
     expect(daten.uebersicht.online).toHaveLength(1);
     expect(daten.uebersicht.online[0]).toMatchObject({ rolle: 'player' });
     expect(typeof daten.uebersicht.online[0].name).toBe('string');
+    // Für alle: nur die Anzahl
+    expect(await (await server.anfrage('GET', '/online')).json()).toEqual({ online: 1 });
   });
 });
 

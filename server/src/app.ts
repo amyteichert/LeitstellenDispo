@@ -1,7 +1,7 @@
 import cookieParser from 'cookie-parser';
 import cors from 'cors';
 import express, { type NextFunction, type Request, type Response } from 'express';
-import { FAHRZEUG_TYPEN, getAppInfo } from '@leitstellendispo/shared';
+import { FAHRZEUG_TYPEN, getAppInfo, ONLINE_FENSTER_MS } from '@leitstellendispo/shared';
 import type { Einsatz } from '@leitstellendispo/shared';
 import { erstelleAuthRouter, type AuthOptionen } from './auth.js';
 import type { Datenbank } from './datenbank.js';
@@ -63,6 +63,13 @@ export function erstelleApp(db: Datenbank, optionen: { bcryptRunden?: number; fr
     // Nie zwischenspeichern (Browser/nginx) – eine neue Ankündigung soll ohne Neuladen ankommen
     res.setHeader('Cache-Control', 'no-store');
     res.json({ ankuendigung: ladeAnkuendigung(db) });
+  });
+
+  // Wie viele gerade spielen – nur die Zahl, keine Namen (für alle sichtbar im Menü)
+  const onlineAnzahl = db.prepare('SELECT COUNT(*) AS n FROM spielstaende WHERE aktualisiert > ?');
+  app.get('/api/online', (_req, res) => {
+    res.setHeader('Cache-Control', 'no-store');
+    res.json({ online: (onlineAnzahl.get(new Date(Date.now() - ONLINE_FENSTER_MS).toISOString()) as { n: number }).n });
   });
 
   app.get('/api/health', (_req, res) => {

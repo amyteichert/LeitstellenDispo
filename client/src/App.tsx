@@ -69,6 +69,7 @@ import BestenlisteView from './views/BestenlisteView';
 import AnkuendigungsBanner from './AnkuendigungsBanner';
 import BetaFeier from './BetaFeier';
 import MeldungsAntworten from './MeldungsAntworten';
+import { onlineText, useOnlineAnzahl } from './useOnlineAnzahl';
 import SpielstandKonflikt from './SpielstandKonflikt';
 import EinstellungenView from './views/EinstellungenView';
 import ProfilView from './views/ProfilView';
@@ -407,6 +408,8 @@ function App({ konto, onAbmelden, gast = false, setKonto }: {
   );
 
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  // „Gerade 3 Leute in der Leitstelle“ unten im Menü – nur laden, solange es offen ist
+  const onlineAnzahl = useOnlineAnzahl(dropdownOpen);
   const triggerRef = useRef<HTMLElement>(null);
 
   // Einsätze, die auf den Disponenten warten: noch nicht alarmiert oder mit neuer Lagemeldung
@@ -898,6 +901,7 @@ Dein Guthaben: ${balance.toLocaleString('de-DE')} €`)) return;
                 ...(gast ? [] : [{ label: 'Fehler melden', onClick: () => setFehlerMeldenOffen(true) }]),
                 ...(gast ? [{ label: 'Anmelden / Registrieren', onClick: zurAnmeldung }] : []),
               ]}
+              fusszeile={onlineAnzahl !== null && <><span aria-hidden>🟢</span> {onlineText(onlineAnzahl)}</>}
               onSelect={(v) => {
                 selectView(v as any);
               }}

@@ -12,9 +12,11 @@ type Props = {
   ansichten?: readonly string[];
   /** Zusätzlicher Menüpunkt unter den Ansichten (z. B. „Anmelden / Registrieren“ im Gastmodus) */
   zusatz?: Array<{ label: string; onClick: () => void }>;
+  /** Kleine Zeile unten im Menü (z. B. wie viele gerade online sind) */
+  fusszeile?: React.ReactNode;
 };
 
-export default function ViewDropdown({ anchorRef, isOpen, onClose, currentView, onSelect, ansichten = ANSICHTEN, zusatz }: Props) {
+export default function ViewDropdown({ anchorRef, isOpen, onClose, currentView, onSelect, ansichten = ANSICHTEN, zusatz, fusszeile }: Props) {
   const [pos, setPos] = useState<{ top: number; left: number; width: number } | null>(null);
   const menuRef = useRef<HTMLDivElement | null>(null);
 
@@ -96,6 +98,7 @@ export default function ViewDropdown({ anchorRef, isOpen, onClose, currentView, 
           </li>
         ))}
       </ul>
+      {fusszeile && <div className="view-dropdown__fusszeile">{fusszeile}</div>}
     </div>,
     document.body,
   );

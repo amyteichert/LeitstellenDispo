@@ -889,6 +889,12 @@
 }
 
 
+.view-dropdown__fusszeile {
+  padding: 8px 10px 4px;
+  border-top: 1px solid var(--color-border-strong);
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
+}
 .view-menu-item {
   display: block;
   width: 100%;
