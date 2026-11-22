@@ -4,6 +4,7 @@ import ProfilBild from '../ProfilBild';
 import {
   FEHLERMELDUNG_ANTWORT_MAX_LAENGE,
   istGeradeOnline,
+  teamUnterschrift,
   ANKUENDIGUNG_MAX_LAENGE,
   NOTIZ_MAX_LAENGE,
   RAENGE,
@@ -104,7 +105,7 @@ export default function TeamView({ konto, dev }: { konto: Konto; dev: DevAktione
       {reiter === 'Übersicht' && <Uebersicht melde={melde} />}
       {reiter === 'Konten' && <Konten ich={konto} melde={melde} />}
       {reiter === 'Ankündigung' && <AnkuendigungVerwalten ich={konto} melde={melde} />}
-      {reiter === 'Meldungen' && <Fehlermeldungen melde={melde} />}
+      {reiter === 'Meldungen' && <Fehlermeldungen ich={konto} melde={melde} />}
       {reiter === 'Bilder' && (
         <>
           <h3>Profilbilder</h3>
@@ -477,7 +478,7 @@ function AnkuendigungVerwalten({ ich, melde }: { ich: Konto; melde: Melde }) {
 }
 
 /** Fehlermeldungen der Spieler – offene zuerst */
-function Fehlermeldungen({ melde }: { melde: Melde }) {
+function Fehlermeldungen({ ich, melde }: { ich: Konto; melde: Melde }) {
   const [meldungen, setMeldungen] = useState<Fehlermeldung[] | null>(null);
   const laden = useCallback(() => {
     teamApi.fehlermeldungen().then(setMeldungen).catch((e) => melde('fehler', fehlerText(e)));
@@ -517,13 +518,15 @@ function Fehlermeldungen({ melde }: { melde: Melde }) {
                 {m.kontext.spielstand && ` · ${m.kontext.spielstand.wachen} Wachen, ${m.kontext.spielstand.fahrzeuge} Fahrzeuge, ${m.kontext.spielstand.guthaben.toLocaleString('de-DE')} €`}
               </small>
               <small title={m.kontext.geraet}>{m.kontext.geraet.slice(0, 90)}</small>
-              {m.erledigt && m.antwort && <small>Antwort: {m.antwort}</small>}
+              {m.erledigt && m.antwort && <small style={{ whiteSpace: 'pre-wrap' }}>Antwort: {m.antwort}</small>}
+              {m.von && (m.erledigt || m.gelesen) && <small>von {m.von}</small>}
               {!m.erledigt && (
                 <label className="field" style={{ margin: 0 }}>
-                  <input
+                  <textarea
                     value={antworten[m.id] ?? ''}
                     maxLength={FEHLERMELDUNG_ANTWORT_MAX_LAENGE}
-                    placeholder="Antwort an den Spieler (optional), z. B. „Ist behoben, danke!“"
+                    rows={3}
+                    placeholder={`Antwort an den Spieler (optional), z. B. „Ist behoben, danke!“\nDeine Unterschrift kommt automatisch darunter: ${teamUnterschrift(ich)}`}
                     aria-label={`Antwort an ${m.name}`}
                     onChange={(e) => setAntworten((alt) => ({ ...alt, [m.id]: e.target.value }))}
                   />

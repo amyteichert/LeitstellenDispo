@@ -56,7 +56,7 @@ describe('Fehler melden – Antwort an den Spieler', () => {
     const res = await server.anfrage('POST', `/team/fehlermeldungen/${id}/erledigt`, { cookie: team, body: { erledigt: true, antwort: 'Geht jetzt, danke!' } });
     expect((await res.json()).meldungen[0]).toMatchObject({ erledigt: true, antwort: 'Geht jetzt, danke!' });
 
-    expect(await antworten(spieler)).toEqual([{ id, art: 'erledigt', gelesen: null, text: 'Kann man Fahrzeuge verkaufen?', antwort: 'Geht jetzt, danke!' }]);
+    expect(await antworten(spieler)).toEqual([{ id, art: 'erledigt', gelesen: null, von: 'Chefin von LeitstellenDispo – Projektleitung', text: 'Kann man Fahrzeuge verkaufen?', antwort: 'Geht jetzt, danke!' }]);
     // Andere sehen die Antwort nicht und können sie nicht wegklicken
     expect(await antworten(team)).toEqual([]);
     expect((await server.anfrage('POST', '/fehlermeldung/antworten/gesehen', { cookie: team, body: { ids: [id] } })).status).toBe(204);
@@ -110,8 +110,8 @@ describe('Fehler melden – „Gelesen“ vom Team', () => {
     const id = await ersteId();
 
     const res = await server.anfrage('POST', `/team/fehlermeldungen/${id}/gelesen`, { cookie: team, body: { art: 'umsetzen' } });
-    expect((await res.json()).meldungen[0]).toMatchObject({ gelesen: 'umsetzen', erledigt: false });
-    expect(await antworten(spieler)).toEqual([{ id, art: 'gelesen', gelesen: 'umsetzen', text: 'Pause-Knopf wäre toll', antwort: null }]);
+    expect((await res.json()).meldungen[0]).toMatchObject({ gelesen: 'umsetzen', erledigt: false, von: 'Chefin von LeitstellenDispo – Projektleitung' });
+    expect(await antworten(spieler)).toEqual([{ id, art: 'gelesen', gelesen: 'umsetzen', von: 'Chefin von LeitstellenDispo – Projektleitung', text: 'Pause-Knopf wäre toll', antwort: null }]);
 
     await server.anfrage('POST', '/fehlermeldung/antworten/gesehen', { cookie: spieler, body: { ids: [id] } });
     expect(await antworten(spieler)).toEqual([]);

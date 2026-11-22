@@ -289,9 +289,9 @@ export function erstelleBotRouter(db: Datenbank, ereignisse: Ereignisse, optione
 
   // „Gelesen“-Knopf in Discord: body { art: 'umsetzen' | 'anschauen', von?: Discord-Name } – Spieler bekommt einen Hinweis im Spiel
   router.post('/fehlermeldung/:id/gelesen', (req, res) => {
-    const fehler = setzeFehlermeldungGelesen(db, Number(req.params.id), req.body?.art);
-    if (fehler) return void res.status(fehler === 'Meldung nicht gefunden.' ? 404 : 400).json({ fehler });
     const von = typeof req.body?.von === 'string' ? req.body.von.slice(0, 100) : 'Discord';
+    const fehler = setzeFehlermeldungGelesen(db, Number(req.params.id), req.body?.art, `${von} vom LeitstellenDispo-Team`);
+    if (fehler) return void res.status(fehler === 'Meldung nicht gefunden.' ? 404 : 400).json({ fehler });
     sql.protokollieren.run(`${von} (Discord)`, 'Meldung gelesen', null, `#${req.params.id}: ${req.body.art}`);
     res.json({ ok: true });
   });

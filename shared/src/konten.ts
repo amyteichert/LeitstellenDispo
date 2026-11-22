@@ -356,7 +356,14 @@ export interface Fehlermeldung {
   antwort: string | null;
   /** Vom Team gelesen (im Spiel oder über Discord) – und was damit passiert; null = noch nicht gelesen */
   gelesen: MeldungGelesen | null;
+  /** Unterschrift dessen, der zuletzt gelesen/erledigt hat, z. B. „Amy von LeitstellenDispo – Projektleitung“ */
+  von: string | null;
 }
+
+/** Wie Team-Mitglieder unter Antworten an Spieler unterschreiben */
+const UNTERSCHRIFT_ROLLE: Partial<Record<UserRole, string>> = { owner: 'Projektleitung', co_owner: 'stellv. Projektleitung' };
+export const teamUnterschrift = (konto: Pick<Konto, 'name' | 'spitzname' | 'rolle'>) =>
+  `${anzeigeName(konto)} von LeitstellenDispo – ${UNTERSCHRIFT_ROLLE[konto.rolle] ?? 'Team'}`;
 
 /** „Gelesen“ des Teams: Idee wird umgesetzt bzw. Fehler wird angeschaut */
 export type MeldungGelesen = 'umsetzen' | 'anschauen';
@@ -372,6 +379,8 @@ export interface MeldungsAntwort {
   /** Erledigt geht vor gelesen */
   art: 'erledigt' | 'gelesen';
   gelesen: MeldungGelesen | null;
+  /** Unterschrift des Team-Mitglieds (null bei alten Meldungen) */
+  von: string | null;
   /** Anfang seiner Meldung, damit er sie wiedererkennt */
   text: string;
   antwort: string | null;

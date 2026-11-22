@@ -279,6 +279,10 @@ const MIGRATIONEN: Array<string | ((db: Datenbank) => void)> = [
   `
   ALTER TABLE fehlermeldungen ADD COLUMN gelesen TEXT;
   `,
+  // Unterschrift des Team-Mitglieds, das zuletzt gelesen/erledigt hat – der Spieler sieht sie unter dem Hinweis
+  `
+  ALTER TABLE fehlermeldungen ADD COLUMN antwort_von TEXT;
+  `,
 ];
 
 /** Öffnet (bzw. erstellt) die Datenbank und bringt das Schema auf den neuesten Stand. */

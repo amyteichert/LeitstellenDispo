@@ -47,7 +47,8 @@ export default function MeldungsAntworten() {
             <span aria-hidden>{a.art === 'erledigt' ? '✓' : '👀'}</span>
             <p>
               <strong>{a.art === 'erledigt' ? 'Deine Meldung wurde erledigt:' : GELESEN_TEXT[a.gelesen ?? 'anschauen']}</strong> „{a.text}“
-              {a.art === 'erledigt' && a.antwort && <><br />Antwort vom Team: {a.antwort}</>}
+              {a.art === 'erledigt' && a.antwort && <><br /><span style={{ whiteSpace: 'pre-wrap' }}>{a.antwort}</span></>}
+              {a.von && <><br /><small className="meldungs-antwort__von">{a.von}</small></>}
             </p>
           </div>
         ))}

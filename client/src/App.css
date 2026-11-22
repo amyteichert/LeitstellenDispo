@@ -2592,6 +2592,7 @@
 .ankuendigung--erledigt { border-left-color: #22c55e; }
 /* Hinweise im Fenster in der Mitte (Antworten auf Meldungen) */
 .ruf-fenster .ankuendigung { margin: 10px 0; }
+.meldungs-antwort__von { display: inline-block; margin-top: 6px; color: var(--color-text-muted); font-style: italic; }
 .ankuendigung__schliessen {
   min-width: 32px;
   min-height: 32px;

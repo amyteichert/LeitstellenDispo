@@ -175,7 +175,7 @@ describe('Schnittstelle für den Bot', () => {
     expect((await server.anfrage('POST', '/bot/fehlermeldung/9999/gelesen', { headers: BOT, body: { art: 'anschauen' } })).status).toBe(404);
     expect((await server.anfrage('POST', `/bot/fehlermeldung/${id}/gelesen`, { headers: BOT, body: { art: 'anschauen', von: 'Mod' } })).status).toBe(200);
     const antworten = await json(await server.anfrage('GET', '/fehlermeldung/antworten', { cookie: amy }));
-    expect(antworten.daten.antworten).toMatchObject([{ id, art: 'gelesen', gelesen: 'anschauen' }]);
+    expect(antworten.daten.antworten).toMatchObject([{ id, art: 'gelesen', gelesen: 'anschauen', von: 'Mod vom LeitstellenDispo-Team' }]);
   });
 
   it('Übersicht zählt Spieler online und verknüpfte Konten', async () => {
