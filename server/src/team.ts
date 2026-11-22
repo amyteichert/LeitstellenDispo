@@ -29,7 +29,7 @@ import { ladeKonto, nurAngemeldet, passwortLink, spielBasisUrl, type AuthOptione
 import type { KontenDienst } from './konten.js';
 import { werteWebsiteAus } from './website.js';
 import { legeSicherungAn } from './sicherung.js';
-import { ladeFehlermeldungen, setzeFehlermeldungErledigt } from './fehlermeldungen.js';
+import { ladeFehlermeldungen, setzeFehlermeldungErledigt, setzeFehlermeldungGelesen } from './fehlermeldungen.js';
 
 interface TeamKontoZeile {
   id: number;
@@ -267,6 +267,12 @@ export function erstelleTeamRouter(db: Datenbank, konten: KontenDienst, optionen
 
   router.post('/fehlermeldungen/:id/erledigt', (req, res) => {
     const fehler = setzeFehlermeldungErledigt(db, Number(req.params.id), req.body?.erledigt !== false, req.body?.antwort);
+    if (fehler) return void res.status(400).json({ fehler });
+    res.json({ meldungen: ladeFehlermeldungen(db) });
+  });
+
+  router.post('/fehlermeldungen/:id/gelesen', (req, res) => {
+    const fehler = setzeFehlermeldungGelesen(db, Number(req.params.id), req.body?.art);
     if (fehler) return void res.status(400).json({ fehler });
     res.json({ meldungen: ladeFehlermeldungen(db) });
   });

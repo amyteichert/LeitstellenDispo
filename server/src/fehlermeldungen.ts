@@ -1,6 +1,6 @@
 // „Fehler melden“: Spieler schicken eine Beschreibung, das Spiel hängt Kontext an, der Server den Spielstand-Überblick
 import { Router, type Response } from 'express';
-import { FEHLERMELDUNG_ANTWORT_MAX_LAENGE, FEHLERMELDUNG_MAX_LAENGE, fasseSpielstandZusammen, type Fehlermeldung, type FehlermeldungKontext, type Konto, type MeldungsAntwort } from '@leitstellendispo/shared';
+import { FEHLERMELDUNG_ANTWORT_MAX_LAENGE, FEHLERMELDUNG_MAX_LAENGE, fasseSpielstandZusammen, type Fehlermeldung, type FehlermeldungKontext, istMeldungGelesen, type Konto, type MeldungsAntwort } from '@leitstellendispo/shared';
 import type { Datenbank } from './datenbank.js';
 import { ladeKonto, nurAngemeldet, spielBasisUrl, type AuthOptionen } from './auth.js';
 import type { KontenDienst } from './konten.js';
@@ -20,11 +20,12 @@ export function erstelleFehlermeldungRouter(db: Datenbank, konten: KontenDienst,
     spielstand: db.prepare('SELECT daten FROM spielstaende WHERE benutzer_id = ?'),
     anlegen: db.prepare('INSERT INTO fehlermeldungen (benutzer_id, name, text, kontext) VALUES (?, ?, ?, ?)'),
     ownerMails: db.prepare("SELECT email FROM benutzer WHERE rolle = 'owner' AND email IS NOT NULL"),
-    antworten: db.prepare('SELECT id, text, antwort FROM fehlermeldungen WHERE benutzer_id = ? AND erledigt = 1 AND gesehen = 0 ORDER BY id LIMIT 10'),
+    antworten: db.prepare(`SELECT id, CASE WHEN erledigt = 1 THEN 'erledigt' ELSE 'gelesen' END AS art, gelesen, text, antwort FROM fehlermeldungen
+      WHERE benutzer_id = ? AND (erledigt = 1 OR gelesen IS NOT NULL) AND gesehen = 0 ORDER BY id LIMIT 10`),
     gesehen: db.prepare('UPDATE fehlermeldungen SET gesehen = 1 WHERE benutzer_id = ? AND id = ?'),
   };
 
-  // Erledigte eigene Meldungen, die der Spieler noch nicht gesehen hat (Hinweis im Spiel)
+  // Gelesene/erledigte eigene Meldungen, die der Spieler noch nicht gesehen hat (Hinweis im Spiel)
   router.get('/antworten', ladeKonto(konten), nurAngemeldet, (_req, res: Response) => {
     const konto = res.locals.konto as Konto;
     const zeilen = sql.antworten.all(konto.id) as MeldungsAntwort[];
@@ -56,9 +57,10 @@ export function erstelleFehlermeldungRouter(db: Datenbank, konten: KontenDienst,
       bildschirm: kurz(k.bildschirm, 40),
       spielstand: zeile ? fasseSpielstandZusammen(JSON.parse(zeile.daten)) : null,
     } satisfies Fehlermeldung['kontext'] & FehlermeldungKontext;
-    sql.anlegen.run(konto.id, konto.name, text, JSON.stringify(kontext));
-    res.status(201).json({ ok: true });
-    ereignisse?.melde('fehlermeldung', { spieler: konto.name, text: text.slice(0, 1000), ansicht: kontext.ansicht, geraet: kontext.geraet });
+    const id = Number(sql.anlegen.run(konto.id, konto.name, text, JSON.stringify(kontext)).lastInsertRowid);
+    res.status(201).json({ ok: true, id });
+    // id: damit der Discord-Bot einen „Gelesen“-Knopf anbieten kann (POST /api/bot/fehlermeldung/:id/gelesen)
+    ereignisse?.melde('fehlermeldung', { id, spieler: konto.name, text: text.slice(0, 1000), ansicht: kontext.ansicht, geraet: kontext.geraet });
 
     // Owner per Mail benachrichtigen – Fehler beim Versand dürfen die Meldung nicht kaputtmachen
     if (mailversand.aktiv) {
@@ -88,7 +90,7 @@ export function erstelleFehlermeldungRouter(db: Datenbank, konten: KontenDienst,
 
 /** Meldungen fürs Team: offene zuerst, dann die neuesten */
 export function ladeFehlermeldungen(db: Datenbank): Fehlermeldung[] {
-  const zeilen = db.prepare('SELECT id, name, text, kontext, zeit, erledigt, antwort FROM fehlermeldungen ORDER BY erledigt, id DESC LIMIT 100').all() as
+  const zeilen = db.prepare('SELECT id, name, text, kontext, zeit, erledigt, antwort, gelesen FROM fehlermeldungen ORDER BY erledigt, id DESC LIMIT 100').all() as
     Array<Omit<Fehlermeldung, 'kontext' | 'erledigt'> & { kontext: string; erledigt: number }>;
   return zeilen.map((z) => ({ ...z, kontext: JSON.parse(z.kontext), erledigt: z.erledigt === 1 }));
 }
@@ -102,5 +104,18 @@ export function setzeFehlermeldungErledigt(db: Datenbank, id: number, erledigt: 
   if (text.length > FEHLERMELDUNG_ANTWORT_MAX_LAENGE) return `Die Antwort darf höchstens ${FEHLERMELDUNG_ANTWORT_MAX_LAENGE} Zeichen haben.`;
   if (erledigt) db.prepare('UPDATE fehlermeldungen SET erledigt = 1, antwort = ?, gesehen = 0 WHERE id = ?').run(text || null, id);
   else db.prepare('UPDATE fehlermeldungen SET erledigt = 0, gesehen = 1 WHERE id = ?').run(id);
+  return null;
+}
+
+/**
+ * Team hat die Meldung gelesen (im Spiel oder über Discord): Der Spieler bekommt beim nächsten Spielen einen Hinweis.
+ * Gibt eine Fehlermeldung zurück oder null. Bereits erledigte Meldungen bleiben unverändert.
+ */
+export function setzeFehlermeldungGelesen(db: Datenbank, id: number, art: unknown): string | null {
+  if (!istMeldungGelesen(art)) return 'Unbekannte Art – erlaubt sind „umsetzen“ und „anschauen“.';
+  const zeile = db.prepare('SELECT erledigt FROM fehlermeldungen WHERE id = ?').get(id) as { erledigt: number } | undefined;
+  if (!zeile) return 'Meldung nicht gefunden.';
+  if (zeile.erledigt === 1) return 'Die Meldung ist schon erledigt.';
+  db.prepare('UPDATE fehlermeldungen SET gelesen = ?, gesehen = 0 WHERE id = ?').run(art, id);
   return null;
 }

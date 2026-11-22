@@ -275,6 +275,10 @@ const MIGRATIONEN: Array<string | ((db: Datenbank) => void)> = [
   ALTER TABLE fehlermeldungen ADD COLUMN gesehen INTEGER NOT NULL DEFAULT 1;
   CREATE INDEX fehlermeldungen_ungesehen ON fehlermeldungen(benutzer_id) WHERE gesehen = 0;
   `,
+  // Team hat die Meldung gelesen ('umsetzen' | 'anschauen'), im Spiel oder über Discord – der Spieler bekommt einen Hinweis
+  `
+  ALTER TABLE fehlermeldungen ADD COLUMN gelesen TEXT;
+  `,
 ];
 
 /** Öffnet (bzw. erstellt) die Datenbank und bringt das Schema auf den neuesten Stand. */

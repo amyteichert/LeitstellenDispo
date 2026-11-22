@@ -164,6 +164,20 @@ describe('Schnittstelle für den Bot', () => {
     expect((await json(await server.anfrage('GET', '/bot/ereignisse?seit=1', { headers: BOT }))).daten.ereignisse).toHaveLength(0);
   });
 
+  it('„Gelesen“ aus Discord: Spieler bekommt einen Hinweis im Spiel', async () => {
+    const erstellt = await json(await server.anfrage('POST', '/fehlermeldung', { cookie: amy, body: { text: 'Pause-Knopf bitte', kontext: {} } }));
+    const id = erstellt.daten.id;
+    expect(typeof id).toBe('number');
+    const { daten } = await json(await server.anfrage('GET', '/bot/ereignisse?seit=0', { headers: BOT }));
+    expect(daten.ereignisse[0].daten.id).toBe(id);
+
+    expect((await server.anfrage('POST', `/bot/fehlermeldung/${id}/gelesen`, { body: { art: 'anschauen' } })).status).toBe(404);
+    expect((await server.anfrage('POST', '/bot/fehlermeldung/9999/gelesen', { headers: BOT, body: { art: 'anschauen' } })).status).toBe(404);
+    expect((await server.anfrage('POST', `/bot/fehlermeldung/${id}/gelesen`, { headers: BOT, body: { art: 'anschauen', von: 'Mod' } })).status).toBe(200);
+    const antworten = await json(await server.anfrage('GET', '/fehlermeldung/antworten', { cookie: amy }));
+    expect(antworten.daten.antworten).toMatchObject([{ id, art: 'gelesen', gelesen: 'anschauen' }]);
+  });
+
   it('Übersicht zählt Spieler online und verknüpfte Konten', async () => {
     await server.anfrage('PUT', '/spielstand', { body: createNeuesSpiel(), cookie: amy });
     await verknuepfe(gast);

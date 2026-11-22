@@ -56,7 +56,7 @@ describe('Fehler melden – Antwort an den Spieler', () => {
     const res = await server.anfrage('POST', `/team/fehlermeldungen/${id}/erledigt`, { cookie: team, body: { erledigt: true, antwort: 'Geht jetzt, danke!' } });
     expect((await res.json()).meldungen[0]).toMatchObject({ erledigt: true, antwort: 'Geht jetzt, danke!' });
 
-    expect(await antworten(spieler)).toEqual([{ id, text: 'Kann man Fahrzeuge verkaufen?', antwort: 'Geht jetzt, danke!' }]);
+    expect(await antworten(spieler)).toEqual([{ id, art: 'erledigt', gelesen: null, text: 'Kann man Fahrzeuge verkaufen?', antwort: 'Geht jetzt, danke!' }]);
     // Andere sehen die Antwort nicht und können sie nicht wegklicken
     expect(await antworten(team)).toEqual([]);
     expect((await server.anfrage('POST', '/fehlermeldung/antworten/gesehen', { cookie: team, body: { ids: [id] } })).status).toBe(204);
@@ -98,5 +98,35 @@ describe('Fehler melden – Mail an den Owner', () => {
     expect(mails[0].betreff).toBe('Neue Meldung von Disponent');
     expect(mails[0].text).toContain('Fahrzeug bleibt auf der Karte hängen');
     expect(mails[0].text).toContain('https://spiel.example');
+  });
+});
+
+describe('Fehler melden – „Gelesen“ vom Team', () => {
+  const antworten = async (cookie: string) => (await (await server.anfrage('GET', '/fehlermeldung/antworten', { cookie })).json()).antworten;
+  const ersteId = async () => (await (await server.anfrage('GET', '/team/fehlermeldungen', { cookie: team })).json()).meldungen[0].id;
+
+  it('Spieler bekommt „gelesen“ als Hinweis, später zusätzlich „erledigt“', async () => {
+    await melden('Pause-Knopf wäre toll', spieler);
+    const id = await ersteId();
+
+    const res = await server.anfrage('POST', `/team/fehlermeldungen/${id}/gelesen`, { cookie: team, body: { art: 'umsetzen' } });
+    expect((await res.json()).meldungen[0]).toMatchObject({ gelesen: 'umsetzen', erledigt: false });
+    expect(await antworten(spieler)).toEqual([{ id, art: 'gelesen', gelesen: 'umsetzen', text: 'Pause-Knopf wäre toll', antwort: null }]);
+
+    await server.anfrage('POST', '/fehlermeldung/antworten/gesehen', { cookie: spieler, body: { ids: [id] } });
+    expect(await antworten(spieler)).toEqual([]);
+
+    await server.anfrage('POST', `/team/fehlermeldungen/${id}/erledigt`, { cookie: team, body: { erledigt: true } });
+    expect(await antworten(spieler)).toMatchObject([{ id, art: 'erledigt' }]);
+    // Erledigte Meldungen kann man nicht mehr auf „gelesen“ setzen
+    expect((await server.anfrage('POST', `/team/fehlermeldungen/${id}/gelesen`, { cookie: team, body: { art: 'anschauen' } })).status).toBe(400);
+  });
+
+  it('lehnt unbekannte Arten ab und ist nur fürs Team', async () => {
+    await melden('Karte flackert', spieler);
+    const id = await ersteId();
+    expect((await server.anfrage('POST', `/team/fehlermeldungen/${id}/gelesen`, { cookie: team, body: { art: 'quatsch' } })).status).toBe(400);
+    expect((await server.anfrage('POST', `/team/fehlermeldungen/${id}/gelesen`, { cookie: spieler, body: { art: 'anschauen' } })).status).toBe(403);
+    expect(await antworten(spieler)).toEqual([]);
   });
 });

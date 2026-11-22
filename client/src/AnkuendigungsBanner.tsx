@@ -1,17 +1,28 @@
 import { useEffect, useState } from 'react';
 import type { Ankuendigung } from '@leitstellendispo/shared';
-import { ladeAnkuendigung } from './konto';
+import { ANKUENDIGUNG_GEAENDERT, ladeAnkuendigung } from './konto';
 
 const AUSGEBLENDET_KEY = 'leitstellendispo.ankuendigung-ausgeblendet';
-const NEU_LADEN_MS = 20 * 1000; // kurz, damit z. B. „Neustart in 1 Minute“ rechtzeitig ankommt
+/** Jede neue Ankündigung erscheint einmal als Fenster in der Mitte, danach nur noch als Banner oben */
+const FENSTER_GESEHEN_KEY = 'leitstellendispo.ankuendigung-fenster-gesehen';
+const NEU_LADEN_MS = 15 * 1000; // kurz, damit z. B. „Neustart in 1 Minute“ rechtzeitig ankommt
 
 const SYMBOL: Record<Ankuendigung['art'], string> = { info: 'i', wartung: '!', wichtig: '⚠' };
 
-const istAusgeblendet = (ankuendigung: Ankuendigung) => {
+const TITEL: Record<Ankuendigung['art'], string> = { info: '📢 Neuigkeiten', wartung: '🔧 Wartung', wichtig: '⚠️ Wichtig' };
+
+const gespeichertFuer = (key: string, ankuendigung: Ankuendigung) => {
   try {
-    return localStorage.getItem(AUSGEBLENDET_KEY) === ankuendigung.zeit;
+    return localStorage.getItem(key) === ankuendigung.zeit;
   } catch {
     return false;
+  }
+};
+const merke = (key: string, ankuendigung: Ankuendigung) => {
+  try {
+    localStorage.setItem(key, ankuendigung.zeit);
+  } catch {
+    // Dann nur bis zum Neuladen gemerkt
   }
 };
 
@@ -19,32 +30,58 @@ const istAusgeblendet = (ankuendigung: Ankuendigung) => {
 export default function AnkuendigungsBanner() {
   const [ankuendigung, setAnkuendigung] = useState<Ankuendigung | null>(null);
   const [ausgeblendet, setAusgeblendet] = useState(false);
+  const [fensterOffen, setFensterOffen] = useState(false);
 
   useEffect(() => {
     let aktiv = true;
     const laden = () => ladeAnkuendigung().then((neu) => {
       if (!aktiv) return;
       setAnkuendigung(neu);
-      setAusgeblendet(neu ? istAusgeblendet(neu) : false);
+      setAusgeblendet(neu ? gespeichertFuer(AUSGEBLENDET_KEY, neu) : false);
+      setFensterOffen(neu ? !gespeichertFuer(FENSTER_GESEHEN_KEY, neu) && !gespeichertFuer(AUSGEBLENDET_KEY, neu) : false);
     });
     void laden();
     const interval = setInterval(() => void laden(), NEU_LADEN_MS);
+    // Sofort nachladen: Team hat sie gerade geändert, oder der Tab war im Hintergrund (Browser bremsen dort die Abfrage)
+    const sofort = () => void laden();
+    const beiSichtbar = () => { if (document.visibilityState === 'visible') sofort(); };
+    window.addEventListener(ANKUENDIGUNG_GEAENDERT, sofort);
+    window.addEventListener('online', sofort);
+    document.addEventListener('visibilitychange', beiSichtbar);
     return () => {
       aktiv = false;
       clearInterval(interval);
+      window.removeEventListener(ANKUENDIGUNG_GEAENDERT, sofort);
+      window.removeEventListener('online', sofort);
+      document.removeEventListener('visibilitychange', beiSichtbar);
     };
   }, []);
 
   if (!ankuendigung || ausgeblendet) return null;
 
   const ausblenden = () => {
-    try {
-      localStorage.setItem(AUSGEBLENDET_KEY, ankuendigung.zeit);
-    } catch {
-      // Dann nur bis zum Neuladen ausgeblendet
-    }
+    merke(AUSGEBLENDET_KEY, ankuendigung);
     setAusgeblendet(true);
   };
+  const fensterSchliessen = () => {
+    merke(FENSTER_GESEHEN_KEY, ankuendigung);
+    setFensterOffen(false);
+  };
+
+  if (fensterOffen) {
+    return (
+      <div className="ruf-fenster__hintergrund" onClick={fensterSchliessen}>
+        <div className="ruf-fenster" role="dialog" aria-label="Ankündigung" onClick={(e) => e.stopPropagation()}>
+          <div className="ruf-fenster__kopf">
+            <h3>{TITEL[ankuendigung.art]}</h3>
+            <button type="button" className="btn" onClick={fensterSchliessen} aria-label="Schließen">✕</button>
+          </div>
+          <p style={{ whiteSpace: 'pre-wrap' }}>{ankuendigung.text}</p>
+          <button type="button" className="btn btn--primary" onClick={fensterSchliessen} autoFocus>Alles klar</button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className={`ankuendigung ankuendigung--${ankuendigung.art}`} role="status">

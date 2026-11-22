@@ -60,6 +60,8 @@ export function erstelleApp(db: Datenbank, optionen: { bcryptRunden?: number; fr
 
   // Ankündigung des Teams – für alle sichtbar (auch auf der Anmeldeseite möglich)
   app.get('/api/ankuendigung', (_req, res) => {
+    // Nie zwischenspeichern (Browser/nginx) – eine neue Ankündigung soll ohne Neuladen ankommen
+    res.setHeader('Cache-Control', 'no-store');
     res.json({ ankuendigung: ladeAnkuendigung(db) });
   });
 

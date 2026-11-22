@@ -7,6 +7,7 @@ import type {
   KontoNotiz,
   Fehlermeldung,
   FehlermeldungKontext,
+  MeldungGelesen,
   MeldungsAntwort,
   SchichtzulageAntwort,
   SpielstandKorrektur,
@@ -139,6 +140,8 @@ export const teamApi = {
   fehlermeldungen: () => team<{ meldungen: Fehlermeldung[] }>('GET', '/fehlermeldungen').then((d) => d.meldungen),
   fehlermeldungErledigt: (id: number, erledigt: boolean, antwort?: string) =>
     team<{ meldungen: Fehlermeldung[] }>('POST', `/fehlermeldungen/${id}/erledigt`, { erledigt, antwort }).then((d) => d.meldungen),
+  fehlermeldungGelesen: (id: number, art: MeldungGelesen) =>
+    team<{ meldungen: Fehlermeldung[] }>('POST', `/fehlermeldungen/${id}/gelesen`, { art }).then((d) => d.meldungen),
   uebersicht: () => team<{ uebersicht: TeamUebersicht }>('GET', '/uebersicht').then((d) => d.uebersicht),
   konten: (suche = '') => team<{ konten: TeamKonto[] }>('GET', `/konten?suche=${encodeURIComponent(suche)}`).then((d) => d.konten),
   spielstand: (id: number) => team<{ zusammenfassung: SpielstandZusammenfassung | null }>('GET', `/konten/${id}/spielstand`).then((d) => d.zusammenfassung),
@@ -159,8 +162,11 @@ export const teamApi = {
   notizAnlegen: (id: number, text: string) => team<{ notizen: KontoNotiz[] }>('POST', `/konten/${id}/notizen`, { text }).then((d) => d.notizen),
   notizLoeschen: (notizId: number) => team<null>('DELETE', `/notizen/${notizId}`),
   ankuendigungSetzen: (text: string, art: AnkuendigungsArt, dauerMinuten: number | null) =>
-    team<{ ankuendigung: Ankuendigung }>('PUT', '/ankuendigung', { text, art, dauerMinuten }).then((d) => d.ankuendigung),
-  ankuendigungEntfernen: () => team<null>('DELETE', '/ankuendigung'),
+    team<{ ankuendigung: Ankuendigung }>('PUT', '/ankuendigung', { text, art, dauerMinuten }).then((d) => {
+      meldeAnkuendigungGeaendert();
+      return d.ankuendigung;
+    }),
+  ankuendigungEntfernen: () => team<null>('DELETE', '/ankuendigung').then(meldeAnkuendigungGeaendert),
   korrekturen: (id: number) =>
     team<{ korrekturen: Array<SpielstandKorrektur & { eingebucht: number }> }>('GET', `/konten/${id}/korrekturen`).then((d) => d.korrekturen),
   korrekturAnlegen: (id: number, korrektur: { guthabenAenderung: number; rufNeu: number | null; grund: string }) =>
@@ -172,9 +178,13 @@ export const teamApi = {
 // ---------------------------------------------------------------------------
 
 /** Aktuelle Ankündigung – `null`, wenn keine aktiv ist oder der Server nicht erreichbar ist (nur Komfort). */
+/** Das Banner im selben Tab lädt sofort neu, wenn das Team die Ankündigung ändert */
+export const ANKUENDIGUNG_GEAENDERT = 'leitstellendispo:ankuendigung-geaendert';
+const meldeAnkuendigungGeaendert = () => window.dispatchEvent(new Event(ANKUENDIGUNG_GEAENDERT));
+
 export async function ladeAnkuendigung(): Promise<Ankuendigung | null> {
   try {
-    const res = await fetch('/api/ankuendigung');
+    const res = await fetch('/api/ankuendigung', { cache: 'no-store' });
     if (!res.ok) return null;
     return ((await res.json()) as { ankuendigung: Ankuendigung | null }).ankuendigung;
   } catch {
@@ -182,7 +192,7 @@ export async function ladeAnkuendigung(): Promise<Ankuendigung | null> {
   }
 }
 
-/** Erledigte eigene Meldungen, die noch nicht gesehen wurden (leer, wenn der Server nicht erreichbar ist – nur Komfort). */
+/** Gelesene/erledigte eigene Meldungen, die noch nicht gesehen wurden (leer, wenn der Server nicht erreichbar ist – nur Komfort). */
 export async function ladeMeldungsAntworten(): Promise<MeldungsAntwort[]> {
   try {
     const res = await fetch('/api/fehlermeldung/antworten');

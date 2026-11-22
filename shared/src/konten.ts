@@ -338,14 +338,24 @@ export interface Fehlermeldung {
   erledigt: boolean;
   /** Kurze Antwort des Teams an den Spieler (beim Erledigen) */
   antwort: string | null;
+  /** Vom Team gelesen (im Spiel oder über Discord) – und was damit passiert; null = noch nicht gelesen */
+  gelesen: MeldungGelesen | null;
 }
+
+/** „Gelesen“ des Teams: Idee wird umgesetzt bzw. Fehler wird angeschaut */
+export type MeldungGelesen = 'umsetzen' | 'anschauen';
+export const MELDUNG_GELESEN_ARTEN: readonly MeldungGelesen[] = ['umsetzen', 'anschauen'];
+export const istMeldungGelesen = (wert: unknown): wert is MeldungGelesen => MELDUNG_GELESEN_ARTEN.includes(wert as MeldungGelesen);
 
 /** Höchstens so lang darf die Antwort des Teams auf eine Meldung sein */
 export const FEHLERMELDUNG_ANTWORT_MAX_LAENGE = 300;
 
-/** Erledigte Meldung, die der Spieler noch nicht gesehen hat – er bekommt sie als Hinweis im Spiel */
+/** Gelesene oder erledigte Meldung, die der Spieler noch nicht gesehen hat – er bekommt sie als Hinweis im Spiel */
 export interface MeldungsAntwort {
   id: number;
+  /** Erledigt geht vor gelesen */
+  art: 'erledigt' | 'gelesen';
+  gelesen: MeldungGelesen | null;
   /** Anfang seiner Meldung, damit er sie wiedererkennt */
   text: string;
   antwort: string | null;

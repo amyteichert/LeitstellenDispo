@@ -10,6 +10,7 @@ import { ladeKonto, nurAngemeldet, spielBasisUrl } from './auth.js';
 import type { KontenDienst } from './konten.js';
 import type { Ereignisse } from './ereignisse.js';
 import { ZAEHLT_IN_RANGLISTE } from './bestenliste.js';
+import { setzeFehlermeldungGelesen } from './fehlermeldungen.js';
 
 export interface DiscordOptionen {
   /** Application-ID des Discord-Bots (DISCORD_CLIENT_ID) */
@@ -284,8 +285,17 @@ export function erstelleBotRouter(db: Datenbank, ereignisse: Ereignisse, optione
     if (text.length < 5) return void res.status(400).json({ fehler: 'Text fehlt.' });
     const verknuepft = typeof req.body?.discordId === 'string' ? (sql.perDiscord.get(req.body.discordId) as SpielerZeile | undefined) : undefined;
     const kontext = { version: '', ansicht: 'Discord', geraet: 'Discord (/bug)', bildschirm: '', spielstand: null };
-    sql.fehlermeldung.run(verknuepft?.id ?? null, verknuepft ? verknuepft.name : `${name} (Discord)`, text, JSON.stringify(kontext));
-    res.status(201).json({ ok: true });
+    const id = Number(sql.fehlermeldung.run(verknuepft?.id ?? null, verknuepft ? verknuepft.name : `${name} (Discord)`, text, JSON.stringify(kontext)).lastInsertRowid);
+    res.status(201).json({ ok: true, id });
+  });
+
+  // „Gelesen“-Knopf in Discord: body { art: 'umsetzen' | 'anschauen', von?: Discord-Name } – Spieler bekommt einen Hinweis im Spiel
+  router.post('/fehlermeldung/:id/gelesen', (req, res) => {
+    const fehler = setzeFehlermeldungGelesen(db, Number(req.params.id), req.body?.art);
+    if (fehler) return void res.status(fehler === 'Meldung nicht gefunden.' ? 404 : 400).json({ fehler });
+    const von = typeof req.body?.von === 'string' ? req.body.von.slice(0, 100) : 'Discord';
+    sql.protokollieren.run(`${von} (Discord)`, 'Meldung gelesen', null, `#${req.params.id}: ${req.body.art}`);
+    res.json({ ok: true });
   });
 
   return router;

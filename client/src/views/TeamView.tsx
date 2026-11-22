@@ -23,6 +23,7 @@ import {
   type TeamProtokollEintrag,
   type TeamKonto,
   type Fehlermeldung,
+  type MeldungGelesen,
   type OffenesBild,
   type TeamUebersicht,
   type UserRole,
@@ -471,6 +472,13 @@ function Fehlermeldungen({ melde }: { melde: Melde }) {
         if (!m.erledigt) melde('ok', `Erledigt – ${m.name} bekommt beim nächsten Spielen einen Hinweis.`);
       })
       .catch((e) => melde('fehler', fehlerText(e)));
+  const gelesen = (m: Fehlermeldung, art: MeldungGelesen) =>
+    teamApi.fehlermeldungGelesen(m.id, art)
+      .then((liste) => {
+        setMeldungen(liste);
+        melde('ok', `Gelesen – ${m.name} bekommt beim nächsten Spielen einen Hinweis.`);
+      })
+      .catch((e) => melde('fehler', fehlerText(e)));
 
   if (!meldungen) return <p className="einsatz-eintrag__zeile">Lade …</p>;
   return (
@@ -482,7 +490,7 @@ function Fehlermeldungen({ melde }: { melde: Melde }) {
         <ul className="team-protokoll">
           {meldungen.map((m) => (
             <li key={m.id} style={m.erledigt ? { opacity: 0.55 } : undefined}>
-              <small>{datum(m.zeit)} · <strong>{m.name}</strong>{m.erledigt && ' · erledigt'}</small>
+              <small>{datum(m.zeit)} · <strong>{m.name}</strong>{m.erledigt ? ' · erledigt' : m.gelesen && ` · gelesen (${m.gelesen === 'umsetzen' ? 'wird umgesetzt' : 'wird angeschaut'})`}</small>
               <span style={{ whiteSpace: 'pre-wrap' }}>{m.text}</span>
               <small>
                 V{m.kontext.version} · Ansicht {m.kontext.ansicht} · {m.kontext.bildschirm}
@@ -501,9 +509,17 @@ function Fehlermeldungen({ melde }: { melde: Melde }) {
                   />
                 </label>
               )}
-              <button type="button" className="btn btn--klein" style={{ justifySelf: 'start' }} onClick={() => void umschalten(m)}>
-                {m.erledigt ? 'Wieder öffnen' : 'Erledigt'}
-              </button>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                {!m.erledigt && !m.gelesen && (
+                  <>
+                    <button type="button" className="btn btn--klein" onClick={() => void gelesen(m, 'umsetzen')}>Gelesen · wird umgesetzt</button>
+                    <button type="button" className="btn btn--klein" onClick={() => void gelesen(m, 'anschauen')}>Gelesen · schauen wir an</button>
+                  </>
+                )}
+                <button type="button" className="btn btn--klein" onClick={() => void umschalten(m)}>
+                  {m.erledigt ? 'Wieder öffnen' : 'Erledigt'}
+                </button>
+              </div>
             </li>
           ))}
         </ul>

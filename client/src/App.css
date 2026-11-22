@@ -2584,6 +2584,8 @@
 .ankuendigung--wartung { border-left-color: #f59e0b; }
 .ankuendigung--wichtig { border-left-color: #ef4444; }
 .ankuendigung--erledigt { border-left-color: #22c55e; }
+/* Hinweise im Fenster in der Mitte (Antworten auf Meldungen) */
+.ruf-fenster .ankuendigung { margin: 10px 0; }
 .ankuendigung__schliessen {
   min-width: 32px;
   min-height: 32px;

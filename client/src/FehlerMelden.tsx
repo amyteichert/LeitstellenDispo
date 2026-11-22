@@ -35,7 +35,7 @@ export default function FehlerMelden({ ansicht, onClose }: { ansicht: string; on
         </div>
         {status === 'gesendet' ? (
           <>
-            <p>Danke! Deine Meldung ist beim Team angekommen.</p>
+            <p>Danke für die Meldung! Das Team kümmert sich drum. Sobald wir sie gelesen haben, bekommst du hier im Spiel Bescheid.</p>
             <button type="button" className="btn btn--primary" onClick={onClose}>Schließen</button>
           </>
         ) : (
