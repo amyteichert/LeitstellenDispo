@@ -5,6 +5,8 @@ import {
   ermittleOrtFuerWache,
   formatAdresse,
   leseOrtAusText,
+  mitEchterStrasse,
+  ortsArtVon,
 } from './adressen.js';
 import { findeEinsatzVorlage } from './daten.js';
 import { createSpielEinsatz, erzeugeEinsatzort, erzeugeZufallsEinsatz } from './einsatzErzeugung.js';
@@ -18,6 +20,27 @@ const folge = (...werte: number[]) => {
 };
 
 describe('Adressen', () => {
+  it('ersetzt den Platzhalter durch die echte Straße am Einsatzort', () => {
+    const ort = { plz: '14467', ort: 'Potsdam' };
+    expect(mitEchterStrasse({ strasse: 'Hauptstraße', hausnummer: '12', ...ort }, ['Brandenburger Straße', 'Lindenstraße']))
+      .toEqual({ strasse: 'Brandenburger Straße', hausnummer: '12', ...ort });
+    expect(mitEchterStrasse({ strasse: 'Hauptstraße (Höhe Nr. 7)', ...ort }, ['Zeppelinstraße']))
+      .toEqual({ strasse: 'Zeppelinstraße (Höhe Nr. 7)', ...ort });
+    expect(mitEchterStrasse({ strasse: 'Hauptstraße / Ecke Schulstraße', ...ort }, ['Breite Straße', 'Breite Straße', ' Dortustraße ']))
+      .toEqual({ strasse: 'Breite Straße / Ecke Dortustraße', ...ort });
+    // Kreuzung, aber nur eine echte Straße in der Nähe: dann „Höhe Nr.“ statt erfundener Ecke
+    expect(mitEchterStrasse({ strasse: 'Hauptstraße / Ecke Schulstraße', ...ort }, ['Breite Straße'], () => 0.5).strasse)
+      .toBe('Breite Straße (Höhe Nr. 41)');
+    const ohneNamen = { strasse: 'Hauptstraße', hausnummer: '3', ...ort };
+    expect(mitEchterStrasse(ohneNamen, ['', '  '])).toBe(ohneNamen);
+  });
+
+  it('erkennt die Ortsart an der erzeugten Adresse', () => {
+    expect(ortsArtVon(erzeugeAdresse({ ort: 'Potsdam' }, 'gebaeude'))).toBe('gebaeude');
+    expect(ortsArtVon(erzeugeAdresse({ ort: 'Potsdam' }, 'strasse'))).toBe('strasse');
+    expect(ortsArtVon(erzeugeAdresse({ ort: 'Potsdam' }, 'kreuzung'))).toBe('kreuzung');
+  });
+
   it('formatiert Adressen wie auf einem Einsatzfax', () => {
     expect(formatAdresse({ strasse: 'Musterstraße', hausnummer: '17', plz: '14770', ort: 'Brandenburg an der Havel' }))
       .toBe('Musterstraße 17, 14770 Brandenburg an der Havel');

@@ -97,6 +97,8 @@ import {
   getVerkaufsSperre,
   verkaufeFahrzeug,
   erzeugeZufallsEinsatz,
+  formatAdresse,
+  mitEchterStrasse,
   erzeugeMitAbstand,
   hatEigenesKrankenhaus,
   EIGENES_KRANKENHAUS,
@@ -491,14 +493,21 @@ export function useSpiel(optionen: UseSpielOptionen = {}) {
   const eigenesKrankenhaus = hatEigenesKrankenhaus(krankenhaeuser);
   const erzeugungRef = useRef({ locations, vehicles, wetter: 'klar' as Wetter, krankenhaeuser, xp: laufbahn.xp });
   erzeugungRef.current = { locations, vehicles, wetter: optionen.wetter ?? 'klar', krankenhaeuser, xp: laufbahn.xp };
-  /** Einsatzort auf die nächste Straße verschieben (nicht im Wasser/Wald), solange noch niemand alarmiert ist. */
+  /**
+   * Einsatzort auf die nächste Straße verschieben (nicht im Wasser/Wald) und den echten Straßennamen
+   * als Adresse übernehmen – solange noch niemand alarmiert ist.
+   */
   const strasseNachziehen = (einsatz: SpielEinsatz) => {
     if (einsatz.verlegung) return;
-    void aufStrasseSetzen(einsatz.coords).then((coords) => {
-      if (coords === einsatz.coords) return;
-      setIncidents((current) => current.map((incident) => (incident.id === einsatz.id && incident.alarmedVehicles.length === 0
-        ? { ...incident, coords }
-        : incident)));
+    void aufStrasseSetzen(einsatz.coords).then(({ coords, strassen }) => {
+      if (coords === einsatz.coords && strassen.length === 0) return;
+      setIncidents((current) => current.map((incident) => {
+        if (incident.id !== einsatz.id || incident.alarmedVehicles.length > 0) return incident;
+        const adresse = incident.adresse ? mitEchterStrasse(incident.adresse, strassen) : undefined;
+        return adresse && adresse !== incident.adresse
+          ? { ...incident, coords, adresse, address: formatAdresse(adresse) }
+          : { ...incident, coords };
+      }));
     });
   };
 

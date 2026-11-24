@@ -1,9 +1,9 @@
 /**
  * Adressen für Einsatzorte, Wachen und Krankenhäuser.
  *
- * Aktuell werden glaubwürdige Adressen erzeugt (häufige deutsche Straßennamen + PLZ/Ort der Wache).
- * Später kann `erzeugeAdresse` durch eine echte Quelle (OSM / Reverse-Geocoding) ersetzt werden –
- * das Datenformat `Adresse` bleibt dabei gleich.
+ * Neue Einsätze bekommen zuerst eine glaubwürdige Platzhalter-Adresse (häufige deutsche Straßennamen + PLZ/Ort der Wache).
+ * Sobald der Einsatzort auf die nächste echte Straße geschoben wurde, ersetzt `mitEchterStrasse` den Platzhalter
+ * durch den echten Straßennamen (aus OpenStreetMap) – das Datenformat `Adresse` bleibt dabei gleich.
  */
 import { haversineKm } from './geo.js';
 import type { Koordinaten, MapLocation } from './typen.js';
@@ -103,6 +103,29 @@ export function erzeugeAdresse(
     return { strasse: `${strasse} (Höhe Nr. ${1 + Math.floor(zufall() * 80)})`, ...ortsangabe };
   }
   return { strasse, hausnummer: String(1 + Math.floor(zufall() * 120)), ...ortsangabe };
+}
+
+/** Erkennt an der Form einer erzeugten Adresse, wie der Einsatzort beschrieben wird. */
+export function ortsArtVon(adresse: Adresse): OrtsArt {
+  if (adresse.hausnummer) return 'gebaeude';
+  if (adresse.strasse.includes(' / Ecke ')) return 'kreuzung';
+  return 'strasse';
+}
+
+/**
+ * Ersetzt den Platzhalter-Straßennamen durch echte Straßen am Einsatzort (nächste Straße zuerst).
+ * Hausnummer, PLZ und Ort bleiben. Kreuzung braucht zwei verschiedene Straßen – sonst wird es „Höhe Nr.“.
+ * Ohne brauchbaren Namen bleibt die Adresse unverändert.
+ */
+export function mitEchterStrasse(adresse: Adresse, strassen: string[], zufall: () => number = Math.random): Adresse {
+  const namen = [...new Set(strassen.map((name) => name.trim()).filter(Boolean))];
+  if (namen.length === 0) return adresse;
+  const [erste, zweite] = namen;
+  const art = ortsArtVon(adresse);
+  if (art === 'gebaeude') return { ...adresse, strasse: erste };
+  if (art === 'kreuzung' && zweite) return { ...adresse, strasse: `${erste} / Ecke ${zweite}` };
+  const hoehe = adresse.strasse.match(/Höhe Nr\. (\d+)/)?.[1] ?? String(1 + Math.floor(zufall() * 80));
+  return { ...adresse, strasse: `${erste} (Höhe Nr. ${hoehe})` };
 }
 
 /**
