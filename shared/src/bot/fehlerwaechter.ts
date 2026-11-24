@@ -3,7 +3,8 @@
  * niemals verletzt sein dürfen. Reine, defensiv geschriebene Prüffunktion –
  * sie darf selbst mit beschädigten Daten niemals abstürzen.
  */
-import { getAktiveZuteilungen, EINSATZ_STATUS_LABELS } from '../daten.js';
+import { EINSATZ_STATUS_LABELS } from '../daten.js';
+import { getAktiveZuteilungen } from '../einsatzVerlauf.js';
 import type { SpielEinsatz } from '../daten.js';
 import type { Spielstand } from '../spielstand.js';
 

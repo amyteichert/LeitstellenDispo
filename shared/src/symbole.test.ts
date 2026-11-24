@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ALLE_EINSATZ_VORLAGEN } from './daten.js';
+import { ALLE_EINSATZ_VORLAGEN } from './einsatzVorlagen.js';
 import { getEinsatzSymbol } from './symbole.js';
 
 const symbol = (stichwort: string, meldebild: string) => getEinsatzSymbol({ stichwort, meldebild });

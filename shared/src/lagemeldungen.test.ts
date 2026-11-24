@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { getBearbeitungsMs } from './konfig.js';
 import { alarmiereFahrzeuge } from './alarmierung.js';
-import { eskaliereEinsatz, findeEinsatzVorlage, fuegeMeldungenHinzu, istEskaliert, istWichtigeMeldung } from './daten.js';
+import { fuegeMeldungenHinzu, istEskaliert, istWichtigeMeldung } from './daten.js';
+import { findeEinsatzVorlage } from './einsatzVorlagen.js';
+import { eskaliereEinsatz } from './einsatzVerlauf.js';
 import { berechneSpielTick } from './spielTick.js';
 import { T0, einsatz, fahrzeug, krankenhaus, wache } from './testHilfen.js';
 

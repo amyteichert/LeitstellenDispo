@@ -1,4 +1,5 @@
-import { getAktiveZuteilungen, getEinsatzVersorgung, type AlarmiertesFahrzeug, type SpielEinsatz } from './daten.js';
+import { type AlarmiertesFahrzeug, type SpielEinsatz } from './daten.js';
+import { getAktiveZuteilungen, getEinsatzVersorgung } from './einsatzVerlauf.js';
 import {
   fahrzeugErfuelltBedarf,
   istLuftfahrzeug,

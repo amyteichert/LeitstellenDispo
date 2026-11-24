@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { ALLE_EINSATZ_VORLAGEN, istVorlageErfuellbar } from './daten.js';
+import { ALLE_EINSATZ_VORLAGEN } from './einsatzVorlagen.js';
+import { istVorlageErfuellbar } from './einsatzVerlauf.js';
 import {
   BEDARFS_KLASSEN,
   FAHRZEUG_TYPEN,

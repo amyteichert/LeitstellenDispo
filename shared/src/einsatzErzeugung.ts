@@ -1,14 +1,13 @@
 import { erzeugeAdresse, ermittleOrtFuerWache, formatAdresse, type Ort } from './adressen.js';
+import { type EinsatzVorlage, type SpielEinsatz } from './daten.js';
+import { EINSATZ_VORLAGEN } from './einsatzVorlagen.js';
 import {
-  EINSATZ_VORLAGEN,
   istVorlageErfuellbar,
   planeEskalation,
   istMeldungUnklar,
   planeEskalationOhneAlarm,
   planeLageBeimEintreffen,
-  type EinsatzVorlage,
-  type SpielEinsatz,
-} from './daten.js';
+} from './einsatzVerlauf.js';
 import { FAHRZEUG_TYPEN, fahrzeugErfuelltBedarf, istAusreichendBesetzt } from './fahrzeuge.js';
 import { EINSATZDRUCK_CONFIG, INCIDENT_SPAWN_CONFIG, UNBESETZT_HAEUFIGKEIT } from './konfig.js';
 import { waehleGewichtet, type AufkommenKontext } from './aufkommen.js';

@@ -3,13 +3,9 @@
  * Reine Funktionen – der Client speichert im Browser, ein Server könnte dasselbe Format nutzen.
  */
 import { erzeugeAdresse, ermittleOrtFuerWache, formatAdresse } from './adressen.js';
-import {
-  START_GUTHABEN,
-  findeEinsatzVorlage,
-  getAktiveZuteilungen,
-  type AbgeschlossenerSpielEinsatz,
-  type SpielEinsatz,
-} from './daten.js';
+import { START_GUTHABEN, type AbgeschlossenerSpielEinsatz, type SpielEinsatz } from './daten.js';
+import { findeEinsatzVorlage } from './einsatzVorlagen.js';
+import { getAktiveZuteilungen } from './einsatzVerlauf.js';
 import type { Krankenhaus } from './krankenhaeuser.js';
 import { erzeugePatienten } from './patienten.js';
 import { RUF_CONFIG } from './bewertung.js';

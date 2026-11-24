@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { alarmiereFahrzeuge } from './alarmierung.js';
 import { erzeugeDruckEinsatz, erzeugeZufallsEinsatz, getDruckVorlagen, istVorlageKaufbar } from './einsatzErzeugung.js';
-import { findeEinsatzVorlage, istVorlageErfuellbar } from './daten.js';
+import { findeEinsatzVorlage } from './einsatzVorlagen.js';
+import { istVorlageErfuellbar } from './einsatzVerlauf.js';
 import { EINSATZDRUCK_CONFIG } from './konfig.js';
 import { berechneSpielTick } from './spielTick.js';
 import { T0, einsatz, fahrzeug, wache } from './testHilfen.js';

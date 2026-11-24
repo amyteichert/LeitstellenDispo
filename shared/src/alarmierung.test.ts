@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { GAME_CONFIG } from './konfig.js';
 import { alarmiereFahrzeuge, getWarteLage, kannRueckalarmieren, rueckalarmiereAlle, rueckalarmiereFahrzeug } from './alarmierung.js';
-import { getAktiveZuteilungen } from './daten.js';
+import { getAktiveZuteilungen } from './einsatzVerlauf.js';
 import { getFahrzeugGeschwindigkeit } from './fahrzeuge.js';
 import { getFahrzeitSekunden } from './geo.js';
 import { T0, einsatz, fahrzeug, wache } from './testHilfen.js';

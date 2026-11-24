@@ -1,18 +1,20 @@
 import {
-  eskaliereEinsatz,
-  findeEinsatzVorlage,
   fuegeMeldungenHinzu,
-  getAktiveZuteilungen,
-  istVorlageErfuellbar,
   istWichtigeMeldung,
-  reduziereBedarf,
-  wendeNachforderungAn,
   type AbgeschlossenerSpielEinsatz,
   type EinsatzEntwarnung,
   type EinsatzMeldung,
   type EinsatzVorlage,
   type SpielEinsatz,
 } from './daten.js';
+import { findeEinsatzVorlage } from './einsatzVorlagen.js';
+import {
+  eskaliereEinsatz,
+  getAktiveZuteilungen,
+  istVorlageErfuellbar,
+  reduziereBedarf,
+  wendeNachforderungAn,
+} from './einsatzVerlauf.js';
 import {
   ergaenzeBedarf,
   formatBedarfsListe,

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { alarmiereFahrzeuge, erstelleAlarmVorschlag, getPassendeVerfuegbareFahrzeuge, istFahrzeugVerfuegbar } from './alarmierung.js';
-import { ALLE_EINSATZ_VORLAGEN, findeEinsatzVorlage, getEinsatzVersorgung } from './daten.js';
+import { ALLE_EINSATZ_VORLAGEN, findeEinsatzVorlage } from './einsatzVorlagen.js';
+import { getEinsatzVersorgung } from './einsatzVerlauf.js';
 import { fahrzeugErfuelltBedarf } from './fahrzeuge.js';
 import { berechneSpielTick } from './spielTick.js';
 import { T0, einsatz, fahrzeug, wache } from './testHilfen.js';

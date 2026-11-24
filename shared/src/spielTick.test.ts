@@ -3,7 +3,7 @@ import { getBearbeitungsMs } from './konfig.js';
 import { alarmiereFahrzeuge } from './alarmierung.js';
 import { berechneSpielTick } from './spielTick.js';
 import { getFahrzeugPosition } from './geo.js';
-import { findeEinsatzVorlage } from './daten.js';
+import { findeEinsatzVorlage } from './einsatzVorlagen.js';
 import { T0, einsatz, fahrzeug, wache } from './testHilfen.js';
 
 const locations = [wache()];

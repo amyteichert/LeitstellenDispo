@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { alarmiereFahrzeuge, istFahrzeugVerfuegbar } from './alarmierung.js';
-import { getEinsatzVersorgung } from './daten.js';
+import { getEinsatzVersorgung } from './einsatzVerlauf.js';
 import { getFahrzeugGeschwindigkeit } from './fahrzeuge.js';
 import { getFahrzeitSekunden, getFahrzeugPosition } from './geo.js';
 import { GAME_CONFIG } from './konfig.js';

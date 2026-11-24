@@ -1,5 +1,6 @@
 // Hilfsfunktionen nur für Tests (werden nicht im Spiel verwendet).
-import { findeEinsatzVorlage, type SpielEinsatz } from './daten.js';
+import { type SpielEinsatz } from './daten.js';
+import { findeEinsatzVorlage } from './einsatzVorlagen.js';
 import { createSpielEinsatz } from './einsatzErzeugung.js';
 import type { Krankenhaus } from './krankenhaeuser.js';
 import type { MapLocation, Vehicle } from './typen.js';

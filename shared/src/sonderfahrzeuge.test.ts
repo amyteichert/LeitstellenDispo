@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { getBearbeitungsMs } from './konfig.js';
 import { alarmiereFahrzeuge } from './alarmierung.js';
 import { erzeugeVerlegung, getAvailableIncidentTemplates } from './einsatzErzeugung.js';
-import { findeEinsatzVorlage } from './daten.js';
+import { findeEinsatzVorlage } from './einsatzVorlagen.js';
 import { fahrzeugErfuelltBedarf, getFahrzeugTyp, getStartfahrzeugTypen, istAusreichendBesetzt } from './fahrzeuge.js';
 import { findeVerlegungen, hatEigenesKrankenhaus } from './krankenhaeuser.js';
 import { getLehrgang } from './ausbildung.js';

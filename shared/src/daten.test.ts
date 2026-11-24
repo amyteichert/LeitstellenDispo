@@ -1,10 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import {
-  EINSATZ_VORLAGEN,
-  findeEinsatzVorlage,
-  getBedarfsAbdeckung,
-  istVorlageErfuellbar,
-} from './daten.js';
+import { EINSATZ_VORLAGEN, findeEinsatzVorlage } from './einsatzVorlagen.js';
+import { getBedarfsAbdeckung, istVorlageErfuellbar } from './einsatzVerlauf.js';
 import { FAHRZEUG_TYPEN, getFahrzeugKategorie, getFahrzeugTypenFuerWache } from './fahrzeuge.js';
 import { erzeugeZufallsEinsatz } from './einsatzErzeugung.js';
 import { haversineKm } from './geo.js';

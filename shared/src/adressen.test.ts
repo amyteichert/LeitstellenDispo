@@ -12,7 +12,7 @@ import {
   mitEchterStrasse,
   ortsArtVon,
 } from './adressen.js';
-import { findeEinsatzVorlage } from './daten.js';
+import { findeEinsatzVorlage } from './einsatzVorlagen.js';
 import { createSpielEinsatz, erzeugeEinsatzort, erzeugeZufallsEinsatz } from './einsatzErzeugung.js';
 import { haversineKm } from './geo.js';
 import { T0, fahrzeug, wache } from './testHilfen.js';
