@@ -10,7 +10,7 @@
   Das bringt den ganzen test-Stand live, auch Änderungen anderer Sitzungen – vorher kurz sagen, was alles mitgeht (`git log --oneline origin/feature/ruf-und-wachenverwaltung..origin/test`).
 - Ausnahme nur, wenn Amy ausdrücklich „direkt live“ sagt (z. B. dringender Fehler im Live-Spiel): dann auf beide pushen.
 - Falls die Umgebung einen anderen Branch vorgibt: trotzdem wie oben arbeiten.
-- `master` ist veraltet (Stand 07.10.2026) und wird nicht benutzt.
+- `master` wurde am 24.11.2026 gelöscht, Standard-Branch auf GitHub ist jetzt `feature/ruf-und-wachenverwaltung`.
 
 ## Server
 - Live: `/opt/leitstellendispo` (Dienst `leitstellendispo`, Port 3001). Test: `/opt/leitstellendispo-test` (Dienst `leitstellendispo-test`, Port 3002).
