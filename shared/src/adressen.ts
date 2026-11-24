@@ -131,27 +131,71 @@ export function mitEchterStrasse(adresse: Adresse, strassen: string[], zufall: (
 /** Adressdetails der OpenStreetMap-Rückwärtssuche (Nominatim, `addressdetails=1`) */
 export type OsmAdressDetails = Record<string, string | undefined>;
 
+/** Bundes-, Landes-, Staats- und Kreisstraßen ohne eigenen Namen („B 103“, „St 2274“, „K 12“) – dort gibt es keine Hausnummern. */
+const KLASSIFIZIERTE_STRASSE = /^(A|B|L|K|S|St|Kr|KS)\s?\d+[a-z]?$/;
+export const istKlassifizierteStrasse = (name: string) => KLASSIFIZIERTE_STRASSE.test(name.trim());
+
+const ersterName = (...namen: Array<string | undefined>) => namen.map((name) => name?.trim()).find(Boolean);
+
+/** Straßenname aus den OSM-Adressdetails (auch Fußgängerzone, Platz, Weg). */
+const osmStrassenName = (osm: OsmAdressDetails | undefined) =>
+  osm && ersterName(osm.road, osm.pedestrian, osm.square, osm.footway, osm.cycleway, osm.path);
+
+/** Ohne Straße: Flurname, Einzelhof oder Weiler – sonst „Außerorts“. */
+const osmFlurName = (osm: OsmAdressDetails) =>
+  ersterName(osm.locality, osm.isolated_dwelling, osm.farm, osm.hamlet) ?? 'Außerorts';
+
 /**
  * Macht aus der Platzhalter-Adresse eine echte: Straße, PLZ und Ort vom tatsächlichen Einsatzort
  * (Nominatim), weitere Straßen in der Nähe (OSRM) für Kreuzungen. Liegt der Einsatz im Nachbarort,
  * steht dort jetzt auch der Nachbarort – nicht mehr der Ort der Wache.
  * Bei Gebäuden wird eine echte Hausnummer übernommen, wenn sie zur Straße gehört.
+ * Gibt es gar keine Straße (Feld, Wald), steht dort der Flurname bzw. „Außerorts“ – nie ein erfundener Name.
  * Ohne brauchbare Angaben bleibt die Adresse unverändert.
  */
 export function mitEchterAdresse(adresse: Adresse, osm: OsmAdressDetails | undefined, strassen: string[] = [], zufall: () => number = Math.random): Adresse {
-  const osmStrasse = (osm?.road ?? osm?.pedestrian)?.trim();
-  const mitStrasse = mitEchterStrasse(adresse, osmStrasse ? [osmStrasse, ...strassen] : strassen, zufall);
+  const osmStrasse = osmStrassenName(osm);
+  const namen = [osmStrasse, ...strassen].map((name) => name?.trim()).filter((name): name is string => Boolean(name));
+  let ergebnis: Adresse;
+  if (namen.length > 0) {
+    ergebnis = { ...mitEchterStrasse(adresse, namen, zufall) };
+    // „B 103 48“ gibt es nicht: an klassifizierten Straßen weder Hausnummer noch „Höhe Nr.“
+    if (ortsArtVon(adresse) !== 'kreuzung' && istKlassifizierteStrasse(namen[0])) {
+      ergebnis.strasse = namen[0];
+      delete ergebnis.hausnummer;
+    }
+  } else if (osm) {
+    ergebnis = { ...adresse, strasse: osmFlurName(osm) };
+    delete ergebnis.hausnummer;
+  } else {
+    return adresse;
+  }
   const osmOrt = osm ? adresseAusOsm(osm) : null;
-  if (!osmOrt) return mitStrasse;
-  const ergebnis: Adresse = { ...mitStrasse, ort: osmOrt.ort, plz: osmOrt.plz ?? (osmOrt.ort === adresse.ort ? adresse.plz : undefined) };
-  if (ergebnis.plz === undefined) delete ergebnis.plz;
-  if (ortsArtVon(adresse) === 'gebaeude' && osmStrasse && ergebnis.strasse === osmStrasse && osm?.house_number) {
+  if (osmOrt) {
+    ergebnis.ort = osmOrt.ort;
+    const plz = osmOrt.plz ?? (osmOrt.ort === adresse.ort ? adresse.plz : undefined);
+    if (plz) ergebnis.plz = plz;
+    else delete ergebnis.plz;
+  }
+  if (ortsArtVon(adresse) === 'gebaeude' && osmStrasse && ergebnis.strasse === osmStrasse && osm?.house_number
+    && !istKlassifizierteStrasse(osmStrasse)) {
     ergebnis.hausnummer = osm.house_number.trim();
   }
   const gleich = ergebnis.strasse === adresse.strasse && ergebnis.hausnummer === adresse.hausnummer
     && ergebnis.plz === adresse.plz && ergebnis.ort === adresse.ort;
   return gleich ? adresse : ergebnis;
 }
+
+/** Liegt der Punkt laut OSM außerhalb Deutschlands? (Unbekannt = nein) */
+export const liegtImAusland = (osm: OsmAdressDetails | null | undefined) =>
+  Boolean(osm?.country_code) && osm?.country_code !== 'de';
+
+/**
+ * Taugt der Punkt nicht als Einsatzort? Ausland, oder OSM kennt dort gar keinen Ort (offenes Meer, Watt).
+ * `undefined` (Dienst nicht erreichbar) zählt nicht – dann weiß man es nicht.
+ */
+export const einsatzortUnbrauchbar = (osm: OsmAdressDetails | null | undefined) =>
+  osm !== undefined && (osm === null || liegtImAusland(osm) || !adresseAusOsm(osm));
 
 /**
  * Wandelt die Adressdetails der OpenStreetMap-Suche (Nominatim, `addressdetails=1`) in eine Adresse um.

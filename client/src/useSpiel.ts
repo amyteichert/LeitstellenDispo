@@ -99,6 +99,7 @@ import {
   erzeugeZufallsEinsatz,
   formatAdresse,
   mitEchterAdresse,
+  einsatzortUnbrauchbar,
   erzeugeMitAbstand,
   hatEigenesKrankenhaus,
   EIGENES_KRANKENHAUS,
@@ -497,38 +498,60 @@ export function useSpiel(optionen: UseSpielOptionen = {}) {
    * Einsatzort auf die nächste Straße verschieben (nicht im Wasser/Wald) – solange noch niemand alarmiert ist –
    * und die Platzhalter-Adresse durch die echte ersetzen: Straße, PLZ und Ort am Einsatzort (OpenStreetMap).
    * Die Adresse wird auch nach der Alarmierung noch korrigiert, damit nie ein erfundener Straßenname stehen bleibt.
+   * Scheitern die Dienste, wird mehrfach wiederholt; danach greift die regelmäßige Nachprüfung unten.
    */
+  const adresseInArbeit = useRef(new Set<string>());
+  const incidentsRef = useRef(incidents);
+  incidentsRef.current = incidents;
   const strasseNachziehen = (einsatz: SpielEinsatz) => {
-    if (einsatz.verlegung || einsatz.adresseGeprueft) return;
+    if (einsatz.verlegung || einsatz.adresseGeprueft || adresseInArbeit.current.has(einsatz.id)) return;
+    adresseInArbeit.current.add(einsatz.id);
     void (async () => {
-      const { coords, strassen } = await aufStrasseSetzen(einsatz.coords);
-      const osm = await adresseZuPosition(coords);
-      if (!osm && strassen.length === 0 && coords === einsatz.coords) return;
+      let { coords, strassen } = await aufStrasseSetzen(einsatz.coords);
+      let osm = await adresseZuPosition(coords);
+      // Über die Grenze gerutscht (Görlitz → Polen) oder im Watt gelandet? Schrittweise Richtung Wache zurückholen,
+      // solange niemand fährt – beim letzten Schritt direkt an die Wache (die liegt sicher in Deutschland).
+      const wache = erzeugungRef.current.locations.find((location) => location.id === einsatz.generatedByStationId);
+      const SCHRITTE = 5;
+      for (let schritt = 1; wache && einsatzortUnbrauchbar(osm) && schritt <= SCHRITTE; schritt++) {
+        const nochNichtAlarmiert = incidentsRef.current.find((incident) => incident.id === einsatz.id)?.alarmedVehicles.length === 0;
+        if (!nochNichtAlarmiert) break;
+        const anteil = schritt === SCHRITTE ? 1 : 0.5;
+        const naeher: Koordinaten = [coords[0] + (wache.coords[0] - coords[0]) * anteil, coords[1] + (wache.coords[1] - coords[1]) * anteil];
+        ({ coords, strassen } = await aufStrasseSetzen(naeher));
+        osm = await adresseZuPosition(coords);
+      }
+      // null = Nominatim kennt dort keine Adresse (fertig), undefined = alle Versuche gescheitert (später nochmal)
+      const geprueft = osm !== undefined;
       setIncidents((current) => current.map((incident) => {
         if (incident.id !== einsatz.id) return incident;
         const ortVerschieben = incident.alarmedVehicles.length === 0 && coords !== incident.coords;
         const adresse = incident.adresse ? mitEchterAdresse(incident.adresse, osm ?? undefined, strassen) : undefined;
         const neueAdresse = adresse && adresse !== incident.adresse;
-        // Ohne Antwort von Nominatim nicht als geprüft markieren: beim nächsten Laden wird es nochmal versucht
-        const geprueft = osm ? { adresseGeprueft: true } : {};
-        if (!ortVerschieben && !neueAdresse && !osm) return incident;
+        if (!ortVerschieben && !neueAdresse && !geprueft) return incident;
         return {
           ...incident,
-          ...geprueft,
+          ...(geprueft ? { adresseGeprueft: true } : {}),
           ...(ortVerschieben ? { coords } : {}),
           ...(neueAdresse ? { adresse, address: formatAdresse(adresse) } : {}),
         };
       }));
-    })();
+    })().finally(() => adresseInArbeit.current.delete(einsatz.id));
   };
+  const strasseNachziehenRef = useRef(strasseNachziehen);
+  strasseNachziehenRef.current = strasseNachziehen;
 
-  // Ältere/ungeprüfte offene Einsätze aus dem Spielstand nachträglich mit der echten Adresse versehen
+  // Offene Einsätze ohne geprüfte Adresse (ältere Spielstände, Dienst war gestört) beim Laden und
+  // danach alle 3 Minuten erneut mit der echten Adresse versehen – so lange, bis es klappt.
   useEffect(() => {
     if (!spielstandGeladen) return;
-    incidents
-      .filter((incident) => incident.status !== 'abgeschlossen' && !incident.adresseGeprueft)
+    const nachpruefen = () => incidentsRef.current
+      .filter((incident) => incident.status !== 'abgeschlossen' && !incident.verlegung && !incident.adresseGeprueft)
       .slice(0, 30)
-      .forEach(strasseNachziehen);
+      .forEach((incident) => strasseNachziehenRef.current(incident));
+    nachpruefen();
+    const interval = setInterval(nachpruefen, 3 * 60_000);
+    return () => clearInterval(interval);
   }, [spielstandGeladen]);
 
   useEffect(() => {

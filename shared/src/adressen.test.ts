@@ -5,6 +5,9 @@ import {
   ermittleOrtFuerWache,
   formatAdresse,
   leseOrtAusText,
+  istKlassifizierteStrasse,
+  einsatzortUnbrauchbar,
+  liegtImAusland,
   mitEchterAdresse,
   mitEchterStrasse,
   ortsArtVon,
@@ -21,6 +24,19 @@ const folge = (...werte: number[]) => {
 };
 
 describe('Adressen', () => {
+  it('erkennt klassifizierte Straßen und das Ausland', () => {
+    for (const name of ['B 103', 'A 7', 'St 2274', 'L 64', 'K 12', 'S 177', 'B 96a']) expect(istKlassifizierteStrasse(name)).toBe(true);
+    for (const name of ['Bahnhofstraße', 'Straße 2', 'Am B 3 Park']) expect(istKlassifizierteStrasse(name)).toBe(false);
+    expect(liegtImAusland({ country_code: 'pl' })).toBe(true);
+    expect(liegtImAusland({ country_code: 'de' })).toBe(false);
+    expect(liegtImAusland(undefined)).toBe(false);
+    expect(einsatzortUnbrauchbar({ country_code: 'de', state: 'Schleswig-Holstein' })).toBe(true); // Watt: kein Ort
+    expect(einsatzortUnbrauchbar(null)).toBe(true);
+    expect(einsatzortUnbrauchbar({ country_code: 'fr', city: 'Straßburg' })).toBe(true);
+    expect(einsatzortUnbrauchbar({ country_code: 'de', town: 'Husum' })).toBe(false);
+    expect(einsatzortUnbrauchbar(undefined)).toBe(false);
+  });
+
   it('übernimmt Straße, Hausnummer, PLZ und Ort vom echten Einsatzort (auch im Nachbarort)', () => {
     const platzhalter = { strasse: 'Goethestraße', hausnummer: '12', plz: '14467', ort: 'Potsdam' };
     const osm = { road: 'Kaiser-Friedrich-Straße', house_number: '5a', postcode: '14548', village: 'Geltow', municipality: 'Schwielowsee' };
@@ -34,6 +50,15 @@ describe('Adressen', () => {
       .toEqual({ strasse: 'Beelitzer Straße (Höhe Nr. 7)', ort: 'Ferch' });
     // Hausnummer nur, wenn sie zur gewählten Straße gehört
     expect(mitEchterAdresse(platzhalter, { pedestrian: 'Brandenburger Straße', postcode: '14467', city: 'Potsdam' }).hausnummer).toBe('12');
+    // Feld/Wald ohne Straße: Flurname bzw. „Außerorts“ statt erfundener Straße, keine Hausnummer
+    expect(mitEchterAdresse(platzhalter, { locality: 'Drehscheibe', town: 'Winterberg', postcode: '59955' }))
+      .toEqual({ strasse: 'Drehscheibe', plz: '59955', ort: 'Winterberg' });
+    expect(mitEchterAdresse(platzhalter, { village: 'Harsleben', postcode: '38829' }))
+      .toEqual({ strasse: 'Außerorts', plz: '38829', ort: 'Harsleben' });
+    // Bundesstraße: keine Hausnummer und kein „Höhe Nr.“
+    expect(mitEchterAdresse(platzhalter, { road: 'B 103', house_number: '48', village: 'Groß Schwaß', postcode: '18198' }))
+      .toEqual({ strasse: 'B 103', plz: '18198', ort: 'Groß Schwaß' });
+    expect(mitEchterAdresse({ strasse: 'Hauptstraße (Höhe Nr. 7)', ort: 'X' }, { village: 'Daun' }, ['K 12']).strasse).toBe('K 12');
     // Gar nichts gefunden: Adresse bleibt
     expect(mitEchterAdresse(platzhalter, undefined, [])).toBe(platzhalter);
   });

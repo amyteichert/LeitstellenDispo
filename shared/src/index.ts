@@ -3,6 +3,7 @@ export * from './typen.js';
 export * from './konfig.js';
 export * from './geo.js';
 export * from './adressen.js';
+export * from './wiederholung.js';
 export * from './fahrzeuge.js';
 export * from './patienten.js';
 export * from './krankenhaeuser.js';
