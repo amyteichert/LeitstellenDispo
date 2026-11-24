@@ -1275,6 +1275,22 @@
 .bearbeitung-fortschritt__balken span { display: block; height: 100%; background: var(--color-primary); border-radius: inherit; transition: width 1s linear; }
 
 /* [O9] Zweispaltiges Layout auf schmalen Tablets untereinander */
+/* Tab-Leiste der Einsätze (Aktive/Abgeschlossen + Alarmieren) – klebt beim Scrollen oben */
+.einsatz-tabs {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0 -6px 12px;
+  padding: 6px;
+  border-radius: 12px;
+  background: var(--glas, var(--color-bg));
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+.einsatz-tabs__alarm { margin-left: auto; }
 .einsatz-layout { display: grid; grid-template-columns: minmax(260px, 1fr) minmax(0, 1.4fr); gap: 16px; align-items: start; }
 
 @media (max-width: 900px) {

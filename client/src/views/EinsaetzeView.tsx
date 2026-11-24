@@ -433,6 +433,10 @@ export default function EinsaetzeView({
   // Auf dem Handy nur aufklappen, was ausdrücklich angetippt wurde (nicht automatisch den ersten Einsatz)
   const istAufgeklappt = (incidentId: string) => istSchmal && selectedIncidentId === incidentId && selectedIncident?.id === incidentId;
 
+  // Alarmieren-Knopf oben in der Tab-Leiste: nur, wenn die Fahrzeugauswahl des Einsatzes gerade zu sehen ist
+  const zeigeSchnellAlarm = activeTab === 'Aktive' && selectedIncident != null && alarmierbar
+    && (!istSchmal || istAufgeklappt(selectedIncident.id));
+
   return (
     <div>
       <h2>Einsätze</h2>
@@ -469,11 +473,24 @@ export default function EinsaetzeView({
       )}
       <div className="einsatz-layout" data-tour="einsatz-liste">
         <div>
-          <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+          {/* Klebt beim Scrollen oben – so ist „Alarmieren“ erreichbar, ohne bis unter die Fahrzeugliste zu scrollen */}
+          <div className="einsatz-tabs">
             <button type="button" className={`btn ${activeTab === 'Aktive' ? 'btn--primary' : ''}`} onClick={() => setActiveTab('Aktive')}>
               Aktive Einsätze ({visibleIncidents.length})
             </button>
             <button type="button" className={`btn ${activeTab === 'Abgeschlossen' ? 'btn--primary' : ''}`} onClick={() => setActiveTab('Abgeschlossen')}>Abgeschlossen</button>
+            {zeigeSchnellAlarm && (
+              <button
+                type="button"
+                className="btn btn--danger einsatz-tabs__alarm"
+                onClick={alarmieren}
+                disabled={selectedVehicleIds.length === 0}
+                title={selectedVehicleIds.length === 0 ? 'Zuerst unten Fahrzeuge anhaken' : undefined}
+              >
+                🚨 {selectedIncident?.status === 'offen' ? 'Alarmieren' : 'Nachalarmieren'}
+                {selectedVehicleIds.length > 0 ? ` (${selectedVehicleIds.length})` : ''}
+              </button>
+            )}
           </div>
 
           {activeTab === 'Aktive' ? (
