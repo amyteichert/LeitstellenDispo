@@ -375,10 +375,10 @@
   flex: 0 0 auto;
   border-radius: 6px;
   box-sizing: border-box;
+  grid-template: 100% / 100%;
 }
 .kennzeichen svg { display: block; }
 /* Leaflet hebt für Bilder max-width auf – daher feste Spur im Raster und ausdrückliche Größe */
-.kennzeichen { grid-template: 100% / 100%; }
 .kennzeichen .kennzeichen__bild { display: block; width: 100%; height: 100%; min-width: 0; min-height: 0; object-fit: contain; }
 .kennzeichen__bild--weiss { filter: brightness(0) invert(1); }
 .kennzeichen--rund { border-radius: 50%; }
@@ -392,20 +392,6 @@
   align-items: center;
   gap: 8px;
   min-width: 0;
-}
-.kennzeichen-inline {
-  display: inline-block;
-  width: 14px;
-  height: 14px;
-  margin-right: 4px;
-  vertical-align: -3px;
-}
-/* Leaflet hebt in Markern max-width/max-height für Bilder auf – sonst erscheint die Grafik in voller Größe */
-.kennzeichen-inline > img,
-.kennzeichen-inline > svg {
-  display: block;
-  width: 100%;
-  height: 100%;
 }
 
 /* Einblendungen bei neuen Einsätzen und Lagemeldungen */
@@ -675,11 +661,6 @@
   border: none;
 }
 
-.leaflet-popup-content-wrapper,
-.leaflet-popup-tip {
-  border-radius: 10px;
-}
-
 .leaflet-container {
   font: inherit;
   background: #0e0e10; /* Farbe, solange Kacheln laden */
@@ -715,6 +696,7 @@
 
 .leaflet-popup-content-wrapper,
 .leaflet-popup-tip {
+  border-radius: 10px;
   background: var(--color-surface-raised);
   color: var(--color-text);
 }
@@ -806,16 +788,6 @@
   font-weight: 600;
 }
 
-/* Variante für helle Hintergründe (z. B. Einsatzliste) */
-.view-menu-item--light,
-.view-menu-item--light.active {
-  color: var(--color-text);
-}
-
-.view-menu-item--light:hover {
-  background: rgba(255,255,255,0.04);
-}
-
 /* Button system: ruhig, ohne Springen und Leuchten */
 .btn {
   display: inline-flex;
@@ -856,13 +828,6 @@
 .btn--secondary {
   background: var(--color-surface-raised);
   color: var(--color-text);
-}
-
-.btn--ghost {
-  background: transparent;
-  border-color: transparent;
-  color: var(--color-text);
-  padding: 8px 10px;
 }
 
 .btn--danger {
@@ -1047,7 +1012,6 @@
 /* Versorgungslage: deutlich, wenn Kräfte fehlen */
 .versorgung-hinweis--fehlt { color: #ffd4da; background: rgba(239, 68, 68, 0.22); border-color: rgba(239, 68, 68, 0.6); }
 .versorgung-hinweis--unterwegs { color: #cfe0ff; background: rgba(59, 130, 246, 0.14); border-color: rgba(59, 130, 246, 0.4); }
-.versorgung-hinweis--ok { color: #b8f0cf; background: rgba(67, 181, 129, 0.12); border-color: rgba(67, 181, 129, 0.38); }
 
 /* Patienten */
 .patienten-liste { list-style: none; padding: 0; display: grid; gap: 6px; }
@@ -1365,9 +1329,6 @@
   align-content: start;
   padding: 10px 12px;
   background: var(--color-surface);
-}
-.besatzung-karte--fehlt {
-  border-color: var(--color-primary);
 }
 .besatzung-karte__kopf {
   display: flex;
@@ -2046,10 +2007,6 @@
 }
 .rechtliches__karte p {
   margin: 0 0 10px;
-}
-.rechtliches__email-offline {
-  color: var(--color-text-muted);
-  opacity: 0.6;
 }
 .rechtliches__email-hinweis {
   display: block;
@@ -2849,7 +2806,6 @@ html[data-design='schwarz'] .topbar::after {
 }
 .versorgung-hinweis--fehlt { border-left-color: var(--status-bearbeitung) !important; }
 .versorgung-hinweis--unterwegs { border-left-color: var(--status-alarmiert) !important; }
-.versorgung-hinweis--ok { border-left-color: var(--color-success) !important; }
 
 .patienten-liste li,
 .einsatz-meldungen { border-radius: var(--radius); }
@@ -3101,7 +3057,6 @@ html[data-design='hell'] .finanz-kachel--minus strong { color: #b91c1c; }
 html[data-design='hell'] .versorgung-hinweis--fehlt,
 html[data-design='hell'] .einsatz-details .einsatz-meldungen h4 { color: #9f1239; }
 html[data-design='hell'] .versorgung-hinweis--unterwegs { color: #1e3a8a; }
-html[data-design='hell'] .versorgung-hinweis--ok { color: #166534; }
 
 /* ---- Profilbild, Begrüßung, Startbildschirm ---- */
 .profilbild {

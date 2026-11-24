@@ -219,11 +219,6 @@ button.chip:hover,
   left: 130%;
 }
 
-.btn--ghost:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--color-primary) 10%, transparent);
-  border-color: transparent;
-}
-
 .btn--danger:hover:not(:disabled) {
   background: rgba(217, 63, 63, 0.16);
   border-color: var(--color-danger);
