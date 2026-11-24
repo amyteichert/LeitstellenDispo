@@ -447,10 +447,6 @@ button.chip:hover,
   border-radius: 999px;
 }
 
-.leerzustand {
-  border-radius: 16px;
-}
-
 /* ---------- Seiten (Finanzen, Wachen, Team …) ---------- */
 
 .seiten-inhalt {
