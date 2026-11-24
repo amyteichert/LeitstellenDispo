@@ -3,10 +3,9 @@
  * Patienten mit Fachbedarf (z. B. Herzinfarkt) fahren ins nächste Haus mit passender Fachrichtung, sofern es nicht zu weit ist.
  * Eigene Krankenhäuser bringen Geld je Patient, haben aber begrenzte Betten.
  */
-import { erzeugeAdresse, ermittleOrtFuerWache, formatAdresse, type Adresse } from './adressen.js';
-import { clamp, haversineKm } from './geo.js';
-import { GAME_CONFIG } from './konfig.js';
-import type { Koordinaten, MapLocation } from './typen.js';
+import type { Adresse } from './adressen.js';
+import { haversineKm } from './geo.js';
+import type { Koordinaten } from './typen.js';
 
 export type Fachrichtung = 'innere' | 'unfallchirurgie' | 'kardiologie' | 'neurologie';
 
@@ -292,8 +291,6 @@ export interface Krankenhaus {
   /** Automatisch für eine Wache ohne Krankenhaus in der Nähe angelegt */
   generiert?: boolean;
 }
-
-export const formatKrankenhausAdresse = (krankenhaus: Krankenhaus) => formatAdresse(krankenhaus.adresse);
 
 /** Nächstes aufnahmebereites Krankenhaus (Luftlinie) – oder null, wenn keines existiert. */
 /**

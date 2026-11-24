@@ -201,5 +201,3 @@ export function standardGrafikSvg(typ: string | undefined, farbe?: string): stri
   cache.set(schluessel, svg);
   return svg;
 }
-
-export const hatStandardGrafik = (typ: string) => typ in ZEICHNUNGEN;

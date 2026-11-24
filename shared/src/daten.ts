@@ -32,13 +32,6 @@ export interface GameLocation {
   address?: string;
 }
 
-export interface Organization {
-  id: string;
-  name: string;
-  type?: string;
-  description?: string;
-}
-
 export interface Station {
   id: string;
   name: string;
@@ -1426,14 +1419,6 @@ export type AbgeschlossenerSpielEinsatz = SpielEinsatz & {
   completedAt: number;
   totalDurationSeconds: number;
 };
-
-export interface GameUser {
-  id: string;
-  username: string;
-  role?: UserRole;
-  organizationId?: string;
-  displayName?: string;
-}
 
 export function getAppInfo(): AppInfo {
   return {

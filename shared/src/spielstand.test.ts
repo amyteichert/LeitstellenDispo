@@ -7,7 +7,6 @@ import {
   verkaufeFahrzeug, type Spielstand,
 } from './spielstand.js';
 import { T0, einsatz, fahrzeug, krankenhaus, wache } from './testHilfen.js';
-import { haversineKm } from './geo.js';
 import { erzeugeBesatzungFuer, synchronisiereBesatzung } from './personal.js';
 
 describe('Krankenhäuser', () => {
