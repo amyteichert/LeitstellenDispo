@@ -98,7 +98,7 @@ import {
   verkaufeFahrzeug,
   erzeugeZufallsEinsatz,
   formatAdresse,
-  mitEchterStrasse,
+  mitEchterAdresse,
   erzeugeMitAbstand,
   hatEigenesKrankenhaus,
   EIGENES_KRANKENHAUS,
@@ -132,7 +132,7 @@ import { getEinstellungen } from './einstellungen';
 import { bestaetigeKorrekturen, holeSchichtzulage, ladeKorrekturen } from './konto';
 import type { FinanceTransaction, MapLocation, Vehicle } from './types';
 import { SPIELSTAND_VERSION, spielstandSpeicher, type Spielstand } from './spielstand';
-import { aufStrasseSetzen } from './strassenSnap';
+import { adresseZuPosition, aufStrasseSetzen } from './strassenSnap';
 import { spieleFanfare, spieleKasse } from './ton';
 
 /** Ein gerade bezahlter Einsatz – für die kurze „+ €“-Einblendung auf der Karte */
@@ -494,22 +494,42 @@ export function useSpiel(optionen: UseSpielOptionen = {}) {
   const erzeugungRef = useRef({ locations, vehicles, wetter: 'klar' as Wetter, krankenhaeuser, xp: laufbahn.xp });
   erzeugungRef.current = { locations, vehicles, wetter: optionen.wetter ?? 'klar', krankenhaeuser, xp: laufbahn.xp };
   /**
-   * Einsatzort auf die nächste Straße verschieben (nicht im Wasser/Wald) und den echten Straßennamen
-   * als Adresse übernehmen – solange noch niemand alarmiert ist.
+   * Einsatzort auf die nächste Straße verschieben (nicht im Wasser/Wald) – solange noch niemand alarmiert ist –
+   * und die Platzhalter-Adresse durch die echte ersetzen: Straße, PLZ und Ort am Einsatzort (OpenStreetMap).
+   * Die Adresse wird auch nach der Alarmierung noch korrigiert, damit nie ein erfundener Straßenname stehen bleibt.
    */
   const strasseNachziehen = (einsatz: SpielEinsatz) => {
-    if (einsatz.verlegung) return;
-    void aufStrasseSetzen(einsatz.coords).then(({ coords, strassen }) => {
-      if (coords === einsatz.coords && strassen.length === 0) return;
+    if (einsatz.verlegung || einsatz.adresseGeprueft) return;
+    void (async () => {
+      const { coords, strassen } = await aufStrasseSetzen(einsatz.coords);
+      const osm = await adresseZuPosition(coords);
+      if (!osm && strassen.length === 0 && coords === einsatz.coords) return;
       setIncidents((current) => current.map((incident) => {
-        if (incident.id !== einsatz.id || incident.alarmedVehicles.length > 0) return incident;
-        const adresse = incident.adresse ? mitEchterStrasse(incident.adresse, strassen) : undefined;
-        return adresse && adresse !== incident.adresse
-          ? { ...incident, coords, adresse, address: formatAdresse(adresse) }
-          : { ...incident, coords };
+        if (incident.id !== einsatz.id) return incident;
+        const ortVerschieben = incident.alarmedVehicles.length === 0 && coords !== incident.coords;
+        const adresse = incident.adresse ? mitEchterAdresse(incident.adresse, osm ?? undefined, strassen) : undefined;
+        const neueAdresse = adresse && adresse !== incident.adresse;
+        // Ohne Antwort von Nominatim nicht als geprüft markieren: beim nächsten Laden wird es nochmal versucht
+        const geprueft = osm ? { adresseGeprueft: true } : {};
+        if (!ortVerschieben && !neueAdresse && !osm) return incident;
+        return {
+          ...incident,
+          ...geprueft,
+          ...(ortVerschieben ? { coords } : {}),
+          ...(neueAdresse ? { adresse, address: formatAdresse(adresse) } : {}),
+        };
       }));
-    });
+    })();
   };
+
+  // Ältere/ungeprüfte offene Einsätze aus dem Spielstand nachträglich mit der echten Adresse versehen
+  useEffect(() => {
+    if (!spielstandGeladen) return;
+    incidents
+      .filter((incident) => incident.status !== 'abgeschlossen' && !incident.adresseGeprueft)
+      .slice(0, 30)
+      .forEach(strasseNachziehen);
+  }, [spielstandGeladen]);
 
   useEffect(() => {
     if (!spielstandGeladen) return;

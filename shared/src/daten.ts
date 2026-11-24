@@ -112,6 +112,8 @@ export interface SpielEinsatz extends Einsatz {
   coords: [number, number];
   address: string;
   adresse?: Adresse;
+  /** Adresse wurde mit der echten Karte abgeglichen (Straße, PLZ, Ort am Einsatzort) */
+  adresseGeprueft?: boolean;
   generatedByStationId: string;
   generatedByStationName: string;
   requiredVehicles: FahrzeugBedarf[];

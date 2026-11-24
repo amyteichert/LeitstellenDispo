@@ -39,6 +39,7 @@ import './App.css';
 import ViewDropdown from './ViewDropdown';
 
 import { useSpiel } from './useSpiel';
+import { adresseZuPosition } from './strassenSnap';
 import { useWetter } from './useWetter';
 import { ladeStartansicht, sichtbareAnsichten, type Ansicht } from './startansicht';
 import TeamView from './views/TeamView';
@@ -461,12 +462,9 @@ function App({ konto, onAbmelden, gast = false, setKonto }: {
     await new Promise((fertig) => setTimeout(fertig, 1000));
     if (anfrage !== letzteRueckwaertsSuche.current) return;
     try {
-      const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${coords[0]}&lon=${coords[1]}&addressdetails=1&zoom=18`;
-      const res = await fetch(url);
-      if (!res.ok) return;
-      const data = await res.json();
+      const details = await adresseZuPosition(coords);
       if (anfrage !== letzteRueckwaertsSuche.current) return; // inzwischen woanders geklickt
-      const adresse = adresseAusOsm(data?.address);
+      const adresse = adresseAusOsm(details ?? undefined);
       if (adresse) {
         setTempAdresse(adresse);
         setAddress(formatAdresse(adresse));

@@ -128,11 +128,36 @@ export function mitEchterStrasse(adresse: Adresse, strassen: string[], zufall: (
   return { ...adresse, strasse: `${erste} (Höhe Nr. ${hoehe})` };
 }
 
+/** Adressdetails der OpenStreetMap-Rückwärtssuche (Nominatim, `addressdetails=1`) */
+export type OsmAdressDetails = Record<string, string | undefined>;
+
+/**
+ * Macht aus der Platzhalter-Adresse eine echte: Straße, PLZ und Ort vom tatsächlichen Einsatzort
+ * (Nominatim), weitere Straßen in der Nähe (OSRM) für Kreuzungen. Liegt der Einsatz im Nachbarort,
+ * steht dort jetzt auch der Nachbarort – nicht mehr der Ort der Wache.
+ * Bei Gebäuden wird eine echte Hausnummer übernommen, wenn sie zur Straße gehört.
+ * Ohne brauchbare Angaben bleibt die Adresse unverändert.
+ */
+export function mitEchterAdresse(adresse: Adresse, osm: OsmAdressDetails | undefined, strassen: string[] = [], zufall: () => number = Math.random): Adresse {
+  const osmStrasse = (osm?.road ?? osm?.pedestrian)?.trim();
+  const mitStrasse = mitEchterStrasse(adresse, osmStrasse ? [osmStrasse, ...strassen] : strassen, zufall);
+  const osmOrt = osm ? adresseAusOsm(osm) : null;
+  if (!osmOrt) return mitStrasse;
+  const ergebnis: Adresse = { ...mitStrasse, ort: osmOrt.ort, plz: osmOrt.plz ?? (osmOrt.ort === adresse.ort ? adresse.plz : undefined) };
+  if (ergebnis.plz === undefined) delete ergebnis.plz;
+  if (ortsArtVon(adresse) === 'gebaeude' && osmStrasse && ergebnis.strasse === osmStrasse && osm?.house_number) {
+    ergebnis.hausnummer = osm.house_number.trim();
+  }
+  const gleich = ergebnis.strasse === adresse.strasse && ergebnis.hausnummer === adresse.hausnummer
+    && ergebnis.plz === adresse.plz && ergebnis.ort === adresse.ort;
+  return gleich ? adresse : ergebnis;
+}
+
 /**
  * Wandelt die Adressdetails der OpenStreetMap-Suche (Nominatim, `addressdetails=1`) in eine Adresse um.
  * Liefert null, wenn kein Ort erkennbar ist.
  */
-export function adresseAusOsm(details: Record<string, string | undefined> | undefined): Adresse | null {
+export function adresseAusOsm(details: OsmAdressDetails | undefined): Adresse | null {
   if (!details) return null;
   const ort = details.city ?? details.town ?? details.village ?? details.municipality ?? details.county;
   if (!ort) return null;

@@ -1,4 +1,4 @@
-import { haversineKm, type Koordinaten } from '@leitstellendispo/shared';
+import { haversineKm, type Koordinaten, type OsmAdressDetails } from '@leitstellendispo/shared';
 
 /** Weiter entfernte Straßen gelten nicht: dann bleibt der ursprüngliche Punkt. */
 const MAX_ABSTAND_M = 1500;
@@ -38,5 +38,35 @@ export async function aufStrasseSetzen(coords: Koordinaten): Promise<StrassenTre
     return { coords: ziel, strassen };
   } catch {
     return ohneTreffer;
+  }
+}
+
+/** Nominatim erlaubt höchstens 1 Anfrage pro Sekunde – etwas Luft dazu. */
+const NOMINATIM_ABSTAND_MS = 1100;
+let naechsteNominatimAnfrage = 0;
+
+/** Wartet, bis die nächste Nominatim-Anfrage erlaubt ist (alle Aufrufe hintereinander, nie gleichzeitig). */
+const nominatimFreigabe = async () => {
+  const jetzt = Date.now();
+  const start = Math.max(jetzt, naechsteNominatimAnfrage);
+  naechsteNominatimAnfrage = start + NOMINATIM_ABSTAND_MS;
+  if (start > jetzt) await new Promise((fertig) => setTimeout(fertig, start - jetzt));
+};
+
+/**
+ * Echte Adresse (Straße, Hausnummer, PLZ, Ort) zu einem Punkt aus OpenStreetMap (Nominatim-Rückwärtssuche).
+ * Liefert die rohen Adressdetails oder null bei Fehlern / ohne Netz.
+ */
+export async function adresseZuPosition(coords: Koordinaten): Promise<OsmAdressDetails | null> {
+  await nominatimFreigabe();
+  try {
+    const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${coords[0]}&lon=${coords[1]}`
+      + '&addressdetails=1&zoom=18&layer=address&accept-language=de';
+    const res = await fetch(url);
+    if (!res.ok) return null;
+    const data = (await res.json()) as { address?: OsmAdressDetails };
+    return data?.address ?? null;
+  } catch {
+    return null;
   }
 }

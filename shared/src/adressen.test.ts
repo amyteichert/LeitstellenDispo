@@ -5,6 +5,7 @@ import {
   ermittleOrtFuerWache,
   formatAdresse,
   leseOrtAusText,
+  mitEchterAdresse,
   mitEchterStrasse,
   ortsArtVon,
 } from './adressen.js';
@@ -20,6 +21,23 @@ const folge = (...werte: number[]) => {
 };
 
 describe('Adressen', () => {
+  it('übernimmt Straße, Hausnummer, PLZ und Ort vom echten Einsatzort (auch im Nachbarort)', () => {
+    const platzhalter = { strasse: 'Goethestraße', hausnummer: '12', plz: '14467', ort: 'Potsdam' };
+    const osm = { road: 'Kaiser-Friedrich-Straße', house_number: '5a', postcode: '14548', village: 'Geltow', municipality: 'Schwielowsee' };
+    expect(mitEchterAdresse(platzhalter, osm, ['Kaiser-Friedrich-Straße']))
+      .toEqual({ strasse: 'Kaiser-Friedrich-Straße', hausnummer: '5a', plz: '14548', ort: 'Geltow' });
+    // Kreuzung: Hauptstraße von Nominatim, zweite Straße von OSRM
+    expect(mitEchterAdresse({ strasse: 'Hauptstraße / Ecke Schulstraße', plz: '14467', ort: 'Potsdam' }, { road: 'Breite Straße', postcode: '14467', city: 'Potsdam' }, ['Breite Straße', 'Dortustraße']))
+      .toEqual({ strasse: 'Breite Straße / Ecke Dortustraße', plz: '14467', ort: 'Potsdam' });
+    // Nominatim ohne Straße: OSRM-Name, aber Ort trotzdem echt; fremde PLZ wird nicht übernommen
+    expect(mitEchterAdresse({ strasse: 'Hauptstraße (Höhe Nr. 7)', plz: '14467', ort: 'Potsdam' }, { village: 'Ferch' }, ['Beelitzer Straße']))
+      .toEqual({ strasse: 'Beelitzer Straße (Höhe Nr. 7)', ort: 'Ferch' });
+    // Hausnummer nur, wenn sie zur gewählten Straße gehört
+    expect(mitEchterAdresse(platzhalter, { pedestrian: 'Brandenburger Straße', postcode: '14467', city: 'Potsdam' }).hausnummer).toBe('12');
+    // Gar nichts gefunden: Adresse bleibt
+    expect(mitEchterAdresse(platzhalter, undefined, [])).toBe(platzhalter);
+  });
+
   it('ersetzt den Platzhalter durch die echte Straße am Einsatzort', () => {
     const ort = { plz: '14467', ort: 'Potsdam' };
     expect(mitEchterStrasse({ strasse: 'Hauptstraße', hausnummer: '12', ...ort }, ['Brandenburger Straße', 'Lindenstraße']))
