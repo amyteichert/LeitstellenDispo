@@ -1,0 +1,347 @@
+/* Karte: Symbole, Einblendungen, Einsatz-Marker, Einsatzleiste, Einsatzfenster, Leaflet */
+
+/* Fahrzeuge auf der Karte (bewegen sich jede Sekunde ein Stück weiter) */
+.vehicle-marker {
+  transition: transform 1s linear;
+}
+
+.leaflet-zoom-anim .vehicle-marker {
+  transition: none; /* beim Zoomen nicht nachziehen */
+}
+
+/* Symbole für Wachen, Krankenhäuser, Fahrzeuge und Einsätze (Grafiken in Kennzeichen.tsx) */
+.kennzeichen {
+  display: inline-grid;
+  place-items: center;
+  flex: 0 0 auto;
+  border-radius: 6px;
+  box-sizing: border-box;
+  grid-template: 100% / 100%;
+}
+.kennzeichen svg { display: block; }
+/* Leaflet hebt für Bilder max-width auf – daher feste Spur im Raster und ausdrückliche Größe */
+.kennzeichen .kennzeichen__bild { display: block; width: 100%; height: 100%; min-width: 0; min-height: 0; object-fit: contain; }
+.kennzeichen__bild--weiss { filter: brightness(0) invert(1); }
+.kennzeichen--rund { border-radius: 50%; }
+/* Auf der Karte mit weißem Rand und Schatten, damit die Symbole auf jedem Kartengrund auffallen */
+.leaflet-marker-icon .kennzeichen {
+  border: 2px solid #fff;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
+}
+.mit-kennzeichen {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+/* Einblendungen bei neuen Einsätzen und Lagemeldungen */
+.einsatz-hinweise {
+  position: fixed;
+  right: 16px;
+  z-index: 2500; /* über Karte und Kopfzeile, unter dem Navigationsmenü */
+  display: grid;
+}
+
+.einsatz-hinweis {
+  display: flex;
+  align-items: flex-start;
+  background: var(--color-surface-raised);
+  border: 1px solid var(--color-border-strong);
+  border-left: 4px solid #f59e0b;
+}
+
+.einsatz-hinweis__inhalt {
+  flex: 1;
+  display: grid;
+  gap: 2px;
+  padding: 10px 12px;
+  background: transparent;
+  border: none;
+  color: var(--color-text);
+  font: inherit;
+  font-size: 0.85rem;
+  text-align: left;
+  cursor: pointer;
+}
+
+.einsatz-hinweis__inhalt span {
+  color: var(--color-text-muted);
+}
+
+.einsatz-hinweis__schliessen {
+  min-width: 36px;
+  min-height: 36px;
+  background: transparent;
+  border: none;
+  color: var(--color-text-muted);
+  cursor: pointer;
+}
+
+@keyframes hinweis-rein {
+  from { opacity: 0; transform: translateX(20px); }
+  to { opacity: 1; transform: none; }
+}
+
+/* Neue Lagemeldung (Eskalation) */
+.neue-meldung-badge {
+  display: inline-block;
+}
+
+@keyframes meldung-blink {
+  50% { opacity: 0.55; }
+}
+
+.einsatz-meldungen {
+  margin: 0.5rem 0;
+  padding: 0.6rem 0.8rem;
+  border-left: 3px solid var(--color-primary);
+  background: var(--color-primary-light);
+}
+
+.einsatz-meldungen ul {
+  list-style: none;
+  display: grid;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.einsatz-meldungen li span {
+  color: var(--color-text-muted);
+  font-size: 0.8rem;
+}
+
+/* Einsatz-Marker: offene Einsätze pulsieren */
+.incident-marker .kennzeichen {
+  border-radius: 50%;
+}
+
+/* Feuerwehr-Einsätze eckig, Rettungsdienst rund */
+
+/* Eskalierte Einsätze: roter Ring und Ausrufezeichen */
+.incident-marker--eskaliert .kennzeichen {
+  outline-offset: 1px;
+}
+
+.incident-marker--eskaliert::after {
+  content: '!';
+  position: absolute;
+  top: -10px;
+  right: -10px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 14px;
+  text-align: center;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
+}
+
+@keyframes incident-pulse {
+  0% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.7); }
+  70% { box-shadow: 0 0 0 12px rgba(245, 158, 11, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0); }
+}
+
+/* Leiste mit laufenden Einsätzen oben auf der Karte */
+.map-incident-bar {
+  position: absolute;
+  top: 1.6rem;
+  left: 4.5rem; /* rechts neben den Zoom-Knöpfen */
+  right: 1.6rem;
+  z-index: 1001; /* über Leaflet-Ebenen und -Bedienelementen */
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  overflow-x: auto;
+  pointer-events: none; /* leere Flächen lassen Klicks zur Karte durch */
+}
+
+.map-incident-bar > * {
+  pointer-events: auto;
+  flex-shrink: 0;
+}
+
+.map-incident-bar__count,
+.map-incident-chip {
+  min-height: 34px;
+  padding: 0 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--color-border-strong);
+  color: var(--color-text);
+  font: inherit;
+  font-size: 0.82rem;
+  box-shadow: var(--shadow-md);
+}
+
+.map-incident-chip {
+  cursor: pointer;
+}
+
+.map-incident-chip--eskaliert {
+  border-color: #ff3b5c;
+}
+
+.map-incident-chip--active {
+  background: var(--color-surface-raised);
+}
+
+.map-incident-chip__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.map-incident-chip--offen .map-incident-chip__dot { background: #f59e0b; }
+.map-incident-chip--alarmiert .map-incident-chip__dot { background: #3b82f6; }
+.map-incident-chip--in_bearbeitung .map-incident-chip__dot { background: #c41e3a; }
+.map-incident-chip--transport .map-incident-chip__dot { background: #8b5cf6; }
+
+/* Schwebendes Einsatzfenster rechts auf der Karte */
+.map-incident-panel {
+  position: absolute;
+  top: 4.6rem;
+  right: 1.6rem;
+  z-index: 1001;
+  width: min(300px, calc(100% - 3.2rem));
+  max-height: calc(100% - 9rem);
+  overflow-y: auto;
+  padding: 1rem;
+  border: 1px solid var(--color-border-strong);
+  box-shadow: var(--shadow-card);
+  color: var(--color-text);
+  font-size: 0.9rem;
+  display: grid;
+  gap: 0.35rem;
+}
+
+.map-incident-panel__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.map-incident-panel__header h3 {
+  font-size: 1.05rem;
+}
+
+.map-incident-panel__close {
+  background: transparent;
+  border: none;
+  color: var(--color-text-muted);
+  font-size: 1rem;
+  min-width: 32px;
+  min-height: 32px;
+  cursor: pointer;
+}
+
+.map-incident-panel h4 {
+  margin-top: 0.4rem;
+}
+
+.map-incident-panel ul {
+  padding-left: 1.1rem;
+}
+
+.map-incident-panel__open {
+  margin-top: 0.6rem;
+  justify-content: center;
+  min-height: 44px;
+}
+
+/* Handy: Fenster unten statt rechts */
+@media (max-width: 900px) {
+  .map-incident-panel {
+    top: 4.4rem;
+    bottom: 1rem;
+    left: 1.6rem;
+    right: 1.6rem;
+    width: auto;
+    max-height: none;
+    align-content: start;
+    font-size: 0.85rem;
+  }
+}
+
+/* Knopf zum Wechseln zwischen Karte und Satellit (unten rechts auf der Karte) */
+.map-style-toggle {
+  min-height: 44px; /* gut mit dem Finger treffbar */
+  padding: 0 1rem;
+  border-radius: 999px;
+  border: 1px solid var(--color-border-strong);
+  color: var(--color-text);
+  font: inherit;
+  font-size: 0.95rem;
+  font-weight: 600;
+  box-shadow: var(--shadow-md);
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: transform 0.12s ease, box-shadow 0.12s ease;
+}
+
+.map-style-toggle:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-card);
+}
+
+.map-view {
+  width: 100%;
+  height: 100%;
+  min-height: 70vh;
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+}
+
+.custom-marker {
+  background: transparent;
+  border: none;
+}
+
+.leaflet-container {
+  font: inherit;
+  background: #0e0e10; /* Farbe, solange Kacheln laden */
+}
+
+/* Kacheln 1 px überlappen lassen: Auf dem iPhone entstehen sonst durch Rundung haarfeine Lücken,
+   durch die der dunkle Hintergrund als schwarze Striche quer über die Karte scheint (bekannter Leaflet-Fehler) */
+.leaflet-container .leaflet-tile-container img.leaflet-tile {
+  width: 257px !important;
+  height: 257px !important;
+}
+
+/* OSM-Karte nur leicht abdunkeln, damit sie farbig bleibt und sich klar vom Satellitenbild unterscheidet */
+.map-tiles--dunkel {
+  filter: brightness(0.85) contrast(1.05) saturate(0.9);
+}
+
+/* Leaflet-Bedienelemente an das dunkle Design anpassen */
+.leaflet-bar a,
+.leaflet-bar a:hover {
+  color: var(--color-text);
+  border-bottom-color: var(--color-border);
+}
+
+.leaflet-container .leaflet-control-attribution {
+  background: rgba(11, 13, 22, 0.75);
+  color: var(--color-text-muted);
+}
+
+.leaflet-container .leaflet-control-attribution a {
+  color: var(--color-primary-text);
+}
+
+.leaflet-popup-content-wrapper,
+.leaflet-popup-tip {
+  border-radius: 10px;
+  background: var(--color-surface-raised);
+  color: var(--color-text);
+}
+
+.leaflet-container a.leaflet-popup-close-button {
+  color: var(--color-text-muted);
+}

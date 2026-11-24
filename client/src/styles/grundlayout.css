@@ -1,0 +1,362 @@
+/* Grundlayout: Kopfzeile, Statuschips, Standorte-Leiste, Formulare, Detailkarten */
+
+.app-shell {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Kopfzeile: Marke links, Status und Menü rechts – schlicht, ohne Bild */
+.topbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  color: var(--color-text);
+  position: relative;
+  z-index: 1200; /* Header über Karteninhalten platzieren (überschaubarer Wert, nicht willkürlich hoch) */
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.marke {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.marke__signet {
+  width: 32px;
+  height: 32px;
+  flex: 0 0 auto;
+}
+
+.marke__text {
+  display: grid;
+  line-height: 1.15;
+}
+
+.marke__text strong {
+  color: var(--color-text);
+}
+
+.marke__text small {
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+}
+
+.topbar__meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Kleine Statusanzeigen (Guthaben, Wetter, Ruf) */
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--color-text);
+  font-weight: 500;
+  border: 1px solid var(--color-border);
+  white-space: nowrap;
+}
+
+.chip--version {
+  min-height: 0;
+  padding: 2px 6px;
+  border-radius: 6px;
+  color: var(--color-text-muted);
+  font-size: 0.7rem;
+  font-weight: 500;
+}
+
+.chip--accent {
+  color: var(--color-on-primary);
+}
+
+.symbol {
+  flex: 0 0 auto;
+  color: var(--color-text-muted);
+}
+
+.status-chip__wert {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+.status-chip__label {
+  color: var(--color-text-muted);
+}
+
+.status-chip--minus .status-chip__wert,
+.status-chip--minus .symbol {
+  color: #ff8a8a;
+}
+
+@media (max-width: 700px) {
+  .topbar {
+    gap: 6px;
+  }
+
+  .topbar .marke__text,
+  .chip--version {
+    display: none;
+  }
+
+  /* Der Menü-Knopf bleibt immer vollständig sichtbar; die Statuschips davor dürfen schrumpfen
+     und notfalls seitlich scrollen (vorher war der Knopf am rechten Rand abgeschnitten). */
+  .topbar__meta {
+    min-width: 0;
+    flex: 1;
+    justify-content: flex-end;
+  }
+
+  .topbar__meta > .chip {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .topbar .view-dropdown,
+  .topbar .view-trigger {
+    flex: 0 0 auto;
+  }
+
+  /* Der Rang-Fortschrittsbalken ist auf dem Handy entbehrlich – die Stufe bleibt sichtbar */
+  .topbar .rang-chip__balken {
+    display: none;
+  }
+}
+
+.dashboard {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 340px minmax(0, 1fr);
+  min-height: 0;
+}
+
+.dashboard--full {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.sidebar {
+  border-right: 1px solid var(--color-border);
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.3rem 0.2rem;
+}
+
+/* Ein-/Ausklappen der Standorte-Leiste – nur auf dem Handy sichtbar */
+.sidebar-toggle {
+  display: none;
+}
+
+@media (max-width: 900px) {
+  .sidebar-toggle {
+    display: inline-flex;
+    align-items: center;
+    min-height: 40px;
+    padding: 0 0.9rem;
+    margin-left: 0.5rem;
+    border: 1px solid var(--color-border-strong);
+    background: var(--color-surface-raised);
+    color: var(--color-text);
+    font: inherit;
+    font-size: 0.85rem;
+    cursor: pointer;
+  }
+
+  .panel-header h2 {
+    margin-right: auto;
+  }
+
+  .sidebar--collapsed > :not(.panel-header) {
+    display: none;
+  }
+
+  /* Leiste nur so hoch wie ihr Inhalt, die Karte bekommt den Rest */
+  .dashboard:not(.dashboard--full) {
+    grid-template-rows: auto 1fr;
+  }
+}
+
+.panel-header h2 {
+  color: var(--color-text);
+}
+
+.panel-header span {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 30px;
+  height: 30px;
+  border-radius: 999px;
+  border: 1px solid var(--color-border);
+  font-size: 0.75rem;
+}
+
+.location-form {
+  background: var(--color-surface-raised);
+  padding: 0.9rem;
+  display: grid;
+  gap: 0.75rem;
+}
+
+.field {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.field span {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.field input,
+.field select,
+.field textarea {
+  width: 100%;
+  border: 1px solid var(--color-border-strong);
+  background: var(--color-input);
+  padding: 0.7rem 0.8rem;
+  font: inherit;
+  color: var(--color-text);
+}
+
+.field textarea { resize: vertical; line-height: 1.4; }
+
+.map-hint {
+  font-size: 0.72rem;
+  line-height: 1.5;
+  color: var(--color-text-muted);
+}
+
+.location-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+}
+
+.location-item-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.location-item {
+  flex: 1 1 auto;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  background: var(--color-surface-raised);
+  border: 1px solid var(--color-border);
+  padding: 0.75rem 0.8rem;
+  color: var(--color-text);
+  text-align: left;
+  cursor: pointer;
+}
+
+.delete-button {
+  font-size: 0.82rem;
+  cursor: pointer;
+}
+
+@media (max-width: 900px) {
+  .location-item-wrapper {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .delete-button {
+    align-self: flex-end;
+  }
+}
+
+.color-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  display: inline-block;
+  flex-shrink: 0;
+}
+
+.color-dot--station {
+  background: #d92d2d;
+}
+
+.color-dot--incident {
+  background: #f59e0b;
+}
+
+.location-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.location-copy strong {
+  font-size: 0.93rem;
+}
+
+.location-copy small {
+  color: var(--color-text-muted);
+  font-size: 0.74rem;
+}
+
+.detail-card {
+  background: var(--color-surface-raised);
+  padding: 1rem;
+}
+
+.detail-card__label {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  color: var(--color-primary-text);
+  font-weight: 700;
+  margin-bottom: 0.5rem;
+}
+
+.detail-card h3 {
+  font-size: 1.1rem;
+  margin-bottom: 0.4rem;
+  color: var(--color-text);
+}
+
+.detail-card p {
+  color: var(--color-text-muted);
+  font-size: 0.92rem;
+  line-height: 1.5;
+  margin-bottom: 0.8rem;
+}
+
+.detail-card ul {
+  list-style: none;
+  display: grid;
+  gap: 0.4rem;
+  color: var(--color-text);
+  font-size: 0.82rem;
+}
+
+.map-panel {
+  padding: 1rem;
+  min-height: 0;
+  position: relative; /* Bezug für Einsatzleiste und Einsatzfenster */
+}

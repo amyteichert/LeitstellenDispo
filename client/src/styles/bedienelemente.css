@@ -1,0 +1,198 @@
+/* Bedienelemente: Ansichtsmenü, Knöpfe, Adresssuche */
+
+/* Dropdown / view-trigger styling */
+.view-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 34px;
+  padding: 0 12px;
+  border: 1px solid var(--color-primary);
+  color: var(--color-on-primary);
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: background 0.12s ease;
+}
+
+.view-trigger:focus-visible {
+  outline: 2px solid var(--color-primary-text);
+  outline-offset: 2px;
+}
+
+.view-trigger .chev {
+  width: 0;
+  height: 0;
+  border-left: 4px solid transparent;
+  border-right: 4px solid transparent;
+  border-top: 5px solid currentColor;
+  opacity: 0.85;
+}
+
+.view-dropdown {
+  position: relative;
+  display: inline-block;
+  margin-left: 6px;
+}
+
+.view-dropdown__menu {
+  position: absolute;
+  right: 0;
+  margin-top: 6px;
+  min-width: 200px;
+  max-width: 240px;
+  color: var(--color-text);
+  border: 1px solid var(--color-border-strong);
+  padding: 6px;
+  z-index: 3000; /* bleibt hoch, Menü selbst liegt über allem */
+}
+
+/* Portal variant: when rendering the menu into document.body we must
+   cancel the parent-relative positioning rules (right/margin-top)
+   and rely on explicit top/left inline styles. */
+.view-dropdown__portal {
+  right: auto !important;
+  margin-top: 0 !important;
+}
+
+
+.view-dropdown__fusszeile {
+  padding: 8px 10px 4px;
+  border-top: 1px solid var(--color-border-strong);
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
+}
+.view-menu-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 9px 12px;
+  background: transparent;
+  color: var(--color-text);
+  border: none;
+  cursor: pointer;
+  font-size: 0.92rem;
+}
+
+.view-menu-item:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.view-menu-item.active {
+  background: var(--color-primary-light);
+  color: var(--color-primary-text);
+  font-weight: 600;
+}
+
+/* Button system: ruhig, ohne Springen und Leuchten */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.95rem;
+  border: 1px solid var(--color-border-strong);
+  background: var(--color-surface-raised);
+  color: var(--color-text);
+  font: inherit;
+  font-size: 0.92rem;
+  cursor: pointer;
+}
+
+.btn:hover:not(:disabled) {
+  background: #222a35;
+}
+
+.btn:focus-visible {
+  outline: 2px solid var(--color-primary-text);
+  outline-offset: 2px;
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn--primary {
+  color: var(--color-on-primary);
+}
+
+.btn--primary:hover:not(:disabled) {
+  box-shadow: var(--glow-primary);
+}
+
+.btn--secondary {
+  background: var(--color-surface-raised);
+  color: var(--color-text);
+}
+
+.btn--danger {
+  background: transparent;
+  border-color: rgba(217, 63, 63, 0.6);
+  color: #ff8a8a;
+}
+
+/* Make existing delete-button match the new system */
+.delete-button {
+  padding: 0.4rem 0.6rem;
+  border-radius: 10px;
+  background: transparent;
+  border: 1px solid var(--color-border);
+  color: var(--color-primary-text);
+}
+
+.delete-button:hover {
+  background: var(--color-primary-light);
+}
+
+.view-dropdown__menu button[disabled] {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* Geocode results dropdown for the address input */
+.field--address {
+  position: relative; /* container for absolute dropdown */
+}
+
+.geocode-results {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: calc(100% + 8px);
+  z-index: 2100; /* slightly below the main nav dropdown but above map */
+  max-height: 220px;
+  overflow: auto;
+  padding: 8px;
+  border-radius: 8px;
+  background: var(--color-surface-raised);
+  box-shadow: 0 12px 36px rgba(0,0,0,0.28);
+}
+
+.geocode-results ul { margin: 0; padding: 0; list-style: none; }
+
+.geocode-results .view-menu-item {
+  padding: 8px 10px;
+  border-radius: 6px;
+  background: transparent;
+  color: #fff;
+  font-size: 0.9rem;
+}
+
+.geocode-results .view-menu-item:hover {
+  background: rgba(255,255,255,0.04);
+}
+
+@media (max-width: 900px) {
+  .dashboard {
+    grid-template-columns: 1fr;
+  }
+
+  .sidebar {
+    border-right: none;
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  .map-view {
+    min-height: 52vh;
+  }
+}

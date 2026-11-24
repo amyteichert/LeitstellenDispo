@@ -1,0 +1,206 @@
+/* Wachen, Personal und Funkverkehr */
+
+/* Wachenliste mit „Verwalten“ */
+.wachen-liste {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+.wachen-karte {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  background: var(--color-surface);
+}
+.wachen-karte__info {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+}
+.wachen-karte__info small {
+  color: var(--color-text-muted);
+}
+
+/* Verwaltungsseite einer Wache */
+.verwalten-kopf {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.verwalten-kopf small {
+  color: var(--color-text-muted);
+}
+/* Schmale Handys: Zurück-Knopf nicht zusammenquetschen, langer Wachenname bricht um statt den Stift rauszuschieben */
+.verwalten-kopf > .btn { flex-shrink: 0; }
+.verwalten-kopf > div { min-width: 0; }
+.verwalten-kopf h2 { overflow-wrap: break-word; hyphens: auto; }
+@media (max-width: 480px) {
+  .verwalten-kopf { gap: 8px; }
+  .seiten-inhalt .verwalten-kopf h2 { font-size: 1.2rem; }
+  .verwalten-kopf > .btn { padding: 0 10px; }
+}
+.verwalten-kopf h2 .btn { flex-shrink: 0; }
+.verwalten-reiter {
+  display: flex;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+.verwalten-kacheln {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 8px;
+}
+.verwalten-kachel {
+  display: grid;
+  gap: 4px;
+  padding: 12px;
+  background: var(--color-surface);
+}
+.verwalten-kachel small {
+  color: var(--color-text-muted);
+}
+.verwalten-kachel strong {
+  font-size: 1.3rem;
+}
+.ausbau-raster {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 10px;
+}
+.ausbau-karte {
+  display: grid;
+  gap: 6px;
+  align-content: start;
+  padding: 12px;
+  background: var(--color-surface);
+}
+.ausbau-karte h3,
+.ausbau-karte p {
+  margin: 0;
+}
+.ausbau-karte p {
+  font-size: 0.9rem;
+  color: var(--color-text-muted);
+}
+.ausbau-karte__kategorie {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+}
+.ausbau-karte__preis {
+  font-size: 1.2rem;
+}
+.ausbau-karte--gesperrt {
+  opacity: 0.55;
+  border-style: dashed;
+}
+
+/* Personal einer Wache */
+.besatzung-raster {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 10px;
+}
+.besatzung-karte {
+  display: grid;
+  gap: 6px;
+  align-content: start;
+  padding: 10px 12px;
+  background: var(--color-surface);
+}
+.besatzung-karte__kopf {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+.besatzung-liste {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+}
+.besatzung-liste > li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.quali-chip {
+  display: inline-block;
+  margin-left: 4px;
+  padding: 1px 6px;
+  font-size: 0.72rem;
+  background: var(--color-primary-light);
+  color: var(--color-primary-text);
+}
+.quali-chip--keine {
+  background: var(--color-surface-raised);
+  color: var(--color-text-muted);
+}
+
+/* Funkverkehr */
+.funk-chip {
+  border-color: var(--color-primary);
+}
+@keyframes funk-blinken {
+  50% { background: var(--color-primary-light); }
+}
+.funk-liste {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  font-family: ui-monospace, 'Cascadia Mono', Consolas, monospace;
+  font-size: 0.88rem;
+}
+.funk-zeile {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--color-surface);
+  border-left: 3px solid var(--color-border-strong);
+}
+.funk-zeile--leitstelle {
+  background: var(--color-surface-raised);
+}
+.funk-zeile--alarm {
+  border-left-color: var(--color-primary);
+}
+.funk-zeile--sprechwunsch {
+  border-left-color: #f59e0b;
+}
+.funk-zeile--lage,
+.funk-zeile--sprechaufforderung {
+  border-left-color: var(--color-success);
+}
+.funk-zeile__zeit {
+  color: var(--color-text-muted);
+  flex-shrink: 0;
+}
+.funk-zeile__text {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.funk-status {
+  flex-shrink: 0;
+  text-align: center;
+  font-weight: 700;
+  background: var(--color-surface-raised);
+}
+.einsatz-meldungen li[data-art='sprechwunsch'] {
+  color: #f59e0b;
+}

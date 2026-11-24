@@ -1,0 +1,286 @@
+/* Leitstellen-Look: überarbeitet frühere Regeln (muss nach den Ansichten kommen) */
+
+/* ==========================================================================
+   Leitstellen-Look: dicht und ruhig wie ein Einsatzleitrechner, aber mit
+   Farbe dort, wo sie etwas sagt (Status, Einsatzart, Karte).
+   ========================================================================== */
+
+/* Kopfzeile und Chips: flacher und kleiner */
+.topbar { min-height: 52px; padding: 6px 16px; }
+
+/* Blaulicht-Kante unter der Kopfzeile (nur Standard-Design; die Neon-Designs haben ihre eigene Leuchtkante) */
+html[data-design='blau'] .topbar::after,
+html[data-design='schwarz'] .topbar::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -1px;
+  height: 2px;
+  background: linear-gradient(90deg, var(--color-primary), transparent 38%, transparent 62%, var(--status-bearbeitung));
+  opacity: 0.85;
+  pointer-events: none;
+}
+.chip { min-height: 30px; padding: 0 8px; font-size: 0.8rem; }
+
+/* Status: kompaktes Etikett in Statusfarbe (Farben aus [O1]) */
+.status-badge {
+  padding: 1px 7px;
+  font-size: 0.68rem;
+  text-transform: uppercase;
+}
+
+/* Einsatzliste: Zeilen statt Karten */
+.einsatz-liste { gap: 4px; }
+.einsatz-eintrag {
+  min-height: 0;
+  gap: 2px;
+  padding: 7px 10px;
+  border-left-width: 3px;
+}
+.einsatz-eintrag__zeile { font-size: 0.8rem; }
+
+/* Fahrzeugbedarf: sachliche Kästchen, fehlende Kräfte nur als Textfarbe */
+.bedarf-chip,
+.bedarf-chip--klein {
+  padding: 1px 6px;
+  border-radius: 3px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  background: none !important;
+  border-color: var(--color-border-strong) !important;
+  color: var(--color-text) !important;
+}
+.bedarf-chip--fehlt { color: #e08b86 !important; border-color: rgba(194, 69, 63, 0.55) !important; }
+.bedarf-chip--erfuellt { color: var(--color-text-muted) !important; }
+.bedarf-chip--unterwegs { color: #9db8e8 !important; }
+
+/* Versorgungslage: Hinweiszeile mit Randmarkierung statt farbiger Fläche */
+.versorgung-hinweis {
+  padding: 6px 10px;
+  border: 0;
+  border-left: 3px solid;
+  border-radius: 0;
+  background: var(--color-surface-raised) !important;
+  color: var(--color-text) !important;
+  font-size: 0.85rem;
+}
+.versorgung-hinweis--fehlt { border-left-color: var(--status-bearbeitung) !important; }
+.versorgung-hinweis--unterwegs { border-left-color: var(--status-alarmiert) !important; }
+
+.patienten-liste li,
+.einsatz-meldungen { border-radius: var(--radius); }
+
+/* Einblendungen: schmal und kompakt */
+.einsatz-hinweise { top: 64px; width: min(300px, calc(100vw - 32px)); gap: 6px; }
+.einsatz-hinweis {
+  border-left-width: 3px;
+  border-left-color: var(--status-offen);
+  font-size: 0.82rem;
+}
+.einsatz-hinweis--meldung { border-left-color: var(--status-alarmiert); }
+
+/* Einsatzleiste auf der Karte: flache Kästchen statt Pillen */
+.map-incident-chip {
+  min-height: 28px;
+  padding: 0 8px;
+  border-radius: var(--radius);
+  background: var(--color-surface);
+  font-size: 0.78rem;
+  box-shadow: var(--shadow-sm);
+}
+
+/* Karte: offene Einsätze pulsieren ruhig, eskalierte leuchten rot */
+.incident-marker--offen .kennzeichen { animation: incident-pulse 2.4s ease-out infinite; }
+.incident-marker--fw .kennzeichen { border-radius: 4px; }
+.incident-marker--eskaliert .kennzeichen {
+  outline: 2px solid var(--status-bearbeitung);
+  box-shadow: 0 0 10px rgba(229, 72, 77, 0.7);
+}
+.incident-marker--eskaliert::after { background: var(--status-bearbeitung); }
+@media (prefers-reduced-motion: reduce) {
+  .incident-marker--offen .kennzeichen { animation: none; }
+}
+
+/* Fahrzeuge auf der Karte: nur das Fahrzeugbild auf heller Plakette.
+   Unterstrich = Organisation (Feuerwehr rot, Rettungsdienst gelb), Punkt oben rechts = Fahrtstatus */
+.vehicle-marker span {
+  position: relative;
+  display: inline-flex;
+  transform: translate(-50%, calc(-100% - 12px)); /* über der Position, damit der Einsatz-Marker sichtbar bleibt */
+  padding: 2px 4px;
+  border-radius: 5px;
+  background: #fff;
+  border-bottom: 3px solid #c62828;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.45);
+  cursor: pointer;
+}
+.vehicle-marker--rd span { border-bottom-color: #f5c400; }
+.vehicle-marker .fahrzeug-bild--karte {
+  width: 52px;
+  height: 24px;
+  margin: 0;
+  padding: 0;
+  background: none;
+  image-rendering: auto;
+}
+.vehicle-marker span::after {
+  content: '';
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--status-alarmiert);
+  border: 2px solid #fff;
+}
+.vehicle-marker--rueckfahrt span::after { background: var(--status-abgeschlossen); }
+.vehicle-marker--transport span::after,
+.vehicle-marker--krankenhaus span::after { background: var(--status-transport); }
+
+/* Kein Blinken */
+.funk-chip,
+.neue-meldung-badge { animation: none; }
+
+/* Karten, Kacheln, Listen: kleinere Rundungen */
+.ausbau-karte,
+.wachen-karte,
+.finanz-kachel,
+.verwalten-kachel,
+.besatzung-karte,
+.quali-chip,
+.erste-schritte,
+.tab-leiste__tab { border-radius: var(--radius); }
+
+/* „Neue Meldung“: schlichtes Etikett statt blinkender Pille */
+.neue-meldung-badge {
+  margin-left: 6px;
+  padding: 0 5px;
+  border-radius: 3px;
+  background: none;
+  border: 1px solid var(--status-alarmiert);
+  color: #9db8e8;
+  font-size: 0.68rem;
+  font-weight: 600;
+}
+
+/* Runde Pillen und Kanten der Kartenfläche angleichen */
+.map-incident-bar__count,
+.sidebar-toggle { border-radius: var(--radius); }
+.map-panel,
+.map-panel .leaflet-container { border-radius: var(--radius); }
+
+/* Handy: Logo nicht von den Chips überdecken lassen – Chips rücken zusammen und scrollen notfalls */
+@media (max-width: 600px) {
+  .topbar { gap: 8px; padding: 6px 10px; }
+  .topbar .brand { flex: 0 0 auto; }
+  .topbar__meta {
+    min-width: 0;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .topbar__meta::-webkit-scrollbar { display: none; }
+  .topbar .chip { min-height: 30px; padding: 0 6px; }
+}
+
+/* Meldungen über dem Spiel (Willkommen, Schichtzulage): wie die Gast-Leiste, mit Randmarkierung */
+.gast-leiste--meldung {
+  border-left: 3px solid var(--color-success);
+  color: var(--color-text);
+}
+.gast-leiste--sonder { border-left-color: var(--status-offen); }
+
+/* Willkommen: Startstadt wählen */
+.start-stadt { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.start-stadt input {
+  width: 160px;
+  padding: 5px 8px;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius);
+  background: var(--color-input);
+  color: var(--color-text);
+  font: inherit;
+}
+
+/* Profil */
+.profil-name { font-size: 1.15rem; }
+.profil-zahlen {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 8px 16px;
+  margin: 4px 0 0;
+}
+.profil-zahlen dt { color: var(--color-text-muted); font-size: 0.78rem; }
+.profil-zahlen dd { margin: 0; font-variant-numeric: tabular-nums; }
+
+/* Fehler melden */
+.fehler-melden { display: grid; gap: 8px; }
+.fehler-melden textarea {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius);
+  background: var(--color-input);
+  color: var(--color-text);
+  font: inherit;
+  resize: vertical;
+}
+.profil { display: grid; gap: 12px; max-width: 760px; }
+a.btn { text-decoration: none; }
+
+/* Personal-Liste: Suche und Filter */
+.personal-filter { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 6px; margin: 8px 0; }
+.personal-filter .field { margin: 0; }
+
+/* Alarmierung: Knöpfe über der Fahrzeugliste */
+.fahrzeug-auswahl__knoepfe { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0; }
+.fahrzeug-auswahl__knoepfe .btn { flex: 1 1 auto; justify-content: center; }
+/* Auf der Karte scrollt nur die Fahrzeugliste, Knöpfe und Bedarf bleiben sichtbar */
+.map-incident-panel .fahrzeug-auswahl--karte { max-height: 260px; overflow-y: auto; padding-right: 4px; }
+
+/* AAO: eigene Alarm-Knöpfe (wie leitstellenspiel.de) */
+.aao { margin: 8px 0; }
+.aao__kopf { display: flex; align-items: flex-end; gap: 6px; border-bottom: 1px solid var(--color-border, #8884); }
+.aao__reiter { display: flex; flex-wrap: wrap; gap: 4px; flex: 1; }
+.aao__reiter-knopf {
+  padding: 6px 12px; border: 1px solid var(--color-border, #8886); border-bottom: none; border-radius: 6px 6px 0 0;
+  background: var(--color-surface); color: var(--color-text); cursor: pointer; font: inherit; min-height: 36px;
+}
+.aao__reiter-knopf--aktiv { background: var(--color-primary, #b91c1c); color: #fff; border-color: transparent; }
+.aao__knoepfe { display: flex; flex-wrap: wrap; gap: 6px; padding-top: 8px; }
+.aao__knopf {
+  display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; min-height: 36px;
+  border: 1px solid #0004; color: #fff; font: inherit; font-weight: 600; cursor: pointer;
+  text-shadow: 0 1px 1px #0006;
+}
+.aao__knopf:hover { filter: brightness(1.1); }
+.aao__knopf--vorschau { cursor: default; }
+.aao__status { display: inline-grid; place-items: center; width: 22px; height: 22px; border-radius: 4px; background: #fff3; font-size: 0.8rem; }
+.aao-hilfe__knopf {
+  width: 28px; height: 28px; border-radius: 50%; border: 1px solid var(--color-border, #8886); flex: none;
+  background: var(--color-surface); color: var(--color-text); font-weight: 700; cursor: pointer; margin-bottom: 4px;
+}
+.aao-hilfe {
+  margin: 8px 0; padding: 10px 12px; border-radius: 8px; background: var(--color-surface);
+  box-shadow: var(--shadow-card); font-size: 0.9rem; font-weight: normal;
+}
+.aao-hilfe p, .aao-hilfe ol { margin: 4px 0 10px; }
+.aao-hilfe ol { padding-left: 1.2rem; }
+.aao-formular { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 8px; }
+.aao-formular__farbe input { width: 100%; min-height: 40px; padding: 2px; }
+.aao-formular__fahrzeuge { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 6px; }
+.aao-formular__fahrzeug { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.aao-formular__fahrzeug input { width: 64px; }
+.aao-formular__reiter { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
+.wache-anpassen { display: grid; gap: 8px; margin-bottom: 12px; }
+.wache-anpassen__farben { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.wache-anpassen__farbe { width: 32px; height: 32px; border-radius: 8px; border: 2px solid var(--color-border, #444); cursor: pointer; padding: 0; }
+.wache-anpassen__symbol { padding: 2px; border-radius: 8px; border: 2px solid transparent; background: none; cursor: pointer; line-height: 0; }
+.wache-anpassen__farbe--aktiv { outline: 2px solid var(--color-primary); outline-offset: 2px; }
+.wache-anpassen__eigene input { width: 40px; height: 32px; padding: 0; border: none; background: none; cursor: pointer; }
+.aao-formular__gruppe { margin: 12px 0 6px; font-size: 13px; color: var(--color-text-muted); }
+.aao-liste { list-style: none; padding: 0; display: grid; gap: 8px; }
+.aao-liste li { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.aao-liste small { flex: 1 1 160px; color: var(--color-text-muted); }
+.aao-liste__aktionen { display: flex; gap: 4px; }

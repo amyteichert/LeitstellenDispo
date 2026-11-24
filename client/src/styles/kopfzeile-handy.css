@@ -1,0 +1,42 @@
+/* Kopfzeile: Pause- und Menü-Knopf, Statuschips auf dem Handy */
+
+/* Pause-Knopf in der Kopfzeile: unauffällig, solange das Spiel läuft – deutlich, wenn pausiert */
+.pause-chip--aktiv {
+  border-color: #e3b341;
+  box-shadow: 0 0 10px rgba(227, 179, 65, 0.45);
+}
+.pause-chip--aktiv .symbol,
+.pause-chip--aktiv .status-chip__label { color: #f2cc60; }
+html[data-design='hell'] .pause-chip--aktiv .symbol,
+html[data-design='hell'] .pause-chip--aktiv .status-chip__label { color: #8a5a00; }
+
+/* Menü-Knopf: am PC mit Namen der Ansicht, auf dem Handy nur das Menü-Symbol (die Ansicht steht unten in der Leiste und als Überschrift) */
+.view-trigger__menue { display: none; }
+
+/* Handy: Statuschips nicht mehr zusammenquetschen und abschneiden – sie behalten ihre Breite und
+   scrollen notfalls seitlich. Der Menü-Knopf klebt dabei rechts und bleibt immer erreichbar. */
+@media (max-width: 600px) {
+  .topbar__meta { justify-content: flex-start; }
+  /* Rechtsbündig, solange alles passt – beim Scrollen bleibt so auch der linke Rand erreichbar */
+  .topbar__meta > :first-child { margin-left: auto; }
+  .topbar__meta > .chip { flex: 0 0 auto; overflow: visible; }
+  .topbar .view-dropdown {
+    position: sticky;
+    right: 0;
+    z-index: 1;
+    padding-left: 4px;
+    background: var(--color-surface);
+  }
+  .view-trigger__text { display: none; }
+  .view-trigger__menue { display: inline-flex; }
+  .topbar .view-trigger { gap: 4px; }
+  /* Pausiert erkennt man am gelben Leuchten – der Text würde zu viel Platz kosten */
+  .pause-chip .status-chip__label { display: none; }
+}
+
+
+/* Sehr schmale Handys: Logo-Quadrat weglassen, damit Guthaben, Pause, Ruf und Rang ohne Scrollen passen */
+@media (max-width: 420px) {
+  .topbar .brand .marke { display: none; }
+  .topbar { gap: 6px; padding: 6px 8px; }
+}

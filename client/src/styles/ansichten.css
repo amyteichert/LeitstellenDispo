@@ -1,0 +1,910 @@
+/* Ansichten: Finanzen, Inhaltsseiten, Erste Schritte, Rechtliches, Team, Tour, Einstellungen, Tab-Leiste, Gastmodus */
+
+/* Finanzen */
+.finanz-kacheln {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 8px;
+}
+.finanz-kachel {
+  display: grid;
+  gap: 2px;
+  background: var(--color-surface);
+}
+.finanz-kachel span,
+.finanz-kachel small { font-size: 0.75rem; color: var(--color-text-muted); }
+.finanz-kachel--plus strong { color: #5fd38a; }
+.finanz-kachel--minus strong { color: #ff8a8a; }
+
+/* Aufstellung der laufenden Kosten */
+.finanz-posten {
+  list-style: none;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  overflow: hidden;
+}
+.finanz-posten li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--color-border);
+}
+.finanz-posten li:last-child { border-bottom: 0; }
+.finanz-posten li > div { display: grid; gap: 2px; }
+.finanz-posten small { font-size: 0.78rem; color: var(--color-text-muted); }
+.finanz-posten span { font-variant-numeric: tabular-nums; font-weight: 600; white-space: nowrap; }
+.finanz-posten__summe { background: var(--color-surface-raised); }
+
+/* Inhaltsseiten (alles außer der Karte): begrenzte Breite, einheitliche Überschriften */
+.seiten-inhalt {
+  width: 100%;
+  /* Als Grid-Element sonst mindestens so breit wie der Inhalt – auf 320–375 px wurde die Seite breiter als der Bildschirm */
+  min-width: 0;
+  max-width: 1240px;
+  margin: 0 auto;
+  padding: 24px 24px 48px;
+}
+.seiten-inhalt h2 {
+  letter-spacing: -0.01em;
+  margin-bottom: 14px;
+}
+.seiten-inhalt .wachen-kopf { margin-bottom: 14px; }
+.seiten-inhalt .wachen-kopf h2 { margin-bottom: 0; }
+.seiten-kopf { margin-bottom: 16px; }
+.seiten-kopf h2 { margin-bottom: 4px; }
+.seiten-kopf p { color: var(--color-text-muted); font-size: 0.9rem; max-width: 70ch; }
+.abschnitt-titel {
+  margin: 24px 0 10px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+@media (max-width: 600px) {
+  .seiten-inhalt { padding: 16px 16px 40px; }
+}
+
+.finanz-buchungen {
+  list-style: none;
+  display: grid;
+  gap: 6px;
+}
+.finanz-buchungen li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  padding: 10px;
+}
+.finanz-buchungen li div { display: grid; gap: 2px; min-width: 0; }
+.finanz-buchungen small { font-size: 0.75rem; color: var(--color-text-muted); }
+.betrag--plus { color: #4ade80; font-weight: 700; white-space: nowrap; }
+.betrag--minus { color: var(--color-primary-text); font-weight: 700; white-space: nowrap; }
+
+/* „Erste Schritte“ für neue Spieler – schwebt unten links (über der Tab-Leiste), einklappbar */
+.erste-schritte {
+  position: fixed;
+  left: 16px;
+  bottom: calc(var(--tab-leiste-hoehe) + 16px);
+  z-index: 2400; /* über der Karte, unter den Einsatz-Hinweisen */
+  width: min(320px, calc(100vw - 32px));
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+  background: var(--color-surface-raised);
+  border: 1px solid var(--color-primary);
+  box-shadow: var(--shadow-card);
+  color: var(--color-text);
+}
+
+/* Auf breiten Bildschirmen neben die Standorte-Leiste, damit „Standort erstellen“ nicht verdeckt wird */
+@media (min-width: 901px) {
+  .app-shell:has(.sidebar) .erste-schritte { left: calc(340px + 16px); }
+}
+
+.erste-schritte--zu {
+  width: auto;
+  padding: 8px 12px;
+  font: inherit;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.erste-schritte__kopf {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.erste-schritte__kopf span {
+  margin-left: auto;
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
+}
+.erste-schritte__kopf button,
+.erste-schritte__aus {
+  background: none;
+  border: 0;
+  color: var(--color-text-muted);
+  font: inherit;
+  cursor: pointer;
+}
+.erste-schritte__kopf button { font-size: 1.1rem; padding: 0 4px; }
+.erste-schritte__aus { font-size: 0.75rem; justify-self: end; text-decoration: underline; }
+
+.erste-schritte__liste {
+  list-style: none;
+  display: grid;
+  gap: 6px;
+}
+.erste-schritte__liste li {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  font-size: 0.85rem;
+}
+.erste-schritte__liste li div { display: grid; gap: 2px; }
+.erste-schritte__liste li.erledigt strong { color: var(--color-text-muted); text-decoration: line-through; }
+.erste-schritte__liste li.aktuell strong { color: var(--color-primary-text); }
+.erste-schritte__liste small { font-size: 0.78rem; color: var(--color-text-muted); line-height: 1.4; }
+
+.erste-schritte__fertig { font-size: 0.85rem; }
+
+/* Impressum & Datenschutz */
+.rechtliches {
+  min-height: 100vh;
+  padding: 24px 16px;
+  background: var(--color-bg);
+  color: var(--color-text);
+}
+.rechtliches__karte {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 20px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+}
+.rechtliches__karte h1 {
+  margin: 16px 0 8px;
+}
+.rechtliches__karte h2 {
+  margin: 20px 0 6px;
+  font-size: 1.05rem;
+}
+.rechtliches__karte p {
+  margin: 0 0 10px;
+}
+.rechtliches__email-hinweis {
+  display: block;
+  color: var(--color-text-muted);
+  font-size: 0.85rem;
+  font-style: italic;
+}
+.rechtliches__stand {
+  color: var(--color-text-muted);
+  font-size: 0.85rem;
+}
+.rechtliche-links {
+  margin-top: 16px;
+  font-size: 0.85rem;
+}
+.rechtliche-links a {
+  color: var(--color-text-muted);
+}
+.rechtliche-links a:hover {
+  color: var(--color-text);
+}
+
+/* Team-Bereich */
+.team-konten {
+  list-style: none;
+  margin: 12px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+}
+.team-konto {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+}
+.team-konto--gesperrt {
+  border-color: var(--color-primary);
+  opacity: 0.8;
+}
+.team-konto__kopf {
+  width: 100%;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 12px;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+.team-konto__kopf small {
+  flex-basis: 100%;
+  color: var(--color-text-muted);
+}
+.team-konto__details {
+  padding: 0 12px 12px;
+  display: grid;
+  gap: 10px;
+}
+.team-konto__aktionen {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+.team-chip--warnung {
+  background: var(--color-primary);
+  color: var(--color-on-primary);
+}
+
+/* Geführte Tour: großer Hinweis, alles andere abgedunkelt, Pfeil auf das, was gerade dran ist */
+.tour {
+  position: fixed;
+  inset: 0;
+  z-index: 6000;
+  pointer-events: none; /* gesperrt wird per Event in Tour.tsx – so bleiben die Löcher bedienbar */
+}
+.tour__dunkel {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+}
+.tour__schleier {
+  fill: rgba(3, 6, 14, 0.72);
+}
+.tour__rahmen {
+  position: fixed;
+  border: 2px solid var(--color-primary);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--color-primary) 35%, transparent);
+  transition: top 0.2s, left 0.2s, width 0.2s, height 0.2s;
+  pointer-events: none;
+}
+.tour__rahmen--aktiv {
+  animation: tour-puls 1.4s ease-in-out infinite;
+}
+@keyframes tour-puls {
+  50% { box-shadow: 0 0 0 10px color-mix(in srgb, var(--color-primary) 12%, transparent); }
+}
+.tour__pfeil {
+  fill: none;
+  stroke: var(--color-primary);
+  stroke-width: 4;
+  stroke-linecap: round;
+  stroke-dasharray: 10 8;
+  filter: drop-shadow(0 0 6px color-mix(in srgb, var(--color-primary) 70%, transparent));
+  animation: tour-pfeil 0.9s linear infinite;
+}
+.tour__pfeilspitze {
+  fill: var(--color-primary);
+}
+@keyframes tour-pfeil {
+  to { stroke-dashoffset: -18; }
+}
+.tour__box {
+  position: fixed;
+  width: min(460px, calc(100vw - 24px));
+  /* Nie höher als der freie Bereich – auf kleinen Handys (320 px) mit festem Balken sonst oben abgeschnitten.
+     Nur der Fließtext scrollt, damit Titel und Knöpfe immer sichtbar bleiben. */
+  max-height: calc(100vh - var(--fester-balken, 0px) - 24px);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding: 18px 18px 14px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-primary);
+  border-radius: 16px;
+  color: var(--color-text);
+  pointer-events: auto;
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.6), 0 0 0 4px color-mix(in srgb, var(--color-primary) 18%, transparent);
+  transition: top 0.25s ease, left 0.25s ease;
+}
+.tour__box > p {
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.tour__fortschritt {
+  flex-shrink: 0;
+  height: 4px;
+  margin-bottom: 10px;
+  border-radius: 2px;
+  background: var(--color-border, rgba(255, 255, 255, 0.12));
+  overflow: hidden;
+}
+.tour__fortschritt span {
+  display: block;
+  height: 100%;
+  background: var(--color-primary);
+  transition: width 0.3s ease;
+}
+.tour__box small {
+  color: var(--color-text-muted);
+}
+.tour__box h3 {
+  margin: 4px 0 8px;
+  font-size: 1.25rem;
+}
+.tour__box p {
+  margin: 0 0 14px;
+  line-height: 1.5;
+  font-size: 1rem;
+}
+.tour__knoepfe {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.tour__tipp {
+  color: var(--color-primary-text);
+  font-size: 0.92rem;
+  font-weight: 600;
+}
+.tour__aufgabe {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .tour__rahmen, .tour__box, .tour__fortschritt span { transition: none; }
+  .tour__rahmen--aktiv, .tour__pfeil { animation: none; }
+}
+
+/* Einstellungen: Konto-Formulare */
+.einstellungen-block {
+  margin: 12px 0;
+}
+.einstellungen-block h3 {
+  margin: 0 0 6px;
+  font-size: 1rem;
+}
+.einstellungen-formular {
+  display: grid;
+  gap: 8px;
+  max-width: 360px;
+}
+.einstellungen-formular .field span {
+  display: block;
+  font-size: 12px;
+  color: var(--color-text-muted);
+  margin-bottom: 2px;
+}
+
+/* Anmeldung: Text-Links wie „Passwort vergessen?“ */
+.anmeldung__link {
+  background: none;
+  border: none;
+  padding: 4px 0;
+  color: var(--color-text-muted);
+  font: inherit;
+  font-size: 0.9rem;
+  text-decoration: underline;
+  cursor: pointer;
+  justify-self: center;
+}
+.anmeldung__link:hover {
+  color: var(--color-text);
+}
+
+.anmeldung__feldhinweis {
+  display: block;
+  margin-top: 6px;
+  font-size: 0.8rem;
+  line-height: 1.4;
+  color: var(--color-text-muted);
+}
+.tour__beenden {
+  background: none;
+  border: none;
+  padding: 2px 0;
+  color: var(--color-text-muted);
+  font: inherit;
+  font-size: 0.78rem;
+  text-decoration: underline;
+  cursor: pointer;
+  opacity: 0.8;
+}
+.tour__beenden:hover {
+  color: var(--color-text);
+  opacity: 1;
+}
+
+/* Fenster „Wache kaufen“ */
+.wachen-kopf {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.wache-kaufen .location-form {
+  margin-top: 8px;
+}
+.wache-kaufen__karte {
+  height: 260px;
+  border-radius: 10px;
+  border: 1px solid var(--color-border);
+  margin-top: 8px;
+}
+.wache-kosten {
+  margin: 8px 0 0;
+  font-size: 14px;
+}
+.kauf-meldung {
+  position: fixed;
+  left: 50%;
+  bottom: calc(var(--tab-leiste-hoehe) + 16px);
+  transform: translateX(-50%);
+  z-index: 3000;
+  max-width: calc(100% - 32px);
+  background: #12261c;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
+}
+
+
+/* Einstellungen: Karten-Raster wie bei Wachen/Ausbau */
+.einstellungen-raster {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 12px;
+  margin: 12px 0;
+}
+.einstellungen-raster .ausbau-karte { gap: 10px; }
+.einstellung-schalter,
+.einstellung-regler {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 40px;
+  cursor: pointer;
+}
+.einstellung-schalter span,
+.einstellung-regler span { display: grid; gap: 2px; }
+.einstellung-schalter small,
+.einstellung-regler small { color: var(--color-text-muted); font-size: 0.8rem; }
+.einstellung-schalter input[type='checkbox'] { width: 20px; height: 20px; flex-shrink: 0; accent-color: var(--color-primary); }
+.einstellung-regler { flex-wrap: wrap; }
+.einstellung-regler input[type='range'] { flex: 1 1 140px; accent-color: var(--color-primary); }
+
+/* Kleiner Symbol-Knopf in Listen (z. B. Fahrzeug umbenennen) */
+.btn--klein {
+  min-height: 28px;
+  padding: 0 8px;
+  margin-left: 6px;
+  font-size: 0.85rem;
+  vertical-align: middle;
+}
+
+/* Statistik: Ruf-Verlauf (eine Linie, dezentes Raster) und Balkenliste */
+.statistik-verlauf { position: relative; }
+.statistik-verlauf svg { display: block; width: 100%; height: 100%; overflow: visible; }
+.statistik-verlauf__raster { stroke: var(--color-border); stroke-width: 1; vector-effect: non-scaling-stroke; }
+.statistik-verlauf__achse { position: absolute; left: -32px; width: 26px; transform: translateY(-50%); text-align: right; color: var(--color-text-muted); font-size: 0.72rem; }
+.statistik-verlauf__linie { fill: none; stroke: var(--color-primary-text); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; vector-effect: non-scaling-stroke; }
+.statistik-verlauf__treffer { fill: transparent; cursor: pointer; }
+.statistik-verlauf__treffer:hover { fill: var(--color-primary-text); fill-opacity: 0.08; }
+.statistik-balken { list-style: none; }
+.statistik-balken li { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(60px, 1fr) 2.5ch; align-items: center; gap: 10px; font-size: 0.9rem; }
+.statistik-balken li > span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.statistik-balken__spur span { display: block; height: 100%; }
+.statistik-balken strong { text-align: right; }
+
+/* Ankündigung des Teams an alle Spieler */
+.ankuendigung {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 8px 16px 0;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--color-border-strong);
+  border-left: 4px solid var(--color-primary);
+  background: var(--color-surface-raised);
+  font-size: 0.9rem;
+}
+.ankuendigung p { flex: 1; margin: 0; }
+.ankuendigung--wartung { border-left-color: #f59e0b; }
+.ankuendigung--wichtig { border-left-color: #ef4444; }
+.ankuendigung--erledigt { border-left-color: #22c55e; }
+/* Hinweise im Fenster in der Mitte (Antworten auf Meldungen) */
+.ruf-fenster .ankuendigung { margin: 10px 0; }
+.meldungs-antwort__von { display: inline-block; margin-top: 6px; color: var(--color-text-muted); font-style: italic; }
+.ankuendigung__schliessen {
+  min-width: 32px;
+  min-height: 32px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--color-text-muted);
+  font: inherit;
+  cursor: pointer;
+}
+.ankuendigung__schliessen:hover { background: var(--color-surface); color: var(--color-text); }
+
+/* Team: Protokoll- und Notizlisten */
+.team-protokoll { list-style: none; display: grid; gap: 6px; }
+.team-protokoll li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 2px 8px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+}
+.team-protokoll li > * { grid-column: 1; }
+.team-protokoll li > .btn { grid-column: 2; grid-row: 1 / span 2; align-self: center; }
+.team-protokoll small { color: var(--color-text-muted); font-size: 0.78rem; }
+
+/* Fahrzeuge einer Wache: aufklappbar zum Bearbeiten */
+.fahrzeug-liste { list-style: none; display: grid; gap: 8px; }
+.fahrzeug-liste > li {
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  background: var(--color-surface);
+  overflow: hidden;
+}
+.fahrzeug-liste__eintrag--offen { border-color: var(--color-primary) !important; }
+.fahrzeug-liste__kopf {
+  width: 100%;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 12px;
+  border: none;
+  background: transparent;
+  color: var(--color-text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.fahrzeug-liste__kopf:hover { background: var(--color-surface-raised); }
+.fahrzeug-bearbeiten {
+  display: grid;
+  gap: 14px;
+  padding: 12px;
+  border-top: 1px solid var(--color-border);
+  background: var(--color-bg);
+}
+.fahrzeug-bearbeiten__zeile { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+
+/* Fahrzeug bearbeiten: Besatzung als kompaktes Sitzplatz-Raster */
+.sitzplaetze { list-style: none; display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 6px; }
+.sitzplatz {
+  position: relative;
+  display: grid;
+  gap: 1px;
+  min-height: 46px;
+  padding: 6px 28px 6px 8px;
+  border-radius: 8px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  font-size: 0.85rem;
+}
+.sitzplatz__name { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sitzplatz__quali { font-size: 0.72rem; color: var(--color-text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sitzplatz__raus {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 22px;
+  height: 22px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--color-text-muted);
+  font-size: 0.75rem;
+  cursor: pointer;
+}
+.sitzplatz__raus:hover:not(:disabled) { background: var(--color-surface-raised); color: var(--color-text); }
+.sitzplatz--frei { place-items: center; padding: 6px; border-style: dashed; color: var(--color-text-muted); background: transparent; }
+
+/* Personal einer Wache: eine Zeile je Person – links Name/Qualifikation, rechts Einteilung/Aktionen */
+.personal-liste { list-style: none; display: grid; }
+.personal-liste li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 2px;
+  border-bottom: 1px solid var(--color-border);
+}
+.personal-liste li:last-child { border-bottom: none; }
+.personal-liste__name { display: grid; gap: 3px; min-width: 0; }
+.personal-liste__rechts { display: grid; gap: 4px; justify-items: end; text-align: right; flex-shrink: 0; }
+.personal-liste__ort { font-size: 0.85rem; color: var(--color-text-muted); white-space: nowrap; }
+.personal-liste__aktionen { display: flex; gap: 6px; align-items: center; }
+.personal-liste__aktionen select { padding: 0.35rem 0.5rem; min-width: 120px; max-width: 46vw; }
+.einsatztempo { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px; }
+
+/* Einsatzliste: Bedarf als kleine Chips statt langer Textzeile */
+.einsatz-eintrag__bedarf { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; }
+
+/* Rückalarmierung: Fahrzeuge vom Einsatz zurückholen */
+.rueckalarmierung { display: grid; gap: 6px; margin: 8px 0; }
+.rueckalarmierung__knoepfe { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+.rueckalarmierung__knoepfe small { flex-basis: 100%; }
+.rueckalarmierung__aufklapper {
+  justify-self: start;
+  background: none;
+  border: none;
+  padding: 2px 0;
+  color: inherit;
+  opacity: 0.75;
+  font: inherit;
+  font-size: 0.9em;
+  cursor: pointer;
+}
+.rueckalarmierung__aufklapper:hover { opacity: 1; text-decoration: underline; }
+
+/* Passwort zurücksetzen: nur die Karte, mittig */
+.anmeldung__mitte.anmeldung__mitte--einzeln {
+  grid-template-columns: minmax(0, 430px);
+  justify-content: center;
+}
+a.anmeldung__link { text-align: center; }
+
+/* Tab-Leiste unten: Schnellzugriff auf Karte, Einsätze, Einstellungen (alles andere über das Menü oben rechts).
+   Klebt am unteren Bildschirmrand und gehört zum Layout – sie überdeckt also keine Inhalte. */
+:root { --tab-leiste-hoehe: 60px; }
+
+.tab-leiste {
+  position: sticky;
+  bottom: 0;
+  z-index: 1300; /* über der Karte, unter Menü und Hinweisen */
+  display: flex;
+  gap: 4px;
+  min-height: var(--tab-leiste-hoehe);
+  padding: 6px 12px calc(6px + env(safe-area-inset-bottom));
+  border-top: 1px solid var(--color-border);
+}
+
+.tab-leiste__tab {
+  display: grid;
+  justify-items: center;
+  align-content: center;
+  gap: 2px;
+  min-width: 92px;
+  padding: 4px 12px;
+  border: 0;
+  background: transparent;
+  color: var(--color-text-muted);
+  font: inherit;
+  font-size: 0.75rem;
+  cursor: pointer;
+}
+.tab-leiste__tab .symbol { color: inherit; }
+.tab-leiste__tab:hover { background: rgba(255, 255, 255, 0.04); color: var(--color-text); }
+.tab-leiste__tab:focus-visible { outline: 2px solid var(--color-primary-text); outline-offset: 2px; }
+.tab-leiste__tab--aktiv,
+.tab-leiste__tab--aktiv:hover {
+  background: var(--color-primary-light);
+}
+
+.tab-leiste__symbol { position: relative; display: inline-flex; }
+
+/* Anzahl wartender Einsätze */
+.tab-leiste__zahl {
+  position: absolute;
+  top: -6px;
+  right: -12px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 9px;
+  background: var(--color-danger);
+  color: #fff;
+  font-size: 0.68rem;
+  font-weight: 700;
+  line-height: 18px;
+  text-align: center;
+}
+
+/* Handy: die drei Tabs teilen sich die ganze Breite */
+@media (max-width: 600px) {
+  .tab-leiste { padding-left: 6px; padding-right: 6px; }
+  .tab-leiste__tab { flex: 1; min-width: 0; }
+}
+
+/* Website-Statistik (Team-Bereich) */
+.statistik-raster {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 12px;
+  margin-top: 16px;
+}
+.statistik-raster .einsatz-abschnitt {
+  align-content: start;
+  padding: 14px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  background: var(--color-surface);
+}
+.statistik-liste { list-style: none; display: grid; gap: 8px; margin: 8px 0; }
+.statistik-liste--klein { padding-top: 10px; border-top: 1px solid var(--color-border); font-size: 0.85rem; }
+.statistik-balken {
+  display: grid;
+  grid-template-columns: minmax(130px, 1.3fr) 2fr auto;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.88rem;
+}
+.statistik-balken__label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.statistik-balken__spur { background: var(--color-surface-raised); overflow: hidden; }
+.statistik-balken__spur > span { display: block; height: 100%; border-radius: inherit; background: var(--color-primary); }
+.statistik-balken__wert { font-variant-numeric: tabular-nums; font-weight: 600; text-align: right; white-space: nowrap; }
+.statistik-balken__wert small { color: var(--color-text-muted); font-weight: 400; }
+.statistik-verlauf {
+  display: flex;
+  align-items: flex-end;
+  gap: 3px;
+  height: 120px;
+  margin: 10px 0 6px;
+}
+.statistik-verlauf > span { flex: 1; max-width: 28px; height: 100%; display: flex; align-items: flex-end; }
+.statistik-verlauf > span > span { display: block; width: 100%; border-radius: 3px 3px 0 0; background: var(--color-primary); }
+.statistik-verlauf > span:hover > span { background: var(--color-primary-text); }
+.website-statistik .ausbau-karte .btn { justify-self: start; }
+
+/* Handy: Details klappen direkt unter dem gewählten Einsatz auf (Abstand zur Kopfzeile beim Hinscrollen) */
+.einsatz-liste__eintrag { scroll-margin-top: 72px; }
+.einsatz-aufgeklappt {
+  margin: 6px 0 10px;
+  scroll-margin-top: 72px;
+}
+.einsatz-aufgeklappt .einsatz-details {
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+}
+/* Titel und Adresse stehen schon im Listeneintrag darüber – nicht doppelt zeigen */
+.einsatz-aufgeklappt .einsatz-details__kopf h3,
+.einsatz-aufgeklappt .einsatz-details__kopf h3 + div {
+  display: none;
+}
+
+/* Schnellzugriff am PC: Segment-Leiste in der Kopfzeile – der aktive Bereich sitzt als erhabene Kachel darin */
+.tab-leiste--kopf {
+  position: static;
+  min-height: 0;
+  margin-left: 16px;
+  padding: 3px;
+  gap: 2px;
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  background: var(--color-bg);
+}
+.tab-leiste--kopf .tab-leiste__tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  min-height: 32px;
+  padding: 0 14px;
+  border-radius: 7px;
+  font-size: 0.88rem;
+  font-weight: 500;
+}
+.tab-leiste--kopf .tab-leiste__tab:hover { background: rgba(255, 255, 255, 0.04); }
+.tab-leiste--kopf .tab-leiste__tab--aktiv,
+.tab-leiste--kopf .tab-leiste__tab--aktiv:hover {
+  background: var(--color-surface-raised);
+  color: var(--color-text);
+  font-weight: 600;
+  box-shadow: inset 0 0 0 1px var(--color-border-strong), 0 1px 3px rgba(0, 0, 0, 0.35);
+}
+.tab-leiste--kopf .tab-leiste__tab--aktiv .symbol { color: var(--color-primary-text); }
+
+/* Zahl wartender Einsätze hinter dem Wort statt über dem Symbol */
+.tab-leiste--kopf .tab-leiste__symbol { display: contents; }
+.tab-leiste--kopf .tab-leiste__tab > span:last-child { order: 1; }
+.tab-leiste--kopf .tab-leiste__zahl { position: static; order: 2; margin-left: -2px; box-shadow: none; }
+
+/* Handy-Leiste: aktiver Tab mit Leuchtstreifen oben und farbigem Symbol */
+.tab-leiste--unten .tab-leiste__tab { position: relative; }
+.tab-leiste--unten .tab-leiste__tab--aktiv,
+.tab-leiste--unten .tab-leiste__tab--aktiv:hover {
+  background: transparent;
+  color: var(--color-text);
+  font-weight: 600;
+}
+.tab-leiste--unten .tab-leiste__tab--aktiv .symbol { color: var(--color-primary-text); }
+.tab-leiste--unten .tab-leiste__tab--aktiv::before {
+  content: '';
+  position: absolute;
+  top: -6px;
+  left: 50%;
+  width: 32px;
+  height: 3px;
+  border-radius: 0 0 3px 3px;
+  background: var(--color-primary);
+  transform: translateX(-50%);
+}
+.tab-leiste--unten .tab-leiste__zahl { box-shadow: 0 0 0 2px var(--color-surface); }
+
+/* Kleinere Laptops: Platz schaffen – Schriftzug, Version und Zusatztexte der Anzeigen ausblenden */
+@media (max-width: 1280px) {
+  .topbar .marke__text,
+  .topbar .chip--version,
+  .topbar .nur-breit { display: none; }
+  .tab-leiste--kopf { margin-left: 8px; }
+}
+
+@media (min-width: 901px) {
+  :root { --tab-leiste-hoehe: 0px; }
+  .tab-leiste--unten { display: none; }
+}
+@media (max-width: 900px) {
+  .tab-leiste--kopf { display: none; }
+}
+
+/* Spielername mit Abzeichen (Team, später Gruppen) */
+.spieler-name {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.abzeichen {
+  font-size: 0.95em;
+  line-height: 1;
+  cursor: help;
+}
+
+/* „Unsicher? Als Gast spielen“ unter der Anmeldung */
+.anmeldung__gast {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: center;
+  gap: 2px 6px;
+  margin-top: 4px;
+  padding-top: 12px;
+  border-top: 1px solid var(--color-border);
+  font-size: 0.9rem;
+  color: var(--color-text-muted);
+  text-align: center;
+}
+
+.anmeldung__gast .anmeldung__link {
+  color: var(--color-text);
+  font-weight: 600;
+}
+
+.anmeldung__gast small {
+  flex-basis: 100%;
+  font-size: 0.8rem;
+}
+
+/* Hinweisleiste im Gastmodus */
+.gast-leiste {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 6px 12px;
+  padding: 8px 16px;
+  background: var(--color-surface-2, rgba(255, 255, 255, 0.04));
+  border-bottom: 1px solid var(--color-border);
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+  text-align: center;
+}
