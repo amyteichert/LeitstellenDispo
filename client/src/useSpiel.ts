@@ -212,6 +212,17 @@ export function useSpiel(optionen: UseSpielOptionen = {}) {
     }, ...cur]);
   };
 
+  /** Bezahlt etwas: Guthaben abziehen und als Ausgabe buchen */
+  const bezahle = (label: string, preis: number) => {
+    setBalance((cur) => cur - preis);
+    addTransaction('Ausgabe', label, preis);
+  };
+  const zuWenigGeld = (preis: number) => `Nicht genügend Guthaben. Benötigt: ${preis.toLocaleString('de-DE')} €.`;
+  const aendereWache = (wacheId: string, aendern: (wache: MapLocation) => MapLocation) =>
+    setLocations((current) => current.map((location) => (location.id === wacheId ? aendern(location) : location)));
+  const aendereKrankenhaus = (krankenhausId: string, aendern: (krankenhaus: Krankenhaus) => Krankenhaus) =>
+    setKrankenhaeuser((current) => current.map((kh) => (kh.id === krankenhausId ? aendern(kh) : kh)));
+
   /** Legt ein Fahrzeug an. Die Besatzung ergibt sich aus dem zugewiesenen Personal (neu = leer). */
   const addVehicle = (v: Omit<Vehicle, 'id'>): Vehicle => {
     const id = `fahrzeug-${Date.now()}-${Math.random().toString(16).slice(2, 6)}`;
@@ -264,8 +275,7 @@ export function useSpiel(optionen: UseSpielOptionen = {}) {
     const fehler = pruefeKreditAbloesung(kredit, balance);
     if (fehler || !kredit) return fehler;
     setKredit(null);
-    setBalance((cur) => cur - kredit.restSchuld);
-    addTransaction('Ausgabe', KREDIT_ABLOESUNG_LABEL, kredit.restSchuld);
+    bezahle(KREDIT_ABLOESUNG_LABEL, kredit.restSchuld);
     return null;
   };
 
@@ -682,8 +692,7 @@ export function useSpiel(optionen: UseSpielOptionen = {}) {
       return `Nicht genügend Guthaben. Benötigt: ${fahrzeugTyp.preis} €, verfügbar: ${balance} €.`;
     }
 
-    setBalance((cur) => cur - fahrzeugTyp.preis);
-    addTransaction('Ausgabe', `${typ} für ${station.name} gekauft`, fahrzeugTyp.preis);
+    bezahle(`${typ} für ${station.name} gekauft`, fahrzeugTyp.preis);
     addVehicle({
       name: typ,
       type: typ,
@@ -730,8 +739,7 @@ export function useSpiel(optionen: UseSpielOptionen = {}) {
       ruf: KRANKENHAUS_RUF.start,
       aufnahmen: [],
     }]);
-    setBalance((cur) => cur - EIGENES_KRANKENHAUS.preis);
-    addTransaction('Ausgabe', `Krankenhaus gebaut: ${name}`, EIGENES_KRANKENHAUS.preis);
+    bezahle(`Krankenhaus gebaut: ${name}`, EIGENES_KRANKENHAUS.preis);
     return null;
   };
 
@@ -741,9 +749,8 @@ export function useSpiel(optionen: UseSpielOptionen = {}) {
     const grund = pruefeFachrichtung(krankenhaus, fachrichtung, ruf, balance);
     if (grund) return grund;
     const preis = FACHRICHTUNGEN[fachrichtung].preis;
-    setKrankenhaeuser((current) => current.map((kh) => (kh.id === krankenhausId ? mitFachrichtung(kh, fachrichtung) : kh)));
-    setBalance((cur) => cur - preis);
-    addTransaction('Ausgabe', `${krankenhaus.name}: ${FACHRICHTUNGEN[fachrichtung].label}`, preis);
+    aendereKrankenhaus(krankenhausId, (kh) => mitFachrichtung(kh, fachrichtung));
+    bezahle(`${krankenhaus.name}: ${FACHRICHTUNGEN[fachrichtung].label}`, preis);
     return null;
   };
 
@@ -753,9 +760,8 @@ export function useSpiel(optionen: UseSpielOptionen = {}) {
     if (!krankenhaus) return 'Krankenhaus nicht gefunden.';
     const grund = pruefePflegekraft(krankenhaus, station, balance);
     if (grund) return grund;
-    setKrankenhaeuser((current) => current.map((kh) => (kh.id === krankenhausId ? mitNeuerPflegekraft(kh, station) : kh)));
-    setBalance((cur) => cur - EIGENES_KRANKENHAUS.pflegekraftPreis);
-    addTransaction('Ausgabe', `${krankenhaus.name}: Pflegekraft (${FACHRICHTUNGEN[station].label})`, EIGENES_KRANKENHAUS.pflegekraftPreis);
+    aendereKrankenhaus(krankenhausId, (kh) => mitNeuerPflegekraft(kh, station));
+    bezahle(`${krankenhaus.name}: Pflegekraft (${FACHRICHTUNGEN[station].label})`, EIGENES_KRANKENHAUS.pflegekraftPreis);
     return null;
   };
 
@@ -765,9 +771,8 @@ export function useSpiel(optionen: UseSpielOptionen = {}) {
     if (!krankenhaus) return 'Krankenhaus nicht gefunden.';
     const grund = pruefeNotaufnahmePlatz(krankenhaus, balance);
     if (grund) return grund;
-    setKrankenhaeuser((current) => current.map((kh) => (kh.id === krankenhausId ? mitNotaufnahmePlatz(kh) : kh)));
-    setBalance((cur) => cur - NOTAUFNAHME.platzPreis);
-    addTransaction('Ausgabe', `${krankenhaus.name}: Platz in der Notaufnahme`, NOTAUFNAHME.platzPreis);
+    aendereKrankenhaus(krankenhausId, (kh) => mitNotaufnahmePlatz(kh));
+    bezahle(`${krankenhaus.name}: Platz in der Notaufnahme`, NOTAUFNAHME.platzPreis);
     return null;
   };
 
@@ -775,7 +780,7 @@ export function useSpiel(optionen: UseSpielOptionen = {}) {
   const meldeNotaufnahme = (krankenhausId: string, angemeldet: boolean): string | null => {
     if (!krankenhaeuser.some((kh) => kh.id === krankenhausId && kh.eigen)) return 'Krankenhaus nicht gefunden.';
     const jetzt = Date.now();
-    setKrankenhaeuser((current) => current.map((kh) => (kh.id === krankenhausId ? mitNotaufnahme(kh, angemeldet, jetzt) : kh)));
+    aendereKrankenhaus(krankenhausId, (kh) => mitNotaufnahme(kh, angemeldet, jetzt));
     return null;
   };
 
@@ -808,8 +813,7 @@ export function useSpiel(optionen: UseSpielOptionen = {}) {
     };
     setLocations((current) => [...current, neueWache]);
     // Patienten brauchen ein Krankenhaus in erreichbarer Nähe
-    setBalance((cur) => cur - totalCost);
-    addTransaction('Ausgabe', `${wache.stationKind} mit ${wache.startFahrzeugTyp} erstellt`, totalCost);
+    bezahle(`${wache.stationKind} mit ${wache.startFahrzeugTyp} erstellt`, totalCost);
 
     if (wache.startFahrzeugTyp) {
       const startFahrzeug = addVehicle({
@@ -835,9 +839,8 @@ export function useSpiel(optionen: UseSpielOptionen = {}) {
     if (preis === null) return 'Die Wache ist bereits voll ausgebaut.';
     if (balance < preis) return `Nicht genügend Guthaben. Benötigt: ${preis.toLocaleString('de-DE')} €, verfügbar: ${balance.toLocaleString('de-DE')} €.`;
 
-    setBalance((cur) => cur - preis);
-    addTransaction('Ausgabe', `Stellplatz-Erweiterung für ${station.name}`, preis);
-    setLocations((current) => current.map((location) => (location.id === stationId ? mitStellplatzErweiterung(location) : location)));
+    bezahle(`Stellplatz-Erweiterung für ${station.name}`, preis);
+    aendereWache(stationId, (location) => mitStellplatzErweiterung(location));
     return null;
   };
 
@@ -847,7 +850,7 @@ export function useSpiel(optionen: UseSpielOptionen = {}) {
     if (!wache) return 'Wache nicht gefunden.';
     const ergebnis = mitWachenAnpassung(wache, aenderung);
     if ('fehler' in ergebnis) return ergebnis.fehler;
-    setLocations((current) => current.map((location) => (location.id === wacheId ? ergebnis.wache : location)));
+    aendereWache(wacheId, () => ergebnis.wache);
     return null;
   };
 
@@ -871,13 +874,12 @@ export function useSpiel(optionen: UseSpielOptionen = {}) {
     if (getPersonalDerWache(wacheId, personal).length >= limit) {
       return `Kein Platz mehr für Personal (${limit} von ${limit}). Baue unter „Ausbau“ Ruheräume.`;
     }
-    if (balance < bewerber.preis) return `Nicht genügend Guthaben. Benötigt: ${bewerber.preis.toLocaleString('de-DE')} €.`;
+    if (balance < bewerber.preis) return zuWenigGeld(bewerber.preis);
     if (!wache.bewerber?.liste.some((b) => b.id === bewerber.id)) return 'Dieser Bewerber ist nicht mehr verfügbar.';
 
-    setBalance((cur) => cur - bewerber.preis);
-    addTransaction('Ausgabe', `${bewerber.name} für ${wache.name} eingestellt`, bewerber.preis);
+    bezahle(`${bewerber.name} für ${wache.name} eingestellt`, bewerber.preis);
     setPersonal((current) => [...current, { id: bewerber.id, name: bewerber.name, qualifikationen: bewerber.qualifikationen, wacheId }]);
-    setLocations((current) => current.map((location) => (location.id === wacheId ? ohneBewerber(location, bewerber.id) : location)));
+    aendereWache(wacheId, (location) => ohneBewerber(location, bewerber.id));
     return null;
   };
 
@@ -928,10 +930,9 @@ export function useSpiel(optionen: UseSpielOptionen = {}) {
     if (!wache) return 'Wache nicht gefunden.';
     const preis = getNaechsterRaumPreis(wache);
     if (preis === null) return 'Es sind bereits alle Ausbildungsräume gebaut.';
-    if (balance < preis) return `Nicht genügend Guthaben. Benötigt: ${preis.toLocaleString('de-DE')} €.`;
-    setBalance((cur) => cur - preis);
-    addTransaction('Ausgabe', `${hatAusbildungsbereich(wache) ? 'Ausbildungsraum' : 'Ausbildungsbereich'} für ${wache.name}`, preis);
-    setLocations((current) => current.map((location) => (location.id === wacheId ? mitNeuemRaum(location) : location)));
+    if (balance < preis) return zuWenigGeld(preis);
+    bezahle(`${hatAusbildungsbereich(wache) ? 'Ausbildungsraum' : 'Ausbildungsbereich'} für ${wache.name}`, preis);
+    aendereWache(wacheId, (location) => mitNeuemRaum(location));
     return null;
   };
 
@@ -942,10 +943,9 @@ export function useSpiel(optionen: UseSpielOptionen = {}) {
     if (!wache || !raum) return 'Raum nicht gefunden.';
     const preis = getRaumUpgradePreis(raum);
     if (preis === null) return 'Dieser Raum ist bereits voll ausgebaut.';
-    if (balance < preis) return `Nicht genügend Guthaben. Benötigt: ${preis.toLocaleString('de-DE')} €.`;
-    setBalance((cur) => cur - preis);
-    addTransaction('Ausgabe', `Ausbildungsraum erweitert (${wache.name})`, preis);
-    setLocations((current) => current.map((location) => (location.id === wacheId ? mitRaumUpgrade(location, raumId) : location)));
+    if (balance < preis) return zuWenigGeld(preis);
+    bezahle(`Ausbildungsraum erweitert (${wache.name})`, preis);
+    aendereWache(wacheId, (location) => mitRaumUpgrade(location, raumId));
     return null;
   };
 
@@ -959,10 +959,9 @@ export function useSpiel(optionen: UseSpielOptionen = {}) {
     }
     const ergebnis = starteLehrgang({ wache, raumId, qualifikation, teilnehmerIds, personal, jetzt: Date.now() });
     if ('fehler' in ergebnis) return ergebnis.fehler;
-    if (balance < ergebnis.kosten) return `Nicht genügend Guthaben. Benötigt: ${ergebnis.kosten.toLocaleString('de-DE')} €.`;
-    setBalance((cur) => cur - ergebnis.kosten);
-    addTransaction('Ausgabe', `Lehrgang ${QUALIFIKATION_LABELS[qualifikation]} (${teilnehmerIds.length} Teilnehmer)`, ergebnis.kosten);
-    setLocations((current) => current.map((location) => (location.id === wacheId ? ergebnis.wache : location)));
+    if (balance < ergebnis.kosten) return zuWenigGeld(ergebnis.kosten);
+    bezahle(`Lehrgang ${QUALIFIKATION_LABELS[qualifikation]} (${teilnehmerIds.length} Teilnehmer)`, ergebnis.kosten);
+    aendereWache(wacheId, () => ergebnis.wache);
     setPersonal(ergebnis.personal);
     return null;
   };
@@ -974,10 +973,9 @@ export function useSpiel(optionen: UseSpielOptionen = {}) {
     if (!wache || !ausbau) return 'Ausbau nicht gefunden.';
     const preis = getZufriedenheitsAusbauPreis(wache, ausbau);
     if (preis === null) return `${ausbau.name} ist bereits voll ausgebaut.`;
-    if (balance < preis) return `Nicht genügend Guthaben. Benötigt: ${preis.toLocaleString('de-DE')} €.`;
-    setBalance((cur) => cur - preis);
-    addTransaction('Ausgabe', `${ausbau.name} für ${wache.name}`, preis);
-    setLocations((current) => current.map((location) => (location.id === wacheId ? mitZufriedenheitsAusbau(location, ausbauId) : location)));
+    if (balance < preis) return zuWenigGeld(preis);
+    bezahle(`${ausbau.name} für ${wache.name}`, preis);
+    aendereWache(wacheId, (location) => mitZufriedenheitsAusbau(location, ausbauId));
     return null;
   };
 
@@ -1017,10 +1015,9 @@ export function useSpiel(optionen: UseSpielOptionen = {}) {
     if (!wache || !erweiterung) return 'Erweiterung nicht gefunden.';
     const ergebnis = mitSonderErweiterung(wache, erweiterungId);
     if ('fehler' in ergebnis) return ergebnis.fehler;
-    if (balance < erweiterung.preis) return `Nicht genügend Guthaben. Benötigt: ${erweiterung.preis.toLocaleString('de-DE')} €.`;
-    setBalance((cur) => cur - erweiterung.preis);
-    addTransaction('Ausgabe', `${erweiterung.name} für ${wache.name}`, erweiterung.preis);
-    setLocations((current) => current.map((location) => (location.id === wacheId ? ergebnis.wache : location)));
+    if (balance < erweiterung.preis) return zuWenigGeld(erweiterung.preis);
+    bezahle(`${erweiterung.name} für ${wache.name}`, erweiterung.preis);
+    aendereWache(wacheId, () => ergebnis.wache);
     return null;
   };
 
@@ -1030,10 +1027,9 @@ export function useSpiel(optionen: UseSpielOptionen = {}) {
     if (!wache) return 'Wache nicht gefunden.';
     const preis = getRuheraumPreis(wache);
     if (preis === null) return 'Ruheräume sind bereits voll ausgebaut.';
-    if (balance < preis) return `Nicht genügend Guthaben. Benötigt: ${preis.toLocaleString('de-DE')} €.`;
-    setBalance((cur) => cur - preis);
-    addTransaction('Ausgabe', `Ruheräume für ${wache.name}`, preis);
-    setLocations((current) => current.map((location) => (location.id === wacheId ? mitRuheraumAusbau(location) : location)));
+    if (balance < preis) return zuWenigGeld(preis);
+    bezahle(`Ruheräume für ${wache.name}`, preis);
+    aendereWache(wacheId, (location) => mitRuheraumAusbau(location));
     return null;
   };
 
