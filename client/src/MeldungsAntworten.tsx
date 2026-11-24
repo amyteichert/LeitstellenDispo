@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { MeldungsAntwort } from '@leitstellendispo/shared';
 import { ladeMeldungsAntworten, markiereMeldungsAntwortenGesehen } from './konto';
+import Fenster from './Fenster';
 
 const NEU_LADEN_MS = 60 * 1000;
 
@@ -36,24 +37,18 @@ export default function MeldungsAntworten() {
   };
 
   return (
-    <div className="ruf-fenster__hintergrund" onClick={schliessen}>
-      <div className="ruf-fenster" role="dialog" aria-label="Antwort auf deine Meldung" onClick={(e) => e.stopPropagation()}>
-        <div className="ruf-fenster__kopf">
-          <h3>{antworten.length === 1 ? 'Neues zu deiner Meldung' : 'Neues zu deinen Meldungen'}</h3>
-          <button type="button" className="btn" onClick={schliessen} aria-label="Schließen">✕</button>
+    <Fenster titel={antworten.length === 1 ? 'Neues zu deiner Meldung' : 'Neues zu deinen Meldungen'} label="Antwort auf deine Meldung" onClose={schliessen}>
+      {antworten.map((a) => (
+        <div key={a.id} className={a.art === 'erledigt' ? 'ankuendigung ankuendigung--erledigt' : 'ankuendigung'}>
+          <span aria-hidden>{a.art === 'erledigt' ? '✓' : '👀'}</span>
+          <p>
+            <strong>{a.art === 'erledigt' ? 'Deine Meldung wurde erledigt:' : GELESEN_TEXT[a.gelesen ?? 'anschauen']}</strong> „{a.text}“
+            {a.art === 'erledigt' && a.antwort && <><br /><span style={{ whiteSpace: 'pre-wrap' }}>{a.antwort}</span></>}
+            {a.von && <><br /><small className="meldungs-antwort__von">{a.von}</small></>}
+          </p>
         </div>
-        {antworten.map((a) => (
-          <div key={a.id} className={a.art === 'erledigt' ? 'ankuendigung ankuendigung--erledigt' : 'ankuendigung'}>
-            <span aria-hidden>{a.art === 'erledigt' ? '✓' : '👀'}</span>
-            <p>
-              <strong>{a.art === 'erledigt' ? 'Deine Meldung wurde erledigt:' : GELESEN_TEXT[a.gelesen ?? 'anschauen']}</strong> „{a.text}“
-              {a.art === 'erledigt' && a.antwort && <><br /><span style={{ whiteSpace: 'pre-wrap' }}>{a.antwort}</span></>}
-              {a.von && <><br /><small className="meldungs-antwort__von">{a.von}</small></>}
-            </p>
-          </div>
-        ))}
-        <button type="button" className="btn btn--primary" onClick={schliessen} autoFocus>Danke!</button>
-      </div>
-    </div>
+      ))}
+      <button type="button" className="btn btn--primary" onClick={schliessen} autoFocus>Danke!</button>
+    </Fenster>
   );
 }

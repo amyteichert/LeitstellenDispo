@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { Ankuendigung } from '@leitstellendispo/shared';
 import { ANKUENDIGUNG_GEAENDERT, ladeAnkuendigung } from './konto';
+import Fenster from './Fenster';
 
 const AUSGEBLENDET_KEY = 'leitstellendispo.ankuendigung-ausgeblendet';
 /** Ankündigungen mit „Als Fenster“ erscheinen einmal in der Mitte, danach nur noch als Banner oben */
@@ -70,16 +71,10 @@ export default function AnkuendigungsBanner() {
 
   if (fensterOffen) {
     return (
-      <div className="ruf-fenster__hintergrund" onClick={fensterSchliessen}>
-        <div className="ruf-fenster" role="dialog" aria-label="Ankündigung" onClick={(e) => e.stopPropagation()}>
-          <div className="ruf-fenster__kopf">
-            <h3>{TITEL[ankuendigung.art]}</h3>
-            <button type="button" className="btn" onClick={fensterSchliessen} aria-label="Schließen">✕</button>
-          </div>
-          <p style={{ whiteSpace: 'pre-wrap' }}>{ankuendigung.text}</p>
-          <button type="button" className="btn btn--primary" onClick={fensterSchliessen} autoFocus>Alles klar</button>
-        </div>
-      </div>
+      <Fenster titel={TITEL[ankuendigung.art]} label="Ankündigung" onClose={fensterSchliessen}>
+        <p style={{ whiteSpace: 'pre-wrap' }}>{ankuendigung.text}</p>
+        <button type="button" className="btn btn--primary" onClick={fensterSchliessen} autoFocus>Alles klar</button>
+      </Fenster>
     );
   }
 

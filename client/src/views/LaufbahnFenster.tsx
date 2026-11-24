@@ -8,6 +8,7 @@ import {
   type Laufbahn,
   type Rang,
 } from '@leitstellendispo/shared';
+import Fenster from '../Fenster';
 
 const zahl = (wert: number) => wert.toLocaleString('de-DE');
 
@@ -27,49 +28,42 @@ export default function LaufbahnFenster({ laufbahn, onClose }: { laufbahn: Laufb
   const erreicht = new Set(laufbahn.erfolge);
 
   return (
-    <div className="ruf-fenster__hintergrund" onClick={onClose}>
-      <div className="ruf-fenster laufbahn-fenster" role="dialog" aria-modal="true" aria-label="Deine Laufbahn" onClick={(event) => event.stopPropagation()}>
-        <div className="ruf-fenster__kopf">
-          <h3>{rang.name} · Rang {rang.stufe}</h3>
-          <button type="button" className="btn" onClick={onClose} aria-label="Schließen">✕</button>
-        </div>
-
-        <div className="ruf-fenster__balken" aria-hidden>
-          <span style={{ width: `${getRangFortschritt(laufbahn.xp) * 100}%` }} />
-        </div>
-        <p className="ruf-fenster__info">
-          <strong>{zahl(laufbahn.xp)} EP</strong>
-          {naechster ? <> – noch {zahl(naechster.abXp - laufbahn.xp)} EP bis „{naechster.name}“.</> : ' – höchster Rang erreicht.'}
-          {' '}Erfahrungspunkte gibt es für jeden abgeschlossenen Einsatz (mehr für große Einsätze und gute Arbeit) und für Erfolge.
-        </p>
-
-        <h4>Ränge</h4>
-        <ol className="laufbahn-raenge">
-          {RAENGE.map((eintrag) => (
-            <li key={eintrag.stufe} className={eintrag.abXp <= laufbahn.xp ? 'laufbahn-raenge__erreicht' : undefined}>
-              <span className="laufbahn-raenge__kopf">
-                <strong>{eintrag.abXp <= laufbahn.xp ? '✓' : '🔒'} {eintrag.name}</strong>
-                <small>ab {zahl(eintrag.abXp)} EP</small>
-              </span>
-              {eintrag.fahrzeuge.length > 0 && <small>Schaltet frei: {eintrag.fahrzeuge.join(', ')}</small>}
-            </li>
-          ))}
-        </ol>
-
-        <h4>Erfolge ({erreicht.size} von {ERFOLGE.length})</h4>
-        <ul className="laufbahn-erfolge">
-          {ERFOLGE.map((erfolg) => (
-            <li key={erfolg.id} className={erreicht.has(erfolg.id) ? 'laufbahn-erfolge__erreicht' : undefined}>
-              <span aria-hidden>{erreicht.has(erfolg.id) ? '🏅' : '○'}</span>
-              <span>
-                <strong>{erfolg.titel}</strong>
-                <small>{erfolg.text} · +{zahl(erfolg.xp)} EP</small>
-              </span>
-            </li>
-          ))}
-        </ul>
+    <Fenster titel={<>{rang.name} · Rang {rang.stufe}</>} label="Deine Laufbahn" onClose={onClose} className="laufbahn-fenster" modal>
+      <div className="ruf-fenster__balken" aria-hidden>
+        <span style={{ width: `${getRangFortschritt(laufbahn.xp) * 100}%` }} />
       </div>
-    </div>
+      <p className="ruf-fenster__info">
+        <strong>{zahl(laufbahn.xp)} EP</strong>
+        {naechster ? <> – noch {zahl(naechster.abXp - laufbahn.xp)} EP bis „{naechster.name}“.</> : ' – höchster Rang erreicht.'}
+        {' '}Erfahrungspunkte gibt es für jeden abgeschlossenen Einsatz (mehr für große Einsätze und gute Arbeit) und für Erfolge.
+      </p>
+
+      <h4>Ränge</h4>
+      <ol className="laufbahn-raenge">
+        {RAENGE.map((eintrag) => (
+          <li key={eintrag.stufe} className={eintrag.abXp <= laufbahn.xp ? 'laufbahn-raenge__erreicht' : undefined}>
+            <span className="laufbahn-raenge__kopf">
+              <strong>{eintrag.abXp <= laufbahn.xp ? '✓' : '🔒'} {eintrag.name}</strong>
+              <small>ab {zahl(eintrag.abXp)} EP</small>
+            </span>
+            {eintrag.fahrzeuge.length > 0 && <small>Schaltet frei: {eintrag.fahrzeuge.join(', ')}</small>}
+          </li>
+        ))}
+      </ol>
+
+      <h4>Erfolge ({erreicht.size} von {ERFOLGE.length})</h4>
+      <ul className="laufbahn-erfolge">
+        {ERFOLGE.map((erfolg) => (
+          <li key={erfolg.id} className={erreicht.has(erfolg.id) ? 'laufbahn-erfolge__erreicht' : undefined}>
+            <span aria-hidden>{erreicht.has(erfolg.id) ? '🏅' : '○'}</span>
+            <span>
+              <strong>{erfolg.titel}</strong>
+              <small>{erfolg.text} · +{zahl(erfolg.xp)} EP</small>
+            </span>
+          </li>
+        ))}
+      </ul>
+    </Fenster>
   );
 }
 

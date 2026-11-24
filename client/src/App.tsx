@@ -28,6 +28,7 @@ import 'leaflet/dist/leaflet.css';
 import './App.css';
 
 import ViewDropdown from './ViewDropdown';
+import Fenster from './Fenster';
 
 import { useSpiel } from './useSpiel';
 import { adresseZuPosition } from './strassenSnap';
@@ -918,17 +919,11 @@ Dein Guthaben: ${balance.toLocaleString('de-DE')} €`)) return;
             )}
 
             {wacheKaufenOffen && createPortal(
-              <div className="ruf-fenster__hintergrund" onClick={() => setWacheKaufenOffen(false)}>
-                <div className="ruf-fenster wache-kaufen" role="dialog" aria-modal="true" aria-label="Wache kaufen" onClick={(event) => event.stopPropagation()}>
-                  <div className="ruf-fenster__kopf">
-                    <h3>Neue Wache kaufen</h3>
-                    <button type="button" className="btn" onClick={() => setWacheKaufenOffen(false)} aria-label="Schließen">✕</button>
-                  </div>
-                  <WacheKaufenKarte tempCoords={tempCoords} locations={locations} handleMapClick={handleMapClick} />
-                  <p className="map-hint">Tippe auf die kleine Karte oder suche eine Adresse – der blaue Punkt ist deine neue Wache.</p>
-                  {wachenFormular}
-                </div>
-              </div>,
+              <Fenster titel="Neue Wache kaufen" label="Wache kaufen" onClose={() => setWacheKaufenOffen(false)} className="wache-kaufen" modal>
+                <WacheKaufenKarte tempCoords={tempCoords} locations={locations} handleMapClick={handleMapClick} />
+                <p className="map-hint">Tippe auf die kleine Karte oder suche eine Adresse – der blaue Punkt ist deine neue Wache.</p>
+                {wachenFormular}
+              </Fenster>,
               document.body,
             )}
 
