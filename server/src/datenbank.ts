@@ -295,6 +295,10 @@ const MIGRATIONEN: Array<string | ((db: Datenbank) => void)> = [
     fehlgeschlagen INTEGER NOT NULL DEFAULT 0
   );
   `,
+  // Einmalig: Adress-Statistik zurücksetzen (Zählung nach dem Update frisch bei 0 / 0 beginnen, Wunsch von Amy am 25.11.2026)
+  `
+  DELETE FROM adress_statistik;
+  `,
 ];
 
 /** Öffnet (bzw. erstellt) die Datenbank und bringt das Schema auf den neuesten Stand. */
