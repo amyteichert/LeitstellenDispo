@@ -3,7 +3,7 @@ import express, { Router, type Request, type Response } from 'express';
 import {
   LAUFBAHN_START, LEERER_FINANZSTAND, RUF_CONFIG, istGueltigeLaufbahn, pruefeBestand, zaehleWachen, begrenzeStartbuchung, darfDevWerkzeuge, deutscherTag, einnahmenAuffaellig, entferneAlteEinsaetze,
   erlaubteKreditAuszahlung, istServerGutschrift, migriereSpielstand, pruefeGuthaben, pruefeLaufbahn, naechsteSerie, schichtzulageBetrag,
-  type Konto, type SchichtzulageAntwort, type Spielstand,
+  ADRESS_STATISTIK_MAX_JE_MELDUNG, type Konto, type SchichtzulageAntwort, type Spielstand,
 } from '@leitstellendispo/shared';
 import type { Datenbank } from './datenbank.js';
 import { ladeKonto, nurAngemeldet } from './auth.js';
@@ -190,6 +190,28 @@ export function erstelleSpielstandRouter(db: Datenbank, konten: KontenDienst, ei
     const ids = Array.isArray(req.body?.ids) ? req.body.ids.filter((id: unknown) => Number.isInteger(id)).slice(0, 100) : [];
     const markieren = db.prepare('UPDATE spielstand_korrekturen SET eingebucht = 1 WHERE id = ? AND benutzer_id = ?');
     db.transaction(() => ids.forEach((id: number) => markieren.run(id, kontoId(res))))();
+    res.status(204).end();
+  });
+
+  // Adress-Statistik: Das Spiel meldet gesammelt (höchstens etwa einmal pro Minute), wie oft eine echte Adresse
+  // gefunden wurde bzw. die Adresssuche scheiterte. Gespeichert werden nur zwei Zahlen je Tag, nach 30 Tagen gelöscht.
+  const adressBremse = erstelleFehlversuchBremse({ maxVersuche: 20, fensterMs: 10 * 60 * 1000 });
+  const adressSql = {
+    zaehlen: db.prepare(`INSERT INTO adress_statistik (tag, echt, fehlgeschlagen) VALUES (?, ?, ?)
+      ON CONFLICT(tag) DO UPDATE SET echt = echt + excluded.echt, fehlgeschlagen = fehlgeschlagen + excluded.fehlgeschlagen`),
+    aufraeumen: db.prepare('DELETE FROM adress_statistik WHERE tag < ?'),
+  };
+  const anzahl = (wert: unknown) => Math.min(ADRESS_STATISTIK_MAX_JE_MELDUNG, Math.max(0, Math.floor(Number(wert) || 0)));
+  router.post('/adressen', (req, res) => {
+    const id = String(kontoId(res));
+    if (adressBremse.gesperrtFuer(id) > 0) return void res.status(204).end(); // still verwerfen, das Spiel muss nichts tun
+    adressBremse.merkeFehlversuch(id);
+    const echt = anzahl(req.body?.echt);
+    const fehlgeschlagen = anzahl(req.body?.fehlgeschlagen);
+    if (echt + fehlgeschlagen > 0) {
+      adressSql.zaehlen.run(deutscherTag(Date.now()), echt, fehlgeschlagen);
+      adressSql.aufraeumen.run(deutscherTag(Date.now() - 30 * 24 * 60 * 60 * 1000));
+    }
     res.status(204).end();
   });
 

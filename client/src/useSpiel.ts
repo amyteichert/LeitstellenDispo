@@ -134,6 +134,7 @@ import { bestaetigeKorrekturen, holeSchichtzulage, ladeKorrekturen } from './kon
 import type { FinanceTransaction, MapLocation, Vehicle } from './types';
 import { SPIELSTAND_VERSION, spielstandSpeicher, type Spielstand } from './spielstand';
 import { adresseZuPosition, aufStrasseSetzen } from './strassenSnap';
+import { zaehleAdressSuche } from './adressStatistik';
 import { spieleFanfare, spieleKasse } from './ton';
 
 /** Ein gerade bezahlter Einsatz – für die kurze „+ €“-Einblendung auf der Karte */
@@ -533,6 +534,7 @@ export function useSpiel(optionen: UseSpielOptionen = {}) {
       }
       // null = Nominatim kennt dort keine Adresse (fertig), undefined = alle Versuche gescheitert (später nochmal)
       const geprueft = osm !== undefined;
+      zaehleAdressSuche(geprueft);
       setIncidents((current) => current.map((incident) => {
         if (incident.id !== einsatz.id) return incident;
         const ortVerschieben = incident.alarmedVehicles.length === 0 && coords !== incident.coords;

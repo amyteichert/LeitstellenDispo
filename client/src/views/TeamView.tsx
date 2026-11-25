@@ -147,6 +147,8 @@ function Uebersicht({ melde }: { melde: Melde }) {
     ['Mit Spielstand', daten.mitSpielstand],
     ['Team-Konten', daten.team],
     ['Gesperrt', daten.gesperrt],
+    ['Echte Adressen (heute)', daten.adressen.heute.echt, `7 Tage: ${daten.adressen.letzte7Tage.echt}`],
+    ['Adresssuche gescheitert (heute)', daten.adressen.heute.fehlgeschlagen, `7 Tage: ${daten.adressen.letzte7Tage.fehlgeschlagen}`],
     ...(daten.wartenAufFreischaltung > 0 ? [['Warten auf Freischaltung', daten.wartenAufFreischaltung, 'unter Konten'] as [string, number, string]] : []),
   ];
   return (

@@ -287,6 +287,14 @@ const MIGRATIONEN: Array<string | ((db: Datenbank) => void)> = [
   `
   ALTER TABLE ankuendigung ADD COLUMN fenster INTEGER NOT NULL DEFAULT 0;
   `,
+  // Adress-Statistik: je Tag nur zwei Zahlen (echte Adresse gefunden / Adresssuche gescheitert) – nach 30 Tagen gelöscht
+  `
+  CREATE TABLE adress_statistik (
+    tag            TEXT PRIMARY KEY,
+    echt           INTEGER NOT NULL DEFAULT 0,
+    fehlgeschlagen INTEGER NOT NULL DEFAULT 0
+  );
+  `,
 ];
 
 /** Öffnet (bzw. erstellt) die Datenbank und bringt das Schema auf den neuesten Stand. */

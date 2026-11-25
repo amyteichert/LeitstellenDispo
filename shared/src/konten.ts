@@ -252,7 +252,17 @@ export interface TeamUebersicht {
   aktivHeute: number;
   aktivLetzte7Tage: number;
   mitSpielstand: number;
+  /** Wie oft beim Einsatz eine echte Adresse gefunden wurde bzw. die Adresssuche scheiterte */
+  adressen: { heute: AdressZaehler; letzte7Tage: AdressZaehler };
 }
+
+export interface AdressZaehler {
+  echt: number;
+  fehlgeschlagen: number;
+}
+
+/** Höchstwerte je Meldung des Spiels (Schutz vor künstlich aufgeblähten Zahlen) */
+export const ADRESS_STATISTIK_MAX_JE_MELDUNG = 200;
 
 /** Eintrag im Aktivitäts-Protokoll des Teams (wer hat wann was an welchem Konto gemacht) */
 export interface TeamProtokollEintrag {

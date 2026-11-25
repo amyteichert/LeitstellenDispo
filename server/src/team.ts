@@ -26,6 +26,8 @@ import {
   ONLINE_FENSTER_MS,
   teamUnterschrift,
   type UserRole,
+  type AdressZaehler,
+  deutscherTag,
 } from '@leitstellendispo/shared';
 import type { Datenbank } from './datenbank.js';
 import { ladeKonto, nurAngemeldet, passwortLink, spielBasisUrl, type AuthOptionen } from './auth.js';
@@ -100,6 +102,8 @@ export function erstelleTeamRouter(db: Datenbank, konten: KontenDienst, optionen
         SUM(s.aktualisiert >= ?) AS aktivLetzte7Tage,
         SUM(s.benutzer_id IS NOT NULL) AS mitSpielstand
       FROM benutzer b LEFT JOIN spielstaende s ON s.benutzer_id = b.id`),
+    adressen: db.prepare(`SELECT coalesce(sum(echt), 0) AS echt, coalesce(sum(fehlgeschlagen), 0) AS fehlgeschlagen
+      FROM adress_statistik WHERE tag >= ?`),
     online: db.prepare(`SELECT b.id, b.name, b.rolle, s.aktualisiert AS zuletzt FROM spielstaende s JOIN benutzer b ON b.id = s.benutzer_id
       WHERE s.aktualisiert > ? ORDER BY b.name COLLATE NOCASE LIMIT 200`),
     spielstand: db.prepare('SELECT daten FROM spielstaende WHERE benutzer_id = ?'),
@@ -170,10 +174,14 @@ export function erstelleTeamRouter(db: Datenbank, konten: KontenDienst, optionen
     const jetzt = Date.now();
     const heute = new Date(jetzt - 24 * 60 * 60 * 1000).toISOString();
     const woche = new Date(jetzt - 7 * 24 * 60 * 60 * 1000).toISOString();
-    const z = sql.uebersicht.get(woche, heute, woche) as Record<Exclude<keyof TeamUebersicht, 'online'>, number | null>;
-    const zahlen = Object.fromEntries(Object.entries(z).map(([k, v]) => [k, v ?? 0])) as Omit<TeamUebersicht, 'online'>;
+    const z = sql.uebersicht.get(woche, heute, woche) as Record<Exclude<keyof TeamUebersicht, 'online' | 'adressen'>, number | null>;
+    const zahlen = Object.fromEntries(Object.entries(z).map(([k, v]) => [k, v ?? 0])) as Omit<TeamUebersicht, 'online' | 'adressen'>;
     const online = sql.online.all(new Date(jetzt - ONLINE_FENSTER_MS).toISOString()) as OnlineSpieler[];
-    res.json({ uebersicht: { ...zahlen, online } satisfies TeamUebersicht });
+    const adressen = {
+      heute: sql.adressen.get(deutscherTag(jetzt)) as AdressZaehler,
+      letzte7Tage: sql.adressen.get(deutscherTag(jetzt - 6 * 24 * 60 * 60 * 1000)) as AdressZaehler,
+    };
+    res.json({ uebersicht: { ...zahlen, online, adressen } satisfies TeamUebersicht });
   });
 
   router.get('/konten', (req, res) => {

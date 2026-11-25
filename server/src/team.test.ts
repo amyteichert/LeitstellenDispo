@@ -25,6 +25,25 @@ afterEach(() => server.beenden());
 
 const json = async (res: Response) => ({ status: res.status, daten: res.status === 204 ? null : await res.json() });
 
+describe('Adress-Statistik', () => {
+  it('zählt gemeldete Adresssuchen je Tag, begrenzt Ausreißer und verlangt Anmeldung', async () => {
+    expect((await server.anfrage('POST', '/spielstand/adressen', { body: { echt: 5, fehlgeschlagen: 1 } })).status).toBe(401);
+    expect((await server.anfrage('POST', '/spielstand/adressen', { body: { echt: 5, fehlgeschlagen: 1 }, cookie: spieler })).status).toBe(204);
+    await server.anfrage('POST', '/spielstand/adressen', { body: { echt: 3, fehlgeschlagen: 'kaputt' }, cookie: spieler2 });
+    await server.anfrage('POST', '/spielstand/adressen', { body: { echt: 1_000_000, fehlgeschlagen: -5 }, cookie: spieler2 });
+    const { daten } = await json(await server.anfrage('GET', '/team/uebersicht', { cookie: owner }));
+    expect(daten.uebersicht.adressen).toEqual({ heute: { echt: 208, fehlgeschlagen: 1 }, letzte7Tage: { echt: 208, fehlgeschlagen: 1 } });
+    // Nur eine Zeile je Tag
+    expect(server.db.prepare('SELECT count(*) AS n FROM adress_statistik').get()).toEqual({ n: 1 });
+  });
+
+  it('löscht Einträge, die älter als 30 Tage sind', async () => {
+    server.db.prepare("INSERT INTO adress_statistik (tag, echt, fehlgeschlagen) VALUES ('2000-01-01', 9, 9)").run();
+    await server.anfrage('POST', '/spielstand/adressen', { body: { echt: 1 }, cookie: spieler });
+    expect(server.db.prepare("SELECT count(*) AS n FROM adress_statistik WHERE tag = '2000-01-01'").get()).toEqual({ n: 0 });
+  });
+});
+
 describe('Zugang zum Team-Bereich', () => {
   it('nur für Team-Rollen, nicht für Spieler oder ohne Anmeldung', async () => {
     expect((await server.anfrage('GET', '/team/uebersicht', { cookie: owner })).status).toBe(200);
