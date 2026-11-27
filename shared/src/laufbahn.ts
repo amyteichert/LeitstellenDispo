@@ -13,6 +13,8 @@ export interface Laufbahn {
   perfekt: number;
   /** IDs der erreichten Erfolge */
   erfolge: string[];
+  /** Vollständig bewältigte Großschadenslagen (fehlt bei älteren Spielständen = 0) */
+  grosslagen?: number;
 }
 
 export interface Rang {
@@ -75,6 +77,8 @@ export interface ErfolgsStand {
   ruf: number;
   eigenesKrankenhaus: boolean;
   guthaben: number;
+  /** Vollständig bewältigte Großschadenslagen */
+  grosslagen?: number;
 }
 
 export interface Erfolg {
@@ -101,6 +105,8 @@ export const ERFOLGE: Erfolg[] = [
   { id: 'ruf-85', titel: 'Hervorragender Ruf', text: 'Bringe deinen Ruf auf 85.', xp: 300, erreicht: (s) => s.ruf >= 85 },
   { id: 'krankenhaus', titel: 'Eigene Klinik', text: 'Baue ein eigenes Krankenhaus.', xp: 300, erreicht: (s) => s.eigenesKrankenhaus },
   { id: 'rth', titel: 'Luftrettung', text: 'Stelle einen Rettungshubschrauber in Dienst.', xp: 500, erreicht: (s) => s.fahrzeugTypen.includes('RTH') },
+  { id: 'grosslage-1', titel: 'Lage im Griff', text: 'Bewältige deine erste Großschadenslage vollständig.', xp: 500, erreicht: (s) => (s.grosslagen ?? 0) >= 1 },
+  { id: 'grosslage-10', titel: 'Krisenmanager', text: 'Bewältige 10 Großschadenslagen vollständig.', xp: 2000, erreicht: (s) => (s.grosslagen ?? 0) >= 10 },
   { id: 'guthaben-100k', titel: 'Gut gewirtschaftet', text: 'Habe 100.000 € auf dem Konto.', xp: 250, erreicht: (s) => s.guthaben >= 100000 },
 ];
 
@@ -126,5 +132,6 @@ export function istGueltigeLaufbahn(laufbahn: unknown): laufbahn is Laufbahn {
   if (!laufbahn || typeof laufbahn !== 'object') return false;
   const l = laufbahn as Laufbahn;
   return [l.xp, l.einsaetze, l.perfekt].every((wert) => Number.isFinite(wert) && wert >= 0)
-    && Array.isArray(l.erfolge) && l.erfolge.every((id) => typeof id === 'string');
+    && Array.isArray(l.erfolge) && l.erfolge.every((id) => typeof id === 'string')
+    && (l.grosslagen === undefined || (Number.isFinite(l.grosslagen) && l.grosslagen >= 0));
 }

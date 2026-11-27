@@ -97,6 +97,10 @@ import {
   getVerkaufsSperre,
   verkaufeFahrzeug,
   erzeugeZufallsEinsatz,
+  darfGrosslageEntstehen,
+  erzeugeGrosslage,
+  GROSSLAGEN_CONFIG,
+  type GrosslageBeendet,
   formatAdresse,
   mitEchterAdresse,
   einsatzortUnbrauchbar,
@@ -194,6 +198,8 @@ export function useSpiel(optionen: UseSpielOptionen = {}) {
   const [belohnungen, setBelohnungen] = useState<Belohnung[]>([]);
   const [befoerderung, setBefoerderung] = useState<Rang | null>(null);
   const [erfolgsMeldungen, setErfolgsMeldungen] = useState<Erfolg[]>([]);
+  // Beendete Großschadenslagen – Einblendung mit Abschlussbonus, bis der Spieler sie wegklickt
+  const [grosslagenMeldungen, setGrosslagenMeldungen] = useState<GrosslageBeendet[]>([]);
   // Für die Abrechnung im Tick immer den aktuellsten Ruf verwenden
   const rufRef = useRef(ruf);
   rufRef.current = ruf;
@@ -579,6 +585,16 @@ export function useSpiel(optionen: UseSpielOptionen = {}) {
       // Pause (Einstellungen/Kopfzeile): keine neuen Einsätze. `zuletzt` läuft weiter, damit danach nichts nachgeholt wird.
       if (getEinstellungen().einsatzPause) return;
       const kontext: AufkommenKontext = { ...deutscheZeit(jetzt), wachen, wetter };
+      // Selten: Großschadenslage mit mehreren Einsatzabschnitten (höchstens eine gleichzeitig)
+      if (darfGrosslageEntstehen(xp, wachen, incidentsRef.current)
+        && entstehtEinsatz(Math.min(vergangen, 5000), GROSSLAGEN_CONFIG.intervallMs / getEinstellungen().einsatzTempo)) {
+        const abschnitte = erzeugeGrosslage(orte, fahrzeuge, jetzt);
+        if (abschnitte) {
+          setIncidents((current) => (darfGrosslageEntstehen(xp, wachen, current) ? [...abschnitte, ...current] : current));
+          abschnitte.forEach((abschnitt) => strasseNachziehen(abschnitt));
+          return;
+        }
+      }
       // Einsatztempo aus den Einstellungen: kürzerer Abstand = mehr Einsätze
       if (!entstehtEinsatz(Math.min(vergangen, 5000), einsatzIntervallMs(kontext) / getEinstellungen().einsatzTempo)) return;
       let neuerEinsatz: SpielEinsatz | undefined;
@@ -604,6 +620,24 @@ export function useSpiel(optionen: UseSpielOptionen = {}) {
     setVehicles(ergebnis.vehicles);
     setIncidents(ergebnis.incidents);
     if (ergebnis.krankenhaeuser) setKrankenhaeuser(ergebnis.krankenhaeuser);
+    // Großschadenslage: neue Abschnitte nach der Erkundung bekommen ihre echte Adresse
+    ergebnis.grosslagenNeu?.forEach((abschnitt) => strasseNachziehen(abschnitt));
+    const bewaeltigt = (ergebnis.grosslagenBeendet ?? []).filter((lage) => lage.vollstaendig);
+    if (ergebnis.grosslagenBeendet) setGrosslagenMeldungen((cur) => [...cur, ...ergebnis.grosslagenBeendet!]);
+    if (bewaeltigt.length > 0) {
+      setBalance((cur) => cur + bewaeltigt.reduce((summe, lage) => summe + lage.bonus, 0));
+      setLaufbahn((cur) => ({
+        ...cur,
+        xp: cur.xp + bewaeltigt.reduce((summe, lage) => summe + lage.xp, 0),
+        grosslagen: (cur.grosslagen ?? 0) + bewaeltigt.length,
+      }));
+      bewaeltigt.forEach((lage) => addTransaction('Einnahme', `Großschadenslage bewältigt – ${lage.name}`, lage.bonus));
+      const angezeigtAb = Date.now();
+      setBelohnungen((cur) => [
+        ...cur.filter((b) => angezeigtAb - b.zeit < BELOHNUNG_ANZEIGE_MS),
+        ...bewaeltigt.map((lage) => ({ id: `${lage.id}-${angezeigtAb}`, coords: lage.zentrum, betrag: lage.bonus, xp: lage.xp, zeit: angezeigtAb })),
+      ]);
+    }
 
     if (ergebnis.abgeschlossen.length > 0) {
       // Grundgeld gibt es immer, dazu ein Leistungsbonus abhängig von Anfahrt und Ruf
@@ -1035,6 +1069,19 @@ export function useSpiel(optionen: UseSpielOptionen = {}) {
     return null;
   };
 
+  /** Dev-Werkzeug: löst sofort eine Großschadenslage aus (ohne Rang- und Wachenprüfung). Fehlermeldung oder null. */
+  const erzeugeTestGrosslage = (): string | null => {
+    if (incidents.some((incident) => incident.grosslage)) return 'Es läuft schon eine Großschadenslage.';
+    const abschnitte = erzeugeGrosslage(locations, vehicles, Date.now());
+    if (!abschnitte) {
+      return 'Mit deinen Fahrzeugen ist keine Großschadenslage machbar. Am einfachsten ist die Unwetterlage: '
+        + 'Feuerwache mit LF, RW und DLK sowie eine Rettungswache mit RTW.';
+    }
+    setIncidents((current) => [...abschnitte, ...current]);
+    abschnitte.forEach((abschnitt) => strasseNachziehen(abschnitt));
+    return null;
+  };
+
   /** Erzeugt sofort einen Test-Einsatz. Gibt die Einsatz-ID oder eine Fehlermeldung zurück. */
   const erzeugeTestEinsatz = (): { id: string } | { fehler: string } => {
     const ergebnis = erzeugeMitAbstand(incidents, () => erzeugeZufallsEinsatz(locations, vehicles, Date.now(), undefined, krankenhaeuser));
@@ -1112,6 +1159,7 @@ export function useSpiel(optionen: UseSpielOptionen = {}) {
       ruf,
       eigenesKrankenhaus,
       guthaben: balance,
+      grosslagen: laufbahn.grosslagen ?? 0,
     }, laufbahn.erfolge);
     if (neu.length === 0) return;
     setLaufbahn((cur) => ({
@@ -1121,7 +1169,7 @@ export function useSpiel(optionen: UseSpielOptionen = {}) {
     }));
     setErfolgsMeldungen((cur) => [...cur, ...neu]);
     spieleFanfare();
-  }, [spielstandGeladen, laufbahn.einsaetze, laufbahn.perfekt, laufbahn.erfolge, locations, vehicles, ruf, eigenesKrankenhaus, balance]);
+  }, [spielstandGeladen, laufbahn.einsaetze, laufbahn.perfekt, laufbahn.erfolge, laufbahn.grosslagen, locations, vehicles, ruf, eigenesKrankenhaus, balance]);
 
   const neuesSpiel = () => {
     // Den Spielstand sofort durch den neuen ersetzen – nicht löschen: Ein Konto ohne Spielstand würde beim
@@ -1194,6 +1242,8 @@ export function useSpiel(optionen: UseSpielOptionen = {}) {
     befoerderungGesehen: () => setBefoerderung(null),
     erfolgsMeldungen,
     erfolgsMeldungenGesehen: () => setErfolgsMeldungen([]),
+    grosslagenMeldungen,
+    grosslagenMeldungenGesehen: () => setGrosslagenMeldungen([]),
     nowMs,
     addVehicle,
     buyVehicle,
@@ -1221,6 +1271,7 @@ export function useSpiel(optionen: UseSpielOptionen = {}) {
     funk,
     gibSprechaufforderung,
     erzeugeTestEinsatz,
+    erzeugeTestGrosslage,
     devGeld,
     devRufSetzen,
     devRangSetzen,

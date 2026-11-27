@@ -6,6 +6,22 @@ Format basiert auf [Keep a Changelog](https://keepachangelog.com/).
 
 ---
 
+## [Unreleased] – Großschadenslagen
+
+### Neu
+- **Großschadenslagen**: Selten (im Schnitt etwa alle 2 Stunden Spielzeit, ab Rang „Erfahrener Disponent“ und 3 Wachen)
+  entsteht eine große Lage mit mehreren **Einsatzabschnitten** rund um eine Schadensstelle: Großbrand Wohnanlage,
+  Unwetterlage (Orkanböen), Massenkarambolage oder Zugunglück. Es kommen nur Lagen, die man mit den eigenen Fahrzeugen
+  komplett schaffen kann, und es läuft höchstens eine gleichzeitig.
+- Jeder Abschnitt ist ein normaler Einsatz (Alarmierung, AAO, Patienten, Bewertung und Vergütung wie gewohnt) mit dem
+  Abzeichen „Großlage · Abschnittsname“. Über der Einsatzliste zeigt eine Übersicht, wie viele Abschnitte noch laufen.
+- **Zweite Welle**: Trifft das erste Fahrzeug an der Schadensstelle ein, meldet die Erkundung weitere Abschnitte.
+- **Abschlussbonus** (3.000–7.000 € und EP), wenn alle Abschnitte abgearbeitet sind. Verfällt ein Abschnitt oder wird er
+  abgegeben, endet die Lage ohne Bonus. Am Ende kommt eine Einblendung.
+- Neue Erfolge: „Lage im Griff“ (erste Großschadenslage) und „Krisenmanager“ (10 Großschadenslagen).
+- Discord: Eine Großschadenslage wird einmal als Großeinsatz gemeldet, nicht für jeden Abschnitt einzeln.
+- Dev-Werkzeuge (Team): Knopf „Großschadenslage auslösen“ zum Testen.
+
 ## [Unreleased] – Pause für neue Einsätze
 
 ### Neu

@@ -45,6 +45,7 @@ const euro = (betrag: number) => `${betrag.toLocaleString('de-DE')} €`;
 
 export interface DevAktionen {
   testEinsatz: () => string | null;
+  testGrosslage: () => string | null;
   geld: (betrag: number) => void;
   rufSetzen: (wert: number) => void;
   rangSetzen: (stufe: number) => void;
@@ -817,6 +818,12 @@ function DevWerkzeuge({ dev, melde }: { dev: DevAktionen; melde: Melde }) {
           <h3>Test-Einsatz</h3>
           <p>Erzeugt sofort einen Einsatz an einer deiner Wachen.</p>
           <button type="button" className="btn btn--primary" onClick={() => void mitMarkierung(dev.testEinsatz, '✓ Test-Einsatz erzeugt.')}>Erzeugen</button>
+        </article>
+        <article className="ausbau-karte">
+          <span className="ausbau-karte__kategorie">Einsätze</span>
+          <h3>Großschadenslage</h3>
+          <p>Löst sofort eine Großschadenslage aus, die deine Fahrzeuge schaffen können (ohne Rang- und Wachenprüfung).</p>
+          <button type="button" className="btn btn--primary" onClick={() => void mitMarkierung(dev.testGrosslage, '✓ Großschadenslage ausgelöst.')}>Auslösen</button>
         </article>
         <article className="ausbau-karte">
           <span className="ausbau-karte__kategorie">Finanzen</span>

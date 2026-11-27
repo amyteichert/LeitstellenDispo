@@ -35,3 +35,4 @@ export * from './fahrzeuggrafiken.js';
 export * from './laufbahn.js';
 export * from './bestenliste.js';
 export * from './kredite.js';
+export * from './grosslagen.js';

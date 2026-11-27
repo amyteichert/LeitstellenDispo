@@ -524,6 +524,26 @@ Dein Guthaben: ${balance.toLocaleString('de-DE')} €`)) return;
           <button type="button" className="einsatz-hinweis__schliessen" onClick={spiel.erfolgsMeldungenGesehen} aria-label="Schließen">✕</button>
         </div>
       )}
+      {spiel.grosslagenMeldungen.length > 0 && spiel.erfolgsMeldungen.length === 0 && (
+        <div className={`erfolg-meldung${spiel.grosslagenMeldungen.some((lage) => lage.vollstaendig) ? '' : ' erfolg-meldung--neutral'}`} role="status" aria-live="polite">
+          <div className="erfolg-meldung__inhalt">
+            <span aria-hidden>{spiel.grosslagenMeldungen.some((lage) => lage.vollstaendig) ? '🚒' : '📋'}</span>
+            <span>
+              {spiel.grosslagenMeldungen.map((lage) => (
+                <span key={lage.id} className="grosslage-meldung">
+                  <strong>{lage.vollstaendig ? `Großschadenslage bewältigt: ${lage.name}` : `Großschadenslage beendet: ${lage.name}`}</strong>
+                  <small>
+                    {lage.vollstaendig
+                      ? `Abschlussbonus +${lage.bonus.toLocaleString('de-DE')} € · +${lage.xp} EP`
+                      : 'Nicht alle Abschnitte wurden abgearbeitet – kein Abschlussbonus.'}
+                  </small>
+                </span>
+              ))}
+            </span>
+          </div>
+          <button type="button" className="einsatz-hinweis__schliessen" onClick={spiel.grosslagenMeldungenGesehen} aria-label="Schließen">✕</button>
+        </div>
+      )}
       {hinweise.length > 0 && (
         <div className="einsatz-hinweise" role="status" aria-live="polite">
           {hinweise.map((hinweis) => (
@@ -986,6 +1006,7 @@ Dein Guthaben: ${balance.toLocaleString('de-DE')} €`)) return;
                     const ergebnis = spiel.erzeugeTestEinsatz();
                     return 'fehler' in ergebnis ? ergebnis.fehler : null;
                   },
+                  testGrosslage: spiel.erzeugeTestGrosslage,
                   geld: spiel.devGeld,
                   rufSetzen: spiel.devRufSetzen,
                   rangSetzen: spiel.devRangSetzen,

@@ -6,7 +6,7 @@ import { spieleGong } from './ton';
 export interface EinsatzHinweis {
   id: string;
   einsatzId: string;
-  art: 'neu' | 'meldung';
+  art: 'neu' | 'meldung' | 'grosslage';
   titel: string;
   text: string;
 }
@@ -35,10 +35,14 @@ export function useEinsatzHinweise(incidents: SpielEinsatz[], aktiv: boolean) {
     }
 
     const neue: EinsatzHinweis[] = [];
+    // Neue Abschnitte einer Großschadenslage: ein gemeinsamer Hinweis statt einer für jeden Abschnitt
+    const neueAbschnitte = new Map<string, SpielEinsatz[]>();
     for (const incident of incidents) {
       const meldungen = wichtigeMeldungen(incident);
       const bisherigeMeldungen = bekannt.current.get(incident.id);
-      if (bisherigeMeldungen === undefined) {
+      if (bisherigeMeldungen === undefined && incident.grosslage) {
+        neueAbschnitte.set(incident.grosslage.id, [...(neueAbschnitte.get(incident.grosslage.id) ?? []), incident]);
+      } else if (bisherigeMeldungen === undefined) {
         neue.push({ id: `${incident.id}-neu`, einsatzId: incident.id, art: 'neu', titel: 'Neuer Einsatz', text: formatEinsatzTitel(incident) });
       } else if (meldungen.length > bisherigeMeldungen) {
         // Meldungen von Fahrzeugen vor Ort kommen als Sprechwunsch – Inhalt erst nach der Sprechaufforderung
@@ -52,12 +56,23 @@ export function useEinsatzHinweise(incidents: SpielEinsatz[], aktiv: boolean) {
         });
       }
     }
+    for (const [lagenId, abschnitte] of neueAbschnitte) {
+      const { name, welle } = abschnitte[0].grosslage!;
+      neue.unshift({
+        id: `${lagenId}-w${welle}`,
+        einsatzId: abschnitte[0].id,
+        art: 'grosslage',
+        titel: welle === 1 ? `⚠ Großschadenslage: ${name}` : `⚠ ${name}: Lage weitet sich aus`,
+        text: `${abschnitte.length} ${welle === 1 ? 'Einsatzabschnitte gemeldet' : 'weitere Einsatzabschnitte nach der Erkundung'}: `
+          + abschnitte.map((abschnitt) => abschnitt.grosslage!.abschnitt).join(', '),
+      });
+    }
     bekannt.current = new Map(incidents.map((incident) => [incident.id, wichtigeMeldungen(incident).length]));
 
     if (neue.length === 0) return;
-    spieleGong(neue.some((hinweis) => hinweis.art === 'meldung'));
+    spieleGong(neue.some((hinweis) => hinweis.art !== 'neu'));
     const { hinweise: modus, hinweisDauerSekunden } = getEinstellungen();
-    const anzeigen = modus === 'aus' ? [] : modus === 'wichtig' ? neue.filter((hinweis) => hinweis.art === 'meldung') : neue;
+    const anzeigen = modus === 'aus' ? [] : modus === 'wichtig' ? neue.filter((hinweis) => hinweis.art !== 'neu') : neue;
     if (anzeigen.length === 0) return;
     setHinweise((current) => [...anzeigen, ...current].slice(0, MAX_HINWEISE));
     const ids = anzeigen.map((hinweis) => hinweis.id);

@@ -93,6 +93,9 @@
 .erfolg-meldung__inhalt > span:first-child { font-size: 1.5rem; }
 .erfolg-meldung__inhalt span:last-child { display: grid; gap: 2px; }
 .erfolg-meldung__inhalt small { color: var(--color-text-muted); font-size: 0.75rem; }
+.erfolg-meldung--neutral { border-color: var(--color-border-strong); box-shadow: var(--shadow-md); }
+div.erfolg-meldung__inhalt { cursor: default; }
+.erfolg-meldung__inhalt .grosslage-meldung { display: grid; gap: 2px; }
 
 /* Laufbahn-Fenster */
 .laufbahn-fenster h4 { margin: 16px 0 8px; font-size: 0.9rem; }

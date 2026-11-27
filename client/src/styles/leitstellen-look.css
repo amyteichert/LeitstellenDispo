@@ -284,3 +284,4 @@ a.btn { text-decoration: none; }
 .aao-liste li { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 .aao-liste small { flex: 1 1 160px; color: var(--color-text-muted); }
 .aao-liste__aktionen { display: flex; gap: 4px; }
+.einsatz-hinweis--grosslage { border-left-color: var(--color-danger); }

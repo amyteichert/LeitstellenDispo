@@ -21,6 +21,7 @@ import {
   type EinsatzMeldung,
   type SpielEinsatz,
   getBearbeitungsMs,
+  getGrosslagenStaende,
 } from '@leitstellendispo/shared';
 import FehlendeKraefte from './FehlendeKraefte';
 import AaoKnoepfe from './AaoKnoepfe';
@@ -30,6 +31,13 @@ import { Kennzeichen } from '../Kennzeichen';
 import { useIstSchmal } from '../useIstSchmal';
 import { formatDauer } from '../zeitformat';
 import { useEinstellungen } from '../einstellungen';
+
+/** Kleines Abzeichen: Abschnitt einer Großschadenslage */
+const GrosslageAbzeichen = ({ einsatz }: { einsatz: SpielEinsatz }) => (einsatz.grosslage ? (
+  <span className="grosslage-badge" title={`Großschadenslage ${einsatz.grosslage.name}`}>
+    Großlage · {einsatz.grosslage.abschnitt}
+  </span>
+) : null);
 
 const formatUhrzeit = (zeit: number) => new Date(zeit).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
 
@@ -189,6 +197,8 @@ export default function EinsaetzeView({
     minute: '2-digit',
   });
 
+  const grosslagen = useMemo(() => getGrosslagenStaende(incidents), [incidents]);
+
   const hatWichtigeMeldung = selectedIncident?.meldungen.some(istWichtigeMeldung) ?? false;
   const verborgeneMeldungen = useMemo(() => getVerborgeneMeldungen(funk), [funk]);
 
@@ -198,6 +208,7 @@ export default function EinsaetzeView({
               <div className="einsatz-details__kopf">
                 <div>
                   <h3 className="mit-kennzeichen"><Kennzeichen art="einsatz" einsatz={selectedIncident} groesse={30} />{formatEinsatzTitel(selectedIncident)}</h3>
+                  <GrosslageAbzeichen einsatz={selectedIncident} />
                   <div className="einsatz-eintrag__zeile" style={{ fontSize: '0.95rem', marginTop: 2 }}>{selectedIncident.address}</div>
                   <div className="einsatz-eintrag__zeile">
                     {selectedIncident.organization} · {selectedIncident.reward} € · eingegangen {formatUhrzeit(selectedIncident.createdAt)} · {selectedIncident.generatedByStationName}
@@ -503,6 +514,17 @@ export default function EinsaetzeView({
                     : 'Neue Einsätze gehen automatisch ein – du hörst einen Gong und siehst eine Einblendung.'}
                 </div>
               )}
+              {grosslagen.map((lage) => (
+                <div key={lage.id} className="grosslage-uebersicht">
+                  <strong>⚠ Großschadenslage: {lage.name}</strong>
+                  {lage.beschreibung && <span>{lage.beschreibung}</span>}
+                  <span>
+                    {lage.offen} von {lage.gesamt} Abschnitten laufen
+                    {lage.erkundungAusstehend ? ' · weitere Abschnitte folgen nach der Erkundung durch die ersten Kräfte' : ''}
+                    {' · Bonus, wenn alle Abschnitte abgearbeitet sind'}
+                  </span>
+                </div>
+              ))}
               <ul className="einsatz-liste">
                 {visibleIncidents.map((incident) => {
                   const { abdeckung } = getEinsatzVersorgung(incident, vehicles, nowMs);
@@ -519,6 +541,7 @@ export default function EinsaetzeView({
                           <span className={`status-badge status-badge--${incident.status}`}>{EINSATZ_STATUS_LABELS[incident.status]}</span>
                         </span>
                         {incident.neueMeldung && <span className="neue-meldung-badge" style={{ marginLeft: 0, width: 'fit-content' }}>Neue Meldung</span>}
+                        <GrosslageAbzeichen einsatz={incident} />
                         <span className="einsatz-eintrag__zeile">{incident.address}</span>
                         <span className="einsatz-eintrag__zeile einsatz-eintrag__bedarf">
                           <span>{incident.reward} €</span>
@@ -559,6 +582,7 @@ export default function EinsaetzeView({
                         <strong className="mit-kennzeichen"><Kennzeichen art="einsatz" einsatz={incident} groesse={24} />{formatEinsatzTitel(incident)}</strong>
                         <span className="status-badge status-badge--abgeschlossen">Abgeschlossen</span>
                       </span>
+                      <GrosslageAbzeichen einsatz={incident} />
                       <span className="einsatz-eintrag__zeile">{incident.address}</span>
                       <span className="einsatz-eintrag__zeile">{incident.organization} · {incident.reward} €{incident.bewertung?.bonus ? ` + ${incident.bewertung.bonus} € Bonus` : ''} · {formatDateTime(incident.completedAt)}</span>
                     </button>

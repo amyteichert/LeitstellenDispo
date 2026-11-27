@@ -63,17 +63,22 @@ export const istGrosseinsatz = (e: Pick<SpielEinsatz, 'stichwort' | 'requiredVeh
 export function erstelleGrosseinsatzWaechter(db: Datenbank, ereignisse: Ereignisse) {
   const bekannt = new Map<number, Set<string>>();
   const discordId = db.prepare('SELECT discord_id FROM benutzer WHERE id = ?');
+  // Großschadenslagen: gemerkt wird die Lage (nicht jeder Abschnitt), damit sie nur einmal gemeldet wird
+  const kennung = (e: SpielEinsatz) => (e.grosslage ? `lage:${e.grosslage.id}` : e.id);
   return (konto: Konto, einsaetze: SpielEinsatz[]) => {
     const vorher = bekannt.get(konto.id);
-    bekannt.set(konto.id, new Set((einsaetze ?? []).map((e) => e.id)));
+    bekannt.set(konto.id, new Set((einsaetze ?? []).map(kennung)));
     if (!vorher) return;
+    const gemeldet = new Set<string>();
     for (const e of einsaetze ?? []) {
-      if (vorher.has(e.id) || !istGrosseinsatz(e)) continue;
+      const id = kennung(e);
+      if (vorher.has(id) || gemeldet.has(id) || !(e.grosslage || istGrosseinsatz(e))) continue;
+      gemeldet.add(id);
       ereignisse.melde('grosseinsatz', {
         spieler: konto.name,
         discordId: (discordId.get(konto.id) as { discord_id: string | null } | undefined)?.discord_id ?? null,
-        stichwort: e.stichwort,
-        meldebild: e.meldebild,
+        stichwort: e.grosslage ? 'Großschadenslage' : e.stichwort,
+        meldebild: e.grosslage ? e.grosslage.name : e.meldebild,
         ort: e.adresse?.ort ?? e.address,
       });
     }

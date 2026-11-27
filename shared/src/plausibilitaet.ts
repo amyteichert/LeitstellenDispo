@@ -153,8 +153,11 @@ export function pruefeLaufbahn(alt: Laufbahn, neu: Laufbahn, vergangeneMs: numbe
   const einsaetze = Math.min(neu.einsaetze, Math.floor(alt.einsaetze + einsaetzeMax));
   const perfekt = Math.min(neu.perfekt, einsaetze, Math.floor(alt.perfekt + einsaetzeMax));
   const xp = Math.min(neu.xp, Math.floor(alt.xp + PLAUSIBILITAET.xpSockel + PLAUSIBILITAET.xpJeEinsatzMax * einsaetzeMax));
-  const gekappt = einsaetze !== neu.einsaetze || perfekt !== neu.perfekt || xp !== neu.xp;
-  return { laufbahn: gekappt ? { ...neu, einsaetze, perfekt, xp } : neu, gekappt };
+  // Eine Großschadenslage besteht aus mindestens vier Einsätzen
+  const grosslagen = neu.grosslagen === undefined ? undefined
+    : Math.min(neu.grosslagen, Math.floor((alt.grosslagen ?? 0) + 1 + einsaetzeMax / 4));
+  const gekappt = einsaetze !== neu.einsaetze || perfekt !== neu.perfekt || xp !== neu.xp || grosslagen !== neu.grosslagen;
+  return { laufbahn: gekappt ? { ...neu, einsaetze, perfekt, xp, grosslagen } : neu, gekappt };
 }
 
 /** Zählt die Wachen eines Spielstands (nur echte Standorte) */

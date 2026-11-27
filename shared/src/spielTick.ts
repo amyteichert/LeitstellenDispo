@@ -36,6 +36,7 @@ import {
   type Krankenhaus,
 } from './krankenhaeuser.js';
 import { GAME_CONFIG, getBearbeitungsMs } from './konfig.js';
+import { pruefeGrosslagen, type GrosslageBeendet } from './grosslagen.js';
 import { getTransportStatus, istPatientAbgeschlossen, type Patient } from './patienten.js';
 import type { FahrzeugStatus, Koordinaten, MapLocation, Vehicle } from './typen.js';
 
@@ -57,6 +58,10 @@ export interface SpielTickErgebnis {
   verfallen: SpielEinsatz[];
   /** Nur gesetzt, wenn sich etwas geändert hat (z. B. Bettenbelegung eigener Häuser) */
   krankenhaeuser?: Krankenhaus[];
+  /** Neu entstandene Abschnitte einer Großschadenslage (Welle 2 nach der Erkundung) – sind auch in `incidents` */
+  grosslagenNeu?: SpielEinsatz[];
+  /** In diesem Schritt beendete Großschadenslagen (für den Abschlussbonus) */
+  grosslagenBeendet?: GrosslageBeendet[];
   geaendert: boolean;
 }
 
@@ -541,12 +546,18 @@ export const berechneSpielTick = (zustand: SpielTickZustand, jetzt: number): Spi
     };
   });
 
+  const laufend = nextIncidents.filter((incident) => incident.status !== 'abgeschlossen' && !ctx.verfallen.includes(incident));
+  // Großschadenslagen: weitere Abschnitte nach der Erkundung, Abschluss der ganzen Lage
+  const grosslagen = pruefeGrosslagen(laufend, ctx.abgeschlossen, ctx.verfallen, locations);
+
   return {
     vehicles: nextVehicles,
-    incidents: nextIncidents.filter((incident) => incident.status !== 'abgeschlossen' && !ctx.verfallen.includes(incident)),
+    incidents: grosslagen.incidents,
     abgeschlossen,
     verfallen: ctx.verfallen,
     ...(ctx.krankenhaeuserGeaendert ? { krankenhaeuser: ctx.krankenhaeuser } : {}),
+    ...(grosslagen.neu.length > 0 ? { grosslagenNeu: grosslagen.neu } : {}),
+    ...(grosslagen.beendet.length > 0 ? { grosslagenBeendet: grosslagen.beendet } : {}),
     geaendert: true,
   };
 };

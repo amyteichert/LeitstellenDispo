@@ -146,6 +146,28 @@ export interface SpielEinsatz extends Einsatz {
   empfehlung?: FahrzeugBedarf[];
   /** Leistungsbewertung – wird beim Abschluss gesetzt */
   bewertung?: EinsatzBewertung;
+  /** Gehört zu einer Großschadenslage (ein Einsatzabschnitt von mehreren) */
+  grosslage?: EinsatzGrosslage;
+}
+
+/** Zuordnung eines Einsatzes zu einer Großschadenslage. Jeder Abschnitt ist ein normaler Einsatz. */
+export interface EinsatzGrosslage {
+  /** Gemeinsam für alle Abschnitte derselben Lage */
+  id: string;
+  /** Vorlage der Lage (siehe GROSSLAGEN_VORLAGEN) */
+  vorlageId: string;
+  /** Name der Lage, z. B. „Zugunglück“ */
+  name: string;
+  /** Name dieses Abschnitts, z. B. „Abschnitt Patientenablage“ */
+  abschnitt: string;
+  /** 1 = sofort gemeldet, 2 = entsteht erst nach der Erkundung durch die ersten Kräfte */
+  welle: 1 | 2;
+  /** Mittelpunkt der Schadensstelle – die Abschnitte liegen darum herum */
+  zentrum: [number, number];
+  /** Die zweite Welle ist bereits entstanden */
+  welle2?: boolean;
+  /** Ein Abschnitt ist verfallen oder wurde abgegeben – kein Abschlussbonus */
+  unvollstaendig?: boolean;
 }
 
 /** Bewertung eines abgeschlossenen Einsatzes: Grundgeld gibt es immer, der Bonus hängt von Leistung und Ruf ab. */

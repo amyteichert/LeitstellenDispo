@@ -2,6 +2,7 @@
 import type { FahrzeugBedarf } from './fahrzeuge.js';
 import type { EinsatzNachforderung, EinsatzVorlage } from './daten.js';
 import type { WachenArt } from './typen.js';
+import { GROSSLAGEN_ABSCHNITT_VORLAGEN } from './grosslagenVorlagen.js';
 
 const RTW = (amount = 1): FahrzeugBedarf => ({ id: 'req-rtw', category: 'RTW', amount });
 const NEF = (amount = 1): FahrzeugBedarf => ({ id: 'req-nef', category: 'NEF', amount });
@@ -962,6 +963,8 @@ export const EINSATZ_VORLAGEN: Record<WachenArt, EinsatzVorlage[]> = {
 
 export const ALLE_EINSATZ_VORLAGEN: EinsatzVorlage[] = [...EINSATZ_VORLAGEN.Rettungswache, ...EINSATZ_VORLAGEN.Feuerwache];
 
+/** Sucht auch in den Abschnitten der Großschadenslagen (die nie als einzelner Zufallseinsatz entstehen) */
 export function findeEinsatzVorlage(id: string): EinsatzVorlage | undefined {
-  return ALLE_EINSATZ_VORLAGEN.find((vorlage) => vorlage.id === id);
+  return ALLE_EINSATZ_VORLAGEN.find((vorlage) => vorlage.id === id)
+    ?? GROSSLAGEN_ABSCHNITT_VORLAGEN.find((vorlage) => vorlage.id === id);
 }

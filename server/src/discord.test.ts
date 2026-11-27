@@ -212,4 +212,23 @@ describe('Großeinsätze', () => {
     ]);
     db.close();
   });
+
+  it('meldet eine Großschadenslage nur einmal, auch wenn weitere Abschnitte dazukommen', () => {
+    const db = oeffneDatenbank(':memory:');
+    const ereignisse = erstelleEreignisse();
+    const waechter = erstelleGrosseinsatzWaechter(db, ereignisse);
+    const konto = { id: 1, name: 'Amy' } as Konto;
+    const abschnitt = (id: string, welle: 1 | 2) => ({
+      ...einsatz(id, 'TH 1', 1),
+      grosslage: { id: 'lage-1', vorlageId: 'unwetter-sturm', name: 'Unwetterlage – Orkanböen', abschnitt: id, welle, zentrum: [48.7, 9.1] as [number, number] },
+    });
+
+    waechter(konto, []);
+    waechter(konto, [abschnitt('a', 1), abschnitt('b', 1)]);
+    waechter(konto, [abschnitt('a', 1), abschnitt('b', 1), abschnitt('c', 2)]);
+    expect(ereignisse.seit(0).ereignisse.map((e) => e.daten)).toEqual([
+      { spieler: 'Amy', discordId: null, stichwort: 'Großschadenslage', meldebild: 'Unwetterlage – Orkanböen', ort: 'Stuttgart' },
+    ]);
+    db.close();
+  });
 });
