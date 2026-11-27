@@ -9,10 +9,17 @@ Format basiert auf [Keep a Changelog](https://keepachangelog.com/).
 ## [Unreleased] – Großschadenslagen
 
 ### Neu
-- **Großschadenslagen**: Selten (im Schnitt etwa alle 2 Stunden Spielzeit, ab Rang „Erfahrener Disponent“ und 3 Wachen)
-  entsteht eine große Lage mit mehreren **Einsatzabschnitten** rund um eine Schadensstelle: Großbrand Wohnanlage,
-  Unwetterlage (Orkanböen), Massenkarambolage oder Zugunglück. Es kommen nur Lagen, die man mit den eigenen Fahrzeugen
-  komplett schaffen kann, und es läuft höchstens eine gleichzeitig.
+- **Großschadenslagen**: Selten (im Schnitt etwa alle 2 Stunden Spielzeit) entsteht eine große Lage mit mehreren
+  **Einsatzabschnitten** rund um eine Schadensstelle. Es kommen nur Lagen, die man mit den eigenen Fahrzeugen komplett
+  schaffen kann (mit Anzahl: 2× LF = zwei Löschfahrzeuge), und es läuft höchstens eine gleichzeitig.
+- **Je größer die Leitstelle, desto brutaler die Lagen** – sechs Lagen in fünf Stufen, jede mit Mindestrang und -wachenzahl:
+  1. Unwetterlage – Starkregen (nur LF, ab Rang 2 und 1 Wache, Bonus 1.500 €)
+  2. Unwetterlage – Orkanböen (ab Rang 3, 2 Wachen, 3.000 €)
+  3. Großbrand Wohnanlage (ab Rang 4, 3 Wachen, 5.000 €)
+  4. Massenkarambolage, Zugunglück (ab Rang 5, 4 Wachen, 6.000 / 7.000 €)
+  5. Großbrand im Chemiepark (ab Rang 6, 6 Wachen, 6 Abschnitte, u. a. 4× LF, 2× DLK, ELW 2, GW-G, 4× RTW – 12.000 €)
+
+  Gewählt wird gewichtet nach Stufe: Meistens kommt die härteste Lage, die man schafft, kleinere nur ab und zu.
 - Jeder Abschnitt ist ein normaler Einsatz (Alarmierung, AAO, Patienten, Bewertung und Vergütung wie gewohnt) mit dem
   Abzeichen „Großlage · Abschnittsname“. Über der Einsatzliste zeigt eine Übersicht, wie viele Abschnitte noch laufen.
 - **Auf der Karte**: gestrichelter roter Kreis um alle Abschnitte einer Lage, mit dem Namen der Lage am oberen Rand.

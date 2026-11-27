@@ -18,17 +18,22 @@ import type { Koordinaten, MapLocation, StationKind, Vehicle } from './typen.js'
 export * from './grosslagenVorlagen.js';
 
 export const GROSSLAGEN_CONFIG = {
-  /** Erst ab diesem Rang (Stufe) – vorher wären die Lagen kaum zu schaffen */
-  abRangStufe: 4,
-  /** Erst ab so vielen Wachen */
-  abWachen: 3,
+  /**
+   * Je härter die Lage (Stufe), desto öfter wird sie gewählt: Gewicht = Faktor ^ Stufe.
+   * Mit 3 kommt die härteste machbare Lage etwa doppelt so oft wie alle leichteren zusammen.
+   */
+  staerkeFaktor: 3,
   /** Im Mittel eine Lage je so viel aktiver Spielzeit (zufällig, wie normale Einsätze) */
   intervallMs: 2 * 60 * 60 * 1000,
   /** Abstand der Abschnitte vom Mittelpunkt der Schadensstelle */
   abstandKm: 0.45,
 } as const;
 
-const AB_XP = RAENGE.find((rang) => rang.stufe === GROSSLAGEN_CONFIG.abRangStufe)?.abXp ?? 0;
+const xpFuerRang = (stufe: number) => RAENGE.find((rang) => rang.stufe === stufe)?.abXp ?? 0;
+
+/** Hat der Spieler Rang und Wachen für diese Lage? */
+export const istGrosslageFreigeschaltet = (lage: Pick<GrosslagenVorlage, 'abRang' | 'abWachen'>, xp: number, wachen: number) =>
+  xp >= xpFuerRang(lage.abRang) && wachen >= lage.abWachen;
 
 /** Läuft gerade eine Großschadenslage? (höchstens eine gleichzeitig) */
 export const hatLaufendeGrosslage = (incidents: Pick<SpielEinsatz, 'grosslage' | 'status'>[]) =>
@@ -36,12 +41,27 @@ export const hatLaufendeGrosslage = (incidents: Pick<SpielEinsatz, 'grosslage' |
 
 /** Dürfen beim Spieler grundsätzlich Großschadenslagen entstehen? */
 export const darfGrosslageEntstehen = (xp: number, wachen: number, incidents: Pick<SpielEinsatz, 'grosslage' | 'status'>[]) =>
-  xp >= AB_XP && wachen >= GROSSLAGEN_CONFIG.abWachen && !hatLaufendeGrosslage(incidents);
+  GROSSLAGEN_VORLAGEN.some((lage) => istGrosslageFreigeschaltet(lage, xp, wachen)) && !hatLaufendeGrosslage(incidents);
 
-/** Lagen, deren Abschnitte (alle Wellen) der Spieler mit seinen stationierten Fahrzeugen schaffen kann */
-export const getMachbareGrosslagen = (vehicles: Vehicle[]): GrosslagenVorlage[] => {
+/**
+ * Lagen, deren Abschnitte (alle Wellen) der Spieler mit seinen stationierten Fahrzeugen schaffen kann –
+ * der Bedarf zählt mit Anzahl (2× LF = zwei Löschfahrzeuge). Mit `freigabe` nur Lagen, für die Rang und Wachen reichen.
+ */
+export const getMachbareGrosslagen = (vehicles: Vehicle[], freigabe?: { xp: number; wachen: number }): GrosslagenVorlage[] => {
   const fahrzeugTypen = vehicles.filter((vehicle) => vehicle.stationId).map((vehicle) => vehicle.type);
-  return GROSSLAGEN_VORLAGEN.filter((lage) => lage.abschnitte.every((a) => istVorlageErfuellbar(a.vorlage, fahrzeugTypen)));
+  return GROSSLAGEN_VORLAGEN.filter((lage) => (!freigabe || istGrosslageFreigeschaltet(lage, freigabe.xp, freigabe.wachen))
+    && lage.abschnitte.every((a) => istVorlageErfuellbar(a.vorlage, fahrzeugTypen)));
+};
+
+/** Wählt eine Lage – härtere deutlich öfter, damit eine große Leitstelle auch die brutalen Lagen bekommt */
+export const waehleGrosslage = (lagen: GrosslagenVorlage[], zufall: () => number = Math.random): GrosslagenVorlage => {
+  const gewichte = lagen.map((lage) => GROSSLAGEN_CONFIG.staerkeFaktor ** lage.stufe);
+  let rest = zufall() * gewichte.reduce((a, b) => a + b, 0);
+  for (let i = 0; i < lagen.length; i++) {
+    rest -= gewichte[i];
+    if (rest < 0) return lagen[i];
+  }
+  return lagen[lagen.length - 1];
 };
 
 const WACHE_FUER: Record<SpielEinsatz['organization'], StationKind> = {
@@ -89,22 +109,33 @@ const erzeugeWelle = (
   });
 };
 
+export interface GrosslagenOptionen {
+  zufall?: () => number;
+  /** Genau diese Lage (Tests) */
+  vorlageId?: string;
+  /** EP des Spielers: nur Lagen, für die Rang und Wachenzahl reichen. Fehlt = ohne diese Prüfung (Dev-Werkzeug) */
+  xp?: number;
+}
+
 /**
- * Neue Großschadenslage an einer zufälligen Wache: liefert die Abschnitte der ersten Welle.
- * `null`, wenn der Spieler keine Lage komplett schaffen kann.
+ * Neue Großschadenslage: liefert die Abschnitte der ersten Welle.
+ * `null`, wenn der Spieler keine (freigeschaltete) Lage komplett schaffen kann.
  */
 export function erzeugeGrosslage(
   locations: MapLocation[],
   vehicles: Vehicle[],
   jetzt: number = Date.now(),
-  zufall: () => number = Math.random,
-  vorlageId?: string,
+  { zufall = Math.random, vorlageId, xp }: GrosslagenOptionen = {},
 ): SpielEinsatz[] | null {
   const stations = locations.filter((location) => location.type === 'station');
-  const machbar = getMachbareGrosslagen(vehicles).filter((lage) => !vorlageId || lage.id === vorlageId);
+  const freigabe = xp === undefined ? undefined : { xp, wachen: stations.length };
+  const machbar = getMachbareGrosslagen(vehicles, freigabe).filter((lage) => !vorlageId || lage.id === vorlageId);
   if (stations.length === 0 || machbar.length === 0) return null;
-  const lage = machbar[Math.floor(zufall() * machbar.length)];
-  const wache = stations[Math.floor(zufall() * stations.length)];
+  const lage = waehleGrosslage(machbar, zufall);
+  // Mittelpunkt bei einer Wache, die zur Lage passt (Feuerwehr-Lage → Feuerwache)
+  const passend = stations.filter((station) => (station.stationKind ?? 'Rettungswache') === WACHE_FUER[lage.abschnitte[0].vorlage.organization]);
+  const auswahl = passend.length > 0 ? passend : stations;
+  const wache = auswahl[Math.floor(zufall() * auswahl.length)];
   const { coords: zentrum } = erzeugeEinsatzort(wache, stations.length, lage, zufall);
   const basis = { id: `grosslage-${jetzt}-${Math.floor(zufall() * 1e9).toString(16)}`, vorlageId: lage.id, name: lage.name, zentrum };
   return erzeugeWelle(lage, 1, basis, stations, wache, jetzt, zufall);

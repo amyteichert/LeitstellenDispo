@@ -311,7 +311,7 @@
 
 /* Großschadenslagen: Abzeichen am Abschnitt und Übersicht über der Einsatzliste */
 .grosslage-badge {
-  display: inline-block;
+  display: block;
   width: fit-content;
   margin-top: 2px;
   padding: 0 6px;

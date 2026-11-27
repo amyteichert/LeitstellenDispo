@@ -588,7 +588,7 @@ export function useSpiel(optionen: UseSpielOptionen = {}) {
       // Selten: Großschadenslage mit mehreren Einsatzabschnitten (höchstens eine gleichzeitig)
       if (darfGrosslageEntstehen(xp, wachen, incidentsRef.current)
         && entstehtEinsatz(Math.min(vergangen, 5000), GROSSLAGEN_CONFIG.intervallMs / getEinstellungen().einsatzTempo)) {
-        const abschnitte = erzeugeGrosslage(orte, fahrzeuge, jetzt);
+        const abschnitte = erzeugeGrosslage(orte, fahrzeuge, jetzt, { xp });
         if (abschnitte) {
           setIncidents((current) => (darfGrosslageEntstehen(xp, wachen, current) ? [...abschnitte, ...current] : current));
           abschnitte.forEach((abschnitt) => strasseNachziehen(abschnitt));
@@ -1074,8 +1074,8 @@ export function useSpiel(optionen: UseSpielOptionen = {}) {
     if (incidents.some((incident) => incident.grosslage)) return 'Es läuft schon eine Großschadenslage.';
     const abschnitte = erzeugeGrosslage(locations, vehicles, Date.now());
     if (!abschnitte) {
-      return 'Mit deinen Fahrzeugen ist keine Großschadenslage machbar. Am einfachsten ist die Unwetterlage: '
-        + 'Feuerwache mit LF, RW und DLK sowie eine Rettungswache mit RTW.';
+      return 'Mit deinen Fahrzeugen ist keine Großschadenslage machbar. Die kleinste (Starkregen) braucht '
+        + 'eine Feuerwache mit einem Löschfahrzeug (LF/HLF).';
     }
     setIncidents((current) => [...abschnitte, ...current]);
     abschnitte.forEach((abschnitt) => strasseNachziehen(abschnitt));

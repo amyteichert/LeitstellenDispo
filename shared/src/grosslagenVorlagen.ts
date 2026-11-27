@@ -25,6 +25,10 @@ const GWSAN = bedarf('req-gwsan', 'GW-San');
 const GWA = bedarf('req-gwa', 'GW-A');
 const GWOEL = bedarf('req-gwoel', 'GW-Öl');
 const SW = bedarf('req-sw', 'Schlauchwagen');
+const ELW2 = bedarf('req-elw2', 'Einsatzleitwagen 2');
+const GWG = bedarf('req-gwg', 'GW-G');
+const GWMESS = bedarf('req-gwmess', 'GW-Mess');
+const GWL2 = bedarf('req-gwl2', 'GW-L2');
 
 export interface GrosslagenAbschnitt {
   /** Anzeigename, z. B. „Abschnitt Patientenablage“ */
@@ -37,6 +41,15 @@ export interface GrosslagenAbschnitt {
 
 export interface GrosslagenVorlage {
   id: string;
+  /**
+   * Härte der Lage (1 = klein, 5 = brutal). Je größer die Leitstelle, desto öfter kommen die harten Lagen –
+   * kleinere sind trotzdem ab und zu dabei.
+   */
+  stufe: number;
+  /** Frühestens ab diesem Rang (Stufe der Laufbahn) */
+  abRang: number;
+  /** Frühestens ab so vielen Wachen */
+  abWachen: number;
   /** z. B. „Zugunglück“ */
   name: string;
   /** Kurzbeschreibung für die Einblendung */
@@ -52,7 +65,81 @@ export interface GrosslagenVorlage {
 
 export const GROSSLAGEN_VORLAGEN: GrosslagenVorlage[] = [
   {
+    id: 'unwetter-starkregen',
+    stufe: 1,
+    abRang: 2,
+    abWachen: 1,
+    name: 'Unwetterlage – Starkregen',
+    beschreibung: 'Ein Gewitter mit Starkregen zieht über den Ort, Keller und Straßen laufen voll.',
+    ortsArt: 'strasse',
+    abschnitte: [
+      {
+        name: 'Keller unter Wasser',
+        welle: 1,
+        vorlage: {
+          id: 'gl-starkregen-keller',
+          stichwort: 'TH 1',
+          meldebild: 'Starkregen – Keller vollgelaufen',
+          organization: 'Feuerwehr',
+          requiredVehicles: [LF()],
+          reward: 400,
+          durationSeconds: 20,
+          lage: 'Wasser steht kniehoch im Keller eines Mehrfamilienhauses, Tauchpumpe läuft.',
+        },
+      },
+      {
+        name: 'Straße überflutet',
+        welle: 1,
+        vorlage: {
+          id: 'gl-starkregen-strasse',
+          stichwort: 'TH 1',
+          meldebild: 'Starkregen – Unterführung überflutet',
+          organization: 'Feuerwehr',
+          requiredVehicles: [TH()],
+          reward: 450,
+          durationSeconds: 20,
+          ortsArt: 'strasse',
+          lage: 'PKW in der überfluteten Unterführung stecken geblieben, Fahrer sitzt auf dem Dach. Straße wird gesperrt.',
+        },
+      },
+      {
+        name: 'Tiefgarage läuft voll',
+        welle: 2,
+        vorlage: {
+          id: 'gl-starkregen-tiefgarage',
+          stichwort: 'TH 1',
+          meldebild: 'Starkregen – Wasser in Tiefgarage',
+          organization: 'Feuerwehr',
+          requiredVehicles: [LF()],
+          reward: 450,
+          durationSeconds: 25,
+          lage: 'Wasser läuft über die Einfahrt in die Tiefgarage, Sandsäcke und Pumpen werden eingesetzt.',
+        },
+      },
+      {
+        name: 'Baum auf Fahrbahn',
+        welle: 2,
+        vorlage: {
+          id: 'gl-starkregen-baum',
+          stichwort: 'TH 1',
+          meldebild: 'Gewitter – Baum auf Fahrbahn',
+          organization: 'Feuerwehr',
+          requiredVehicles: [TH()],
+          reward: 400,
+          durationSeconds: 20,
+          ortsArt: 'strasse',
+          lage: 'Vom Blitz getroffener Baum liegt quer über der Straße, Motorsägentrupp arbeitet.',
+        },
+      },
+    ],
+    bonus: 1500,
+    xp: 40,
+  },
+  {
     id: 'grossbrand-wohnanlage',
+    stufe: 3,
+    abRang: 4,
+    abWachen: 3,
     name: 'Großbrand Wohnanlage',
     beschreibung: 'Mehrere Gebäude einer Wohnanlage brennen, Bewohner sind eingeschlossen.',
     abschnitte: [
@@ -120,6 +207,9 @@ export const GROSSLAGEN_VORLAGEN: GrosslagenVorlage[] = [
   },
   {
     id: 'unwetter-sturm',
+    stufe: 2,
+    abRang: 3,
+    abWachen: 2,
     name: 'Unwetterlage – Orkanböen',
     beschreibung: 'Ein Sturm zieht über das Gebiet, Notrufe gehen im Minutentakt ein.',
     ortsArt: 'strasse',
@@ -189,6 +279,9 @@ export const GROSSLAGEN_VORLAGEN: GrosslagenVorlage[] = [
   },
   {
     id: 'massenkarambolage',
+    stufe: 4,
+    abRang: 5,
+    abWachen: 4,
     name: 'Massenkarambolage',
     beschreibung: 'Bei dichtem Nebel sind zahlreiche Fahrzeuge ineinander gefahren.',
     ortsArt: 'strasse',
@@ -261,6 +354,9 @@ export const GROSSLAGEN_VORLAGEN: GrosslagenVorlage[] = [
   },
   {
     id: 'zugunglueck',
+    stufe: 4,
+    abRang: 5,
+    abWachen: 4,
     name: 'Zugunglück',
     beschreibung: 'Ein Regionalzug ist entgleist, viele Fahrgäste sind verletzt.',
     abschnitte: [
@@ -325,6 +421,105 @@ export const GROSSLAGEN_VORLAGEN: GrosslagenVorlage[] = [
     ],
     bonus: 7000,
     xp: 150,
+  },
+  {
+    id: 'grossbrand-chemiepark',
+    stufe: 5,
+    abRang: 6,
+    abWachen: 6,
+    name: 'Großbrand im Chemiepark',
+    beschreibung: 'Eine Lagerhalle mit Gefahrstoffen brennt, eine Rauchwolke zieht über die Stadt, es gibt Verletzte.',
+    abschnitte: [
+      {
+        name: 'Abschnitt Brandbekämpfung',
+        welle: 1,
+        vorlage: {
+          id: 'gl-chemie-brand',
+          stichwort: 'B 5',
+          meldebild: 'Großbrand Chemiepark – Lagerhalle',
+          organization: 'Feuerwehr',
+          requiredVehicles: [LF(4), DLK(2), ELW2(), GWA()],
+          reward: 4000,
+          durationSeconds: 60,
+          lage: 'Lagerhalle in Vollbrand, Fassade droht einzustürzen. Einsatzleitung im ELW 2 bildet Abschnitte.',
+        },
+      },
+      {
+        name: 'Abschnitt Gefahrstoffe',
+        welle: 1,
+        vorlage: {
+          id: 'gl-chemie-gefahrstoff',
+          stichwort: 'ABC 3',
+          meldebild: 'Großbrand Chemiepark – Gefahrstoffaustritt',
+          organization: 'Feuerwehr',
+          requiredVehicles: [GWG(), GWMESS(), LF(2)],
+          reward: 3200,
+          durationSeconds: 55,
+          lage: 'Fässer mit unbekanntem Inhalt beschädigt, Messtrupps erkunden die Rauchwolke. Bevölkerung wird gewarnt.',
+        },
+      },
+      {
+        name: 'Abschnitt Patientenablage',
+        welle: 1,
+        vorlage: {
+          id: 'gl-chemie-ablage',
+          stichwort: 'MANV',
+          meldebild: 'Großbrand Chemiepark – Verletzte Mitarbeiter',
+          organization: 'Rettungsdienst',
+          requiredVehicles: [RTW(4), NEF(2), LNA(), ORGL()],
+          reward: 3600,
+          durationSeconds: 50,
+          patienten: { anzahl: 4, zustand: 'schwer', transportWahrscheinlichkeit: 1, fachrichtung: 'innere' },
+          lage: 'Vier Mitarbeiter mit Rauchgas- und Verätzungsverletzungen, LNA sichtet.',
+        },
+      },
+      {
+        name: 'Abschnitt Riegelstellung Nachbarhalle',
+        welle: 2,
+        vorlage: {
+          id: 'gl-chemie-riegel',
+          stichwort: 'B 4',
+          meldebild: 'Großbrand Chemiepark – Nachbarhalle gefährdet',
+          organization: 'Feuerwehr',
+          requiredVehicles: [LF(3), DLK()],
+          reward: 2400,
+          durationSeconds: 45,
+          lage: 'Funkenflug auf das Dach der Nachbarhalle, Wasserwerfer kühlen die Wand.',
+        },
+      },
+      {
+        name: 'Abschnitt Wasserversorgung',
+        welle: 2,
+        vorlage: {
+          id: 'gl-chemie-wasser',
+          stichwort: 'B 2',
+          meldebild: 'Großbrand Chemiepark – Wasserversorgung',
+          organization: 'Feuerwehr',
+          requiredVehicles: [SW(2), LF(), GWL2()],
+          reward: 1800,
+          durationSeconds: 40,
+          ortsArt: 'strasse',
+          lage: 'Löschwasser reicht nicht, Förderstrecke vom Hafenbecken wird aufgebaut.',
+        },
+      },
+      {
+        name: 'Abschnitt Behandlungsplatz',
+        welle: 2,
+        vorlage: {
+          id: 'gl-chemie-behandlung',
+          stichwort: 'MANV',
+          meldebild: 'Großbrand Chemiepark – Anwohner mit Atembeschwerden',
+          organization: 'Rettungsdienst',
+          requiredVehicles: [RTW(2), GWSAN()],
+          reward: 1800,
+          durationSeconds: 40,
+          patienten: { anzahl: 3, zustand: 'mittel', transportWahrscheinlichkeit: 0.7, fachrichtung: 'innere' },
+          lage: 'Anwohner melden sich mit Atembeschwerden, Behandlungsplatz am Rand der Rauchwolke.',
+        },
+      },
+    ],
+    bonus: 12000,
+    xp: 250,
   },
 ];
 

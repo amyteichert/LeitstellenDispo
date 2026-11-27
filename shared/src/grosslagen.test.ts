@@ -7,6 +7,8 @@ import {
   getGrosslagenStaende,
   getMachbareGrosslagen,
   GROSSLAGEN_VORLAGEN,
+  istGrosslageFreigeschaltet,
+  waehleGrosslage,
 } from './grosslagen.js';
 import { findeEinsatzVorlage } from './einsatzVorlagen.js';
 import { berechneSpielTick } from './spielTick.js';
@@ -51,24 +53,73 @@ describe('Großschadenslagen – Vorlagen', () => {
 
   it('nur Lagen, deren Abschnitte alle mit den eigenen Fahrzeugen machbar sind', () => {
     expect(getMachbareGrosslagen([rd('rtw', 'RTW')])).toHaveLength(0);
-    expect(getMachbareGrosslagen(sturmFahrzeuge()).map((lage) => lage.id)).toEqual(['unwetter-sturm']);
+    expect(getMachbareGrosslagen(sturmFahrzeuge()).map((lage) => lage.id)).toEqual(['unwetter-starkregen', 'unwetter-sturm']);
     // Fahrzeuge ohne Wache zählen nicht
     expect(getMachbareGrosslagen(sturmFahrzeuge().map((v) => ({ ...v, stationId: undefined })))).toHaveLength(0);
   });
 
-  it('entsteht erst ab Rang, Wachenzahl und wenn keine andere Lage läuft', () => {
-    const abXp = RAENGE.find((rang) => rang.stufe === 4)!.abXp;
-    expect(darfGrosslageEntstehen(abXp - 1, 5, [])).toBe(false);
-    expect(darfGrosslageEntstehen(abXp, 2, [])).toBe(false);
-    expect(darfGrosslageEntstehen(abXp, 3, [])).toBe(true);
-    const lage = erzeugeGrosslage(locations, sturmFahrzeuge(), T0, zufall)!;
-    expect(darfGrosslageEntstehen(abXp, 3, lage)).toBe(false);
+  it('entsteht erst ab Rang 2 (kleinste Lage) und wenn keine andere Lage läuft', () => {
+    const xp = (stufe: number) => RAENGE.find((rang) => rang.stufe === stufe)!.abXp;
+    expect(darfGrosslageEntstehen(xp(2) - 1, 5, [])).toBe(false);
+    expect(darfGrosslageEntstehen(xp(2), 1, [])).toBe(true);
+    const lage = erzeugeGrosslage(locations, sturmFahrzeuge(), T0, { zufall })!;
+    expect(darfGrosslageEntstehen(xp(7), 20, lage)).toBe(false);
+  });
+
+  it('mit nur einem LF: die Starkregen-Lage ab Rang 2 – sonst nichts', () => {
+    const nurLF = [fw('lf', 'LF 20')];
+    const xp = (stufe: number) => RAENGE.find((rang) => rang.stufe === stufe)!.abXp;
+    expect(getMachbareGrosslagen(nurLF).map((lage) => lage.id)).toEqual(['unwetter-starkregen']);
+    expect(getMachbareGrosslagen(nurLF, { xp: 0, wachen: 1 })).toHaveLength(0);
+    expect(getMachbareGrosslagen(nurLF, { xp: xp(2), wachen: 1 }).map((lage) => lage.id)).toEqual(['unwetter-starkregen']);
+    const lage = erzeugeGrosslage([wache('fw-1', 'Feuerwache')], nurLF, T0, { zufall, xp: xp(2) })!;
+    expect(lage.map((e) => e.vorlageId).sort()).toEqual(['gl-starkregen-keller', 'gl-starkregen-strasse']);
+    // Ohne Rang kommt sie nicht von selbst, über das Dev-Werkzeug (ohne xp) schon
+    expect(erzeugeGrosslage([wache('fw-1', 'Feuerwache')], nurLF, T0, { zufall, xp: 0 })).toBeNull();
+    expect(erzeugeGrosslage([wache('fw-1', 'Feuerwache')], nurLF, T0, { zufall })).not.toBeNull();
+  });
+
+  it('Stufen steigen mit Rang und Wachen, die härteste Lage braucht eine große Leitstelle', () => {
+    const sortiert = [...GROSSLAGEN_VORLAGEN].sort((a, b) => a.stufe - b.stufe);
+    for (let i = 1; i < sortiert.length; i++) {
+      expect(sortiert[i].abRang).toBeGreaterThanOrEqual(sortiert[i - 1].abRang);
+      expect(sortiert[i].abWachen).toBeGreaterThanOrEqual(sortiert[i - 1].abWachen);
+      expect(sortiert[i].bonus).toBeGreaterThanOrEqual(sortiert[i - 1].bonus);
+    }
+    const chemie = findeGrosslagenVorlage('grossbrand-chemiepark')!;
+    expect(chemie.stufe).toBe(5);
+    expect(istGrosslageFreigeschaltet(chemie, RAENGE[6].abXp, 5)).toBe(false);
+    expect(istGrosslageFreigeschaltet(chemie, RAENGE[6].abXp, 6)).toBe(true);
+  });
+
+  it('große Leitstelle: meistens die härteste machbare Lage, kleinere nur ab und zu', () => {
+    const lagen = GROSSLAGEN_VORLAGEN;
+    const zaehler = new Map<string, number>();
+    for (let i = 0; i < 1000; i++) {
+      const lage = waehleGrosslage(lagen, () => (i + 0.5) / 1000);
+      zaehler.set(lage.id, (zaehler.get(lage.id) ?? 0) + 1);
+    }
+    expect(zaehler.get('grossbrand-chemiepark')!).toBeGreaterThan(500);
+    expect(zaehler.get('unwetter-starkregen') ?? 0).toBeGreaterThan(0);
+    expect(zaehler.get('unwetter-starkregen') ?? 0).toBeLessThan(20);
+  });
+
+  it('die brutale Chemiepark-Lage ist mit einem großen Fuhrpark machbar', () => {
+    const gross: Vehicle[] = [
+      ...['1', '2', '3', '4'].map((n) => fw(`lf${n}`, 'LF 20')), fw('dlk1', 'DLK 23/12'), fw('dlk2', 'DLK 23/12'), fw('elw2', 'ELW 2'),
+      fw('gwa', 'GW-A'), fw('gwg', 'GW-G'), fw('gwm', 'GW-Mess'), fw('sw1', 'SW 2000'), fw('sw2', 'SW 2000'), fw('gwl', 'GW-L2'),
+      ...['1', '2', '3', '4'].map((n) => rd(`rtw${n}`, 'RTW')), rd('nef1', 'NEF'), rd('nef2', 'NEF'), rd('lna', 'KdoW-LNA'),
+      rd('orgl', 'KdoW-OrgL'), rd('gwsan', 'GW-San'),
+    ];
+    expect(getMachbareGrosslagen(gross).map((lage) => lage.id)).toContain('grossbrand-chemiepark');
+    // Ein LF weniger: der Brandabschnitt braucht 4 – dann nicht mehr
+    expect(getMachbareGrosslagen(gross.filter((v) => v.id !== 'lf4')).map((lage) => lage.id)).not.toContain('grossbrand-chemiepark');
   });
 });
 
 describe('Großschadenslagen – Ablauf', () => {
   it('erste Welle entsteht sofort, zuständig ist die passende Wache', () => {
-    const lage = erzeugeGrosslage(locations, sturmFahrzeuge(), T0, zufall, 'unwetter-sturm')!;
+    const lage = erzeugeGrosslage(locations, sturmFahrzeuge(), T0, { zufall, vorlageId: 'unwetter-sturm' })!;
     expect(lage.map((e) => e.vorlageId).sort()).toEqual(['gl-sturm-baum', 'gl-sturm-pkw']);
     expect(new Set(lage.map((e) => e.grosslage!.id)).size).toBe(1);
     expect(lage.every((e) => e.generatedByStationId === 'fw-1')).toBe(true);
@@ -83,7 +134,7 @@ describe('Großschadenslagen – Ablauf', () => {
   });
 
   it('Erkundung löst Welle 2 aus, nach dem letzten Abschnitt gibt es den Abschlussbonus', () => {
-    let zustand = { incidents: erzeugeGrosslage(locations, sturmFahrzeuge(), T0, zufall, 'unwetter-sturm')!, vehicles: sturmFahrzeuge(), locations };
+    let zustand = { incidents: erzeugeGrosslage(locations, sturmFahrzeuge(), T0, { zufall, vorlageId: 'unwetter-sturm' })!, vehicles: sturmFahrzeuge(), locations };
     zustand = { ...zustand, ...alarmiereFahrzeuge(zustand, abschnitt(zustand.incidents, 'gl-sturm-baum').id, ['hlf'], T0) };
     zustand = { ...zustand, ...alarmiereFahrzeuge(zustand, abschnitt(zustand.incidents, 'gl-sturm-pkw').id, ['rw', 'lf1', 'rtw'], T0) };
 
@@ -112,7 +163,7 @@ describe('Großschadenslagen – Ablauf', () => {
   });
 
   it('ein abgegebener Abschnitt: Lage endet ohne Bonus', () => {
-    let zustand = { incidents: erzeugeGrosslage(locations, sturmFahrzeuge(), T0, zufall, 'unwetter-sturm')!, vehicles: sturmFahrzeuge(), locations };
+    let zustand = { incidents: erzeugeGrosslage(locations, sturmFahrzeuge(), T0, { zufall, vorlageId: 'unwetter-sturm' })!, vehicles: sturmFahrzeuge(), locations };
     const pkw = abschnitt(zustand.incidents, 'gl-sturm-pkw');
     zustand = { ...zustand, incidents: zustand.incidents.map((e) => (e.id === pkw.id ? { ...e, abgegebenAt: T0 } : e)) };
     zustand = { ...zustand, ...alarmiereFahrzeuge(zustand, abschnitt(zustand.incidents, 'gl-sturm-baum').id, ['hlf'], T0) };
@@ -130,7 +181,7 @@ describe('Großschadenslagen – Ablauf', () => {
   });
 
   it('nie alarmiert: alle Abschnitte verfallen, die Lage endet ohne Welle 2', () => {
-    const zustand = { incidents: erzeugeGrosslage(locations, sturmFahrzeuge(), T0, zufall, 'unwetter-sturm')!, vehicles: sturmFahrzeuge(), locations };
+    const zustand = { incidents: erzeugeGrosslage(locations, sturmFahrzeuge(), T0, { zufall, vorlageId: 'unwetter-sturm' })!, vehicles: sturmFahrzeuge(), locations };
     const tick = berechneSpielTick(zustand, T0 + 24 * 60 * 60_000);
     expect(tick.incidents).toHaveLength(0);
     expect(tick.grosslagenNeu).toBeUndefined();
