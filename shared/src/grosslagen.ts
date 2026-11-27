@@ -14,6 +14,7 @@ import { haversineKm } from './geo.js';
 import { RAENGE } from './laufbahn.js';
 import { findeGrosslagenVorlage, GROSSLAGEN_VORLAGEN, type GrosslagenVorlage } from './grosslagenVorlagen.js';
 import type { Koordinaten, MapLocation, StationKind, Vehicle } from './typen.js';
+import type { Wetter } from './aufkommen.js';
 
 export * from './grosslagenVorlagen.js';
 
@@ -23,6 +24,10 @@ export const GROSSLAGEN_CONFIG = {
    * Mit 3 kommt die härteste machbare Lage etwa doppelt so oft wie alle leichteren zusammen.
    */
   staerkeFaktor: 3,
+  /** Passt das Wetter zu einer machbaren Unwetterlage, kommen Großlagen so viel häufiger */
+  wetterHaeufiger: 3,
+  /** … und die passende Unwetterlage wird bei der Auswahl so viel stärker gewichtet */
+  wetterGewicht: 100,
   /** Im Mittel eine Lage je so viel aktiver Spielzeit (zufällig, wie normale Einsätze) */
   intervallMs: 2 * 60 * 60 * 1000,
   /** Abstand der Abschnitte vom Mittelpunkt der Schadensstelle */
@@ -34,6 +39,12 @@ const xpFuerRang = (stufe: number) => RAENGE.find((rang) => rang.stufe === stufe
 /** Hat der Spieler Rang und Wachen für diese Lage? */
 export const istGrosslageFreigeschaltet = (lage: Pick<GrosslagenVorlage, 'abRang' | 'abWachen'>, xp: number, wachen: number) =>
   xp >= xpFuerRang(lage.abRang) && wachen >= lage.abWachen;
+
+/** Ist die Lage bei diesem Wetter möglich? (Lagen ohne Wetterangabe immer) */
+export const passtZumWetter = (lage: Pick<GrosslagenVorlage, 'wetter'>, wetter: Wetter) => !lage.wetter || lage.wetter.includes(wetter);
+
+/** Lagen, die nur bei diesem Wetter entstehen (für das Wetter-Fenster) */
+export const getUnwetterLagen = (wetter: Wetter) => GROSSLAGEN_VORLAGEN.filter((lage) => lage.wetter?.includes(wetter));
 
 /** Läuft gerade eine Großschadenslage? (höchstens eine gleichzeitig) */
 export const hatLaufendeGrosslage = (incidents: Pick<SpielEinsatz, 'grosslage' | 'status'>[]) =>
@@ -47,15 +58,32 @@ export const darfGrosslageEntstehen = (xp: number, wachen: number, incidents: Pi
  * Lagen, deren Abschnitte (alle Wellen) der Spieler mit seinen stationierten Fahrzeugen schaffen kann –
  * der Bedarf zählt mit Anzahl (2× LF = zwei Löschfahrzeuge). Mit `freigabe` nur Lagen, für die Rang und Wachen reichen.
  */
-export const getMachbareGrosslagen = (vehicles: Vehicle[], freigabe?: { xp: number; wachen: number }): GrosslagenVorlage[] => {
+export const getMachbareGrosslagen = (
+  vehicles: Vehicle[],
+  freigabe?: { xp: number; wachen: number; wetter?: Wetter },
+): GrosslagenVorlage[] => {
   const fahrzeugTypen = vehicles.filter((vehicle) => vehicle.stationId).map((vehicle) => vehicle.type);
   return GROSSLAGEN_VORLAGEN.filter((lage) => (!freigabe || istGrosslageFreigeschaltet(lage, freigabe.xp, freigabe.wachen))
+    && (!freigabe?.wetter || passtZumWetter(lage, freigabe.wetter))
     && lage.abschnitte.every((a) => istVorlageErfuellbar(a.vorlage, fahrzeugTypen)));
 };
 
-/** Wählt eine Lage – härtere deutlich öfter, damit eine große Leitstelle auch die brutalen Lagen bekommt */
-export const waehleGrosslage = (lagen: GrosslagenVorlage[], zufall: () => number = Math.random): GrosslagenVorlage => {
-  const gewichte = lagen.map((lage) => GROSSLAGEN_CONFIG.staerkeFaktor ** lage.stufe);
+/**
+ * Mittlerer Abstand zwischen zwei Großlagen: kürzer, wenn das aktuelle Wetter eine Unwetterlage möglich macht,
+ * die der Spieler auch schaffen kann (z. B. Gewitter → Starkregen-Lage).
+ */
+export const grosslagenIntervallMs = (vehicles: Vehicle[], freigabe: { xp: number; wachen: number; wetter: Wetter }) =>
+  getMachbareGrosslagen(vehicles, freigabe).some((lage) => lage.wetter)
+    ? GROSSLAGEN_CONFIG.intervallMs / GROSSLAGEN_CONFIG.wetterHaeufiger
+    : GROSSLAGEN_CONFIG.intervallMs;
+
+/**
+ * Wählt eine Lage – härtere deutlich öfter, damit eine große Leitstelle auch die brutalen Lagen bekommt.
+ * Unwetterlagen bei passendem Wetter stark bevorzugt (das Unwetter ist ja gerade da).
+ */
+export const waehleGrosslage = (lagen: GrosslagenVorlage[], zufall: () => number = Math.random, wetter?: Wetter): GrosslagenVorlage => {
+  const gewichte = lagen.map((lage) => GROSSLAGEN_CONFIG.staerkeFaktor ** lage.stufe
+    * (wetter && lage.wetter?.includes(wetter) ? GROSSLAGEN_CONFIG.wetterGewicht : 1));
   let rest = zufall() * gewichte.reduce((a, b) => a + b, 0);
   for (let i = 0; i < lagen.length; i++) {
     rest -= gewichte[i];
@@ -115,6 +143,8 @@ export interface GrosslagenOptionen {
   vorlageId?: string;
   /** EP des Spielers: nur Lagen, für die Rang und Wachenzahl reichen. Fehlt = ohne diese Prüfung (Dev-Werkzeug) */
   xp?: number;
+  /** Aktuelles Wetter: Unwetterlagen nur bei passendem Wetter (nur zusammen mit `xp`), dann bevorzugt */
+  wetter?: Wetter;
 }
 
 /**
@@ -125,13 +155,13 @@ export function erzeugeGrosslage(
   locations: MapLocation[],
   vehicles: Vehicle[],
   jetzt: number = Date.now(),
-  { zufall = Math.random, vorlageId, xp }: GrosslagenOptionen = {},
+  { zufall = Math.random, vorlageId, xp, wetter }: GrosslagenOptionen = {},
 ): SpielEinsatz[] | null {
   const stations = locations.filter((location) => location.type === 'station');
-  const freigabe = xp === undefined ? undefined : { xp, wachen: stations.length };
+  const freigabe = xp === undefined ? undefined : { xp, wachen: stations.length, wetter };
   const machbar = getMachbareGrosslagen(vehicles, freigabe).filter((lage) => !vorlageId || lage.id === vorlageId);
   if (stations.length === 0 || machbar.length === 0) return null;
-  const lage = waehleGrosslage(machbar, zufall);
+  const lage = waehleGrosslage(machbar, zufall, wetter);
   // Mittelpunkt bei einer Wache, die zur Lage passt (Feuerwehr-Lage → Feuerwache)
   const passend = stations.filter((station) => (station.stationKind ?? 'Rettungswache') === WACHE_FUER[lage.abschnitte[0].vorlage.organization]);
   const auswahl = passend.length > 0 ? passend : stations;

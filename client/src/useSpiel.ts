@@ -99,7 +99,7 @@ import {
   erzeugeZufallsEinsatz,
   darfGrosslageEntstehen,
   erzeugeGrosslage,
-  GROSSLAGEN_CONFIG,
+  grosslagenIntervallMs,
   type GrosslageBeendet,
   formatAdresse,
   mitEchterAdresse,
@@ -587,8 +587,9 @@ export function useSpiel(optionen: UseSpielOptionen = {}) {
       const kontext: AufkommenKontext = { ...deutscheZeit(jetzt), wachen, wetter };
       // Selten: Großschadenslage mit mehreren Einsatzabschnitten (höchstens eine gleichzeitig)
       if (darfGrosslageEntstehen(xp, wachen, incidentsRef.current)
-        && entstehtEinsatz(Math.min(vergangen, 5000), GROSSLAGEN_CONFIG.intervallMs / getEinstellungen().einsatzTempo)) {
-        const abschnitte = erzeugeGrosslage(orte, fahrzeuge, jetzt, { xp });
+        && entstehtEinsatz(Math.min(vergangen, 5000), grosslagenIntervallMs(fahrzeuge, { xp, wachen, wetter }) / getEinstellungen().einsatzTempo)) {
+        // Unwetterlagen nur bei passendem echten Wetter – dann aber deutlich häufiger
+        const abschnitte = erzeugeGrosslage(orte, fahrzeuge, jetzt, { xp, wetter });
         if (abschnitte) {
           setIncidents((current) => (darfGrosslageEntstehen(xp, wachen, current) ? [...abschnitte, ...current] : current));
           abschnitte.forEach((abschnitt) => strasseNachziehen(abschnitt));

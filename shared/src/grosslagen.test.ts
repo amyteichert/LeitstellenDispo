@@ -9,6 +9,9 @@ import {
   GROSSLAGEN_VORLAGEN,
   istGrosslageFreigeschaltet,
   waehleGrosslage,
+  grosslagenIntervallMs,
+  getUnwetterLagen,
+  GROSSLAGEN_CONFIG,
 } from './grosslagen.js';
 import { findeEinsatzVorlage } from './einsatzVorlagen.js';
 import { berechneSpielTick } from './spielTick.js';
@@ -114,6 +117,47 @@ describe('Großschadenslagen – Vorlagen', () => {
     expect(getMachbareGrosslagen(gross).map((lage) => lage.id)).toContain('grossbrand-chemiepark');
     // Ein LF weniger: der Brandabschnitt braucht 4 – dann nicht mehr
     expect(getMachbareGrosslagen(gross.filter((v) => v.id !== 'lf4')).map((lage) => lage.id)).not.toContain('grossbrand-chemiepark');
+  });
+});
+
+describe('Großschadenslagen – Wetter', () => {
+  const xp = (stufe: number) => RAENGE.find((rang) => rang.stufe === stufe)!.abXp;
+  const fwWache = [wache('fw-1', 'Feuerwache')];
+  const nurLF = [fw('lf', 'LF 20')];
+
+  it('Starkregen nur bei Regen oder Gewitter/Sturm, Orkanböen nur bei Sturm', () => {
+    const freigabe = (wetter: 'klar' | 'regen' | 'sturm' | 'hitze' | 'glaette') => ({ xp: xp(7), wachen: 10, wetter });
+    const ids = (wetter: Parameters<typeof freigabe>[0]) => getMachbareGrosslagen(sturmFahrzeuge(), freigabe(wetter)).map((l) => l.id);
+    expect(ids('klar')).toEqual([]);
+    expect(ids('hitze')).toEqual([]);
+    expect(ids('glaette')).toEqual([]);
+    expect(ids('regen')).toEqual(['unwetter-starkregen']);
+    expect(ids('sturm')).toEqual(['unwetter-starkregen', 'unwetter-sturm']);
+    expect(getUnwetterLagen('sturm').map((l) => l.id)).toEqual(['unwetter-starkregen', 'unwetter-sturm']);
+    expect(getUnwetterLagen('klar')).toEqual([]);
+  });
+
+  it('mit nur einem LF: bei Sonne keine Lage, bei Regen die Starkregen-Lage', () => {
+    expect(erzeugeGrosslage(fwWache, nurLF, T0, { zufall, xp: xp(2), wetter: 'klar' })).toBeNull();
+    const lage = erzeugeGrosslage(fwWache, nurLF, T0, { zufall, xp: xp(2), wetter: 'regen' })!;
+    expect(lage[0].grosslage!.vorlageId).toBe('unwetter-starkregen');
+    // Dev-Werkzeug (ohne xp) prüft das Wetter nicht
+    expect(erzeugeGrosslage(fwWache, nurLF, T0, { zufall })).not.toBeNull();
+  });
+
+  it('passendes Wetter: Großlagen kommen häufiger – aber nur, wenn die Unwetterlage machbar ist', () => {
+    const normal = GROSSLAGEN_CONFIG.intervallMs;
+    expect(grosslagenIntervallMs(nurLF, { xp: xp(2), wachen: 1, wetter: 'klar' })).toBe(normal);
+    expect(grosslagenIntervallMs(nurLF, { xp: xp(2), wachen: 1, wetter: 'regen' })).toBe(normal / GROSSLAGEN_CONFIG.wetterHaeufiger);
+    // Rang reicht nicht → kein Unterschied
+    expect(grosslagenIntervallMs(nurLF, { xp: 0, wachen: 1, wetter: 'regen' })).toBe(normal);
+  });
+
+  it('bei Sturm wird die Unwetterlage bevorzugt, auch wenn härtere Lagen machbar wären', () => {
+    const lagen = GROSSLAGEN_VORLAGEN;
+    let unwetter = 0;
+    for (let i = 0; i < 1000; i++) if (waehleGrosslage(lagen, () => (i + 0.5) / 1000, 'sturm').wetter) unwetter++;
+    expect(unwetter).toBeGreaterThan(600);
   });
 });
 

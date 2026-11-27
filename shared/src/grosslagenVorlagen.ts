@@ -7,6 +7,7 @@
  * ohne einen Import-Kreis zu bilden.
  */
 import type { OrtsArt } from './adressen.js';
+import type { Wetter } from './aufkommen.js';
 import type { EinsatzVorlage } from './daten.js';
 import type { BedarfsKlasse, FahrzeugBedarf } from './fahrzeuge.js';
 
@@ -50,6 +51,11 @@ export interface GrosslagenVorlage {
   abRang: number;
   /** Frühestens ab so vielen Wachen */
   abWachen: number;
+  /**
+   * Nur bei diesem (echten) Wetter an der ersten Wache – z. B. Unwetterlagen. Fehlt = bei jedem Wetter.
+   * Passt das Wetter, kommt die Lage deutlich häufiger.
+   */
+  wetter?: Wetter[];
   /** z. B. „Zugunglück“ */
   name: string;
   /** Kurzbeschreibung für die Einblendung */
@@ -69,6 +75,8 @@ export const GROSSLAGEN_VORLAGEN: GrosslagenVorlage[] = [
     stufe: 1,
     abRang: 2,
     abWachen: 1,
+    // Gewitter zählt im Spiel als Sturm (siehe wetterAusMessung)
+    wetter: ['regen', 'sturm'],
     name: 'Unwetterlage – Starkregen',
     beschreibung: 'Ein Gewitter mit Starkregen zieht über den Ort, Keller und Straßen laufen voll.',
     ortsArt: 'strasse',
@@ -210,6 +218,7 @@ export const GROSSLAGEN_VORLAGEN: GrosslagenVorlage[] = [
     stufe: 2,
     abRang: 3,
     abWachen: 2,
+    wetter: ['sturm'],
     name: 'Unwetterlage – Orkanböen',
     beschreibung: 'Ein Sturm zieht über das Gebiet, Notrufe gehen im Minutentakt ein.',
     ortsArt: 'strasse',

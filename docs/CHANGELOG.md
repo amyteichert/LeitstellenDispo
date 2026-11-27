@@ -20,6 +20,9 @@ Format basiert auf [Keep a Changelog](https://keepachangelog.com/).
   5. Großbrand im Chemiepark (ab Rang 6, 6 Wachen, 6 Abschnitte, u. a. 4× LF, 2× DLK, ELW 2, GW-G, 4× RTW – 12.000 €)
 
   Gewählt wird gewichtet nach Stufe: Meistens kommt die härteste Lage, die man schafft, kleinere nur ab und zu.
+- **Unwetterlagen hängen am echten Wetter** an der ersten Wache: Starkregen nur bei Regen oder Gewitter, Orkanböen nur
+  bei Sturm. Bei passendem Wetter kommen Großlagen etwa dreimal so oft, und die Unwetterlage wird bevorzugt gewählt.
+  Das Wetter-Fenster (Kopfzeile → Wetter) zeigt an, welche Großschadenslage gerade droht.
 - Jeder Abschnitt ist ein normaler Einsatz (Alarmierung, AAO, Patienten, Bewertung und Vergütung wie gewohnt) mit dem
   Abzeichen „Großlage · Abschnittsname“. Über der Einsatzliste zeigt eine Übersicht, wie viele Abschnitte noch laufen.
 - **Auf der Karte**: gestrichelter roter Kreis um alle Abschnitte einer Lage, mit dem Namen der Lage am oberen Rand.

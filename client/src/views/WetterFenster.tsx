@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { WETTER_INFO, WETTER_LABELS, WETTER_MENGE, type Wetter } from '@leitstellendispo/shared';
+import { getUnwetterLagen, WETTER_INFO, WETTER_LABELS, WETTER_MENGE, type Wetter } from '@leitstellendispo/shared';
 import Fenster from '../Fenster';
 
 /** Kurzinfo zum aktuellen Wetter: Was bedeutet es für das Einsatzaufkommen? */
@@ -11,6 +11,7 @@ export default function WetterFenster({ wetter, onClose }: { wetter: Wetter; onC
   }, [onClose]);
 
   const mehr = Math.round((WETTER_MENGE[wetter] - 1) * 100);
+  const unwetterLagen = getUnwetterLagen(wetter);
 
   return (
     <Fenster titel={WETTER_LABELS[wetter]} label="Wetter" onClose={onClose} modal>
@@ -18,6 +19,12 @@ export default function WetterFenster({ wetter, onClose }: { wetter: Wetter; onC
         {WETTER_INFO[wetter]}
         {mehr > 0 && <> Insgesamt kommen etwa <strong>{mehr} % mehr Einsätze</strong> rein.</>}
       </p>
+      {unwetterLagen.length > 0 && (
+        <p className="ruf-fenster__info">
+          ⚠ Großschadenslagen drohen: <strong>{unwetterLagen.map((lage) => lage.name).join(', ')}</strong>. Solange das
+          Wetter anhält, kommen Großschadenslagen deutlich häufiger (wenn deine Fahrzeuge dafür reichen).
+        </p>
+      )}
       <p className="ruf-fenster__info">
         Das ist das echte Wetter an deiner ersten Wache – es wird alle 30 Minuten aktualisiert.
       </p>
