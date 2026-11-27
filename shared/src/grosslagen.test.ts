@@ -76,6 +76,10 @@ describe('Großschadenslagen – Ablauf', () => {
     expect(lage[0].coords).not.toEqual(lage[1].coords);
     const [stand] = getGrosslagenStaende(lage);
     expect(stand).toMatchObject({ name: 'Unwetterlage – Orkanböen', offen: 2, gesamt: 4, erkundungAusstehend: true });
+    // Kreis auf der Karte umfasst alle Abschnitte – auch wenn einer weiter weg auf die Straße gerückt ist
+    expect(stand.radiusKm).toBeCloseTo(0.6, 5);
+    const verschoben = lage.map((e, i) => (i === 1 ? { ...e, coords: [e.grosslage!.zentrum[0] + 0.009, e.grosslage!.zentrum[1]] as [number, number] } : e));
+    expect(getGrosslagenStaende(verschoben)[0].radiusKm).toBeGreaterThan(1.1);
   });
 
   it('Erkundung löst Welle 2 aus, nach dem letzten Abschnitt gibt es den Abschlussbonus', () => {

@@ -15,6 +15,8 @@ Format basiert auf [Keep a Changelog](https://keepachangelog.com/).
   komplett schaffen kann, und es läuft höchstens eine gleichzeitig.
 - Jeder Abschnitt ist ein normaler Einsatz (Alarmierung, AAO, Patienten, Bewertung und Vergütung wie gewohnt) mit dem
   Abzeichen „Großlage · Abschnittsname“. Über der Einsatzliste zeigt eine Übersicht, wie viele Abschnitte noch laufen.
+- **Auf der Karte**: gestrichelter roter Kreis um alle Abschnitte einer Lage, mit dem Namen der Lage am oberen Rand.
+  Wird ein Abschnitt beim Adressabgleich auf eine weiter entfernte Straße verschoben, wächst der Kreis mit.
 - **Zweite Welle**: Trifft das erste Fahrzeug an der Schadensstelle ein, meldet die Erkundung weitere Abschnitte.
 - **Abschlussbonus** (3.000–7.000 € und EP), wenn alle Abschnitte abgearbeitet sind. Verfällt ein Abschnitt oder wird er
   abgegeben, endet die Lage ohne Bonus. Am Ende kommt eine Einblendung.

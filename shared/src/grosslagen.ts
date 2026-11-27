@@ -218,9 +218,14 @@ export interface GrosslagenStand {
   /** Welle 2 steht noch aus */
   erkundungAusstehend: boolean;
   zentrum: Koordinaten;
+  /** Radius des Kreises um die Schadensstelle auf der Karte – umfasst alle laufenden Abschnitte */
+  radiusKm: number;
 }
 
-export function getGrosslagenStaende(incidents: Pick<SpielEinsatz, 'grosslage' | 'status'>[]): GrosslagenStand[] {
+/** Rand um den äußersten Abschnitt, damit sein Marker sicher im Kreis liegt */
+const KREIS_RAND_KM = 0.15;
+
+export function getGrosslagenStaende(incidents: Pick<SpielEinsatz, 'grosslage' | 'status' | 'coords'>[]): GrosslagenStand[] {
   const staende = new Map<string, GrosslagenStand>();
   for (const einsatz of incidents) {
     const info = einsatz.grosslage;
@@ -234,8 +239,11 @@ export function getGrosslagenStaende(incidents: Pick<SpielEinsatz, 'grosslage' |
       gesamt: vorlage?.abschnitte.length ?? 0,
       erkundungAusstehend: !info.welle2 && (vorlage?.abschnitte.some((a) => a.welle === 2) ?? false),
       zentrum: info.zentrum,
+      radiusKm: GROSSLAGEN_CONFIG.abstandKm + KREIS_RAND_KM,
     };
     stand.offen += 1;
+    // Abschnitte werden beim Adressabgleich auf die nächste Straße verschoben – der Kreis wächst mit
+    stand.radiusKm = Math.max(stand.radiusKm, haversineKm(info.zentrum, einsatz.coords) + KREIS_RAND_KM);
     stand.gesamt = Math.max(stand.gesamt, stand.offen);
     staende.set(info.id, stand);
   }

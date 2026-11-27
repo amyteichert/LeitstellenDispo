@@ -345,3 +345,21 @@
 .leaflet-container a.leaflet-popup-close-button {
   color: var(--color-text-muted);
 }
+
+/* Großschadenslage: Namensschild auf dem Kreisrand (Icon hat Größe 0, der Text wird um den Punkt zentriert) */
+.grosslage-schild { background: none; border: 0; }
+.grosslage-schild span {
+  position: absolute;
+  left: 0;
+  top: 0;
+  transform: translate(-50%, -50%);
+  padding: 2px 8px;
+  border: 1px solid #ef4444;
+  border-radius: 3px;
+  background: rgba(17, 24, 39, 0.92);
+  color: #fca5a5;
+  font-size: 0.72rem;
+  font-weight: 700;
+  white-space: nowrap;
+  pointer-events: none;
+}

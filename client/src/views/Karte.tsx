@@ -1,6 +1,6 @@
 import { Fragment, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { MapContainer, Marker, Polyline, Popup, TileLayer, useMap, useMapEvents } from 'react-leaflet';
+import { Circle, MapContainer, Marker, Polyline, Popup, TileLayer, useMap, useMapEvents } from 'react-leaflet';
 import L, { type LeafletMouseEvent } from 'leaflet';
 import {
   type Vehicle,
@@ -8,6 +8,7 @@ import {
   formatEinsatzTitel,
   getFahrzeugPosition,
   getFahrzeugTyp,
+  getGrosslagenStaende,
   FMS_STATUS,
   istEskaliert,
   type FahrzeugFahrt,
@@ -34,6 +35,15 @@ const INCIDENT_MARKER_COLORS: Record<SpielEinsatz['status'], string> = {
   transport: 'var(--status-transport)',
   abgeschlossen: 'var(--status-abgeschlossen)',
 };
+
+/** Namensschild einer Großschadenslage (sitzt mittig auf dem oberen Rand des Kreises) */
+const createGrosslagenSchild = (name: string) =>
+  L.divIcon({
+    className: 'grosslage-schild',
+    html: `<span>⚠ ${name.replace(/[<>&]/g, '')}</span>`,
+    iconSize: [0, 0],
+    iconAnchor: [0, 0],
+  });
 
 /**
  * Einsatz-Marker: Symbol der Einsatzart (Brand, Patient, Unfall …) auf Statusfarbe.
@@ -342,6 +352,25 @@ export function Hauptkarte({
             {krankenhaus.aufnahme ? 'Aufnahme möglich' : 'Keine Aufnahme'}
           </Popup>
         </Marker>
+      ))}
+
+      {/* Großschadenslage: gestrichelter Kreis um alle Abschnitte, darüber der Name der Lage */}
+      {getGrosslagenStaende(incidents).map((lage) => (
+        <Fragment key={lage.id}>
+          <Circle
+            center={lage.zentrum}
+            radius={lage.radiusKm * 1000}
+            interactive={false}
+            pathOptions={{ color: '#ef4444', weight: 2, dashArray: '8 6', fillColor: '#ef4444', fillOpacity: 0.08 }}
+          />
+          {/* Schild am oberen Kreisrand – in der Mitte läge es auf dem ersten Abschnitt */}
+          <Marker
+            position={[lage.zentrum[0] + lage.radiusKm / 111.32, lage.zentrum[1]]}
+            icon={createGrosslagenSchild(lage.name)}
+            interactive={false}
+            zIndexOffset={400}
+          />
+        </Fragment>
       ))}
 
       {incidents
