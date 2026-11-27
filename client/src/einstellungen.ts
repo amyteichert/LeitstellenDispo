@@ -20,10 +20,11 @@ export interface GeraeteEinstellungen {
   design: Design;
 }
 
-export type Design = 'blau' | 'rot' | 'lila' | 'gruen' | 'schwarz' | 'hell';
+export type Design = 'leitstelle' | 'blau' | 'rot' | 'lila' | 'gruen' | 'schwarz' | 'hell';
 
 /** Auswahl in den Einstellungen – `farbe` ist nur die Vorschau-Kachel */
 export const DESIGNS: Array<{ wert: Design; text: string; farbe: string; hintergrund: string }> = [
+  { wert: 'leitstelle', text: 'Leitstelle (Logo)', farbe: '#e8121f', hintergrund: '#050506' },
   { wert: 'blau', text: 'Neon-Blau', farbe: '#0a7cff', hintergrund: '#0a101b' },
   { wert: 'rot', text: 'Neon-Rot', farbe: '#ff2d55', hintergrund: '#12080b' },
   { wert: 'lila', text: 'Neon-Lila', farbe: '#b14dff', hintergrund: '#0e0816' },
@@ -49,16 +50,28 @@ export const STANDARD_EINSTELLUNGEN: GeraeteEinstellungen = {
   karteMerken: true,
   einsatzTempo: 1,
   einsatzPause: false,
-  design: 'blau',
+  design: 'leitstelle',
 };
 
 const SCHLUESSEL = 'leitstellendispo.einstellungen';
 /** Frühere, einzelne Einstellung für den Gong */
 const ALTER_TON_SCHLUESSEL = 'leitstellendispo.ton';
 
+/** Merker für die einmalige Umstellung von Blau (alter Standard) auf das Logo-Design */
+const DESIGN_UMSTELLUNG_SCHLUESSEL = 'leitstellendispo.design-umstellung-2026-11';
+
 const lade = (): GeraeteEinstellungen => {
   try {
     const gespeichert = JSON.parse(localStorage.getItem(SCHLUESSEL) ?? 'null') as Partial<GeraeteEinstellungen> | null;
+    // Blau war bis November 2026 der Standard: wer noch darauf steht, bekommt einmalig das Logo-Design.
+    // Wer danach wieder Blau wählt, behält es (der Merker verhindert eine erneute Umstellung).
+    if (localStorage.getItem(DESIGN_UMSTELLUNG_SCHLUESSEL) !== 'erledigt') {
+      if (gespeichert?.design === 'blau') {
+        gespeichert.design = 'leitstelle';
+        localStorage.setItem(SCHLUESSEL, JSON.stringify(gespeichert));
+      }
+      localStorage.setItem(DESIGN_UMSTELLUNG_SCHLUESSEL, 'erledigt');
+    }
     if (gespeichert) return { ...STANDARD_EINSTELLUNGEN, ...gespeichert };
     return { ...STANDARD_EINSTELLUNGEN, ton: localStorage.getItem(ALTER_TON_SCHLUESSEL) !== 'aus' };
   } catch {
@@ -69,10 +82,10 @@ const lade = (): GeraeteEinstellungen => {
 /** Setzt das Design am <html>-Element – auch schon vor der Anmeldung */
 const wendeDesignAn = (design: Design) => {
   if (typeof document === 'undefined') return;
-  const gueltig = DESIGNS.some((d) => d.wert === design) ? design : 'blau';
+  const gueltig = DESIGNS.some((d) => d.wert === design) ? design : STANDARD_EINSTELLUNGEN.design;
   document.documentElement.dataset.design = gueltig;
   const hintergrund = DESIGNS.find((d) => d.wert === gueltig)?.hintergrund;
-  document.querySelector('meta[name="theme-color"]')?.setAttribute('content', hintergrund ?? '#0a101b');
+  document.querySelector('meta[name="theme-color"]')?.setAttribute('content', hintergrund ?? '#050506');
 };
 
 let aktuell = lade();

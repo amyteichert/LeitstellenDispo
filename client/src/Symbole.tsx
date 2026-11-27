@@ -81,14 +81,11 @@ export function Piktogramm({ name, groesse = 16 }: { name: SymbolName; groesse?:
   );
 }
 
-/** Wort-Bild-Marke: Signet (EKG-Linie im Quadrat) und Schriftzug */
+/** Wort-Bild-Marke: Logo (Disponent am Leitstellentisch) und Schriftzug wie im Logo */
 export function Marke({ untertitel }: { untertitel?: string }) {
   return (
     <span className="marke">
-      <svg className="marke__signet" viewBox="0 0 32 32" aria-hidden>
-        <rect width="32" height="32" rx="8" fill="var(--color-primary)" />
-        <path d="M5 17h6l2.5-6 4 11 3-7.5 1.5 2.5H27" fill="none" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
-      </svg>
+      <img className="marke__signet" src="/app-icon-192.png" width={36} height={36} alt="" aria-hidden />
       <span className="marke__text">
         <strong>Leitstellen<span>Dispo</span></strong>
         {untertitel && <small>{untertitel}</small>}

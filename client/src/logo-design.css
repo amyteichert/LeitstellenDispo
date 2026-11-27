@@ -1,0 +1,255 @@
+/* =====================================================================
+   Logo-Ebene – liegt über design.css (wird in main.tsx danach geladen).
+   1. Marke (Logo + Schriftzug wie im Logo) – in allen Designs
+   2. Design „Leitstelle“ (Standard): tiefes Schwarz, Signalrot, Leuchten,
+      Lichtstreifen und Pfeile wie im Banner
+   Bewegung wird bei „Bewegung reduzieren“ (Betriebssystem) abgeschaltet.
+   ===================================================================== */
+
+@font-face {
+  font-family: 'Oswald';
+  src: url('/fonts/oswald.woff2') format('woff2');
+  font-weight: 200 700;
+  font-display: swap;
+}
+
+:root {
+  --font-marke: 'Oswald', 'Exo 2', 'Inter', system-ui, sans-serif;
+  --logo-rot: #e8121f;
+}
+
+/* ---------- 1. Marke: Logo statt Signet, Schriftzug in Großbuchstaben ---------- */
+
+.marke__signet {
+  width: 36px;
+  height: 36px;
+  border-radius: 9px;
+  filter: none;
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--logo-rot) 55%, transparent), 0 0 14px color-mix(in srgb, var(--logo-rot) 45%, transparent);
+  animation: logo-atmen 4s ease-in-out infinite;
+}
+
+@keyframes logo-atmen {
+  0%, 100% { box-shadow: 0 0 0 1px color-mix(in srgb, var(--logo-rot) 55%, transparent), 0 0 10px color-mix(in srgb, var(--logo-rot) 30%, transparent); }
+  50% { box-shadow: 0 0 0 1px color-mix(in srgb, var(--logo-rot) 80%, transparent), 0 0 20px color-mix(in srgb, var(--logo-rot) 60%, transparent); }
+}
+
+.marke__text strong {
+  font-family: var(--font-marke);
+  font-weight: 700;
+  font-size: 1.3rem;
+  line-height: 1.05;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--color-text);
+}
+
+.marke__text strong span {
+  background: none;
+  color: var(--logo-rot);
+  -webkit-text-fill-color: currentColor;
+  text-shadow: 0 0 14px color-mix(in srgb, var(--logo-rot) 55%, transparent);
+}
+
+.marke__text small {
+  letter-spacing: 0.04em;
+}
+
+/* Großes Logo auf der Startseite */
+.anmeldung__logo {
+  width: clamp(100px, 16vh, 176px);
+  height: auto;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  margin-bottom: 4px;
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--logo-rot) 70%, transparent), 0 0 40px color-mix(in srgb, var(--logo-rot) 45%, transparent);
+  animation: logo-schweben 6s ease-in-out infinite;
+}
+
+@keyframes logo-schweben {
+  0%, 100% { transform: translateY(0); box-shadow: 0 0 0 2px color-mix(in srgb, var(--logo-rot) 70%, transparent), 0 0 34px color-mix(in srgb, var(--logo-rot) 40%, transparent); }
+  50% { transform: translateY(-5px); box-shadow: 0 0 0 2px color-mix(in srgb, var(--logo-rot) 90%, transparent), 0 0 56px color-mix(in srgb, var(--logo-rot) 65%, transparent); }
+}
+
+/* ---------- 2. Design „Leitstelle“ ---------- */
+
+html[data-design='leitstelle'] {
+  --color-primary: #e8121f;
+  --color-primary-dark: #b80d18;
+  --color-primary-light: rgba(232, 18, 31, 0.16);
+  --color-primary-text: #ff4d57;
+  --color-on-primary: #fff;
+  --glow-primary: 0 0 14px rgba(232, 18, 31, 0.6);
+  --color-bg: #050506;
+  --color-surface: #0e0b0c;
+  --color-surface-raised: #171112;
+  --color-input: #0a0808;
+  --color-text: #f3eff0;
+  --color-text-muted: #a99fa1;
+  --color-border: #2a191b;
+  --color-border-strong: #3f2327;
+  /* Zweitfarbe für Verläufe: Glut-Orange statt Cyan */
+  --akzent-2: #ff5a1f;
+  --verlauf: linear-gradient(135deg, #ff2a2a, #c50d18);
+  --rand-hell: color-mix(in srgb, var(--color-primary) 38%, var(--color-border));
+  /* Bearbeitung nicht im selben Rot wie die Akzentfarbe, sonst verschwimmt der Status */
+  --status-bearbeitung: #ff6a3d;
+}
+
+/* Hintergrund: rote Lichtstreifen von rechts unten wie im Banner, links oben ein Glühen */
+html[data-design='leitstelle'] body {
+  background:
+    radial-gradient(55vmax 45vmax at 0% 0%, rgba(232, 18, 31, 0.13), transparent 60%),
+    radial-gradient(60vmax 50vmax at 100% 100%, rgba(232, 18, 31, 0.16), transparent 62%),
+    var(--color-bg);
+  background-attachment: fixed;
+}
+
+html[data-design='leitstelle'] body::before {
+  content: '';
+  position: fixed;
+  inset: -20% -10%;
+  z-index: -1;
+  pointer-events: none;
+  background: repeating-linear-gradient(
+    -38deg,
+    transparent 0 46px,
+    rgba(232, 18, 31, 0.05) 46px 48px,
+    transparent 48px 120px,
+    rgba(255, 60, 40, 0.035) 120px 121px
+  );
+  mask-image: linear-gradient(115deg, transparent 35%, black 85%);
+  -webkit-mask-image: linear-gradient(115deg, transparent 35%, black 85%);
+  animation: streifen-ziehen 26s linear infinite;
+}
+
+@keyframes streifen-ziehen {
+  from { transform: translate3d(0, 0, 0); }
+  to { transform: translate3d(-151px, 120px, 0); }
+}
+
+/* Überschriften im Logo-Stil: schmal, fett, Großbuchstaben */
+html[data-design='leitstelle'] .anmeldung__kopf h1,
+html[data-design='leitstelle'] .panel-header h2,
+html[data-design='leitstelle'] .seiten-kopf h2,
+html[data-design='leitstelle'] .seiten-inhalt h2,
+html[data-design='leitstelle'] .abschnitt-titel {
+  font-family: var(--font-marke);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+html[data-design='leitstelle'] .anmeldung__kopf h1 {
+  font-size: clamp(2.2rem, 5vw, 4rem);
+  line-height: 1.05;
+  background: linear-gradient(180deg, #ffffff 35%, #d9d4d5);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  filter: drop-shadow(0 2px 18px rgba(0, 0, 0, 0.8));
+}
+
+/* Slogan unter der Überschrift: wie „DEINE LEITSTELLE. DEINE EINSÄTZE. …“ im Logo */
+html[data-design='leitstelle'] .anmeldung__kopf p {
+  font-family: var(--font-marke);
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--color-primary-text);
+}
+
+/* Kopfzeile: Lauflicht in Signalrot an der Unterkante */
+html[data-design='leitstelle'] .topbar {
+  border-bottom-color: color-mix(in srgb, var(--color-primary) 45%, var(--color-border));
+  box-shadow: 0 1px 18px rgba(232, 18, 31, 0.18), 0 8px 30px -12px rgba(0, 0, 0, 0.7);
+}
+
+html[data-design='leitstelle'] .topbar::after {
+  height: 2px;
+  bottom: -1px;
+  background: linear-gradient(90deg, transparent 0%, transparent 35%, #ff2a2a 48%, #ffb199 50%, #ff2a2a 52%, transparent 65%, transparent 100%);
+  background-size: 250% 100%;
+  opacity: 0.9;
+  animation: lauflicht 5.5s linear infinite;
+}
+
+@keyframes lauflicht {
+  from { background-position: 100% 0; }
+  to { background-position: -150% 0; }
+}
+
+/* Paneele und Karten: feine rote Oberkante, beim Überfahren leicht leuchtend */
+html[data-design='leitstelle'] .sidebar,
+html[data-design='leitstelle'] .anmeldung__karte,
+html[data-design='leitstelle'] .finanz-kachel,
+html[data-design='leitstelle'] .einsatz-kennzahl {
+  border-top-color: color-mix(in srgb, var(--color-primary) 55%, var(--color-border));
+}
+
+html[data-design='leitstelle'] .einsatz-eintrag,
+html[data-design='leitstelle'] .location-item,
+html[data-design='leitstelle'] .katalog-karte,
+html[data-design='leitstelle'] .ausbau-karte {
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+html[data-design='leitstelle'] .einsatz-eintrag:hover,
+html[data-design='leitstelle'] .location-item:hover {
+  border-color: color-mix(in srgb, var(--color-primary) 55%, var(--color-border));
+  box-shadow: 0 0 0 1px rgba(232, 18, 31, 0.25), 0 10px 26px -14px rgba(232, 18, 31, 0.7);
+}
+
+html[data-design='leitstelle'] .einsatz-eintrag--aktiv {
+  box-shadow: inset 3px 0 0 var(--color-primary), 0 0 22px -8px rgba(232, 18, 31, 0.7);
+}
+
+/* Aktiver Reiter: rote Leuchtkante */
+html[data-design='leitstelle'] .tab-leiste__tab--aktiv::before {
+  background: var(--color-primary);
+  box-shadow: 0 0 10px var(--color-primary);
+}
+
+/* Hauptknöpfe: Signalrot mit Leuchten, Pfeil-Glanz läuft beim Überfahren durch */
+html[data-design='leitstelle'] .btn--primary {
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  box-shadow: 0 0 0 1px rgba(255, 80, 80, 0.35), 0 8px 24px -8px rgba(232, 18, 31, 0.9), inset 0 1px 0 rgba(255, 255, 255, 0.22);
+}
+
+html[data-design='leitstelle'] .btn--primary:hover:not(:disabled) {
+  box-shadow: 0 0 0 1px rgba(255, 110, 110, 0.5), 0 12px 32px -8px rgba(232, 18, 31, 1), inset 0 1px 0 rgba(255, 255, 255, 0.3);
+}
+
+/* Startseite: Pfeile (»»») unter dem Slogan wie im Logo */
+html[data-design='leitstelle'] .anmeldung__kopf::after {
+  content: '';
+  width: 132px;
+  height: 14px;
+  margin-top: 2px;
+  pointer-events: none;
+  background:
+    linear-gradient(45deg, transparent 0 40%, var(--color-primary) 40% 60%, transparent 60%) 0 0 / 14px 7px repeat-x,
+    linear-gradient(135deg, transparent 0 40%, var(--color-primary) 40% 60%, transparent 60%) 0 7px / 14px 7px repeat-x;
+  mask-image: linear-gradient(90deg, transparent, black 30%, black 70%, transparent);
+  -webkit-mask-image: linear-gradient(90deg, transparent, black 30%, black 70%, transparent);
+  filter: drop-shadow(0 0 6px rgba(232, 18, 31, 0.8));
+  animation: pfeile-laufen 1.6s linear infinite;
+}
+
+@keyframes pfeile-laufen {
+  from { background-position: 0 0, 0 7px; }
+  to { background-position: 14px 0, 14px 7px; }
+}
+
+/* ---------- Ruhig, wenn das Betriebssystem weniger Bewegung wünscht ---------- */
+
+@media (prefers-reduced-motion: reduce) {
+  .marke__signet,
+  .anmeldung__logo,
+  html[data-design='leitstelle'] body::before,
+  html[data-design='leitstelle'] .topbar::after,
+  html[data-design='leitstelle'] .anmeldung__kopf::after {
+    animation: none !important;
+  }
+}

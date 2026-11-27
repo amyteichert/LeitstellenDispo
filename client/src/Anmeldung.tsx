@@ -138,6 +138,7 @@ export default function Anmeldung({ children }: {
       </div>
 
       <header className="anmeldung__kopf">
+        <img className="anmeldung__logo" src="/logo-rund.webp" width={176} height={176} alt="LeitstellenDispo-Logo" />
         <h1>Bereit für deine Schicht?</h1>
         <p>{APP_SUBTITLE}</p>
       </header>
